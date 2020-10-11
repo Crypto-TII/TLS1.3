@@ -461,26 +461,28 @@ int main(int argc, char const *argv[])
     char ss[32];
     octet SS = {0, sizeof(ss), ss};
     char digest[32];
-    char zz[32];
-    octet ZZ = {0,sizeof(zz),zz};
+    char zk[32];                    // Zero Key
+    octet ZK = {0,sizeof(zk),zk};
     char es[32];
     octet ES = {0,sizeof(es),es};
     char ds[32];
     octet DS = {0,sizeof(ds),ds};
+    char ms[32];
+    octet MS = {0,sizeof(ms),ms};
     char info[32];
     octet INFO = {0,sizeof(info),info};
     char hs[32];
     octet HS = {0,sizeof(hs),hs};
     char lb[32];
     octet LB = {0,sizeof(lb),lb};
-    char ctx[32];
-    octet CTX = {0,sizeof(ctx),ctx};
+    char emh[32];
+    octet EMH = {0,sizeof(emh),emh};
     char hh[32];
     octet HH={0,sizeof(hh),hh};
-    char chts[32];
-    octet CHTS={0,sizeof(chts),chts};
-    char shts[32];
-    octet SHTS={0,sizeof(shts),shts};
+    char cts[32];
+    octet CTS={0,sizeof(cts),cts};
+    char sts[32];
+    octet STS={0,sizeof(sts),sts};
     char chk[32];
     octet CHK={0,sizeof(chk),chk};
     char shk[32];
@@ -491,7 +493,7 @@ int main(int argc, char const *argv[])
     octet SHIV={0,sizeof(shiv),shiv};
 
 
-    OCT_jbyte(&ZZ,0,32);
+    OCT_jbyte(&ZK,0,32);
 
     int i, res;
     unsigned long ran;
@@ -580,15 +582,19 @@ int main(int argc, char const *argv[])
 
     HASH256_init(&sh256); 
     HASH256_hash(&sh256,digest); 
-    OCT_jbytes(&CTX,digest,32);
+    OCT_jbytes(&EMH,digest,32);
 
-    HKDF_Extract(MC_SHA2,32,&ES,&ZZ,&ZZ);
+
+
+
+
+    HKDF_Extract(MC_SHA2,32,&ES,&ZK,&ZK);
 
     printf("Early Secret = "); OCT_output(&ES);
-    printf("Empty Hash context = "); OCT_output(&CTX);
+    printf("Empty Hash context = "); OCT_output(&EMH);
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"derived");
-    HKDF_Expand_Label(MC_SHA2,32,&DS,32,&ES,&INFO,&CTX);
+    HKDF_Expand_Label(MC_SHA2,32,&DS,32,&ES,&INFO,&EMH);
 
     printf("Derived Secret = "); OCT_output(&DS);
 
@@ -598,35 +604,152 @@ int main(int argc, char const *argv[])
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"c hs traffic");
-    HKDF_Expand_Label(MC_SHA2,32,&CHTS,32,&HS,&INFO,&HH);
+    HKDF_Expand_Label(MC_SHA2,32,&CTS,32,&HS,&INFO,&HH);
 
-    printf("Client handshake traffic secret= ");OCT_output(&CHTS);
+    printf("Client handshake traffic secret= ");OCT_output(&CTS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"s hs traffic");
-    HKDF_Expand_Label(MC_SHA2,32,&SHTS,32,&HS,&INFO,&HH);
+    HKDF_Expand_Label(MC_SHA2,32,&STS,32,&HS,&INFO,&HH);
 
-    printf("Server handshake traffic secret= ");OCT_output(&SHTS);
+    printf("Server handshake traffic secret= ");OCT_output(&STS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,32,&CHK,16,&CHTS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,32,&CHK,16,&CTS,&INFO,NULL);
 
     printf("Client handshake key= "); OCT_output(&CHK);
 
-    HKDF_Expand_Label(MC_SHA2,32,&SHK,16,&SHTS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,32,&SHK,16,&STS,&INFO,NULL);
 
     printf("Server handshake key= "); OCT_output(&SHK);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"iv");
-    HKDF_Expand_Label(MC_SHA2,32,&CHIV,12,&CHTS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,32,&CHIV,12,&CTS,&INFO,NULL);
 
     printf("Client handshake IV= "); OCT_output(&CHIV);
 
-    HKDF_Expand_Label(MC_SHA2,32,&SHIV,12,&SHTS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,32,&SHIV,12,&STS,&INFO,NULL);
 
     printf("Server handshake IV= "); OCT_output(&SHIV);
+
+// Start Hash Transcript
+
+    HASH256_init(&sh256);
+    for (int i=0;i<CH.len;i++)
+        HASH256_process(&sh256,CH.val[i]);
+    for (int i=0;i<SH.len;i++)
+        HASH256_process(&sh256,SH.val[i]);
+    
+
+// Server's turn
+
+    char cert[1200];
+    octet CERT={0,sizeof(cert),cert};
+
+// Server certificate + Server Certificate Verifier
+// I should really construct this myself, but I don't know private key!
+// Signature is using RSA-PSS-RSAE-SHA256 2048-bit key.
+    OCT_fromHex(&CERT,(char*)"0800000200000b00032e0000032a0003253082032130820209a0030201020208155a92adc2048f90300d06092a864886f70d01010b05003022310b300906035504061302555331133011060355040a130a4578616d706c65204341301e170d3138313030353031333831375a170d3139313030353031333831375a302b310b3009060355040613025553311c301a060355040313136578616d706c652e756c666865696d2e6e657430820122300d06092a864886f70d01010105000382010f003082010a0282010100c4803606bae7476b089404eca7b691043ff792bc19eefb7d74d7a80d001e7b4b3a4ae60fe8c071fc73e7024c0dbcf4bdd11d396bba70464a13e94af83df3e10959547bc955fb412da3765211e1f3dc776caa53376eca3aecbec3aab73b31d56cb6529c8098bcc9e02818e20bf7f8a03afd1704509ece79bd9f39f1ea69ec47972e830fb5ca95de95a1e60422d5eebe527954a1e7bf8a86f6466d0d9f16951a4cf7a04692595c1352f2549e5afb4ebfd77a37950144e4c026874c653e407d7d23074401f484ffd08f7a1fa05210d1f4f0d5ce79702932e2cabe701fdfad6b4bb71101f44bad666a11130fe2ee829e4d029dc91cdd6716dbb9061886edc1ba94210203010001a3523050300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030206082b06010505070301301f0603551d23041830168014894fde5bcc69e252cf3ea300dfb197b81de1c146300d06092a864886f70d01010b05000382010100591645a69a2e3779e4f6dd271aba1c0bfd6cd75599b5e7c36e533eff3659084324c9e7a504079d39e0d42987ffe3ebdd09c1cf1d914455870b571dd19bdf1d24f8bb9a11fe80fd592ba0398cde11e2651e618ce598fa96e5372eef3d248afde17463ebbfabb8e4d1ab502a54ec0064e92f7819660d3f27cf209e667fce5ae2e4ac99c7c93818f8b2510722dfed97f32e3e9349d4c66c9ea6396d744462a06b42c6d5ba688eac3a017bddfc8e2cfcad27cb69d3ccdca280414465d3ae348ce0f34ab2fb9c618371312b191041641c237f11a5d65c844f0404849938712b959ed685bc5c5dd645ed19909473402926dcb40e3469a15941e8e2cca84bb6084636a000000f0001040804010017feb533ca6d007d0058257968424bbc3aa6909e9d49557576a520e04a5ef05f0e86d24ff43f8eb861eef595228d7032aa360f714e667413926ef4f8b5803b69e35519e3b23f4373dfac6787066dcb4756b54560e0886e9b962c4ad28dab26bad1abc25916b09af286537f684f808aefee73046cb7df0a84fbb5967aca131f4b1cf389799403a30c02d29cbdadb72512db9cec2e5e1d00e50cafcf6f21091ebc4f253c5eab01a679baeabeedb9c9618f66006b8244d6622aaa56887ccfc66a0f3851dfa13a78cff7991e03cb2c3a0ed87d7367362eb7805b00b2524ff298a4da487cacdeaf8a2336c5631b3efa935bb411e753ca13b015fec7e4a730f1369f9e14000020ea6ee176dccc4af1859e9e4e93f797eac9a78ce439301e35275ad43f3cddbde316");
+
+// Hash Transcript
+    for (int i=0;i<CERT.len-1;i++)   // omit terminating 0x16 from above
+        HASH256_process(&sh256,CERT.val[i]);
+    HASH256_hash(&sh256,digest);
+    printf("Hash= "); for (int i=0;i<32;i++) printf("%02x",(unsigned char)digest[i]); printf("\n");
+    OCT_clear(&HH);
+    OCT_jbytes(&HH,digest,32);
+    printf("Hash= "); OCT_output(&HH);
+
+    char sccs[6];  // server change cipher spec - not used
+    octet SCCS={0,sizeof(sccs),sccs};
+
+    OCT_fromHex(&SCCS,(char *)"140303000101");
+
+// record header
+    char rh[5];
+    octet RH={0,sizeof(rh),rh};
+    OCT_fromHex(&RH,(char *)"1703030475");  
+    
+    gcm g;
+    GCM_init(&g,16,SHK.val,12,SHIV.val);  // Encrypt with Server handshake Key and IV
+    GCM_add_header(&g,RH.val,RH.len);
+
+    GCM_add_plain(&g,CERT.val,CERT.val,CERT.len);
+
+    char tag[16];
+    octet TAG={0,sizeof(tag),tag};
+    GCM_finish(&g,TAG.val); TAG.len=16;
+
+    printf("ciphered cert= ");OCT_output(&CERT);
+    printf("authentication tag= "); OCT_output(&TAG);
+
+
+
+// ZK is empty Key
+// EMH is empty Hash
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"derived");
+    HKDF_Expand_Label(MC_SHA2,32,&DS,32,&HS,&INFO,&EMH);   // Use handshake secret from above
+    printf("Derived Secret = "); OCT_output(&DS);
+
+    HKDF_Extract(MC_SHA2,32,&MS,&DS,&ZK);
+    printf("Master Secret= ");OCT_output(&MS);
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"c ap traffic");
+    HKDF_Expand_Label(MC_SHA2,32,&CTS,32,&MS,&INFO,&HH);
+
+    printf("Client application traffic secret= ");OCT_output(&CTS);
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"s ap traffic");
+    HKDF_Expand_Label(MC_SHA2,32,&STS,32,&MS,&INFO,&HH);
+
+    printf("Server application traffic secret= ");OCT_output(&STS);
+
+    char cak[32];
+    octet CAK={0,sizeof(cak),cak};
+    char sak[32];
+    octet SAK={0,sizeof(sak),sak};
+    char caiv[32];
+    octet CAIV={0,sizeof(caiv),caiv};
+    char saiv[32];
+    octet SAIV={0,sizeof(saiv),saiv};
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"key");
+    HKDF_Expand_Label(MC_SHA2,32,&CAK,16,&CTS,&INFO,NULL);
+
+    printf("Client application key= "); OCT_output(&CAK);
+
+    HKDF_Expand_Label(MC_SHA2,32,&SAK,16,&STS,&INFO,NULL);
+
+    printf("Client application key= "); OCT_output(&SAK);
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"iv");
+    HKDF_Expand_Label(MC_SHA2,32,&CAIV,12,&CTS,&INFO,NULL);
+
+    printf("Client application IV= "); OCT_output(&CAIV);
+
+    HKDF_Expand_Label(MC_SHA2,32,&SAIV,12,&STS,&INFO,NULL);
+
+    printf("Server application IV= "); OCT_output(&SAIV);
+
+
+// Server's Response 
+    char sr[2000];
+    octet SR = {0, sizeof(sr), sr};
+
+// build server response
+    OCT_joctet(&SR,&SCCS);
+    OCT_joctet(&SR,&RH);
+    OCT_joctet(&SR,&CERT);
+    OCT_joctet(&SR,&TAG);
+
 
     return 0;
 } 
