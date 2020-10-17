@@ -7,7 +7,9 @@
 #include <time.h>
 #include "ecdh_NIST256.h"  
 #include "ecdh_C25519.h"
+#include "rsa_RSA2048.h"
 #include "randapi.h"  
+#include "x509.h"
    
 #define TLS_AES_128_GCM_SHA256 0x1301
 #define TLS_AES_256_GCM_SHA384 0x1302
@@ -97,19 +99,48 @@ void hashOctet(hash256* sha,octet *X)
         HASH256_process(sha,X->val[i]);
 }
 
-// Get expected number of bytes into an octet
-int getOctet(int sock,octet *B,int expected)
+int getBytes(int sock,char *b,int expected)
 {
     int more,i=0,len=expected;
-    B->len=len;
     while(len>0)
     {
-        more=read(sock,&B->val[i],len);
+        more=read(sock,&b[i],len);
         if (more<0) return -1;
         i+=more;
         len-=more;
     }
     return 0;
+}
+
+// Get 16-bit Integer from stream
+int getInt16(int sock)
+{
+    char b[2];
+    getBytes(sock,b,2);
+    return 256*(int)(unsigned char)b[0]+(int)(unsigned char)b[1];
+}
+
+// Get 24-bit Integer from stream
+int getInt24(int sock)
+{
+    char b[3];
+    getBytes(sock,b,3);
+    return 65536*(int)(unsigned char)b[0]+256*(int)(unsigned char)b[1]+(int)(unsigned char)b[2];
+}
+
+// Get byte from stream
+int getByte(int sock)
+{
+    char b[1];
+    getBytes(sock,b,1);
+    return (int)(unsigned char)b[0];
+}
+
+// Get expected number of bytes into an octet
+int getOctet(int sock,octet *B,int expected)
+{
+    B->len=expected;
+    return getBytes(sock,B->val,expected);
 }
 
 // parse out an octet of length len from octet M into E
@@ -132,29 +163,22 @@ int parseInt16(octet *M,int &ptr)
     return 256*b0+b1;
 }
 
+// parse out a 24-bit integer from octet M
+int parseInt24(octet *M,int &ptr)
+{
+    int b0,b1,b2;
+    if (ptr+3>M->len) return -1;
+    b0=(int)(unsigned char)M->val[ptr++];
+    b1=(int)(unsigned char)M->val[ptr++];
+    b2=(int)(unsigned char)M->val[ptr++];
+    return 65536*b0+256*b1+b2;
+}
+
 // parse out a byte from octet M
 int parseByte(octet *M,int &ptr)
 {
     if (ptr+1>M->len) return -1;
     return (int)(unsigned char)M->val[ptr++];
-}
-
-// Get 16-bit Integer from stream
-int getInt16(int sock)
-{
-    char buff[2];
-    octet B={0, sizeof(buff), buff};
-    getOctet(sock,&B,2);
-    return 256*(int)(unsigned char)B.val[0]+(int)(unsigned char)B.val[1];
-}
-
-// Get byte from stream
-int getByte(int sock)
-{
-    char b[1];
-    octet B={0,sizeof(b),b};
-    getOctet(sock,&B,1);
-    return (int)(unsigned char)B.val[0];
 }
 
 // Build Extensions..
@@ -345,6 +369,107 @@ int clientHello(octet *CH,char *serverName,int nsc,int *ciphers,int nsg,int *sup
     return CH->len;
 
 }
+// get wrapper, decrypt it, and parse it!
+bool getServerResponse(int sock,octet *SHK,octet *SHIV,octet *SR)
+{
+    int len=0;
+    char rh[5];
+    octet RH={0,sizeof(rh),rh};
+    char sccs[5];
+    octet SCCS={0,sizeof(sccs),sccs};
+    char tag[16];
+    octet TAG={0,sizeof(tag),tag};
+    char rtag[16];
+    octet RTAG={0,sizeof(rtag),rtag};
+
+    OCT_clear(SR);
+
+    getOctet(sock,&RH,3);  // strip out SCCS
+    int left=getInt16(sock); // get SCCS length
+    OCT_joctet(&SCCS,&RH);
+    OCT_jint(&SCCS,left,2);
+    len+=5;
+    getBytes(sock,&SCCS.val[5],left);
+    len+=left;
+    SCCS.len=len;
+
+// get Header
+    len=0;
+    OCT_clear(&RH);
+    getOctet(sock,&RH,3);  // Signed Cert header
+    left=getInt16(sock);
+    OCT_jint(&RH,left,2);
+    printf("Header= ");OCT_output(&RH);
+//    OCT_joctet(SR,&RH);
+//    len+=5;
+    getBytes(sock,SR->val,left-16);
+
+//decrypt it
+    gcm g;
+    GCM_init(&g,16,SHK->val,12,SHIV->val);  // Encrypt with Server handshake Key and IV
+    GCM_add_header(&g,RH.val,RH.len);
+
+    GCM_add_cipher(&g,SR->val,SR->val,left-16);
+
+//check TAG
+    GCM_finish(&g,TAG.val); TAG.len=16;
+    printf("TAG= ");OCT_output(&TAG);
+
+    len+=(left-16);
+    SR->len=len;    
+
+    getOctet(sock,&RTAG,16);
+    printf("RTAG= ");OCT_output(&RTAG);
+
+    if (!OCT_comp(&TAG,&RTAG))
+    {
+        printf("NOT authenticated!\n");
+        return false;
+    }
+    printf("Server response authenticates\n");
+    return true;
+}
+
+// read in SCCS - and ignore it
+void getSCCS(int sock,octet *SCCS)
+{
+    char rh[3];
+    octet RH={0,sizeof(rh),rh};
+    getOctet(sock,&RH,3);
+    int left=getInt16(sock);
+    OCT_clear(SCCS);
+    OCT_joctet(SCCS,&RH);
+    OCT_jint(SCCS,left,2);
+    getBytes(sock,&SCCS->val[5],left);
+    SCCS->len+=left;
+}
+
+int parseServerResponse(octet *SR,octet *SCERT,octet *SCV,octet *HFIN) //returns pointer into SR indicating where hashing should end
+{
+    int hut;
+    int ptr=0;
+    int ht=parseByte(SR,ptr); // handshake type
+    int len=parseInt24(SR,ptr);
+    ptr+=len;   // skip extensions
+
+    int nb=parseByte(SR,ptr);
+    if (nb!=0x0b) printf("Something wrong 1 %x %x\n",len,nb);
+    len=parseInt24(SR,ptr);
+    nb=parseByte(SR,ptr);
+    if (nb!=0x00) printf("Something wrong 2 %x\n",nb);
+    len=parseInt24(SR,ptr); // get length of certificate chain
+    len=parseInt24(SR,ptr); // get length of only certificate
+    parseOctet(SCERT,len,SR,ptr);
+    ptr+=2;     // skip extensions
+    hut=ptr;                  // hash up tp this point
+    nb=parseByte(SR,ptr);
+    if (nb!=0x0f) printf("Something wrong 2 %x\n",nb);
+    len=parseInt24(SR,ptr);
+    nb=parseInt16(SR,ptr);   // should be 0804
+    len=parseInt16(SR,ptr);
+    parseOctet(SCV,len,SR,ptr);
+    return hut;
+}
 
 bool getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *PK)
 {
@@ -429,6 +554,25 @@ bool getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *PK)
     return true;
 }
 
+void print_out(char *des, octet *c, int index, int len)
+{
+    int i;
+    printf("%s [", des);
+    for (i = 0; i < len; i++)
+        printf("%c", c->val[index + i]);
+    printf("]\n");
+}
+
+void print_date(char *des, octet *c, int index)
+{
+    int i = index;
+    printf("%s [", des);
+    if (i == 0) printf("]\n");
+    else printf("20%c%c-%c%c-%c%c %c%c:%c%c:%c%c]\n", c->val[i], c->val[i + 1], c->val[i + 2], c->val[i + 3], c->val[i + 4], c->val[i + 5], c->val[i + 6], c->val[i + 7], c->val[i + 8], c->val[i + 9], c->val[i + 10], c->val[i + 11]);
+}
+
+#define CHOICE USE_NIST256
+
 int main(int argc, char const *argv[]) 
 { 
     int sock, valread, port; 
@@ -453,6 +597,8 @@ int main(int argc, char const *argv[])
     octet ES = {0,sizeof(es),es};
     char ds[32];
     octet DS = {0,sizeof(ds),ds};
+    char ms[32];
+    octet MS = {0,sizeof(ms),ms};
     char info[32];
     octet INFO = {0,sizeof(info),info};
     char hs[32];
@@ -641,6 +787,340 @@ int main(int argc, char const *argv[])
     HKDF_Expand_Label(MC_SHA2,32,&SHIV,12,&SHTS,&INFO,NULL);
 
     printf("Server handshake IV= "); OCT_output(&SHIV);
+
+// Client now receives certificate and verifier. Need to parse these out, check CA signature on the cert
+// (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
+// on the "verifier". Note CA signature might use old methods, by server will use PSS padding for its signature (if ECC).
+
+    char sccs[20];  // server change cipher spec - not used
+    octet SCCS={0,sizeof(sccs),sccs};
+    char sr[1200];
+    octet SR={0,sizeof(sr),sr};
+    char scert[1200];
+    octet SCERT={0,sizeof(scert),scert};
+    char scvsig[500];
+    octet SCVSIG={0,sizeof(scvsig),scvsig};
+    char fin[200];
+    octet FIN={0,sizeof(fin),fin};
+
+//    getSCCS(sock,&SCCS);
+//    printf("server change cipher= "); OCT_output(&SCCS);
+
+    getServerResponse(sock,&SHK,&SHIV,&SR);
+
+    printf("server response= "); OCT_output(&SR);
+
+// Start Hash Transcript
+
+    HASH256_init(&sh256);
+    for (int i=0;i<CH.len;i++)
+        HASH256_process(&sh256,CH.val[i]);
+    for (int i=0;i<SH.len;i++)
+        HASH256_process(&sh256,SH.val[i]);
+
+// Hash Transcript
+    for (int i=0;i<SR.len-1;i++)   // omit terminating 0x16 from above
+        HASH256_process(&sh256,SR.val[i]);
+    HASH256_hash(&sh256,digest);
+    OCT_clear(&HH);
+    OCT_jbytes(&HH,digest,32);
+    printf("Hash= "); OCT_output(&HH);
+
+    char emh[64];
+    octet EMH = {0,sizeof(emh),emh};   // empty hash
+    HASH256_init(&sh256); 
+    HASH256_hash(&sh256,digest); 
+    OCT_jbytes(&EMH,digest,32);
+
+
+    char zk[32];                    // Zero Key
+    octet ZK = {0,sizeof(zk),zk};
+    OCT_jbyte(&ZK,0,32);
+
+// traffic keys
+
+    char cts[32];
+    octet CTS={0,sizeof(cts),cts};
+    char sts[32];
+    octet STS={0,sizeof(sts),sts};
+
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"derived");
+    HKDF_Expand_Label(MC_SHA2,32,&DS,32,&HS,&INFO,&EMH);   // Use handshake secret from above
+    printf("Derived Secret = "); OCT_output(&DS);
+
+    HKDF_Extract(MC_SHA2,32,&MS,&DS,&ZK);
+    printf("Master Secret= ");OCT_output(&MS);
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"c ap traffic");
+    HKDF_Expand_Label(MC_SHA2,32,&CTS,32,&MS,&INFO,&HH);
+
+    printf("Client application traffic secret= ");OCT_output(&CTS);
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"s ap traffic");
+    HKDF_Expand_Label(MC_SHA2,32,&STS,32,&MS,&INFO,&HH);
+
+    printf("Server application traffic secret= ");OCT_output(&STS);
+
+    char cak[32];
+    octet CAK={0,sizeof(cak),cak};
+    char sak[32];
+    octet SAK={0,sizeof(sak),sak};
+    char caiv[32];
+    octet CAIV={0,sizeof(caiv),caiv};
+    char saiv[32];
+    octet SAIV={0,sizeof(saiv),saiv};
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"key");
+    HKDF_Expand_Label(MC_SHA2,32,&CAK,16,&CTS,&INFO,NULL);
+
+    printf("Client application key= "); OCT_output(&CAK);
+
+    HKDF_Expand_Label(MC_SHA2,32,&SAK,16,&STS,&INFO,NULL);
+
+    printf("Server application key= "); OCT_output(&SAK);
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"iv");
+    HKDF_Expand_Label(MC_SHA2,32,&CAIV,12,&CTS,&INFO,NULL);
+
+    printf("Client application IV= "); OCT_output(&CAIV);
+
+    HKDF_Expand_Label(MC_SHA2,32,&SAIV,12,&STS,&INFO,NULL);
+
+    printf("Server application IV= "); OCT_output(&SAIV);
+
+// parse Server Response - extract Signed cert plus server cert verifier
+        int hut=parseServerResponse(&SR,&SCERT,&SCVSIG,&FIN); //returns pointer into SR indicating where hashing should end
+
+    printf("Signed Cert= "); OCT_output(&SCERT);
+    printf("Server Certificate Signature= "); OCT_output(&SCVSIG);
+
+// Start Hash Transcript
+
+    HASH256_init(&sh256);
+    for (int i=0;i<CH.len;i++)
+        HASH256_process(&sh256,CH.val[i]);
+    for (int i=0;i<SH.len;i++)
+        HASH256_process(&sh256,SH.val[i]);
+    for (int i=0;i<hut;i++)
+        HASH256_process(&sh256,SR.val[i]);
+
+    HASH256_hash(&sh256,digest);
+
+    OCT_clear(&HH);
+    OCT_jbytes(&HH,digest,32);
+    printf("Hash= "); OCT_output(&HH);
+
+
+    pktype st, ca, pt;
+    int c,ic,len,sha;
+
+    char sig[512];
+    octet SIG={0,sizeof(sig),sig};
+    char r[500];
+    octet R={0,sizeof(r),r};
+    char s[500];
+    octet S={0,sizeof(s),s};
+    char p1[500];
+    octet P1={0,sizeof(p1),p1};
+    char p2[500];
+    octet P2={0,sizeof(p2),p2};
+    char cert[512];
+    octet CERT={0,sizeof(cert),cert};
+
+    st = X509_extract_cert_sig(&SCERT, &SIG); // returns signature type
+
+    if (st.type == 0)
+    {
+        printf("Unable to extract cert signature\n");
+        return 0;
+    }
+
+    if (st.type == X509_ECC)
+    {
+        OCT_chop(&SIG, &S, SIG.len / 2);
+        OCT_copy(&R, &SIG);
+        printf("Certificate's ECC SIG= \n");
+        OCT_output(&R);
+        OCT_output(&S);
+        printf("\n");
+    }
+
+    if (st.type == X509_RSA)
+    {
+        printf("Certificate's RSA SIG= \n");
+        OCT_output(&SIG);
+        printf("\n");
+    }
+
+    if (st.hash == X509_H256) printf("Hashed with SHA256\n");
+    if (st.hash == X509_H384) printf("Hashed with SHA384\n");
+    if (st.hash == X509_H512) printf("Hashed with SHA512\n");
+
+// Extract Cert from signed Cert
+
+    c = X509_extract_cert(&SCERT, &CERT);
+    printf("\nCert= \n");
+    OCT_output(&CERT);
+    printf("\n");
+
+// show some issuer details
+    printf("Issuer Details\n");
+    ic = X509_find_issuer(&CERT);
+    c = X509_find_entity_property(&CERT, &X509_ON, ic, &len);
+    print_out((char *)"owner=", &CERT, c, len);
+    c = X509_find_entity_property(&CERT, &X509_CN, ic, &len);
+    print_out((char *)"country=", &CERT, c, len);
+    c = X509_find_entity_property(&CERT, &X509_EN, ic, &len);
+    print_out((char *)"email=", &CERT, c, len);
+    printf("\n");
+
+// show some subject details
+    printf("Subject Details\n");
+    ic = X509_find_subject(&CERT);
+    c = X509_find_entity_property(&CERT, &X509_MN, ic, &len);
+    print_out((char *)"Name=", &CERT, c, len);
+    c = X509_find_entity_property(&CERT, &X509_CN, ic, &len);
+    print_out((char *)"country=", &CERT, c, len);
+    c = X509_find_entity_property(&CERT, &X509_EN, ic, &len);
+    print_out((char *)"email=", &CERT, c, len);
+    printf("\n");
+
+    ic = X509_find_validity(&CERT);
+    c = X509_find_start_date(&CERT, ic);
+    print_date((char *)"start date= ", &CERT, c);
+    c = X509_find_expiry_date(&CERT, ic);
+    print_date((char *)"expiry date=", &CERT, c);
+    printf("\n");
+
+
+    char cakey[500];
+    octet CAKEY = {0, sizeof(cakey), cakey};
+    char certkey[500];
+    octet CERTKEY = {0, sizeof(certkey), certkey};
+
+    RSA2048::rsa_public_key PK;
+
+    bool self_signed=X509_self_signed(&CERT);
+
+    ca = X509_extract_public_key(&CERT, &CAKEY);
+
+    if (ca.type == 0)
+    {
+        printf("Not supported by library\n");
+        return 0;
+    }
+    if (self_signed)
+    {
+        printf("Not self-signed\n");
+    }
+
+    if (ca.type == X509_ECC)
+    {
+        printf("EXTRACTED ECC PUBLIC KEY= \n");
+        OCT_output(&CAKEY);
+    }
+    if (ca.type == X509_RSA)
+    {
+        printf("EXTRACTED RSA PUBLIC KEY= \n");
+        OCT_output(&CAKEY);
+        PK.e = 65537; // assuming this!
+        RSA2048::RSA_fromOctet(PK.n, &CAKEY);
+    }
+    printf("\n");
+
+// Cert is self-signed - so check signature
+
+    if (self_signed)
+    {
+        printf("Checking Self-Signed Signature\n");
+        if (ca.type == X509_ECC)
+        {
+            if (ca.curve != CHOICE)
+            {
+                printf("Curve is not supported\n");
+                return 0;
+            }
+            res = NIST256::ECP_PUBLIC_KEY_VALIDATE(&CAKEY);
+            if (res != 0)
+            {
+                printf("ECP Public Key is invalid!\n");
+                return 0;
+            }
+            else printf("ECP Public Key is Valid\n");
+
+            sha = 0;
+
+            if (st.hash == X509_H256) sha = SHA256;
+            if (st.hash == X509_H384) sha = SHA384;
+            if (st.hash == X509_H512) sha = SHA512;
+            if (st.hash == 0)
+            {
+                printf("Hash Function not supported\n");
+                return 0;
+            }
+
+            if (NIST256::ECP_VP_DSA(sha, &CAKEY, &CERT, &R, &S) != 0)
+            {
+                printf("***ECDSA Verification Failed\n");
+                return 0;
+            }
+            else
+                printf("ECDSA Signature/Verification succeeded \n");
+        }
+
+        if (ca.type == X509_RSA)
+        {
+            if (ca.curve != 2048)
+            {
+                printf("RSA bit size is not supported\n");
+                return 0;
+            }
+
+            sha = 0;
+
+            if (st.hash == X509_H256) sha = SHA256;
+            if (st.hash == X509_H384) sha = SHA384;
+            if (st.hash == X509_H512) sha = SHA512;
+            if (st.hash == 0)
+            {
+                printf("Hash Function not supported\n");
+                return 0;
+            }
+            core::PKCS15(sha, &CERT, &P1);
+
+            RSA2048::RSA_ENCRYPT(&PK, &SIG, &P2);
+
+            if (OCT_comp(&P1, &P2))
+                printf("RSA Signature/Verification succeeded \n");
+            else
+            {
+                printf("***RSA Verification Failed\n");
+ //           return 0;
+            }
+        }
+    }
+
+    char scv[1200];
+    octet SCV={0,sizeof(scv),scv};
+
+    OCT_jbyte(&SCV,32,64);
+    OCT_jstring(&SCV,(char *)"TLS 1.3, server CertificateVerify");
+    OCT_jbyte(&SCV,0,1);
+    OCT_joctet(&SCV,&HH);
+
+    RSA2048::RSA_ENCRYPT(&PK, &SCVSIG, &P2);  // recover what was signed
+
+    if (core::PSS_VERIFY(32,&SCV,&P2))      // Verify its PSS encoding of original
+        printf("TLS_PSS signature verified\n");
+    else
+        printf("TLS_PSS signature FAILED\n");
+
 
     return 0;
 } 

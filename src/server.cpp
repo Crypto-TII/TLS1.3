@@ -8,7 +8,9 @@
 #include <time.h>
 #include "ecdh_NIST256.h"  
 #include "ecdh_C25519.h"
+#include "rsa_RSA2048.h"
 #include "randapi.h"  
+#include "x509.h"
 
 #define TLS_AES_128_GCM_SHA256 0x1301
 #define TLS_AES_256_GCM_SHA384 0x1302
@@ -109,22 +111,6 @@ void hashOctet(hash256* sha,octet *X)
         HASH256_process(sha,X->val[i]);
 }
 
-
-// Get expected number of bytes into an octet
-int getOctet(int sock,octet *B,int expected)
-{
-    int more,i=0,len=expected;
-    B->len=len;
-    while(len>0)
-    {
-        more=read(sock,&B->val[i],len);
-        if (more<0) return -1;
-        i+=more;
-        len-=more;
-    }
-    return 0;
-}
-
 // parse out an octet of length len from M into E
 int parseOctet(octet *E,int len,octet *M,int &ptr)
 {
@@ -145,6 +131,17 @@ int parseInt16(octet *M,int &ptr)
     return 256*b0+b1;
 }
 
+// parse out a 24-bit integer from octet M
+int parseInt24(octet *M,int &ptr)
+{
+    int b0,b1,b2;
+    if (ptr+3>M->len) return -1;
+    b0=(int)(unsigned char)M->val[ptr++];
+    b1=(int)(unsigned char)M->val[ptr++];
+    b2=(int)(unsigned char)M->val[ptr++];
+    return 65536*b0+256*b1+b2;
+}
+
 // parse out a byte from octet M
 int parseByte(octet *M,int &ptr)
 {
@@ -152,22 +149,49 @@ int parseByte(octet *M,int &ptr)
     return (int)(unsigned char)M->val[ptr++];
 }
 
+int getBytes(int sock,char *b,int expected)
+{
+    int more,i=0,len=expected;
+    while(len>0)
+    {
+        more=read(sock,&b[i],len);
+        if (more<0) return -1;
+        i+=more;
+        len-=more;
+    }
+    return 0;
+}
+
 // Get 16-bit Integer from stream
 int getInt16(int sock)
 {
-    char buff[2];
-    octet B={0, sizeof(buff), buff};
-    getOctet(sock,&B,2);
-    return 256*(int)(unsigned char)B.val[0]+(int)(unsigned char)B.val[1];
+    char b[2];
+    getBytes(sock,b,2);
+    return 256*(int)(unsigned char)b[0]+(int)(unsigned char)b[1];
 }
+
+// Get 24-bit Integer from stream
+int getInt24(int sock)
+{
+    char b[3];
+    getBytes(sock,b,3);
+    return 65536*(int)(unsigned char)b[0]+256*(int)(unsigned char)b[1]+(int)(unsigned char)b[2];
+}
+
 
 // Get byte from stream
 int getByte(int sock)
 {
     char b[1];
-    octet B={0,sizeof(b),b};
-    getOctet(sock,&B,1);
-    return (int)(unsigned char)B.val[0];
+    getBytes(sock,b,1);
+    return (int)(unsigned char)b[0];
+}
+
+// Get expected number of bytes into an octet
+int getOctet(int sock,octet *B,int expected)
+{
+    B->len=expected;
+    return getBytes(sock,B->val,expected);
 }
 
 // Create random octet
@@ -434,6 +458,25 @@ int serverHello(octet *SH,int cipherSuite,int alg,octet *SI,octet *SPK,int tlsVe
     return SH->len;
 }
 
+void print_out(char *des, octet *c, int index, int len)
+{
+    int i;
+    printf("%s [", des);
+    for (i = 0; i < len; i++)
+        printf("%c", c->val[index + i]);
+    printf("]\n");
+}
+
+void print_date(char *des, octet *c, int index)
+{
+    int i = index;
+    printf("%s [", des);
+    if (i == 0) printf("]\n");
+    else printf("20%c%c-%c%c-%c%c %c%c:%c%c:%c%c]\n", c->val[i], c->val[i + 1], c->val[i + 2], c->val[i + 3], c->val[i + 4], c->val[i + 5], c->val[i + 6], c->val[i + 7], c->val[i + 8], c->val[i + 9], c->val[i + 10], c->val[i + 11]);
+}
+
+#define CHOICE USE_NIST256
+
 int main(int argc, char const *argv[]) 
 { 
     int ciphers[10];
@@ -475,7 +518,7 @@ int main(int argc, char const *argv[])
     octet HS = {0,sizeof(hs),hs};
     char lb[32];
     octet LB = {0,sizeof(lb),lb};
-    char emh[32];
+    char emh[64];
     octet EMH = {0,sizeof(emh),emh};
     char hh[32];
     octet HH={0,sizeof(hh),hh};
@@ -649,7 +692,7 @@ int main(int argc, char const *argv[])
     octet CERT={0,sizeof(cert),cert};
 
 // Server certificate + Server Certificate Verifier
-// I should really construct this myself, but I don't know private key!
+// I should really construct this myself, but I don't know private key to create the signature that is the verifier
 // Signature is using RSA-PSS-RSAE-SHA256 2048-bit key.
     OCT_fromHex(&CERT,(char*)"0800000200000b00032e0000032a0003253082032130820209a0030201020208155a92adc2048f90300d06092a864886f70d01010b05003022310b300906035504061302555331133011060355040a130a4578616d706c65204341301e170d3138313030353031333831375a170d3139313030353031333831375a302b310b3009060355040613025553311c301a060355040313136578616d706c652e756c666865696d2e6e657430820122300d06092a864886f70d01010105000382010f003082010a0282010100c4803606bae7476b089404eca7b691043ff792bc19eefb7d74d7a80d001e7b4b3a4ae60fe8c071fc73e7024c0dbcf4bdd11d396bba70464a13e94af83df3e10959547bc955fb412da3765211e1f3dc776caa53376eca3aecbec3aab73b31d56cb6529c8098bcc9e02818e20bf7f8a03afd1704509ece79bd9f39f1ea69ec47972e830fb5ca95de95a1e60422d5eebe527954a1e7bf8a86f6466d0d9f16951a4cf7a04692595c1352f2549e5afb4ebfd77a37950144e4c026874c653e407d7d23074401f484ffd08f7a1fa05210d1f4f0d5ce79702932e2cabe701fdfad6b4bb71101f44bad666a11130fe2ee829e4d029dc91cdd6716dbb9061886edc1ba94210203010001a3523050300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030206082b06010505070301301f0603551d23041830168014894fde5bcc69e252cf3ea300dfb197b81de1c146300d06092a864886f70d01010b05000382010100591645a69a2e3779e4f6dd271aba1c0bfd6cd75599b5e7c36e533eff3659084324c9e7a504079d39e0d42987ffe3ebdd09c1cf1d914455870b571dd19bdf1d24f8bb9a11fe80fd592ba0398cde11e2651e618ce598fa96e5372eef3d248afde17463ebbfabb8e4d1ab502a54ec0064e92f7819660d3f27cf209e667fce5ae2e4ac99c7c93818f8b2510722dfed97f32e3e9349d4c66c9ea6396d744462a06b42c6d5ba688eac3a017bddfc8e2cfcad27cb69d3ccdca280414465d3ae348ce0f34ab2fb9c618371312b191041641c237f11a5d65c844f0404849938712b959ed685bc5c5dd645ed19909473402926dcb40e3469a15941e8e2cca84bb6084636a000000f0001040804010017feb533ca6d007d0058257968424bbc3aa6909e9d49557576a520e04a5ef05f0e86d24ff43f8eb861eef595228d7032aa360f714e667413926ef4f8b5803b69e35519e3b23f4373dfac6787066dcb4756b54560e0886e9b962c4ad28dab26bad1abc25916b09af286537f684f808aefee73046cb7df0a84fbb5967aca131f4b1cf389799403a30c02d29cbdadb72512db9cec2e5e1d00e50cafcf6f21091ebc4f253c5eab01a679baeabeedb9c9618f66006b8244d6622aaa56887ccfc66a0f3851dfa13a78cff7991e03cb2c3a0ed87d7367362eb7805b00b2524ff298a4da487cacdeaf8a2336c5631b3efa935bb411e753ca13b015fec7e4a730f1369f9e14000020ea6ee176dccc4af1859e9e4e93f797eac9a78ce439301e35275ad43f3cddbde316");
 
@@ -657,16 +700,15 @@ int main(int argc, char const *argv[])
     for (int i=0;i<CERT.len-1;i++)   // omit terminating 0x16 from above
         HASH256_process(&sh256,CERT.val[i]);
     HASH256_hash(&sh256,digest);
-    printf("Hash= "); for (int i=0;i<32;i++) printf("%02x",(unsigned char)digest[i]); printf("\n");
     OCT_clear(&HH);
     OCT_jbytes(&HH,digest,32);
     printf("Hash= "); OCT_output(&HH);
 
     char sccs[6];  // server change cipher spec - not used
     octet SCCS={0,sizeof(sccs),sccs};
-
     OCT_fromHex(&SCCS,(char *)"140303000101");
-
+//    sendOctet(sock,&SCCS);
+    
 // record header
     char rh[5];
     octet RH={0,sizeof(rh),rh};
@@ -727,7 +769,7 @@ int main(int argc, char const *argv[])
 
     HKDF_Expand_Label(MC_SHA2,32,&SAK,16,&STS,&INFO,NULL);
 
-    printf("Client application key= "); OCT_output(&SAK);
+    printf("Server application key= "); OCT_output(&SAK);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"iv");
@@ -745,11 +787,254 @@ int main(int argc, char const *argv[])
     octet SR = {0, sizeof(sr), sr};
 
 // build server response
+
+
     OCT_joctet(&SR,&SCCS);
     OCT_joctet(&SR,&RH);
     OCT_joctet(&SR,&CERT);
     OCT_joctet(&SR,&TAG);
 
+    sendOctet(sock,&SR);
 
+    printf("Server Response= "); OCT_output(&SR);
+
+/*
+// process server cert
+    char scert[1200];
+    octet SCERT={0,sizeof(scert),scert};
+    char icert[1200];
+    octet ICERT={0,sizeof(icert),icert};
+    char sig[500];
+    octet SIG={0,sizeof(sig),sig};
+    char r[500];
+    octet R={0,sizeof(r),r};
+    char s[500];
+    octet S={0,sizeof(s),s};
+    char p1[500];
+    octet P1={0,sizeof(p1),p1};
+    char p2[500];
+    octet P2={0,sizeof(p2),p2};
+
+    OCT_fromHex(&SCERT,(char *)"3082032130820209a0030201020208155a92adc2048f90300d06092a864886f70d01010b05003022310b300906035504061302555331133011060355040a130a4578616d706c65204341301e170d3138313030353031333831375a170d3139313030353031333831375a302b310b3009060355040613025553311c301a060355040313136578616d706c652e756c666865696d2e6e657430820122300d06092a864886f70d01010105000382010f003082010a0282010100c4803606bae7476b089404eca7b691043ff792bc19eefb7d74d7a80d001e7b4b3a4ae60fe8c071fc73e7024c0dbcf4bdd11d396bba70464a13e94af83df3e10959547bc955fb412da3765211e1f3dc776caa53376eca3aecbec3aab73b31d56cb6529c8098bcc9e02818e20bf7f8a03afd1704509ece79bd9f39f1ea69ec47972e830fb5ca95de95a1e60422d5eebe527954a1e7bf8a86f6466d0d9f16951a4cf7a04692595c1352f2549e5afb4ebfd77a37950144e4c026874c653e407d7d23074401f484ffd08f7a1fa05210d1f4f0d5ce79702932e2cabe701fdfad6b4bb71101f44bad666a11130fe2ee829e4d029dc91cdd6716dbb9061886edc1ba94210203010001a3523050300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030206082b06010505070301301f0603551d23041830168014894fde5bcc69e252cf3ea300dfb197b81de1c146300d06092a864886f70d01010b05000382010100591645a69a2e3779e4f6dd271aba1c0bfd6cd75599b5e7c36e533eff3659084324c9e7a504079d39e0d42987ffe3ebdd09c1cf1d914455870b571dd19bdf1d24f8bb9a11fe80fd592ba0398cde11e2651e618ce598fa96e5372eef3d248afde17463ebbfabb8e4d1ab502a54ec0064e92f7819660d3f27cf209e667fce5ae2e4ac99c7c93818f8b2510722dfed97f32e3e9349d4c66c9ea6396d744462a06b42c6d5ba688eac3a017bddfc8e2cfcad27cb69d3ccdca280414465d3ae348ce0f34ab2fb9c618371312b191041641c237f11a5d65c844f0404849938712b959ed685bc5c5dd645ed19909473402926dcb40e3469a15941e8e2cca84bb6084636a0");
+
+    pktype st, ca, pt;
+    int c,ic,len,sha;
+
+    st = X509_extract_cert_sig(&SCERT, &SIG); // returns signature type
+
+    if (st.type == 0)
+    {
+        printf("Unable to extract cert signature\n");
+        return 0;
+    }
+
+    if (st.type == X509_ECC)
+    {
+        OCT_chop(&SIG, &S, SIG.len / 2);
+        OCT_copy(&R, &SIG);
+        printf("ECC SIG= \n");
+        OCT_output(&R);
+        OCT_output(&S);
+        printf("\n");
+    }
+
+    if (st.type == X509_RSA)
+    {
+        printf("RSA SIG= \n");
+        OCT_output(&SIG);
+        printf("\n");
+    }
+
+    if (st.hash == X509_H256) printf("Hashed with SHA256\n");
+    if (st.hash == X509_H384) printf("Hashed with SHA384\n");
+    if (st.hash == X509_H512) printf("Hashed with SHA512\n");
+
+// Extract Cert from signed Cert
+
+    c = X509_extract_cert(&SCERT, &ICERT);
+    printf("\nCert= \n");
+    OCT_output(&ICERT);
+    printf("\n");
+
+// show some issuer details
+    printf("Issuer Details\n");
+    ic = X509_find_issuer(&ICERT);
+    c = X509_find_entity_property(&ICERT, &X509_ON, ic, &len);
+    print_out((char *)"owner=", &ICERT, c, len);
+    c = X509_find_entity_property(&ICERT, &X509_CN, ic, &len);
+    print_out((char *)"country=", &ICERT, c, len);
+    c = X509_find_entity_property(&ICERT, &X509_EN, ic, &len);
+    print_out((char *)"email=", &ICERT, c, len);
+    printf("\n");
+
+// show some subject details
+    printf("Subject Details\n");
+    ic = X509_find_subject(&ICERT);
+    c = X509_find_entity_property(&ICERT, &X509_MN, ic, &len);
+    print_out((char *)"Name=", &ICERT, c, len);
+    c = X509_find_entity_property(&ICERT, &X509_CN, ic, &len);
+    print_out((char *)"country=", &ICERT, c, len);
+    c = X509_find_entity_property(&ICERT, &X509_EN, ic, &len);
+    print_out((char *)"email=", &ICERT, c, len);
+    printf("\n");
+
+    ic = X509_find_validity(&ICERT);
+    c = X509_find_start_date(&ICERT, ic);
+    print_date((char *)"start date= ", &ICERT, c);
+    c = X509_find_expiry_date(&ICERT, ic);
+    print_date((char *)"expiry date=", &ICERT, c);
+    printf("\n");
+
+
+
+    char cakey[500];
+    octet CAKEY = {0, sizeof(cakey), cakey};
+    char certkey[500];
+    octet CERTKEY = {0, sizeof(certkey), certkey};
+
+    RSA2048::rsa_public_key PK;
+
+    bool self_signed=X509_self_signed(&ICERT);
+
+    ca = X509_extract_public_key(&ICERT, &CAKEY);
+
+    if (ca.type == 0)
+    {
+        printf("Not supported by library\n");
+        return 0;
+    }
+    if (self_signed)
+    {
+        printf("Not self-signed\n");
+    }
+
+    if (ca.type == X509_ECC)
+    {
+        printf("EXTRACTED ECC PUBLIC KEY= \n");
+        OCT_output(&CAKEY);
+    }
+    if (ca.type == X509_RSA)
+    {
+        printf("EXTRACTED RSA PUBLIC KEY= \n");
+        OCT_output(&CAKEY);
+        PK.e = 65537; // assuming this!
+        RSA2048::RSA_fromOctet(PK.n, &CAKEY);
+    }
+    printf("\n");
+
+// Cert is self-signed - so check signature
+
+
+
+    if (self_signed)
+    {
+        printf("Checking Self-Signed Signature\n");
+        if (ca.type == X509_ECC)
+        {
+            if (ca.curve != CHOICE)
+            {
+                printf("Curve is not supported\n");
+                return 0;
+            }
+            res = NIST256::ECP_PUBLIC_KEY_VALIDATE(&CAKEY);
+            if (res != 0)
+            {
+                printf("ECP Public Key is invalid!\n");
+                return 0;
+            }
+            else printf("ECP Public Key is Valid\n");
+
+            sha = 0;
+
+            if (st.hash == X509_H256) sha = SHA256;
+            if (st.hash == X509_H384) sha = SHA384;
+            if (st.hash == X509_H512) sha = SHA512;
+            if (st.hash == 0)
+            {
+                printf("Hash Function not supported\n");
+                return 0;
+            }
+
+            if (NIST256::ECP_VP_DSA(sha, &CAKEY, &ICERT, &R, &S) != 0)
+            {
+                printf("***ECDSA Verification Failed\n");
+                return 0;
+            }
+            else
+                printf("ECDSA Signature/Verification succeeded \n");
+        }
+
+        if (ca.type == X509_RSA)
+        {
+            if (ca.curve != 2048)
+            {
+                printf("RSA bit size is not supported\n");
+                return 0;
+            }
+
+            sha = 0;
+
+            if (st.hash == X509_H256) sha = SHA256;
+            if (st.hash == X509_H384) sha = SHA384;
+            if (st.hash == X509_H512) sha = SHA512;
+            if (st.hash == 0)
+            {
+                printf("Hash Function not supported\n");
+                return 0;
+            }
+            core::PKCS15(sha, &ICERT, &P1);
+
+            RSA2048::RSA_ENCRYPT(&PK, &SIG, &P2);
+
+            if (OCT_comp(&P1, &P2))
+                printf("RSA Signature/Verification succeeded \n");
+            else
+            {
+                printf("***RSA Verification Failed\n");
+ //           return 0;
+            }
+        }
+    }
+    char bcert[1200];
+    octet BCERT={0,sizeof(bcert),bcert};
+
+    OCT_fromHex(&BCERT,(char*)"0800000200000b00032e0000032a0003253082032130820209a0030201020208155a92adc2048f90300d06092a864886f70d01010b05003022310b300906035504061302555331133011060355040a130a4578616d706c65204341301e170d3138313030353031333831375a170d3139313030353031333831375a302b310b3009060355040613025553311c301a060355040313136578616d706c652e756c666865696d2e6e657430820122300d06092a864886f70d01010105000382010f003082010a0282010100c4803606bae7476b089404eca7b691043ff792bc19eefb7d74d7a80d001e7b4b3a4ae60fe8c071fc73e7024c0dbcf4bdd11d396bba70464a13e94af83df3e10959547bc955fb412da3765211e1f3dc776caa53376eca3aecbec3aab73b31d56cb6529c8098bcc9e02818e20bf7f8a03afd1704509ece79bd9f39f1ea69ec47972e830fb5ca95de95a1e60422d5eebe527954a1e7bf8a86f6466d0d9f16951a4cf7a04692595c1352f2549e5afb4ebfd77a37950144e4c026874c653e407d7d23074401f484ffd08f7a1fa05210d1f4f0d5ce79702932e2cabe701fdfad6b4bb71101f44bad666a11130fe2ee829e4d029dc91cdd6716dbb9061886edc1ba94210203010001a3523050300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030206082b06010505070301301f0603551d23041830168014894fde5bcc69e252cf3ea300dfb197b81de1c146300d06092a864886f70d01010b05000382010100591645a69a2e3779e4f6dd271aba1c0bfd6cd75599b5e7c36e533eff3659084324c9e7a504079d39e0d42987ffe3ebdd09c1cf1d914455870b571dd19bdf1d24f8bb9a11fe80fd592ba0398cde11e2651e618ce598fa96e5372eef3d248afde17463ebbfabb8e4d1ab502a54ec0064e92f7819660d3f27cf209e667fce5ae2e4ac99c7c93818f8b2510722dfed97f32e3e9349d4c66c9ea6396d744462a06b42c6d5ba688eac3a017bddfc8e2cfcad27cb69d3ccdca280414465d3ae348ce0f34ab2fb9c618371312b191041641c237f11a5d65c844f0404849938712b959ed685bc5c5dd645ed19909473402926dcb40e3469a15941e8e2cca84bb6084636a00000");
+
+// Start Hash Transcript
+
+    HASH256_init(&sh256);
+    for (int i=0;i<CH.len;i++)
+        HASH256_process(&sh256,CH.val[i]);
+    for (int i=0;i<SH.len;i++)
+        HASH256_process(&sh256,SH.val[i]);
+    for (int i=0;i<BCERT.len;i++)
+        HASH256_process(&sh256,BCERT.val[i]);
+
+    HASH256_hash(&sh256,digest);
+
+    OCT_clear(&HH);
+    OCT_jbytes(&HH,digest,32);
+    printf("Hash= "); OCT_output(&HH);
+
+    char scv[1200];
+    octet SCV={0,sizeof(scv),scv};
+
+    OCT_jbyte(&SCV,32,64);
+    OCT_jstring(&SCV,(char *)"TLS 1.3, server CertificateVerify");
+    OCT_jbyte(&SCV,0,1);
+    OCT_joctet(&SCV,&HH);
+
+    OCT_fromHex(&SIG,(char *)"17feb533ca6d007d0058257968424bbc3aa6909e9d49557576a520e04a5ef05f0e86d24ff43f8eb861eef595228d7032aa360f714e667413926ef4f8b5803b69e35519e3b23f4373dfac6787066dcb4756b54560e0886e9b962c4ad28dab26bad1abc25916b09af286537f684f808aefee73046cb7df0a84fbb5967aca131f4b1cf389799403a30c02d29cbdadb72512db9cec2e5e1d00e50cafcf6f21091ebc4f253c5eab01a679baeabeedb9c9618f66006b8244d6622aaa56887ccfc66a0f3851dfa13a78cff7991e03cb2c3a0ed87d7367362eb7805b00b2524ff298a4da487cacdeaf8a2336c5631b3efa935bb411e753ca13b015fec7e4a730f1369f9e");
+
+    printf("Signature to be verified= ");OCT_output(&SIG);
+
+    RSA2048::RSA_ENCRYPT(&PK, &SIG, &P2);  // verify signature
+
+    if (core::PSS_VERIFY(32,&SCV,&P2))
+        printf("TLS_PSS signature verified\n");
+    else
+        printf("TLS_PSS signature FAILED\n");
+
+*/
     return 0;
 } 
