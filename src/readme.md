@@ -6,7 +6,8 @@ The starting point is this page https://tls13.ulfheim.net/
 
 The initial idea is to implement two processes, server and client, which implement TLS1.3 over a local socket connection.
 
-So far I have succeeded in reproducing the output down as far as the Handshake Keys calculation. The Crypto support (for hashing, HKDF, and X25519) for now uses MIRACL Core https://github.com/miracl/core. 
+So far I have succeeded in reproducing the output down as far as the Application Keys calculation (which is close to the end of the protocol). 
+The Crypto support (for hashing, HKDF, and X25519) for now  uses MIRACL Core https://github.com/miracl/core. 
 
 This can be changed later, and other cipher primitive code added later on. For example Lightweight ciphers, post-quantum key exchanges etc.
 
@@ -18,52 +19,62 @@ To see the demo, first build the C++ version of MIRACL Core, selecting curves C2
 
 Download the contents of this directory to a working directory, and copy into it core.a and the *.h files from the MIRACL Core build. Then
 
-    g++ -O2 server.cpp core.a -o server
-    g++ -O2 client.cpp core.a -o client
+    g++ -O2 server.cpp tls_sockets.cpp tls_keys_calc.cpp tls_hash.cpp core.a -o server
+    g++ -O2 client.cpp tls_sockets.cpp tls_keys_calc.cpp tls_hash.cpp core.a -o client
 
 Run the server program in one window, and then the client program in another.
 
 The (commented and slightly edited) output from the server app should be
 
-    Client Hello received	
-    Client Random= 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f
-    Session ID= e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 ea eb ec ed ee ef f0 f1 f2 f3 f4 f5 f6 f7 f8 f9 fa fb fc fd fe ff
-    Cipher Suite= 1301   // TLS_AES_128_GCM_SHA256
-    Cipher Suite= 1302   // TLS_AES_256_GCM_SHA384 0x1302
-    Cipher Suite= 1303   // TLS_CHACHA20_POLY1305_SHA256 0x1303
-    Server Name= example.ulfheim.net
-    Group = 1d           // X25519
-    Group = 17           // NIST256 - SECP256R1
-    Group = 18           // NIST384 - SECP384R1
-    Signature alg = 403  // ECDSA_SECP256R1_SHA256
-    Signature alg = 804  // RSA_PSS_RSAE_SHA256
-    Signature alg = 401  // etc
-    Signature alg = 503
-    Signature alg = 805
-    Signature alg = 501
-    Signature alg = 806
-    Signature alg = 601
-    Signature alg = 201
-    Key Share = 1d       // Server chooses X25519
-    Client Public Key= 35 80 72 d6 36 58 80 d1 ae ea 32 9a df 91 21 38 38 51 ed 21 a2 8e 3b 75 e9 65 d0 d2 cd 16 62 54
+	Client Hello Recieved
+	Client Random= 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+	Session ID= e0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+	Cipher Suite= 1301	// TLS_AES_128_GCM_SHA256
+	Cipher Suite= 1302	// TLS_AES_256_GCM_SHA384 
+	Cipher Suite= 1303	// TLS_CHACHA20_POLY1305_SHA256 
+	Server Name= example.ulfheim.net
+	Group = 1d		// X25519
+	Group = 17		// NIST256 - SECP256R1
+	Group = 18		// NIST384 - SECP384R1
+	Signature alg = 403	// ECDSA_SECP256R1_SHA256
+	Signature alg = 804	// RSA_PSS_RSAE_SHA256
+	Signature alg = 401	// etc
+	Signature alg = 503
+	Signature alg = 805
+	Signature alg = 501
+	Signature alg = 806
+	Signature alg = 601
+	Signature alg = 201
+	Key Share = 1d		//X25519
+	Client Public Key= 358072d6365880d1aeea329adf9121383851ed21a28e3b75e965d0d2cd166254
+	Server Private key= 0x0faeadacabaaa9a8a7a6a5a4a3a2a1a02264c264c9ccec92872842f665cf9a02
+	Server Public key= 0x9fd7ad6dcff4298dd3f96d5b1b2af910a0535b1488d7f8fabb349a982880b615
 
-    Server Private key= 0x0f ae ad ac ab aa a9 a8 a7 a6 a5 a4 a3 a2 a1 a0 22 64 c2 64 c9 cc ec 92 87 28 42 f6 65 cf 9a 02
-    Server Public key=  0x9f d7 ad 6d cf f4 29 8d d3 f9 6d 5b 1b 2a f9 10 a0 53 5b 14 88 d7 f8 fa bb 34 9a 98 28 80 b6 15
+	Server Hello sent
+	Hash= da75ce1139ac80dae4044da932350cf65c97ccc9e33f1e6f7d2d4b18b736ffd5
+	Shared Secret= df4a291baa1eb7cfa6934b29b474baad2697e29f1f920dcc77c8a0a088447624
+	Early Secret = 33ad0a1c607ec03b09e6cd9893680ce210adf300aa1f2660e1b22e10f170f92a
 
-    Server Hello= 16 03 03 00 7a 02 00 00 76 03 03 70 71 72 73 74 75 76 77 78 79 7a 7b 7c 7d 7e 7f 80 81 82 83 84 85 86 87 88 89 8a 8b 8c 8d 8e 8f 20 e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 ea eb ec ed ee ef f0 f1 f2 f3 f4 f5 f6 f7 f8 f9 fa fb fc fd fe ff 13 01 00 00 2e 00 33 00 24 00 1d 00 20 9f d7 ad 6d cf f4 29 8d d3 f9 6d 5b 1b 2a f9 10 a0 53 5b 14 88 d7 f8 fa bb 34 9a 98 28 80 b6 15 00 2b 00 02 03 04
-
-    Server Hello sent
-    Transcript Hash= da75ce1139ac80dae4044da932350cf65c97ccc9e33f1e6f7d2d4b18b736ffd5
-    Shared Secret= df 4a 29 1b aa 1e b7 cf a6 93 4b 29 b4 74 ba ad 26 97 e2 9f 1f 92 0d cc 77 c8 a0 a0 88 44 76 24
-    Early Secret = 33 ad 0a 1c 60 7e c0 3b 09 e6 cd 98 93 68 0c e2 10 ad f3 00 aa 1f 26 60 e1 b2 2e 10 f1 70 f9 2a
-    Derived Secret = 6f 26 15 a1 08 c7 02 c5 67 8f 54 fc 9d ba b6 97 16 c0 76 18 9c 48 25 0c eb ea c3 57 6c 36 11 ba
-    Handshake Secret= fb 9f c8 06 89 b3 a5 d0 2c 33 24 3b f6 9a 1b 1b 20 70 55 88 a7 94 30 4a 6e 71 20 15 5e df 14 9a
-    Client handshake traffic secret= ff 0e 5b 96 52 91 c6 08 c1 e8 cd 26 7e ef c0 af cc 5e 98 a2 78 63 73 f0 db 47 b0 47 86 d7 2a ea
-    Server handshake traffic secret= a2 06 72 65 e7 f0 65 2a 92 3d 5d 72 ab 04 67 c4 61 32 ee b9 68 b6 a3 2d 31 1c 80 58 68 54 88 14
-    Client handshake key= 71 54 f3 14 e6 be 7d c0 08 df 2c 83 2b aa 1d 39
-    Server handshake key= 84 47 80 a7 ac ad 9f 98 0f a2 5c 11 4e 43 40 2a
-    Client handshake IV= 71 ab c2 ca e4 c6 99 d4 7c 60 02 68
-    Server handshake IV= 4c 04 2d dc 12 0a 38 d1 41 7f c8 15
+	Derived Secret = 6f2615a108c702c5678f54fc9dbab69716c076189c48250cebeac3576c3611ba
+	Handshake Secret= fb9fc80689b3a5d02c33243bf69a1b1b20705588a794304a6e7120155edf149a
+	Client handshake traffic secret= ff0e5b965291c608c1e8cd267eefc0afcc5e98a2786373f0db47b04786d72aea
+	Server handshake traffic secret= a2067265e7f0652a923d5d72ab0467c46132eeb968b6a32d311c805868548814
+	Client handshake key= 7154f314e6be7dc008df2c832baa1d39
+	Server handshake key= 844780a7acad9f980fa25c114e43402a
+	Client handshake IV= 71abc2cae4c699d47c600268
+	Server handshake IV= 4c042ddc120a38d1417fc815
+	Hash= 22844b930e5e0a59a09d5ac35fc032fc91163b193874a265236e568077378d8b
+	ciphered cert= da1ec2d7bda8ebf73edd5010fba8089fd426b0ea1ea4d88d074ffea8a9873af5f502261e34b1563343e9beb6132e7e836d65db6dcf00bc401935ae369c440d67af719ec03b984c4521b905d58ba2197c45c4f773bd9dd121b4d2d4e6adfffa27c2a81a99a8efe856c35ee08b71b3e441bbecaa65fe720815cab58db3efa8d1e5b71c58e8d1fdb6b21bfc66a9865f852c1b4b640e94bd908469e7151f9bbca3ce53224a27062ceb240a105bd3132dc18544477794c373bc0fb5a267885c857d4ccb4d31742b7a29624029fd05940de3f9f9b6e0a9a237672bc624ba2893a21709833c5276d413631bdde6ae7008c697a8ef428a79dbf6e8bbeb47c4e408ef656d9dc19b8b5d49bc091e2177357594c8acd41c101c7750cb11b5be6a194b8f877088c9828e3507dada17bb14bb2c738903c7aab40c545c46aa53823b120181a16ce92876288c4acd815b233d96bb572b162ec1b9d712f2c3966caac9cf174f3aedfec4d19ff9a87f8e21e8e1a9789b490ba05f1debd21732fb2e15a017c475c4fd00be042186dc29e68bb7ece192438f3b0c5ef8e4a53583a01943cf84bba5842173a6b3a7289566687c3018f764ab18103169919328713c3bd463d3398a1feb8e68e44cfe482f72847f46c80e6cc7f6ccf179f482c888594e76276653b48398a26c7c9e420cb6c1d3bc7646f33bb832bfba98489cadfbd55dd8b2c57687a47acba4ab390152d8fbb3f20327d824b284d288fb0152e49fc44678aed4d3f085b7c55de77bd45af812fc37944ad2454f99fbb34a583bf16b67659e6f216d34b1d79b1b4decc098a44207e1c5feeb6ce30acc2cf7e2b134490b442744772d184e59038aa517a97154181e4dfd94fe72a5a4ca2e7e22bce733d03e7d9319710befbc30d7826b728519ba74690e4f906587a0382895b90d82ed3e357faf8e59aca85fd2063ab592d83d245a919ea53c501b9accd2a1ed951f43c049ab9d25c7f1b70ae4f942edb1f311f7417833062245b429d4f013ae9019ff52044c97c73b8882cf03955c739f874a029637c0f0607100e3070f408d082aa7a2abf13e73bd1e252c228aba7a9c1f075bc439571b35932f5c912cb0b38da1c95e64fcf9bfec0b9b0dd8f042fdf05e5058299e96e4185074919d90b7b3b0a97e2242ca08cd99c9ecb12fc49adb2b257240cc387802f00e0e49952663ea278408709bce5b363c036093d7a05d440c9e7a7abb3d71ebb4d10bfc7781bcd66f79322c18262dfc2dccf3e5f1ea98bea3caae8a83706312764423a692ae0c1e2e23b016865ffb125b223857547ac7e2468433b5269843abbabbe9f6f438d7e387e3617a219f62540e7343e1bbf49355fb5a1938048439cba5cee819199b2b5c39fd351aa274536aadb682b578943f0ccf48e4ec7ddc938e2fd01acfaa1e7217f7b389285c0dfd31a1545ed3a85fac8eb9dab6ee826af90f9e1ee5d555dd1c05aec077f7c803cbc2f1cf98393f0f37838ffea372ff708886b05934e1a64512de144608864a88a5c3a173fdcfdf5725da916ed507e4caec8787befb91e3ec9b222fa09f374bd96881ac2ddd1f885d42ea584c
+	authentication tag= e08b0e455a350ae54d76349aa68c71ae
+	Derived Secret = de9f5c98db4261a46911f1349c1ba2c84dd84482249f8f2cb3a989e4e4a804e6
+	Master Secret= 7f2882bb9b9a46265941653e9c2f19067118151e21d12e57a7b6aca1f8150c8d
+	Client application traffic secret= b8822231c1d676ecca1c11fff6594280314d03a4e91cf1af7fe73f8f7be2c11b
+	Server application traffic secret= 3fc35ea70693069a277956afa23b8f4543ce68ac595f2aace05cd7a1c92023d5
+	Client application key= 49134b95328f279f0183860589ac6707
+	Server application key= 0b6d22c8ff68097ea871c672073773bf
+	Client application IV= bc4dd5f7b98acff85466261d
+	Server application IV= 1b13dd9f8d8f17091d34b349
+	Server Response sent
 
 So here the client has confirmed to the server the AEAD cipher suites, the key exchange algorithms, and the certificate signing algorithms it supports.
 

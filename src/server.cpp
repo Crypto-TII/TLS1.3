@@ -6,110 +6,17 @@
 #include <netinet/in.h> 
 #include <string.h> 
 #include <time.h>
+#include "core.h"
 #include "ecdh_NIST256.h"  
 #include "ecdh_C25519.h"
 #include "rsa_RSA2048.h"
 #include "randapi.h"  
 #include "x509.h"
-
-#define TLS_AES_128_GCM_SHA256 0x1301
-#define TLS_AES_256_GCM_SHA384 0x1302
-#define TLS_CHACHA20_POLY1305_SHA256 0x1303
-
-#define X25519 0x001d
-#define SECP256R1 0x0017
-#define SECP384R1 0x0018
-
-#define ECDSA_SECP256R1_SHA256 0x0403
-#define RSA_PSS_RSAE_SHA256 0x0804
-#define RSA_PKCS1_SHA256 0x0401
-#define ECDSA_SECP384R1_SHA384 0x0503
-#define RSA_PSS_RSAE_SHA384 0x0805
-#define RSA_PKCS1_SHA384 0x0501
-#define RSA_PSS_RSAE_SHA512 0x0806
-#define RSA_PKCS1_SHA512 0x0601
-#define RSA_PKCS1_SHA1 0x0201
-
-#define PSKWECDHE 01
-#define TLS1_3 0x0304
-
-#define SERVER_NAME 0x0000
-#define SUPPORTED_GROUPS 0x000a
-#define SIG_ALGS 0x000d
-#define KEY_SHARE 0x0033
-#define PSK_MODE 0x002d
-#define TLS_VER 0x002b
+#include "tls1_3.h"
+#include "tls_sockets.h"
+#include "tls_keys_calc.h"
 
 using namespace core;
-
-int setserversock(int port)
-{
-    int server_fd, new_socket; 
-    struct sockaddr_in address; 
-    int opt = 1; 
-    int addrlen = sizeof(address); 
-
-    // Creating socket file descriptor 
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) 
-    { 
-        perror("socket failed"); 
-        exit(EXIT_FAILURE); 
-    } 
-       
-    // Forcefully attaching socket to the port 
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
-                                                  &opt, sizeof(opt))) 
-    { 
-        perror("setsockopt"); 
-        exit(EXIT_FAILURE); 
-    } 
-    address.sin_family = AF_INET; 
-    address.sin_addr.s_addr = INADDR_ANY; 
-    address.sin_port = htons( port ); 
-       
-    // Forcefully attaching socket to the port 
-    if (bind(server_fd, (struct sockaddr *)&address,  
-                                 sizeof(address))<0) 
-    { 
-        perror("bind failed"); 
-        exit(EXIT_FAILURE); 
-    } 
-    if (listen(server_fd, 3) < 0) 
-    { 
-        perror("listen"); 
-        exit(EXIT_FAILURE); 
-    } 
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address,  
-                       (socklen_t*)&addrlen))<0) 
-    { 
-        perror("accept"); 
-        exit(EXIT_FAILURE); 
-    }
-    return new_socket;
-}
-
-// Send Octet
-void sendOctet(int sock,octet *B)
-{
-    send(sock,B->val,B->len,0);
-}
-
-// Send Octet length
-void sendLen(int sock,int len)
-{
-    char buff[2];
-    octet B={0, sizeof(buff), buff};
-    B.len=2;
-    B.val[0]=len&0xff;
-    B.val[1]=len/256;
-    sendOctet(sock,&B);
-}
-
-void hashOctet(hash256* sha,octet *X)
-{
-    for (int i=0;i<X->len;i++)
-        HASH256_process(sha,X->val[i]);
-}
 
 // parse out an octet of length len from M into E
 int parseOctet(octet *E,int len,octet *M,int &ptr)
@@ -149,50 +56,6 @@ int parseByte(octet *M,int &ptr)
     return (int)(unsigned char)M->val[ptr++];
 }
 
-int getBytes(int sock,char *b,int expected)
-{
-    int more,i=0,len=expected;
-    while(len>0)
-    {
-        more=read(sock,&b[i],len);
-        if (more<0) return -1;
-        i+=more;
-        len-=more;
-    }
-    return 0;
-}
-
-// Get 16-bit Integer from stream
-int getInt16(int sock)
-{
-    char b[2];
-    getBytes(sock,b,2);
-    return 256*(int)(unsigned char)b[0]+(int)(unsigned char)b[1];
-}
-
-// Get 24-bit Integer from stream
-int getInt24(int sock)
-{
-    char b[3];
-    getBytes(sock,b,3);
-    return 65536*(int)(unsigned char)b[0]+256*(int)(unsigned char)b[1]+(int)(unsigned char)b[2];
-}
-
-
-// Get byte from stream
-int getByte(int sock)
-{
-    char b[1];
-    getBytes(sock,b,1);
-    return (int)(unsigned char)b[0];
-}
-
-// Get expected number of bytes into an octet
-int getOctet(int sock,octet *B,int expected)
-{
-    B->len=expected;
-    return getBytes(sock,B->val,expected);
-}
 
 // Create random octet
 int serverRandom(octet *RN,csprng *RNG)
@@ -390,32 +253,6 @@ bool getClientHello(int sock,octet *CH,char *serverName,int &kex, int &nsc,int *
     return true;
 }
 
-// create expanded HKDF label LB from label
-void hkdfLabel(octet *LB,int length,octet *Label,octet *CTX)
-{
-    OCT_jint(LB,length,2);
-    OCT_jbyte(LB,(char)(6+Label->len),1);
-    OCT_jstring(LB,(char *)"tls13 ");
-    OCT_joctet(LB,Label);
-    if (CTX!=NULL)
-    {
-        OCT_jbyte(LB, (char)(CTX->len), 1);
-        OCT_joctet(LB,CTX);
-    } else {
-        OCT_jbyte(LB,0,1);
-    }
-
-}
-
-// HKDF extension for TLS1.3
-void HKDF_Expand_Label(int hash,int hlen,octet *OKM,int olen,octet *PRK,octet *Label,octet *CTX)
-{
-    char hl[200];
-    octet HL={0,sizeof(hl),hl};
-    hkdfLabel(&HL,olen,Label,CTX);
-    HKDF_Expand(hash,hlen,OKM,olen,PRK,&HL);
-}
-
 int serverHello(octet *SH,int cipherSuite,int alg,octet *SI,octet *SPK,int tlsVersion,csprng *RNG)
 {
     char rn[32];
@@ -504,28 +341,13 @@ int main(int argc, char const *argv[])
     char ss[32];
     octet SS = {0, sizeof(ss), ss};
     char digest[32];
-    char zk[32];                    // Zero Key
-    octet ZK = {0,sizeof(zk),zk};
-    char es[32];
-    octet ES = {0,sizeof(es),es};
-    char ds[32];
-    octet DS = {0,sizeof(ds),ds};
-    char ms[32];
-    octet MS = {0,sizeof(ms),ms};
-    char info[32];
-    octet INFO = {0,sizeof(info),info};
+
     char hs[32];
     octet HS = {0,sizeof(hs),hs};
     char lb[32];
     octet LB = {0,sizeof(lb),lb};
-    char emh[64];
-    octet EMH = {0,sizeof(emh),emh};
     char hh[32];
     octet HH={0,sizeof(hh),hh};
-    char cts[32];
-    octet CTS={0,sizeof(cts),cts};
-    char sts[32];
-    octet STS={0,sizeof(sts),sts};
     char chk[32];
     octet CHK={0,sizeof(chk),chk};
     char shk[32];
@@ -534,9 +356,10 @@ int main(int argc, char const *argv[])
     octet CHIV={0,sizeof(chiv),chiv};
     char shiv[32];
     octet SHIV={0,sizeof(shiv),shiv};
-
-
-    OCT_jbyte(&ZK,0,32);
+    char shts[64];
+    octet SHTS={0,sizeof(shts),shts};
+    char chts[64];
+    octet CHTS={0,sizeof(chts),chts};
 
     int i, res;
     unsigned long ran;
@@ -623,59 +446,9 @@ int main(int argc, char const *argv[])
 
     printf("Shared Secret= ");OCT_output(&SS);
 
-    HASH256_init(&sh256); 
-    HASH256_hash(&sh256,digest); 
-    OCT_jbytes(&EMH,digest,32);
 
-
-
-
-
-    HKDF_Extract(MC_SHA2,32,&ES,&ZK,&ZK);
-
-    printf("Early Secret = "); OCT_output(&ES);
-    printf("Empty Hash context = "); OCT_output(&EMH);
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"derived");
-    HKDF_Expand_Label(MC_SHA2,32,&DS,32,&ES,&INFO,&EMH);
-
-    printf("Derived Secret = "); OCT_output(&DS);
-
-    HKDF_Extract(MC_SHA2,32,&HS,&DS,&SS);
-
-    printf("Handshake Secret= ");OCT_output(&HS);
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"c hs traffic");
-    HKDF_Expand_Label(MC_SHA2,32,&CTS,32,&HS,&INFO,&HH);
-
-    printf("Client handshake traffic secret= ");OCT_output(&CTS);
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"s hs traffic");
-    HKDF_Expand_Label(MC_SHA2,32,&STS,32,&HS,&INFO,&HH);
-
-    printf("Server handshake traffic secret= ");OCT_output(&STS);
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,32,&CHK,16,&CTS,&INFO,NULL);
-
-    printf("Client handshake key= "); OCT_output(&CHK);
-
-    HKDF_Expand_Label(MC_SHA2,32,&SHK,16,&STS,&INFO,NULL);
-
-    printf("Server handshake key= "); OCT_output(&SHK);
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"iv");
-    HKDF_Expand_Label(MC_SHA2,32,&CHIV,12,&CTS,&INFO,NULL);
-
-    printf("Client handshake IV= "); OCT_output(&CHIV);
-
-    HKDF_Expand_Label(MC_SHA2,32,&SHIV,12,&STS,&INFO,NULL);
-
-    printf("Server handshake IV= "); OCT_output(&SHIV);
+// Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Hash and Shared secret
+    GET_HANDSHAKE_SECRETS(32,&HS,&CHK,&CHIV,&SHK,&SHIV,&CHTS,&SHTS,&HH,&SS);
 
 // Start Hash Transcript
 
@@ -728,30 +501,6 @@ int main(int argc, char const *argv[])
     printf("authentication tag= "); OCT_output(&TAG);
 
 
-
-// ZK is empty Key
-// EMH is empty Hash
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"derived");
-    HKDF_Expand_Label(MC_SHA2,32,&DS,32,&HS,&INFO,&EMH);   // Use handshake secret from above
-    printf("Derived Secret = "); OCT_output(&DS);
-
-    HKDF_Extract(MC_SHA2,32,&MS,&DS,&ZK);
-    printf("Master Secret= ");OCT_output(&MS);
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"c ap traffic");
-    HKDF_Expand_Label(MC_SHA2,32,&CTS,32,&MS,&INFO,&HH);
-
-    printf("Client application traffic secret= ");OCT_output(&CTS);
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"s ap traffic");
-    HKDF_Expand_Label(MC_SHA2,32,&STS,32,&MS,&INFO,&HH);
-
-    printf("Server application traffic secret= ");OCT_output(&STS);
-
     char cak[32];
     octet CAK={0,sizeof(cak),cak};
     char sak[32];
@@ -761,33 +510,13 @@ int main(int argc, char const *argv[])
     char saiv[32];
     octet SAIV={0,sizeof(saiv),saiv};
 
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,32,&CAK,16,&CTS,&INFO,NULL);
-
-    printf("Client application key= "); OCT_output(&CAK);
-
-    HKDF_Expand_Label(MC_SHA2,32,&SAK,16,&STS,&INFO,NULL);
-
-    printf("Server application key= "); OCT_output(&SAK);
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"iv");
-    HKDF_Expand_Label(MC_SHA2,32,&CAIV,12,&CTS,&INFO,NULL);
-
-    printf("Client application IV= "); OCT_output(&CAIV);
-
-    HKDF_Expand_Label(MC_SHA2,32,&SAIV,12,&STS,&INFO,NULL);
-
-    printf("Server application IV= "); OCT_output(&SAIV);
-
+    GET_APPLICATION_SECRETS(32,&CAK,&CAIV,&SAK,&SAIV,&HH,&HS);
 
 // Server's Response 
     char sr[2000];
     octet SR = {0, sizeof(sr), sr};
 
 // build server response
-
 
     OCT_joctet(&SR,&SCCS);
     OCT_joctet(&SR,&RH);
@@ -798,243 +527,5 @@ int main(int argc, char const *argv[])
 
     printf("Server Response= "); OCT_output(&SR);
 
-/*
-// process server cert
-    char scert[1200];
-    octet SCERT={0,sizeof(scert),scert};
-    char icert[1200];
-    octet ICERT={0,sizeof(icert),icert};
-    char sig[500];
-    octet SIG={0,sizeof(sig),sig};
-    char r[500];
-    octet R={0,sizeof(r),r};
-    char s[500];
-    octet S={0,sizeof(s),s};
-    char p1[500];
-    octet P1={0,sizeof(p1),p1};
-    char p2[500];
-    octet P2={0,sizeof(p2),p2};
-
-    OCT_fromHex(&SCERT,(char *)"3082032130820209a0030201020208155a92adc2048f90300d06092a864886f70d01010b05003022310b300906035504061302555331133011060355040a130a4578616d706c65204341301e170d3138313030353031333831375a170d3139313030353031333831375a302b310b3009060355040613025553311c301a060355040313136578616d706c652e756c666865696d2e6e657430820122300d06092a864886f70d01010105000382010f003082010a0282010100c4803606bae7476b089404eca7b691043ff792bc19eefb7d74d7a80d001e7b4b3a4ae60fe8c071fc73e7024c0dbcf4bdd11d396bba70464a13e94af83df3e10959547bc955fb412da3765211e1f3dc776caa53376eca3aecbec3aab73b31d56cb6529c8098bcc9e02818e20bf7f8a03afd1704509ece79bd9f39f1ea69ec47972e830fb5ca95de95a1e60422d5eebe527954a1e7bf8a86f6466d0d9f16951a4cf7a04692595c1352f2549e5afb4ebfd77a37950144e4c026874c653e407d7d23074401f484ffd08f7a1fa05210d1f4f0d5ce79702932e2cabe701fdfad6b4bb71101f44bad666a11130fe2ee829e4d029dc91cdd6716dbb9061886edc1ba94210203010001a3523050300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030206082b06010505070301301f0603551d23041830168014894fde5bcc69e252cf3ea300dfb197b81de1c146300d06092a864886f70d01010b05000382010100591645a69a2e3779e4f6dd271aba1c0bfd6cd75599b5e7c36e533eff3659084324c9e7a504079d39e0d42987ffe3ebdd09c1cf1d914455870b571dd19bdf1d24f8bb9a11fe80fd592ba0398cde11e2651e618ce598fa96e5372eef3d248afde17463ebbfabb8e4d1ab502a54ec0064e92f7819660d3f27cf209e667fce5ae2e4ac99c7c93818f8b2510722dfed97f32e3e9349d4c66c9ea6396d744462a06b42c6d5ba688eac3a017bddfc8e2cfcad27cb69d3ccdca280414465d3ae348ce0f34ab2fb9c618371312b191041641c237f11a5d65c844f0404849938712b959ed685bc5c5dd645ed19909473402926dcb40e3469a15941e8e2cca84bb6084636a0");
-
-    pktype st, ca, pt;
-    int c,ic,len,sha;
-
-    st = X509_extract_cert_sig(&SCERT, &SIG); // returns signature type
-
-    if (st.type == 0)
-    {
-        printf("Unable to extract cert signature\n");
-        return 0;
-    }
-
-    if (st.type == X509_ECC)
-    {
-        OCT_chop(&SIG, &S, SIG.len / 2);
-        OCT_copy(&R, &SIG);
-        printf("ECC SIG= \n");
-        OCT_output(&R);
-        OCT_output(&S);
-        printf("\n");
-    }
-
-    if (st.type == X509_RSA)
-    {
-        printf("RSA SIG= \n");
-        OCT_output(&SIG);
-        printf("\n");
-    }
-
-    if (st.hash == X509_H256) printf("Hashed with SHA256\n");
-    if (st.hash == X509_H384) printf("Hashed with SHA384\n");
-    if (st.hash == X509_H512) printf("Hashed with SHA512\n");
-
-// Extract Cert from signed Cert
-
-    c = X509_extract_cert(&SCERT, &ICERT);
-    printf("\nCert= \n");
-    OCT_output(&ICERT);
-    printf("\n");
-
-// show some issuer details
-    printf("Issuer Details\n");
-    ic = X509_find_issuer(&ICERT);
-    c = X509_find_entity_property(&ICERT, &X509_ON, ic, &len);
-    print_out((char *)"owner=", &ICERT, c, len);
-    c = X509_find_entity_property(&ICERT, &X509_CN, ic, &len);
-    print_out((char *)"country=", &ICERT, c, len);
-    c = X509_find_entity_property(&ICERT, &X509_EN, ic, &len);
-    print_out((char *)"email=", &ICERT, c, len);
-    printf("\n");
-
-// show some subject details
-    printf("Subject Details\n");
-    ic = X509_find_subject(&ICERT);
-    c = X509_find_entity_property(&ICERT, &X509_MN, ic, &len);
-    print_out((char *)"Name=", &ICERT, c, len);
-    c = X509_find_entity_property(&ICERT, &X509_CN, ic, &len);
-    print_out((char *)"country=", &ICERT, c, len);
-    c = X509_find_entity_property(&ICERT, &X509_EN, ic, &len);
-    print_out((char *)"email=", &ICERT, c, len);
-    printf("\n");
-
-    ic = X509_find_validity(&ICERT);
-    c = X509_find_start_date(&ICERT, ic);
-    print_date((char *)"start date= ", &ICERT, c);
-    c = X509_find_expiry_date(&ICERT, ic);
-    print_date((char *)"expiry date=", &ICERT, c);
-    printf("\n");
-
-
-
-    char cakey[500];
-    octet CAKEY = {0, sizeof(cakey), cakey};
-    char certkey[500];
-    octet CERTKEY = {0, sizeof(certkey), certkey};
-
-    RSA2048::rsa_public_key PK;
-
-    bool self_signed=X509_self_signed(&ICERT);
-
-    ca = X509_extract_public_key(&ICERT, &CAKEY);
-
-    if (ca.type == 0)
-    {
-        printf("Not supported by library\n");
-        return 0;
-    }
-    if (self_signed)
-    {
-        printf("Not self-signed\n");
-    }
-
-    if (ca.type == X509_ECC)
-    {
-        printf("EXTRACTED ECC PUBLIC KEY= \n");
-        OCT_output(&CAKEY);
-    }
-    if (ca.type == X509_RSA)
-    {
-        printf("EXTRACTED RSA PUBLIC KEY= \n");
-        OCT_output(&CAKEY);
-        PK.e = 65537; // assuming this!
-        RSA2048::RSA_fromOctet(PK.n, &CAKEY);
-    }
-    printf("\n");
-
-// Cert is self-signed - so check signature
-
-
-
-    if (self_signed)
-    {
-        printf("Checking Self-Signed Signature\n");
-        if (ca.type == X509_ECC)
-        {
-            if (ca.curve != CHOICE)
-            {
-                printf("Curve is not supported\n");
-                return 0;
-            }
-            res = NIST256::ECP_PUBLIC_KEY_VALIDATE(&CAKEY);
-            if (res != 0)
-            {
-                printf("ECP Public Key is invalid!\n");
-                return 0;
-            }
-            else printf("ECP Public Key is Valid\n");
-
-            sha = 0;
-
-            if (st.hash == X509_H256) sha = SHA256;
-            if (st.hash == X509_H384) sha = SHA384;
-            if (st.hash == X509_H512) sha = SHA512;
-            if (st.hash == 0)
-            {
-                printf("Hash Function not supported\n");
-                return 0;
-            }
-
-            if (NIST256::ECP_VP_DSA(sha, &CAKEY, &ICERT, &R, &S) != 0)
-            {
-                printf("***ECDSA Verification Failed\n");
-                return 0;
-            }
-            else
-                printf("ECDSA Signature/Verification succeeded \n");
-        }
-
-        if (ca.type == X509_RSA)
-        {
-            if (ca.curve != 2048)
-            {
-                printf("RSA bit size is not supported\n");
-                return 0;
-            }
-
-            sha = 0;
-
-            if (st.hash == X509_H256) sha = SHA256;
-            if (st.hash == X509_H384) sha = SHA384;
-            if (st.hash == X509_H512) sha = SHA512;
-            if (st.hash == 0)
-            {
-                printf("Hash Function not supported\n");
-                return 0;
-            }
-            core::PKCS15(sha, &ICERT, &P1);
-
-            RSA2048::RSA_ENCRYPT(&PK, &SIG, &P2);
-
-            if (OCT_comp(&P1, &P2))
-                printf("RSA Signature/Verification succeeded \n");
-            else
-            {
-                printf("***RSA Verification Failed\n");
- //           return 0;
-            }
-        }
-    }
-    char bcert[1200];
-    octet BCERT={0,sizeof(bcert),bcert};
-
-    OCT_fromHex(&BCERT,(char*)"0800000200000b00032e0000032a0003253082032130820209a0030201020208155a92adc2048f90300d06092a864886f70d01010b05003022310b300906035504061302555331133011060355040a130a4578616d706c65204341301e170d3138313030353031333831375a170d3139313030353031333831375a302b310b3009060355040613025553311c301a060355040313136578616d706c652e756c666865696d2e6e657430820122300d06092a864886f70d01010105000382010f003082010a0282010100c4803606bae7476b089404eca7b691043ff792bc19eefb7d74d7a80d001e7b4b3a4ae60fe8c071fc73e7024c0dbcf4bdd11d396bba70464a13e94af83df3e10959547bc955fb412da3765211e1f3dc776caa53376eca3aecbec3aab73b31d56cb6529c8098bcc9e02818e20bf7f8a03afd1704509ece79bd9f39f1ea69ec47972e830fb5ca95de95a1e60422d5eebe527954a1e7bf8a86f6466d0d9f16951a4cf7a04692595c1352f2549e5afb4ebfd77a37950144e4c026874c653e407d7d23074401f484ffd08f7a1fa05210d1f4f0d5ce79702932e2cabe701fdfad6b4bb71101f44bad666a11130fe2ee829e4d029dc91cdd6716dbb9061886edc1ba94210203010001a3523050300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030206082b06010505070301301f0603551d23041830168014894fde5bcc69e252cf3ea300dfb197b81de1c146300d06092a864886f70d01010b05000382010100591645a69a2e3779e4f6dd271aba1c0bfd6cd75599b5e7c36e533eff3659084324c9e7a504079d39e0d42987ffe3ebdd09c1cf1d914455870b571dd19bdf1d24f8bb9a11fe80fd592ba0398cde11e2651e618ce598fa96e5372eef3d248afde17463ebbfabb8e4d1ab502a54ec0064e92f7819660d3f27cf209e667fce5ae2e4ac99c7c93818f8b2510722dfed97f32e3e9349d4c66c9ea6396d744462a06b42c6d5ba688eac3a017bddfc8e2cfcad27cb69d3ccdca280414465d3ae348ce0f34ab2fb9c618371312b191041641c237f11a5d65c844f0404849938712b959ed685bc5c5dd645ed19909473402926dcb40e3469a15941e8e2cca84bb6084636a00000");
-
-// Start Hash Transcript
-
-    HASH256_init(&sh256);
-    for (int i=0;i<CH.len;i++)
-        HASH256_process(&sh256,CH.val[i]);
-    for (int i=0;i<SH.len;i++)
-        HASH256_process(&sh256,SH.val[i]);
-    for (int i=0;i<BCERT.len;i++)
-        HASH256_process(&sh256,BCERT.val[i]);
-
-    HASH256_hash(&sh256,digest);
-
-    OCT_clear(&HH);
-    OCT_jbytes(&HH,digest,32);
-    printf("Hash= "); OCT_output(&HH);
-
-    char scv[1200];
-    octet SCV={0,sizeof(scv),scv};
-
-    OCT_jbyte(&SCV,32,64);
-    OCT_jstring(&SCV,(char *)"TLS 1.3, server CertificateVerify");
-    OCT_jbyte(&SCV,0,1);
-    OCT_joctet(&SCV,&HH);
-
-    OCT_fromHex(&SIG,(char *)"17feb533ca6d007d0058257968424bbc3aa6909e9d49557576a520e04a5ef05f0e86d24ff43f8eb861eef595228d7032aa360f714e667413926ef4f8b5803b69e35519e3b23f4373dfac6787066dcb4756b54560e0886e9b962c4ad28dab26bad1abc25916b09af286537f684f808aefee73046cb7df0a84fbb5967aca131f4b1cf389799403a30c02d29cbdadb72512db9cec2e5e1d00e50cafcf6f21091ebc4f253c5eab01a679baeabeedb9c9618f66006b8244d6622aaa56887ccfc66a0f3851dfa13a78cff7991e03cb2c3a0ed87d7367362eb7805b00b2524ff298a4da487cacdeaf8a2336c5631b3efa935bb411e753ca13b015fec7e4a730f1369f9e");
-
-    printf("Signature to be verified= ");OCT_output(&SIG);
-
-    RSA2048::RSA_ENCRYPT(&PK, &SIG, &P2);  // verify signature
-
-    if (core::PSS_VERIFY(32,&SCV,&P2))
-        printf("TLS_PSS signature verified\n");
-    else
-        printf("TLS_PSS signature FAILED\n");
-
-*/
     return 0;
 } 
