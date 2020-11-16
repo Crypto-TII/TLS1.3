@@ -67,10 +67,10 @@ void GET_APPLICATION_SECRETS(int sha,octet *CAK,octet *CAIV,octet *SAK,octet *SA
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"derived");
     HKDF_Expand_Label(MC_SHA2,sha,&DS,32,HS,&INFO,&EMH);   // Use handshake secret from above
-    printf("Derived Secret = "); OCT_output(&DS);
+//    printf("Derived Secret = "); OCT_output(&DS);
 
     HKDF_Extract(MC_SHA2,sha,&MS,&DS,&ZK);
-    printf("Master Secret= ");OCT_output(&MS);
+//    printf("Master Secret= ");OCT_output(&MS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"c ap traffic");
@@ -105,7 +105,7 @@ void GET_APPLICATION_SECRETS(int sha,octet *CAK,octet *CAIV,octet *SAK,octet *SA
     printf("Server application IV= "); OCT_output(SAIV);
 }
 
-// Extract Handshake secret, Client and Server Handshake keys and IVs, and CLient and Server Handshake Traffic keys from Transcript Hash and Shared secret
+// Extract Handshake secret, Client and Server Handshake keys and IVs, and Client and Server Handshake Traffic keys from Transcript Hash and Shared secret
 void GET_HANDSHAKE_SECRETS(int sha,octet *HS,octet *CHK,octet *CHIV,octet *SHK,octet *SHIV, octet *CHTS,octet *SHTS,  octet *H,octet *SS)
 {
 /*    char cts[64];
@@ -128,13 +128,13 @@ void GET_HANDSHAKE_SECRETS(int sha,octet *HS,octet *CHK,octet *CHIV,octet *SHK,o
 
     HKDF_Extract(MC_SHA2,sha,&ES,&ZK,&ZK);
 
-    printf("Early Secret = "); OCT_output(&ES);
-    printf("Empty Hash context = "); OCT_output(&EMH);
+//    printf("Early Secret = "); OCT_output(&ES);
+    //printf("Empty Hash context = "); OCT_output(&EMH);
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"derived");
     HKDF_Expand_Label(MC_SHA2,sha,&DS,32,&ES,&INFO,&EMH);
 
-    printf("Derived Secret = "); OCT_output(&DS);
+//    printf("Derived Secret = "); OCT_output(&DS);
 
     HKDF_Extract(MC_SHA2,sha,HS,&DS,SS);
 
