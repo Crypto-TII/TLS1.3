@@ -13,7 +13,7 @@ using namespace core;
 using namespace std;
 
 extern void SHOW_CERT_DETAILS(octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet *ISSUER,octet *SUBJECT);
-extern void GET_CERT_DETAILS(octet *CERTIFICATE,octet *PUBKEY,pktype *pk,octet *SIG,pktype *sg,octet *ISSUER,octet *SUBJECT);
+extern void GET_CERT_DETAILS(octet *CERTIFICATE,octet *CERT,octet *PUBKEY,pktype *pk,octet *SIG,pktype *sg,octet *ISSUER,octet *SUBJECT);
 extern bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *CERT,octet *PUBKEY);
 extern bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY);
 extern void OUTPUT_CERT(octet *CERT);
