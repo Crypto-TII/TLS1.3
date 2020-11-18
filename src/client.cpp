@@ -624,7 +624,7 @@ int main(int argc, char const *argv[])
 
 
 // check certificate chain, and extract Server Cert
-    if (CHECK_CERT_CHAIN(&CERTCHAIN,&CERT,&CAKEY))
+    if (CHECK_CERT_CHAIN(&CERTCHAIN,&CAKEY))
         printf("Certificate Chain is valid\n");
     else
         printf("Certificate is NOT valid\n");

@@ -2,38 +2,18 @@
 #include "tls_cert_chain.h"
 #include "tls_parse_octet.h"
 
-// Baltimore root certificate
-char baltimore[] = "MIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJRTESMBAGA1UEChMJQmFsdGltb3JlMRMwEQYDVQQLEwpDeWJlclRydXN0MSIwIAYDVQQDExlCYWx0aW1vcmUgQ3liZXJUcnVzdCBSb290MB4XDTAwMDUxMjE4NDYwMFoXDTI1MDUxMjIzNTkwMFowWjELMAkGA1UEBhMCSUUxEjAQBgNVBAoTCUJhbHRpbW9yZTETMBEGA1UECxMKQ3liZXJUcnVzdDEiMCAGA1UEAxMZQmFsdGltb3JlIEN5YmVyVHJ1c3QgUm9vdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKMEuyKrmD1X6CZymrV51Cni4eiVgLGw41uOKymaZN+hXe2wCQVt2yguzmKiYv60iNoS6zjrIZ3AQSsBUnuId9Mcj8e6uYi1agnnc+gRQKfRzMpijS3ljwumUNKoUMMo6vWrJYeKmpYcqWe4PwzV9/lSEy/CG9VwcPCPwBLKBsua4dnKM3p31vjsufFoREJIE9LAwqSuXmD+tqYF/LTdB1kC1FkYmGP1pWPgkAx9XbIGevOF6uvUA65ehD5f/xXtabz5OTZydc93Uk3zyZAsuT3lySNTPx8kmCFcB5kpvcY67Oduhjprl3RjM71oGDHweI12v/yejl0qhqdNkNwnGjkCAwEAAaNFMEMwHQYDVR0OBBYEFOWdWTCCR1jMrPoIVDaGezq1BE3wMBIGA1UdEwEB/wQIMAYBAf8CAQMwDgYDVR0PAQH/BAQDAgEGMA0GCSqGSIb3DQEBBQUAA4IBAQCFDF2O5G9RaEIFoN27TyclhAO992T9Ldcw46QQF+vaKSm2eT929hkTI7gQCvlYpNRhcL0EYWoSihfVCr3FvDB81ukMJY2GQE/szKN+OMY3EU/t3WgxjkzSswF07r51XgdIGn9w/xZchMB5hbgF/X++ZRGjD8ACtPhSNzkE1akxehi/oCr0Epn3o0WC4zxe9Z2etciefC7IpJ5OCBRLbf1wbWsaY71k5h+3zvDyny67G7fyUIhzksLi4xaNmjICq44Y3ekQEe5+NauQrz4wlHrQMz2nZQ/1/I6eYs9HRCwBXbsdtTLSR9I4LtD+gdwyah617jzV/OeBHRnDJELqYzmp";
-
-static void print_out(char *des, octet *c, int index, int len)
-{
-    int i;
-    printf("%s [", des);
-    for (i = 0; i < len; i++)
-        printf("%c", c->val[index + i]);
-    printf("]\n");
-}
-
-static void print_date(char *des, octet *c, int index)
-{
-    int i = index;
-    printf("%s [", des);
-    if (i == 0) printf("]\n");
-    else printf("20%c%c-%c%c-%c%c %c%c:%c%c:%c%c]\n", c->val[i], c->val[i + 1], c->val[i + 2], c->val[i + 3], c->val[i + 4], c->val[i + 5], c->val[i + 6], c->val[i + 7], c->val[i + 8], c->val[i + 9], c->val[i + 10], c->val[i + 11]);
-}
-
 // given root issuer and public key type of signature, search through root CAs and return root public key
 bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 {
-    char sc[8192];
+    char sc[2048];  // maximum size for CA certs in bytes
     octet SC={0,sizeof(sc),sc};
-    char c[8192];
+    char c[2048];
     octet C={0,sizeof(c),c};
-    char ca[50];
+    char ca[80];
     octet CA={0,sizeof(ca),ca};
-    char owner[50];
+    char owner[80];
     octet OWNER={0,sizeof(owner),owner};
-    char b[8192];
+    char b[3072];  // maximum size for CA certs in base64
     ifstream file("ca-certificates.crt");
 
     if (file.is_open()) {
@@ -51,6 +31,7 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
                 b[i]=0;
             }
             OCT_frombase64(&SC,b);
+//printf("SC.len= %d %d\n",SC.len,i);
 
             int c = X509_extract_cert(&SC, &C);
 
@@ -67,7 +48,7 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
                     file.close();   
                     return true;
                 }
-            }
+            } 
         }
         file.close();   
     }
@@ -85,13 +66,22 @@ void OUTPUT_CERT(octet *CERT)
     printf("\n");
 }
 
-void GET_CERT_DETAILS(octet *CERTIFICATE,octet *CERT,octet *PUBKEY,pktype *pk,octet *SIG,pktype *sg,octet *ISSUER,octet *SUBJECT)
+pktype GET_PUBLIC_KEY_FROM_SIGNED_CERT(octet *SCERT,octet *PUBLIC_KEY)
+{
+    char cert[2048];
+    octet CERT={0,sizeof(cert),cert};
+    X509_extract_cert(SCERT,&CERT);
+    pktype pk=X509_extract_public_key(&CERT, PUBLIC_KEY);
+    return pk;
+}
+
+// extract Cert, Signature, Issuer and Subject from Signed Cert
+pktype GET_CERT_DETAILS(octet *SCERT,octet *CERT,octet *SIG,octet *ISSUER,octet *SUBJECT)
 {
     int c,ic,len;
 
-    *sg = X509_extract_cert_sig(CERTIFICATE, SIG);
-    X509_extract_cert(CERTIFICATE, CERT);
-    *pk=X509_extract_public_key(CERT, PUBKEY);
+    pktype sg=X509_extract_cert_sig(SCERT,SIG);
+    X509_extract_cert(SCERT,CERT);
 
     ic = X509_find_issuer(CERT);
     c = X509_find_entity_property(CERT, &X509_MN, ic, &len);
@@ -102,11 +92,12 @@ void GET_CERT_DETAILS(octet *CERTIFICATE,octet *CERT,octet *PUBKEY,pktype *pk,oc
     c = X509_find_entity_property(CERT, &X509_MN, ic, &len);
     OCT_clear(SUBJECT);
     OCT_jbytes(SUBJECT,&CERT->val[c],len);
+    return sg;
 }
 
-void SHOW_CERT_DETAILS(octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet *ISSUER,octet *SUBJECT)
+void SHOW_CERT_DETAILS(char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet *ISSUER,octet *SUBJECT)
 {
-    printf("\nImportant Certificate Details\n");
+    printf("\n%s\n",txt);
     printf("Signature is "); OCT_output(SIG);
     if (sg.type==X509_ECC)
     {
@@ -219,7 +210,7 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         RSA2048::RSA_fromOctet(PK.n, PUBKEY);
 
         core::PKCS15(sha, CERT, &P1);
-        RSA_ENCRYPT(&PK, SIG, &P2);
+        RSA2048::RSA_ENCRYPT(&PK, SIG, &P2);
 
         if (OCT_comp(&P1, &P2))
         {
@@ -233,23 +224,23 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
     return false;
 }
 
-//extract server cert and public key, and check validity of certificate chain
-bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *CERT,octet *PUBKEY)
+//extract server public key, and check validity of certificate chain
+bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
 {
     int c,ptr=0;
     bool self_signed;
     pktype st,ca,stn;
-    char sig[512];
+    char sig[512];  // signature on certificate
     octet SIG={0,sizeof(sig),sig};
-    char scert[2000];
+    char scert[2048]; // signed certificate
     octet SCERT={0,sizeof(scert),scert};
-    char r[64];
-    octet R={0,sizeof(r),r};
-    char s[64];
-    octet S={0,sizeof(s),s};
-    char issuer[50];
+    char cert[2048];  // certificate
+    octet CERT={0,sizeof(cert),cert};
+    char cakey[512];  // Public Key from Cert
+    octet CAKEY = {0, sizeof(cakey), cakey};
+    char issuer[80];  
     octet ISSUER={0,sizeof(issuer),issuer};
-    char subject[50];
+    char subject[80];
     octet SUBJECT={0,sizeof(subject),subject};
 
     int len=parseInt24(CERTCHAIN,ptr); // get length of first (server) certificate
@@ -258,46 +249,39 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *CERT,octet *PUBKEY)
     len=parseInt16(CERTCHAIN,ptr);
     ptr+=len;   // skip certificate extensions
 
-    GET_CERT_DETAILS(&SCERT,CERT,PUBKEY,&ca,&SIG,&st,&ISSUER,&SUBJECT);
-    SHOW_CERT_DETAILS(PUBKEY,ca,&SIG,st,&ISSUER,&SUBJECT);
+    ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,PUBKEY);
+    st=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);
 
-    char ncert[2000];
-    octet NCERT={0,sizeof(ncert),ncert};
-    char icert[2000];
-    octet ICERT={0,sizeof(icert),icert};
-    char cakey[500];
-    octet CAKEY = {0, sizeof(cakey), cakey};
-    char nsig[512];
-    octet NSIG={0,sizeof(nsig),nsig};
+    SHOW_CERT_DETAILS((char *)"Server certificate",PUBKEY,ca,&SIG,st,&ISSUER,&SUBJECT);
+
     printf("cert.len= %d, ptr= %d\n",CERTCHAIN->len,ptr);
     len=parseInt24(CERTCHAIN,ptr); // get length of next certificate
-    parseOctet(&NCERT,len,CERTCHAIN,ptr); 
+    parseOctet(&SCERT,len,CERTCHAIN,ptr); 
 
     len=parseInt16(CERTCHAIN,ptr);
     ptr+=len;   // skip certificate extensions
 
-    GET_CERT_DETAILS(&NCERT,&ICERT,&CAKEY,&ca,&NSIG,&stn,&ISSUER,&SUBJECT);
-    SHOW_CERT_DETAILS(&CAKEY,ca,&NSIG,stn,&ISSUER,&SUBJECT);
+    ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,&CAKEY);
 
-    if (CHECK_CERT_SIG(st,CERT,&SIG,&CAKEY)) {
+    if (CHECK_CERT_SIG(st,&CERT,&SIG,&CAKEY)) {
         printf("Intermediate Certificate Chain sig is OK\n");
     } else {
         printf("Intermediate Certificate Chain sig is NOT OK\n");
         return false;
     }
 
-    char rootkey[500];
-    octet ROOTKEY = {0, sizeof(rootkey), rootkey};
+    stn=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);
+    SHOW_CERT_DETAILS((char *)"Intermediate Certificate",&CAKEY,ca,&SIG,stn,&ISSUER,&SUBJECT);
 
-    if (FIND_ROOT_CA(&ISSUER,stn,&ROOTKEY)) {
-        printf("\nPublic Key= "); OCT_output(&ROOTKEY);
+    if (FIND_ROOT_CA(&ISSUER,stn,&CAKEY)) {
+        printf("\nPublic Key from root CA cert= "); OCT_output(&CAKEY);
         printf("type= %d, hash= %d, curve/len= %d\n",stn.type,stn.hash,stn.curve); 
     } else {
         printf("Root CA not found\n");
         return false;
     }
 
-    if (CHECK_CERT_SIG(stn,&ICERT,&NSIG,&ROOTKEY)) {
+    if (CHECK_CERT_SIG(stn,&CERT,&SIG,&CAKEY)) {
         printf("Root Certificate sig is OK!!!!\n");
     } else {
         printf("Root Certificate sig is NOT OK\n");
