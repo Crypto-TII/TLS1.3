@@ -43,6 +43,7 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
             if (OCT_comp(&OWNER,ISSUER))
             {
                 pktype pt = X509_extract_public_key(&C, PUBKEY);
+
                 if (st.type==pt.type && st.curve==pt.curve) 
                 {
                     file.close();   
@@ -272,6 +273,8 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
 
     stn=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);
     SHOW_CERT_DETAILS((char *)"Intermediate Certificate",&CAKEY,ca,&SIG,stn,&ISSUER,&SUBJECT);
+
+//printf("Issuer= ");OCT_output_string(&ISSUER); printf("\n");
 
     if (FIND_ROOT_CA(&ISSUER,stn,&CAKEY)) {
         printf("\nPublic Key from root CA cert= "); OCT_output(&CAKEY);

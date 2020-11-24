@@ -215,14 +215,30 @@ int clientHello(octet *CH,char *serverName,int nsc,int *ciphers,int nsg,int *sup
     return CH->len;
 
 }
-// get wrapper, decrypt it, and parse it!
-bool getServerResponse(int sock,octet *SHK,octet *SHIV,octet *SR)
+
+// read in SCCS - and ignore it
+void getSCCS(int sock)
 {
-    int len=0;
-    char rh[10];
+    char rh[3];
     octet RH={0,sizeof(rh),rh};
     char sccs[10];
     octet SCCS={0,sizeof(sccs),sccs};
+    getOctet(sock,&RH,3);
+    int left=getInt16(sock);
+    OCT_joctet(&SCCS,&RH);
+    OCT_jint(&SCCS,left,2);
+    getBytes(sock,&SCCS.val[5],left);
+    SCCS.len+=left;
+}
+
+// get wrapper, decrypt it, and parse it!
+// But maybe I am just getting a fragment??
+// replace with getServerResponseFragment() ??
+bool getServerResponse(int sock,octet *SHK,octet *SHIV,octet *SR)
+{
+    int left;
+    char rh[10];
+    octet RH={0,sizeof(rh),rh};
     char tag[16];
     octet TAG={0,sizeof(tag),tag};
     char rtag[16];
@@ -230,66 +246,33 @@ bool getServerResponse(int sock,octet *SHK,octet *SHIV,octet *SR)
 
     OCT_clear(SR);
 
-    getOctet(sock,&RH,3);  // strip out SCCS
-    int left=getInt16(sock); // get SCCS length
-    OCT_joctet(&SCCS,&RH);
-    OCT_jint(&SCCS,left,2);
-    len+=5;
-    getBytes(sock,&SCCS.val[5],left);
-    len+=left;
-    SCCS.len=len;
-
-//printf("SCCS= "); OCT_output(&SCCS);
-
-// get Header
-    len=0;
+// get Header - should be something like 17 03 03 04 75
     OCT_clear(&RH);
     getOctet(sock,&RH,3);  // Signed Cert header
     left=getInt16(sock);
     OCT_jint(&RH,left,2);
-//    printf("Header= ");OCT_output(&RH);
-//    OCT_joctet(SR,&RH);
-//    len+=5;
+    printf("Header= ");OCT_output(&RH);
     getBytes(sock,SR->val,left-16);
 
-//decrypt it - probably depends on cipher suite??? 16 -> 24 or 32
+//decrypt body - probably depends on cipher suite??? 16 -> 24 or 32
     gcm g;
-    GCM_init(&g,16,SHK->val,12,SHIV->val);  // Encrypt with Server handshake Key and IV
+    GCM_init(&g,16,SHK->val,12,SHIV->val);  // Decrypt with Server handshake Key and IV
     GCM_add_header(&g,RH.val,RH.len);
-
     GCM_add_cipher(&g,SR->val,SR->val,left-16);
-
 //check TAG
     GCM_finish(&g,TAG.val); TAG.len=16;
     printf("TAG= ");OCT_output(&TAG);
-
-    len+=(left-16);
-    SR->len=len;    
-
+    SR->len=left-16;    
+// read correct TAG from server
     getOctet(sock,&RTAG,16);
-//    printf("RTAG= ");OCT_output(&RTAG);
 
     if (!OCT_comp(&TAG,&RTAG))
     {
         printf("NOT authenticated!\n");
         return false;
     }
-    printf("Server response authenticates\n");
+    printf("Server fragment response authenticates\n");
     return true;
-}
-
-// read in SCCS - and ignore it
-void getSCCS(int sock,octet *SCCS)
-{
-    char rh[3];
-    octet RH={0,sizeof(rh),rh};
-    getOctet(sock,&RH,3);
-    int left=getInt16(sock);
-    OCT_clear(SCCS);
-    OCT_joctet(SCCS,&RH);
-    OCT_jint(SCCS,left,2);
-    getBytes(sock,&SCCS->val[5],left);
-    SCCS->len+=left;
 }
 
 int parseServerResponse(octet *SR,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int &hut1,int &hut2,int &hut3) //returns pointers into SR indicating where hashing might end
@@ -478,6 +461,8 @@ int main(int argc, char const *argv[])
     port=443;
     sock=setclientsock(port,(char *)"104.16.133.229");
 
+//    sock=setclientsock(port,(char *)"151.101.1.195");
+
 // For Transcript hash must use cipher-suite hash function
 // which could be SHA256 or SHA384
     unihash tlshash;
@@ -598,12 +583,12 @@ int main(int argc, char const *argv[])
     char fin[200];
     octet FIN={0,sizeof(fin),fin};
 
-//    getSCCS(sock,&SCCS);
+    getSCCS(sock);
 //    printf("server change cipher= "); OCT_output(&SCCS);
 
     getServerResponse(sock,&SHK,&SHIV,&SR);
 
-//    printf("server response= %d ",SR.len); OCT_output(&SR);
+    printf("server response= %d ",SR.len); OCT_output(&SR);
 
     int hut1,hut2,hut3;
 // parse Server Response - extract certchain plus server cert verifier plus server finish
