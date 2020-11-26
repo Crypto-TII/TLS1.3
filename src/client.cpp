@@ -1,5 +1,5 @@
 // Client side C/C++ program to demonstrate Socket programming 
-// g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_hash.cpp tls_scv.cpp tls_cert_chain.cpp tls_parse_octet.cpp core.a -o client
+// g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_hash.cpp tls_scv.cpp tls_cert_chain.cpp tls_parse_octet.cpp x509.cpp core.a -o client
 #include <stdio.h> 
 #include <sys/socket.h> 
 #include <arpa/inet.h> 
@@ -21,7 +21,6 @@
 #include "tls_cert_chain.h"
 
 using namespace core;
-
 
 // Build Servername Extension
 int extServerName(octet *SN,char *servername)
@@ -231,59 +230,99 @@ void getSCCS(int sock)
     SCCS.len+=left;
 }
 
-// get wrapper, decrypt it, and parse it!
-// But maybe I am just getting a fragment??
-// replace with getServerResponseFragment() ??
-bool getServerResponse(int sock,octet *SHK,octet *SHIV,octet *SR)
+// get another fragment of server response
+// decrypt and authenticate it
+// append it to the end of SR
+bool getServerResponseFragment(int sock,octet *SHK,octet *SHIV,octet *SR)
 {
-    int left;
+    int left,pos;
     char rh[10];
     octet RH={0,sizeof(rh),rh};
     char tag[16];
     octet TAG={0,sizeof(tag),tag};
     char rtag[16];
     octet RTAG={0,sizeof(rtag),rtag};
+    char cipher[8000];
+    octet CIPHER={0,sizeof(cipher),cipher};
 
-    OCT_clear(SR);
-
+    pos=SR->len;  // end of SR
 // get Header - should be something like 17 03 03 04 75
     OCT_clear(&RH);
     getOctet(sock,&RH,3);  // Signed Cert header
     left=getInt16(sock);
     OCT_jint(&RH,left,2);
     printf("Header= ");OCT_output(&RH);
-    getBytes(sock,SR->val,left-16);
+    getBytes(sock,&SR->val[pos],left-16);
+    OCT_jbytes(&CIPHER,&SR->val[pos],left-16);
+    printf("Ciphertext= "); OCT_output(&CIPHER);
 
 //decrypt body - probably depends on cipher suite??? 16 -> 24 or 32
     gcm g;
     GCM_init(&g,16,SHK->val,12,SHIV->val);  // Decrypt with Server handshake Key and IV
     GCM_add_header(&g,RH.val,RH.len);
-    GCM_add_cipher(&g,SR->val,SR->val,left-16);
+    GCM_add_cipher(&g,&SR->val[pos],&SR->val[pos],left-16);
 //check TAG
     GCM_finish(&g,TAG.val); TAG.len=16;
     printf("TAG= ");OCT_output(&TAG);
-    SR->len=left-16;    
+    SR->len+=(left-16);    
 // read correct TAG from server
     getOctet(sock,&RTAG,16);
+    printf("Correct TAG= "); OCT_output(&RTAG);
+
 
     if (!OCT_comp(&TAG,&RTAG))
     {
         printf("NOT authenticated!\n");
         return false;
     }
-    printf("Server fragment response authenticates\n");
+    printf("Server fragment authenticates\n");
     return true;
 }
 
-int parseServerResponse(octet *SR,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int &hut1,int &hut2,int &hut3) //returns pointers into SR indicating where hashing might end
+// update new IV from original IV and record number
+// See RFC8446 section 5.3
+// OK should be 64-bit, but really that is excessive
+void updateIV(octet *NIV,octet *OIV,unsign32 &recno)
 {
-    int ptr=0;
-    int sigalg;
-    int ht=parseByte(SR,ptr); // handshake type 08 - encrypted extensions
-    int len=parseInt24(SR,ptr);
+    unsigned char b[4];
+    recno++;
+    b[3] = (unsigned char)(recno);
+    b[2] = (unsigned char)(recno >> 8);
+    b[1] = (unsigned char)(recno >> 16);
+    b[0] = (unsigned char)(recno >> 24);
+    for (int i=0;i<4;i++)
+        NIV->val[8+i]=OIV->val[8+i]^b[i];
+}
+
+int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int &hut1,int &hut2,int &hut3) //returns pointers into SR indicating where hashing might end
+{
+    int nb,sigalg,ht,len,ptr=0;
+    unsign32 recno=0;
+    unsigned char b[4];
+
+    char iv[12];
+    octet IV={0,sizeof(iv),iv};
+
+    OCT_copy(&IV,SHIV);  // IV will be updated for each record read
+    OCT_clear(SR);
+    getServerResponseFragment(sock,SHK,&IV,SR);
+
+    printf("1. SR= "); OCT_output(SR);
+
+    ht=parseByte(SR,ptr); // handshake type 08 - encrypted extensions
+    len=parseInt24(SR,ptr);
     ptr+=len;   // skip encrypted extensions
 
-    int nb=parseByte(SR,ptr);
+    nb=parseByte(SR,ptr);
+    if (nb==0x16)  // end-of-record detected
+    { // fragment ended - grab another one!
+        SR->len--; ptr--;  // remove 0x16
+        updateIV(&IV,SHIV,recno);   // update IV according to RFC8446 section 5.3
+        getServerResponseFragment(sock,SHK,&IV,SR);
+        printf("2. SR= "); OCT_output(SR);
+        nb=parseByte(SR,ptr);
+    }
+
     if (nb!=0x0b) printf("Something wrong 1 %x %x\n",len,nb);   // 0x0B Certificate message type
     len=parseInt24(SR,ptr);                                     // message length
     nb=parseByte(SR,ptr);
@@ -292,8 +331,15 @@ int parseServerResponse(octet *SR,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int
     parseOctet(CERTCHAIN,len,SR,ptr);
 
     hut1=ptr;                   // hash up to this point
-printf("hut1= %d\n",hut1);
     nb=parseByte(SR,ptr);
+    if (nb==0x16) // end-of-record detected
+    { // fragment ended - grab another one!
+        SR->len--; ptr--;  // remove 0x16
+        updateIV(&IV,SHIV,recno);   // update IV according to RFC8446 section 5.3
+        getServerResponseFragment(sock,SHK,&IV,SR);
+        printf("3. SR= "); OCT_output(SR);
+        nb=parseByte(SR,ptr);
+    }
     if (nb!=0x0f) printf("Something wrong 3 %x\n",nb);  // 0x0F = Certificate Verify
     len=parseInt24(SR,ptr);
     sigalg=parseInt16(SR,ptr);   // may be 0804 - RSA-PSS-RSAE-SHA256
@@ -301,8 +347,15 @@ printf("hut1= %d\n",hut1);
 
     parseOctet(SCVSIG,len,SR,ptr);
     hut2=ptr;               // and hash up to this point
-
     nb=parseByte(SR,ptr); 
+    if (nb==0x16) // end-of-record detected
+    { // fragment ended - grab another one!
+        SR->len--; ptr--;  // remove 0x16
+        updateIV(&IV,SHIV,recno);   // update IV according to RFC8446 section 5.3
+        getServerResponseFragment(sock,SHK,&IV,SR);
+        printf("4. SR= "); OCT_output(SR);
+        nb=parseByte(SR,ptr);
+    }
     if (nb!=0x14) printf("Something wrong 4 %x\n",nb);  // 0x14 = Server Finish
     len=parseInt24(SR,ptr);
     parseOctet(HFIN,len,SR,ptr);
@@ -574,7 +627,7 @@ int main(int argc, char const *argv[])
 // on the "verifier". Note CA signature might use old methods, by server will use PSS padding for its signature (if ECC).
 
 
-    char sr[5000];
+    char sr[8000];
     octet SR={0,sizeof(sr),sr};
     char certchain[5000];
     octet CERTCHAIN={0,sizeof(certchain),certchain};
@@ -584,15 +637,10 @@ int main(int argc, char const *argv[])
     octet FIN={0,sizeof(fin),fin};
 
     getSCCS(sock);
-//    printf("server change cipher= "); OCT_output(&SCCS);
-
-    getServerResponse(sock,&SHK,&SHIV,&SR);
-
-    printf("server response= %d ",SR.len); OCT_output(&SR);
 
     int hut1,hut2,hut3;
 // parse Server Response - extract certchain plus server cert verifier plus server finish
-    int sigalg=parseServerResponse(&SR,&CERTCHAIN,&SCVSIG,&FIN,hut1,hut2,hut3); // returns pointers into SR indicating where hashing can end
+    int sigalg=parseServerResponse(&SR,sock,&SHK,&SHIV,&CERTCHAIN,&SCVSIG,&FIN,hut1,hut2,hut3); // returns pointers into SR indicating where hashing can end
 
 //    printf("Cert Chain= %d ",CERTCHAIN.len); OCT_output(&CERTCHAIN);
     printf("Signature Algorithm= %04x\n",sigalg);
