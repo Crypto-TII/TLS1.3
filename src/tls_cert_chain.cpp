@@ -58,7 +58,7 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 
 void OUTPUT_CERT(octet *CERT)
 {
-    char b[2000];
+    char b[8000];
     printf( "-----BEGIN CERTIFICATE----- ");
     printf("\n");
     OCT_tobase64(b,CERT);
@@ -69,7 +69,7 @@ void OUTPUT_CERT(octet *CERT)
 
 pktype GET_PUBLIC_KEY_FROM_SIGNED_CERT(octet *SCERT,octet *PUBLIC_KEY)
 {
-    char cert[2048];
+    char cert[4096];
     octet CERT={0,sizeof(cert),cert};
     X509_extract_cert(SCERT,&CERT);
     pktype pk=X509_extract_public_key(&CERT, PUBLIC_KEY);
@@ -116,7 +116,7 @@ void SHOW_CERT_DETAILS(char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,oc
     if (sg.type==X509_RSA)
         printf("RSA signature of length %d\n",sg.curve);
 
-    printf("Public key= "); OCT_output(PUBKEY);
+    printf("Public key= %d ",PUBKEY->len); OCT_output(PUBKEY);
     if (pk.type==X509_ECC)
     {
         printf("ECC public key ");
@@ -135,8 +135,6 @@ void SHOW_CERT_DETAILS(char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,oc
     printf("\n");
    
 }
-
-#define CHOICE USE_NIST256
 
 // Check signature on Certificate given signature type and public key
 bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
@@ -164,7 +162,7 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         octet R={0,sizeof(r),r};
         char s[66];
         octet S={0,sizeof(s),s};
-        int siglen=SIG->len/2;
+        int res,siglen=SIG->len/2;
         for (int i=0;i<siglen;i++)
         {
             OCT_jbyte(&R,SIG->val[i],1);
@@ -177,13 +175,22 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         printf("ECC PUBLIC KEY= \n");
         OCT_output(PUBKEY);
 
-        printf("Checking ECC Signature on Cert\n");
-        int res = NIST256::ECP_PUBLIC_KEY_VALIDATE(PUBKEY);
+        printf("Checking ECC Signature on Cert %d\n",st.curve);
+
+        if (st.curve==USE_NIST256)
+            res = NIST256::ECP_PUBLIC_KEY_VALIDATE(PUBKEY);
+        if (st.curve==USE_NIST384)
+            res = NIST384::ECP_PUBLIC_KEY_VALIDATE(PUBKEY);
         if (res != 0)
             printf("ECP Public Key is invalid!\n");
         else printf("ECP Public Key is Valid\n");
 
-        if (NIST256::ECP_VP_DSA(sha, PUBKEY, CERT, &R, &S) != 0)
+        if (st.curve==USE_NIST256)
+            res=NIST256::ECP_VP_DSA(sha, PUBKEY, CERT, &R, &S);
+        if (st.curve==USE_NIST384)
+            res=NIST384::ECP_VP_DSA(sha, PUBKEY, CERT, &R, &S);
+
+        if (res!=0)
         {
             printf("***ECDSA Verification Failed\n");
             return false;
@@ -195,25 +202,42 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 
     if (st.type == X509_RSA)
     {
-        char p1[RFS_RSA2048];
-        octet P1={0,sizeof(p1),p1};
-        char p2[RFS_RSA2048];
-        octet P2={0,sizeof(p2),p2};
+        int res;
+        printf("st.curve= %d\n",st.curve);
         printf("SIG= \n");
         OCT_output(SIG);
         printf("\n");
-        printf("RSA PUBLIC KEY= \n");
+        printf("RSA PUBLIC KEY= %d\n",PUBKEY->len);
         OCT_output(PUBKEY);
 
-        RSA2048::rsa_public_key PK;
-        printf("Checking CA's RSA Signature on Cert\n");
-        PK.e = 65537; // assuming this!
-        RSA2048::RSA_fromOctet(PK.n, PUBKEY);
-
-        core::PKCS15(sha, CERT, &P1);
-        RSA2048::RSA_ENCRYPT(&PK, SIG, &P2);
-
-        if (OCT_comp(&P1, &P2))
+        printf("Checking RSA Signature on Cert\n");
+        if (st.curve==2048)
+        {
+            char p1[RFS_RSA2048];
+            octet P1={0,sizeof(p1),p1};
+            char p2[RFS_RSA2048];
+            octet P2={0,sizeof(p2),p2};
+            RSA2048::rsa_public_key PK;
+            PK.e = 65537; // assuming this!
+            RSA2048::RSA_fromOctet(PK.n, PUBKEY);
+            core::PKCS15(sha, CERT, &P1);
+            RSA2048::RSA_ENCRYPT(&PK, SIG, &P2);
+            res=OCT_comp(&P1, &P2);
+        }
+        if (st.curve==4096)
+        {
+            char p1[RFS_RSA4096];
+            octet P1={0,sizeof(p1),p1};
+            char p2[RFS_RSA4096];
+            octet P2={0,sizeof(p2),p2};
+            RSA4096::rsa_public_key PK;
+            PK.e = 65537; // assuming this!
+            RSA4096::RSA_fromOctet(PK.n, PUBKEY);
+            core::PKCS15(sha, CERT, &P1);
+            RSA4096::RSA_ENCRYPT(&PK, SIG, &P2);
+            res=OCT_comp(&P1, &P2);
+        } 
+        if (res)
         {
             printf("RSA Signature/Verification succeeded \n");
             return true;
@@ -233,9 +257,9 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     pktype st,ca,stn;
     char sig[512];  // signature on certificate
     octet SIG={0,sizeof(sig),sig};
-    char scert[2048]; // signed certificate
+    char scert[5000]; // signed certificate
     octet SCERT={0,sizeof(scert),scert};
-    char cert[2048];  // certificate
+    char cert[5000];  // certificate
     octet CERT={0,sizeof(cert),cert};
     char cakey[512];  // Public Key from Cert
     octet CAKEY = {0, sizeof(cakey), cakey};
@@ -247,22 +271,27 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     int len=parseInt24(CERTCHAIN,ptr); // get length of first (server) certificate
     parseOctet(&SCERT,len,CERTCHAIN,ptr); 
 
+//printf("Server Cert= %d \n",SCERT.len);
+//OUTPUT_CERT(&SCERT);
+
     len=parseInt16(CERTCHAIN,ptr);
     ptr+=len;   // skip certificate extensions
-
     ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,PUBKEY);
-    st=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);
-
+    st=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);   // get signature on Server Cert
     SHOW_CERT_DETAILS((char *)"Server certificate",PUBKEY,ca,&SIG,st,&ISSUER,&SUBJECT);
 
     printf("cert.len= %d, ptr= %d\n",CERTCHAIN->len,ptr);
     len=parseInt24(CERTCHAIN,ptr); // get length of next certificate
     parseOctet(&SCERT,len,CERTCHAIN,ptr); 
+//printf("Inter Cert= %d \n",SCERT.len);
+//OUTPUT_CERT(&SCERT);
 
     len=parseInt16(CERTCHAIN,ptr);
     ptr+=len;   // skip certificate extensions
 
-    ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,&CAKEY);
+    ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,&CAKEY);  // get public key from Intermediate Cert
+//    printf("Public Key of Intermediate Cert = %d ",CAKEY.len); OCT_output(&CAKEY);
+//    printf("Signature on Server Cert = %d ",SIG.len); OCT_output(&SIG);
 
     if (CHECK_CERT_SIG(st,&CERT,&SIG,&CAKEY)) {
         printf("Intermediate Certificate Chain sig is OK\n");
@@ -272,6 +301,7 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     }
 
     stn=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);
+
     SHOW_CERT_DETAILS((char *)"Intermediate Certificate",&CAKEY,ca,&SIG,stn,&ISSUER,&SUBJECT);
 
 //printf("Issuer= ");OCT_output_string(&ISSUER); printf("\n");

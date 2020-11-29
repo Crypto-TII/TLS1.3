@@ -2,12 +2,19 @@
 // g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_hash.cpp tls_scv.cpp tls_cert_chain.cpp tls_parse_octet.cpp x509.cpp core.a -o client
 #include <stdio.h> 
 #include <sys/socket.h> 
+
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+
 #include <arpa/inet.h> 
 #include <unistd.h> 
 #include <string.h> 
 #include <time.h>
 #include "core.h"
 #include "ecdh_NIST256.h"  
+#include "ecdh_NIST384.h"
 #include "ecdh_C25519.h"
 #include "rsa_RSA2048.h"
 #include "randapi.h"  
@@ -212,7 +219,6 @@ int clientHello(octet *CH,char *serverName,int nsc,int *ciphers,int nsg,int *sup
 
     printf("\nClient Hello= %d ",CH->len); OCT_output(CH);
     return CH->len;
-
 }
 
 // read in SCCS - and ignore it
@@ -242,8 +248,6 @@ bool getServerResponseFragment(int sock,octet *SHK,octet *SHIV,octet *SR)
     octet TAG={0,sizeof(tag),tag};
     char rtag[16];
     octet RTAG={0,sizeof(rtag),rtag};
-    char cipher[8000];
-    octet CIPHER={0,sizeof(cipher),cipher};
 
     pos=SR->len;  // end of SR
 // get Header - should be something like 17 03 03 04 75
@@ -253,23 +257,21 @@ bool getServerResponseFragment(int sock,octet *SHK,octet *SHIV,octet *SR)
     OCT_jint(&RH,left,2);
     printf("Header= ");OCT_output(&RH);
     getBytes(sock,&SR->val[pos],left-16);
-    OCT_jbytes(&CIPHER,&SR->val[pos],left-16);
-    printf("Ciphertext= "); OCT_output(&CIPHER);
 
 //decrypt body - probably depends on cipher suite??? 16 -> 24 or 32
     gcm g;
-    GCM_init(&g,16,SHK->val,12,SHIV->val);  // Decrypt with Server handshake Key and IV
+    printf("Key length= %d IV length= %d\n",SHK->len,SHIV->len);
+    GCM_init(&g,SHK->len,SHK->val,12,SHIV->val);  // Decrypt with Server handshake Key and IV
     GCM_add_header(&g,RH.val,RH.len);
     GCM_add_cipher(&g,&SR->val[pos],&SR->val[pos],left-16);
 //check TAG
     GCM_finish(&g,TAG.val); TAG.len=16;
     printf("TAG= ");OCT_output(&TAG);
+
     SR->len+=(left-16);    
 // read correct TAG from server
     getOctet(sock,&RTAG,16);
     printf("Correct TAG= "); OCT_output(&RTAG);
-
-
     if (!OCT_comp(&TAG,&RTAG))
     {
         printf("NOT authenticated!\n");
@@ -298,7 +300,6 @@ int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,octet *CERTCHA
 {
     int nb,sigalg,ht,len,ptr=0;
     unsign32 recno=0;
-    unsigned char b[4];
 
     char iv[12];
     octet IV={0,sizeof(iv),iv};
@@ -316,7 +317,7 @@ int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,octet *CERTCHA
     nb=parseByte(SR,ptr);
     if (nb==0x16)  // end-of-record detected
     { // fragment ended - grab another one!
-        SR->len--; ptr--;  // remove 0x16
+        SR->len--; ptr--;  // remove 0x16 - does not form part of hash
         updateIV(&IV,SHIV,recno);   // update IV according to RFC8446 section 5.3
         getServerResponseFragment(sock,SHK,&IV,SR);
         printf("2. SR= "); OCT_output(SR);
@@ -342,8 +343,8 @@ int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,octet *CERTCHA
     }
     if (nb!=0x0f) printf("Something wrong 3 %x\n",nb);  // 0x0F = Certificate Verify
     len=parseInt24(SR,ptr);
-    sigalg=parseInt16(SR,ptr);   // may be 0804 - RSA-PSS-RSAE-SHA256
-    len=parseInt16(SR,ptr);  // sig data follows
+    sigalg=parseInt16(SR,ptr);   // may for example be 0804 - RSA-PSS-RSAE-SHA256
+    len=parseInt16(SR,ptr);      // sig data follows
 
     parseOctet(SCVSIG,len,SR,ptr);
     hut2=ptr;               // and hash up to this point
@@ -353,7 +354,7 @@ int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,octet *CERTCHA
         SR->len--; ptr--;  // remove 0x16
         updateIV(&IV,SHIV,recno);   // update IV according to RFC8446 section 5.3
         getServerResponseFragment(sock,SHK,&IV,SR);
-        printf("4. SR= "); OCT_output(SR);
+        printf("4. SR= %d ",SR->len); OCT_output(SR);
         nb=parseByte(SR,ptr);
     }
     if (nb!=0x14) printf("Something wrong 4 %x\n",nb);  // 0x14 = Server Finish
@@ -363,7 +364,7 @@ int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,octet *CERTCHA
     return sigalg;
 }
 
-bool getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *PK)
+bool getServerHello(int sock,octet* SH,int &cipher,int &kex,int &tls,octet *PK)
 {
     char rh[3];
     octet RH={0,sizeof(rh),rh};
@@ -434,7 +435,7 @@ bool getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *PK)
             {
                 tmplen=parseInt16(SH,ptr); extLen-=2;
                 extLen-=tmplen;
-                parseInt16(SH,ptr);  // get TLS version
+                tls=parseInt16(SH,ptr);  // get TLS version
                 break;
             }
        default :
@@ -446,44 +447,57 @@ bool getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *PK)
     return true;
 }
 
-#define CHOICE USE_NIST256
+int getIPaddress(char *ip,char *hostname)
+{
+	hostent * record = gethostbyname(hostname);
+	if(record == NULL)
+	{
+		printf("%s is unavailable\n", hostname);
+		exit(1);
+	}
+	in_addr * address = (in_addr * )record->h_addr;
+	strcpy(ip,inet_ntoa(* address));
+    return 1;
+}
 
 int main(int argc, char const *argv[]) 
 { 
-    int sock, valread, port; 
-    int cipher,kex;
-    char digest[32];
-    char *ip = (char *)"127.0.0.1";
+    char hostname[80];
+    char ip[40];
+    int tls, sock, valread, port; 
+    int cipher_suite,kex,sha;
+    char digest[64];
+
     char b[100];
     octet B = {0, sizeof(b), b};
     char spk[140];
     octet SPK = {0, sizeof(spk), spk};
-    char ss[32];
+    char ss[64];
     octet SS = {0, sizeof(ss), ss};
 
     char ch[1000];
     octet CH = {0, sizeof(ch), ch};
     char sh[1000];
     octet SH = {0, sizeof(sh), sh};
-    char hs[32];
+    char hs[64];
     octet HS = {0,sizeof(hs),hs};
-    char lb[32];
+    char lb[64];
     octet LB = {0,sizeof(lb),lb};
-    char ctx[32];
+    char ctx[64];
     octet CTX = {0,sizeof(ctx),ctx};
-    char hh[32];
+    char hh[64];
     octet HH={0,sizeof(hh),hh};
-    char fh[32];
+    char fh[64];
     octet FH={0,sizeof(fh),fh};
-    char th[32];
+    char th[64];
     octet TH={0,sizeof(th),th};
-    char chk[32];
+    char chk[64];
     octet CHK={0,sizeof(chk),chk};
-    char shk[32];
+    char shk[64];
     octet SHK={0,sizeof(shk),shk};
-    char chiv[32];
+    char chiv[12];
     octet CHIV={0,sizeof(chiv),chiv};
-    char shiv[32];
+    char shiv[12];
     octet SHIV={0,sizeof(shiv),shiv};
     char shts[64];
     octet SHTS={0,sizeof(shts),shts};
@@ -507,14 +521,29 @@ int main(int argc, char const *argv[])
 
     CREATE_CSPRNG(&RNG, &RAW);  // initialise strong RNG
 
+    argv++; argc--;
+    if (argc!=1)
+    {
+        printf("Provide server name\n");
+        exit(0);
+    }
+    strcpy(hostname,argv[0]);
+
+    printf("Hostname= %s\n",hostname);
+    getIPaddress(ip,hostname);
+
+    printf("ip= %s\n",ip);
+
 //    port=8080;
 //    sock=setclientsock(port,ip);
 
 // tls13.cloudflare.com:443
     port=443;
-    sock=setclientsock(port,(char *)"104.16.133.229");
-
-//    sock=setclientsock(port,(char *)"151.101.1.195");
+    sock=setclientsock(port,ip);
+//    sock=setclientsock(port,(char *)"185.70.41.130");  // mail.protonmail.com
+//    sock=setclientsock(port,(char *)"212.58.233.253");  // www.bbc.co.uk
+//    sock=setclientsock(port,(char *)"104.16.133.229");  // www.miracl.com
+//    sock=setclientsock(port,(char *)"151.101.1.195"); // tls13.cloudfare.com
 
 // For Transcript hash must use cipher-suite hash function
 // which could be SHA256 or SHA384
@@ -548,7 +577,7 @@ int main(int argc, char const *argv[])
 
 // Server Capabilities to be advertised
 // Supported Cipher Suits
-    int nsc=3;
+    int nsc=2;      // ********************
     int ciphers[4];
     ciphers[0]=TLS_AES_128_GCM_SHA256;
     ciphers[1]=TLS_AES_256_GCM_SHA384;
@@ -584,15 +613,22 @@ int main(int argc, char const *argv[])
     clientHello(&CH,serverName,nsc,ciphers,nsg,supportedGroups,nsa,sigAlgs,alg,&CPK,pskMode,tlsVersion,&RNG);
     sendOctet(sock,&CH);      // transmit it
     printf("Client Hello sent\n");
-    getServerHello(sock,&SH,cipher,kex,&SPK);
+    getServerHello(sock,&SH,cipher_suite,kex,tls,&SPK);
     printf("Server Hello received\n");
     printf("Server Hello= %d ",SH.len); OCT_output(&SH);
 
+    if (tls!=TLS1_3)
+    {
+        printf("Site does not support TLS1.3 - ABORT\n");
+        exit(0);
+    }
+
 // Check which cipher-suite chosen by Server
-    if (cipher==TLS_AES_128_GCM_SHA256)
-        Hash_Init(32,&tlshash);  // SHA256
-    if (cipher==TLS_AES_256_GCM_SHA384)
-        Hash_Init(48,&tlshash);
+    sha=0;
+    if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=32;
+    if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=48;
+        
+    Hash_Init(sha,&tlshash);
 
 // Hash Transcript Hellos 
     OCT_shl(&CH,5);  // -  strip off client header
@@ -602,9 +638,9 @@ int main(int argc, char const *argv[])
         Hash_Process(&tlshash,SH.val[i]);
 
     Hash_Output(&tlshash,digest);
-    printf("Hash= "); for (int i=0;i<32;i++) printf("%02x",(unsigned char)digest[i]); printf("\n");
+    printf("Hash= "); for (int i=0;i<sha;i++) printf("%02x",(unsigned char)digest[i]); printf("\n");
     
-    OCT_jbytes(&HH,digest,32);
+    OCT_jbytes(&HH,digest,sha);
 
     if (kex==X25519)
     { // RFC 7748
@@ -619,22 +655,21 @@ int main(int argc, char const *argv[])
 
     printf("Shared Secret= ");OCT_output(&SS);
 
-// Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Hash and Shared secret
-    GET_HANDSHAKE_SECRETS(32,&HS,&CHK,&CHIV,&SHK,&SHIV,&CHTS,&SHTS,&HH,&SS);
-
-// Client now receives certificate and verifier. Need to parse these out, check CA signature on the cert
-// (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
-// on the "verifier". Note CA signature might use old methods, by server will use PSS padding for its signature (if ECC).
-
-
     char sr[8000];
     octet SR={0,sizeof(sr),sr};
-    char certchain[5000];
+    char certchain[8000];
     octet CERTCHAIN={0,sizeof(certchain),certchain};
-    char scvsig[500];
+    char scvsig[1024];
     octet SCVSIG={0,sizeof(scvsig),scvsig};
     char fin[200];
     octet FIN={0,sizeof(fin),fin};
+
+// Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Hash and Shared secret
+    GET_HANDSHAKE_SECRETS(cipher_suite,&HS,&CHK,&CHIV,&SHK,&SHIV,&CHTS,&SHTS,&HH,&SS);
+
+// Client now receives certificate and verifier. Need to parse these out, check CA signature on the cert
+// (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
+// on the "verifier". Note CA signature might use old methods, but server will use PSS padding for its signature (if ECC).
 
     getSCCS(sock);
 
@@ -642,7 +677,7 @@ int main(int argc, char const *argv[])
 // parse Server Response - extract certchain plus server cert verifier plus server finish
     int sigalg=parseServerResponse(&SR,sock,&SHK,&SHIV,&CERTCHAIN,&SCVSIG,&FIN,hut1,hut2,hut3); // returns pointers into SR indicating where hashing can end
 
-//    printf("Cert Chain= %d ",CERTCHAIN.len); OCT_output(&CERTCHAIN);
+    printf("Cert Chain= %d ",CERTCHAIN.len); OCT_output(&CERTCHAIN);
     printf("Signature Algorithm= %04x\n",sigalg);
     printf("Server Certificate Signature= %d ",SCVSIG.len); OCT_output(&SCVSIG);
     printf("Server Verify Data= %d ",FIN.len); OCT_output(&FIN);
@@ -650,9 +685,9 @@ int main(int argc, char const *argv[])
     char scert[2000];
     octet SCERT={0,sizeof(scert),scert};
 
-    char cert[2000];
+    char cert[5000];
     octet CERT={0,sizeof(cert),cert};
-    char cakey[500];
+    char cakey[1000];
     octet CAKEY = {0, sizeof(cakey), cakey};
 
 
@@ -672,7 +707,7 @@ int main(int argc, char const *argv[])
     Hash_Output(&tlshash,digest);  // up to end of Server cert
 
     OCT_clear(&HH);
-    OCT_jbytes(&HH,digest,32);
+    OCT_jbytes(&HH,digest,sha);
     printf("1. Hash= "); OCT_output(&HH);
 
     for (int i=hut1;i<hut2;i++)
@@ -680,7 +715,7 @@ int main(int argc, char const *argv[])
     Hash_Output(&tlshash,digest);   // up to end of Server Verifier
 
     OCT_clear(&FH);
-    OCT_jbytes(&FH,digest,32);
+    OCT_jbytes(&FH,digest,sha);
     printf("2. Hash= "); OCT_output(&FH);
 
     for (int i=hut2;i<hut3;i++)
@@ -688,7 +723,7 @@ int main(int argc, char const *argv[])
     Hash_Output(&tlshash,digest);   // up to end of Server Finish
 
     OCT_clear(&TH);
-    OCT_jbytes(&TH,digest,32);
+    OCT_jbytes(&TH,digest,sha);
     printf("3. Hash= "); OCT_output(&TH);
 
 // traffic keys
@@ -702,17 +737,14 @@ int main(int argc, char const *argv[])
     char saiv[32];
     octet SAIV={0,sizeof(saiv),saiv};
 
-    GET_APPLICATION_SECRETS(32,&CAK,&CAIV,&SAK,&SAIV,&TH,&HS);
-
+    GET_APPLICATION_SECRETS(cipher_suite,&CAK,&CAIV,&SAK,&SAIV,&TH,&HS);
 
     if (IS_SERVER_CERT_VERIFY(sigalg,&SCVSIG,&HH,&CAKEY))
         printf("Server Cert Verification OK\n");
     else
         printf("Server Cert Verification failed\n");
 
-
-
-    if (IS_VERIFY_DATA(32,&FIN,&SHTS,&FH))
+    if (IS_VERIFY_DATA(sha,&FIN,&SHTS,&FH))
         printf("Data is verified\n");
     else
         printf("Data is NOT verified\n");

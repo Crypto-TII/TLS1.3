@@ -3,6 +3,7 @@
 #define TLS_KEYS_CALC_H
 
 #include "core.h"
+#include "tls1_3.h"
 
 using namespace core;
 

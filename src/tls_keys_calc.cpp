@@ -29,24 +29,24 @@ static void HKDF_Expand_Label(int hash,int hlen,octet *OKM,int olen,octet *PRK,o
 
 bool IS_VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H)
 {
-    char fk[32];
+    char fk[64];
     octet FK = {0,sizeof(fk),fk};
-    char vd[32];
+    char vd[64];
     octet VD = {0,sizeof(vd),vd};
     char info[12];
     octet INFO = {0,sizeof(info),info};
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"finished");
-    HKDF_Expand_Label(MC_SHA2,sha,&FK,32,SHTS,&INFO,NULL); 
+    HKDF_Expand_Label(MC_SHA2,sha,&FK,sha,SHTS,&INFO,NULL); 
 
     HMAC(MC_SHA2,sha,&VD,sha,&FK,H);
-//    printf("VD=            ");OCT_output(&VD);
     return OCT_comp(SF,&VD);
 }
 
 // Extract Client and Server Application keys and IVs from Transcript Hash, Handshake secret, 
-void GET_APPLICATION_SECRETS(int sha,octet *CAK,octet *CAIV,octet *SAK,octet *SAIV,octet *H,octet *HS)
+void GET_APPLICATION_SECRETS(int cipher_suite,octet *CAK,octet *CAIV,octet *SAK,octet *SAIV,octet *H,octet *HS)
 {
+    int sha,key;
     char cts[64];
     octet CTS = {0,sizeof(cts),cts};
     char sts[64];
@@ -57,16 +57,28 @@ void GET_APPLICATION_SECRETS(int sha,octet *CAK,octet *CAIV,octet *SAK,octet *SA
     octet MS = {0,sizeof(ms),ms};
     char emh[64];
     octet EMH = {0,sizeof(emh),emh};
-    char zk[32];                    // Zero Key
+    char zk[64];                    // Zero Key
     octet ZK = {0,sizeof(zk),zk};
     char info[32];
     octet INFO = {0,sizeof(info),info};
-    OCT_jbyte(&ZK,0,32);
-    SPhash(MC_SHA2,sha,&EMH,NULL);
+
+    if (cipher_suite==TLS_AES_128_GCM_SHA256)
+    {
+        sha=32;
+        key=16;
+    }
+    if (cipher_suite==TLS_AES_256_GCM_SHA384)
+    {
+        sha=48;
+        key=32;
+    }
+
+    OCT_jbyte(&ZK,0,sha);
+    SPhash(MC_SHA2,sha,&EMH,NULL);  // 
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"derived");
-    HKDF_Expand_Label(MC_SHA2,sha,&DS,32,HS,&INFO,&EMH);   // Use handshake secret from above
+    HKDF_Expand_Label(MC_SHA2,sha,&DS,sha,HS,&INFO,&EMH);   // Use handshake secret from above
 //    printf("Derived Secret = "); OCT_output(&DS);
 
     HKDF_Extract(MC_SHA2,sha,&MS,&DS,&ZK);
@@ -74,23 +86,23 @@ void GET_APPLICATION_SECRETS(int sha,octet *CAK,octet *CAIV,octet *SAK,octet *SA
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"c ap traffic");
-    HKDF_Expand_Label(MC_SHA2,sha,&CTS,32,&MS,&INFO,H);
+    HKDF_Expand_Label(MC_SHA2,sha,&CTS,sha,&MS,&INFO,H);
 
     printf("Client application traffic secret= ");OCT_output(&CTS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"s ap traffic");
-    HKDF_Expand_Label(MC_SHA2,sha,&STS,32,&MS,&INFO,H);
+    HKDF_Expand_Label(MC_SHA2,sha,&STS,sha,&MS,&INFO,H);
 
     printf("Server application traffic secret= ");OCT_output(&STS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,sha,CAK,16,&CTS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,CAK,key,&CTS,&INFO,NULL);
 
     printf("Client application key= "); OCT_output(CAK);
 
-    HKDF_Expand_Label(MC_SHA2,sha,SAK,16,&STS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,SAK,key,&STS,&INFO,NULL);
 
     printf("Server application key= "); OCT_output(SAK);
 
@@ -106,33 +118,39 @@ void GET_APPLICATION_SECRETS(int sha,octet *CAK,octet *CAIV,octet *SAK,octet *SA
 }
 
 // Extract Handshake secret, Client and Server Handshake keys and IVs, and Client and Server Handshake Traffic keys from Transcript Hash and Shared secret
-void GET_HANDSHAKE_SECRETS(int sha,octet *HS,octet *CHK,octet *CHIV,octet *SHK,octet *SHIV, octet *CHTS,octet *SHTS,  octet *H,octet *SS)
+void GET_HANDSHAKE_SECRETS(int cipher_suite,octet *HS,octet *CHK,octet *CHIV,octet *SHK,octet *SHIV, octet *CHTS,octet *SHTS,  octet *H,octet *SS)
 {
-/*    char cts[64];
-    octet CTS = {0,sizeof(cts),cts};
-    char sts[64];
-    octet STS = {0,sizeof(sts),sts}; */
+    int sha,key;
     char es[64];
     octet ES = {0,sizeof(es),es};
     char ds[64];
     octet DS = {0,sizeof(ds),ds};
     char emh[64];
     octet EMH = {0,sizeof(emh),emh};
-    char zk[32];                    // Zero Key
+    char zk[64];                    // Zero Key
     octet ZK = {0,sizeof(zk),zk};
     char info[32];
     octet INFO = {0,sizeof(info),info};
-    OCT_jbyte(&ZK,0,32);
-    SPhash(MC_SHA2,sha,&EMH,NULL);
 
+    if (cipher_suite==TLS_AES_128_GCM_SHA256)
+    {
+        sha=32;
+        key=16;
+    }
+    if (cipher_suite==TLS_AES_256_GCM_SHA384)
+    {
+        sha=48;
+        key=32;
+    }
 
-    HKDF_Extract(MC_SHA2,sha,&ES,&ZK,&ZK);
+    OCT_jbyte(&ZK,0,sha);
+    SPhash(MC_SHA2,sha,&EMH,NULL);  // hash of ""
 
-//    printf("Early Secret = "); OCT_output(&ES);
-    //printf("Empty Hash context = "); OCT_output(&EMH);
+    HKDF_Extract(MC_SHA2,sha,&ES,&ZK,&ZK);  // hash function, ES is output, ZK is salt and IKM
+
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"derived");
-    HKDF_Expand_Label(MC_SHA2,sha,&DS,32,&ES,&INFO,&EMH);
+    HKDF_Expand_Label(MC_SHA2,sha,&DS,sha,&ES,&INFO,&EMH);
 
 //    printf("Derived Secret = "); OCT_output(&DS);
 
@@ -142,23 +160,23 @@ void GET_HANDSHAKE_SECRETS(int sha,octet *HS,octet *CHK,octet *CHIV,octet *SHK,o
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"c hs traffic");
-    HKDF_Expand_Label(MC_SHA2,sha,CHTS,32,HS,&INFO,H);
+    HKDF_Expand_Label(MC_SHA2,sha,CHTS,sha,HS,&INFO,H);
 
     printf("Client handshake traffic secret= ");OCT_output(CHTS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"s hs traffic");
-    HKDF_Expand_Label(MC_SHA2,sha,SHTS,32,HS,&INFO,H);
+    HKDF_Expand_Label(MC_SHA2,sha,SHTS,sha,HS,&INFO,H);
 
     printf("Server handshake traffic secret= ");OCT_output(SHTS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,sha,CHK,16,CHTS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,CHK,key,CHTS,&INFO,NULL);
 
     printf("Client handshake key= "); OCT_output(CHK);
 
-    HKDF_Expand_Label(MC_SHA2,sha,SHK,16,SHTS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,SHK,key,SHTS,&INFO,NULL);
 
     printf("Server handshake key= "); OCT_output(SHK);
 
@@ -171,4 +189,5 @@ void GET_HANDSHAKE_SECRETS(int sha,octet *HS,octet *CHK,octet *CHIV,octet *SHK,o
     HKDF_Expand_Label(MC_SHA2,sha,SHIV,12,SHTS,&INFO,NULL);
 
     printf("Server handshake IV= "); OCT_output(SHIV);
+
 }
