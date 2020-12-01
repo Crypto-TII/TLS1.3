@@ -248,35 +248,40 @@ bool getServerResponseFragment(int sock,octet *SHK,octet *SHIV,octet *SR)
     char rtag[16];
     octet RTAG={0,sizeof(rtag),rtag};
 
-    pos=SR->len;  // end of SR
-// get Header - should be something like 17 03 03 04 75
+    pos=SR->len;  // current end of SR
+// get record Header - should be something like 17 03 03 XX YY
     OCT_clear(&RH);
     getOctet(sock,&RH,3);  // Signed Cert header
     left=getInt16(sock);
     OCT_jint(&RH,left,2);
-    printf("Header= ");OCT_output(&RH);
-    getBytes(sock,&SR->val[pos],left-16);
+//    printf("Header= ");OCT_output(&RH);
+    getBytes(sock,&SR->val[pos],left-16);  // read in record body
 
-//decrypt body - probably depends on cipher suite??? 16 -> 24 or 32
+//decrypt body - depends on cipher suite, which is determined by length of key
     gcm g;
-    printf("Key length= %d IV length= %d\n",SHK->len,SHIV->len);
+//    printf("Key length= %d IV length= %d\n",SHK->len,SHIV->len);
     GCM_init(&g,SHK->len,SHK->val,12,SHIV->val);  // Decrypt with Server handshake Key and IV
     GCM_add_header(&g,RH.val,RH.len);
     GCM_add_cipher(&g,&SR->val[pos],&SR->val[pos],left-16);
 //check TAG
     GCM_finish(&g,TAG.val); TAG.len=16;
-    printf("TAG= ");OCT_output(&TAG);
+//    printf("TAG= ");OCT_output(&TAG);
 
     SR->len+=(left-16);    
 // read correct TAG from server
-    getOctet(sock,&RTAG,16);
-    printf("Correct TAG= "); OCT_output(&RTAG);
+    getOctet(sock,&RTAG,16);    // read in TAG
+//    printf("Correct TAG= "); OCT_output(&RTAG);
     if (!OCT_comp(&TAG,&RTAG))
     {
         printf("NOT authenticated!\n");
         return false;
     }
     printf("Server fragment authenticates\n");
+
+    int lb=SR->val[SR->len-1];
+    if (lb!=0x16)
+        printf("Record does NOT end in 0x16\n");
+    SR->len--; // remove it
     return true;
 }
 
@@ -285,80 +290,136 @@ bool getServerResponseFragment(int sock,octet *SHK,octet *SHIV,octet *SR)
 // OK should be 64-bit, but really that is excessive
 void updateIV(octet *NIV,octet *OIV,unsign32 &recno)
 {
+    int i;
     unsigned char b[4];
     recno++;
     b[3] = (unsigned char)(recno);
     b[2] = (unsigned char)(recno >> 8);
     b[1] = (unsigned char)(recno >> 16);
     b[0] = (unsigned char)(recno >> 24);
+    for (i=0;i<12;i++)
+        NIV->val[i]=OIV->val[i];
     for (int i=0;i<4;i++)
-        NIV->val[8+i]=OIV->val[8+i]^b[i];
+        NIV->val[8+i]^=b[i];
+    NIV->len=12;
 }
 
+// return Byte, or pull in and decrypt  another fragment
+int parseByteorPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
+{
+    int nb=parseByte(SR,ptr);
+    char iv[12];
+    octet IV={0,sizeof(iv),iv};
+    while (nb < 0)
+    { // not enough bytes in SR
+        updateIV(&IV,SHIV,recno); 
+        getServerResponseFragment(sock,SHK,&IV,SR); 
+        nb=parseByte(SR,ptr);
+
+    }
+    return nb;
+}
+
+// return 24-bit Int, or pull in another fragment and try again
+int parseInt24orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
+{
+    int nb=parseInt24(SR,ptr);
+    char iv[12];
+    octet IV={0,sizeof(iv),iv};
+    while (nb < 0)
+    { // not enough bytes in SR - pull in another fragment
+        updateIV(&IV,SHIV,recno); 
+        getServerResponseFragment(sock,SHK,&IV,SR); 
+        nb=parseInt24(SR,ptr);
+    }
+    return nb;
+}
+
+// return 16-bit Int, or pull in another fragment and try again
+int parseInt16orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
+{
+    int nb=parseInt16(SR,ptr);
+    char iv[12];
+    octet IV={0,sizeof(iv),iv};
+    while (nb < 0)
+    { // not enough bytes in SR - pull in another fragment
+        updateIV(&IV,SHIV,recno); 
+        getServerResponseFragment(sock,SHK,&IV,SR); 
+        nb=parseInt16(SR,ptr);
+    }
+    return nb;
+}
+
+// return Octet O of length len, or pull in another fragment and try again
+int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
+{
+    int nb=parseOctet(O,len,SR,ptr);
+    char iv[12];
+    octet IV={0,sizeof(iv),iv};
+    while (nb < 0)
+    { // not enough bytes in SR - pull in another fragment
+        updateIV(&IV,SHIV,recno); 
+        getServerResponseFragment(sock,SHK,&IV,SR); 
+        nb=parseOctet(O,len,SR,ptr);
+    }
+    return nb;
+}
+
+// now deals with any kind of fragmentation
+// build up server response in SR, decrypting each fragment in-place
 int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int &hut1,int &hut2,int &hut3) //returns pointers into SR indicating where hashing might end
 {
-    int nb,sigalg,ht,len,ptr=0;
+    int nb,sigalg,ht,len,olen,ptr=0;
     unsign32 recno=0;
 
     char iv[12];
     octet IV={0,sizeof(iv),iv};
 
-    OCT_copy(&IV,SHIV);  // IV will be updated for each record read
     OCT_clear(SR);
-    getServerResponseFragment(sock,SHK,&IV,SR);
+    OCT_copy(&IV,SHIV);  // IV will be updated for each record read
+    getServerResponseFragment(sock,SHK,&IV,SR);  // get first fragment
 
-    printf("1. SR= "); OCT_output(SR);
+ //   printf("1. SR= "); OCT_output(SR);
 
-    ht=parseByte(SR,ptr); // handshake type 08 - encrypted extensions
-    len=parseInt24(SR,ptr);
+    ht=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);
     ptr+=len;   // skip encrypted extensions
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
 
-    nb=parseByte(SR,ptr);
-    if (nb==0x16)  // end-of-record detected
-    { // fragment ended - grab another one!
-        SR->len--; ptr--;  // remove 0x16 - does not form part of hash
-        updateIV(&IV,SHIV,recno);   // update IV according to RFC8446 section 5.3
-        getServerResponseFragment(sock,SHK,&IV,SR);
-        printf("2. SR= "); OCT_output(SR);
-        nb=parseByte(SR,ptr);
-    }
+    if (nb!=0x0b) printf("Something wrong 1 %x %x\n",len,nb);   // expecting 0x0B Certificate message type
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length
 
-    if (nb!=0x0b) printf("Something wrong 1 %x %x\n",len,nb);   // 0x0B Certificate message type
-    len=parseInt24(SR,ptr);                                     // message length
-    nb=parseByte(SR,ptr);
-    if (nb!=0x00) printf("Something wrong 2 %x\n",nb);  // Request context
-    len=parseInt24(SR,ptr); // get length of certificate chain
-    parseOctet(CERTCHAIN,len,SR,ptr);
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
+
+    if (nb!=0x00) printf("Something wrong 2 %x\n",nb);  // expecting 0x00 Request context
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);   // get length of certificate chain
+ 
+//    printf("Length of chain= %x %d %d %d\n",len,len,ptr,SR->len);  // Certificate chain is fragmented!
+    olen=parseOctetorPull(sock,CERTCHAIN,len,SR,ptr,SHK,SHIV,recno);
+
+//    printf("Cert Chain= "); OCT_output(CERTCHAIN);
 
     hut1=ptr;                   // hash up to this point
-    nb=parseByte(SR,ptr);
-    if (nb==0x16) // end-of-record detected
-    { // fragment ended - grab another one!
-        SR->len--; ptr--;  // remove 0x16
-        updateIV(&IV,SHIV,recno);   // update IV according to RFC8446 section 5.3
-        getServerResponseFragment(sock,SHK,&IV,SR);
-        printf("3. SR= "); OCT_output(SR);
-        nb=parseByte(SR,ptr);
-    }
-    if (nb!=0x0f) printf("Something wrong 3 %x\n",nb);  // 0x0F = Certificate Verify
-    len=parseInt24(SR,ptr);
-    sigalg=parseInt16(SR,ptr);   // may for example be 0804 - RSA-PSS-RSAE-SHA256
-    len=parseInt16(SR,ptr);      // sig data follows
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
 
-    parseOctet(SCVSIG,len,SR,ptr);
+    if (nb!=0x0f) printf("Something wrong 3 %x\n",nb);  // expecting 0x0F = Certificate Verify
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);
+
+//    printf("len= %x\n",len);
+    sigalg=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);   // may for example be 0804 - RSA-PSS-RSAE-SHA256
+
+    len=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);      // sig data follows
+
+    olen=parseOctetorPull(sock,SCVSIG,len,SR,ptr,SHK,SHIV,recno);
+
     hut2=ptr;               // and hash up to this point
-    nb=parseByte(SR,ptr); 
-    if (nb==0x16) // end-of-record detected
-    { // fragment ended - grab another one!
-        SR->len--; ptr--;  // remove 0x16
-        updateIV(&IV,SHIV,recno);   // update IV according to RFC8446 section 5.3
-        getServerResponseFragment(sock,SHK,&IV,SR);
-        printf("4. SR= %d ",SR->len); OCT_output(SR);
-        nb=parseByte(SR,ptr);
-    }
-    if (nb!=0x14) printf("Something wrong 4 %x\n",nb);  // 0x14 = Server Finish
-    len=parseInt24(SR,ptr);
-    parseOctet(HFIN,len,SR,ptr);
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno); 
+
+    if (nb!=0x14) printf("Something wrong 4 %x\n",nb);  // expecting 0x14 = Server Finish
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);
+
+    olen=parseOctetorPull(sock,HFIN,len,SR,ptr,SHK,SHIV,recno);
+
     hut3=ptr;              // and finally hash up to this point
     return sigalg;
 }

@@ -203,7 +203,7 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
     if (st.type == X509_RSA)
     {
         int res;
-        printf("st.curve= %d\n",st.curve);
+        //printf("st.curve= %d\n",st.curve);
         printf("SIG= \n");
         OCT_output(SIG);
         printf("\n");
@@ -280,7 +280,7 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     st=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);   // get signature on Server Cert
     SHOW_CERT_DETAILS((char *)"Server certificate",PUBKEY,ca,&SIG,st,&ISSUER,&SUBJECT);
 
-    printf("cert.len= %d, ptr= %d\n",CERTCHAIN->len,ptr);
+//    printf("cert.len= %d, ptr= %d\n",CERTCHAIN->len,ptr);
     len=parseInt24(CERTCHAIN,ptr); // get length of next certificate
     parseOctet(&SCERT,len,CERTCHAIN,ptr); 
 //printf("Inter Cert= %d \n",SCERT.len);
@@ -308,7 +308,7 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
 
     if (FIND_ROOT_CA(&ISSUER,stn,&CAKEY)) {
         printf("\nPublic Key from root CA cert= "); OCT_output(&CAKEY);
-        printf("type= %d, hash= %d, curve/len= %d\n",stn.type,stn.hash,stn.curve); 
+ //       printf("type= %d, hash= %d, curve/len= %d\n",stn.type,stn.hash,stn.curve); 
     } else {
         printf("Root CA not found\n");
         return false;
