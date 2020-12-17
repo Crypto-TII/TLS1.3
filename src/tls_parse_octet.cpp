@@ -34,6 +34,18 @@ int parseInt24(octet *M,int &ptr)
     return 65536*b0+256*b1+b2;
 }
 
+// parse out a 32-bit integer from octet M
+unsigned int parseInt32(octet *M,int &ptr)
+{
+    unsigned int b0,b1,b2,b3;
+    if (ptr+4>M->len) return -1;
+    b0=(unsigned int)(unsigned char)M->val[ptr++];
+    b1=(unsigned int)(unsigned char)M->val[ptr++];
+    b2=(unsigned int)(unsigned char)M->val[ptr++];
+    b3=(unsigned int)(unsigned char)M->val[ptr++];
+    return 16777216*b0+65536*b1+256*b2+b3;
+}
+
 // parse out a byte from octet M
 int parseByte(octet *M,int &ptr)
 {

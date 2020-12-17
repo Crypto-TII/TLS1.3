@@ -8,6 +8,7 @@ using namespace core;
 extern int parseOctet(octet *E,int len,octet *M,int &ptr);
 extern int parseInt16(octet *M,int &ptr);
 extern int parseInt24(octet *M,int &ptr);
+extern unsigned int parseInt32(octet *M,int &ptr);
 extern int parseByte(octet *M,int &ptr);
 
 #endif

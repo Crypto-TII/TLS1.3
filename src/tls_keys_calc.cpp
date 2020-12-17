@@ -27,19 +27,26 @@ static void HKDF_Expand_Label(int hash,int hlen,octet *OKM,int olen,octet *PRK,o
     HKDF_Expand(hash,hlen,OKM,olen,PRK,&HL);
 }
 
-bool IS_VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H)
+// create verification data
+void VERIFY_DATA(int sha,octet *CF,octet *CHTS,octet *H)
 {
     char fk[64];
     octet FK = {0,sizeof(fk),fk};
-    char vd[64];
-    octet VD = {0,sizeof(vd),vd};
     char info[12];
     octet INFO = {0,sizeof(info),info};
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"finished");
-    HKDF_Expand_Label(MC_SHA2,sha,&FK,sha,SHTS,&INFO,NULL); 
+    HKDF_Expand_Label(MC_SHA2,sha,&FK,sha,CHTS,&INFO,NULL); 
 
-    HMAC(MC_SHA2,sha,&VD,sha,&FK,H);
+    HMAC(MC_SHA2,sha,CF,sha,&FK,H);
+}
+
+// check verification data
+bool IS_VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H)
+{
+    char vd[64];
+    octet VD = {0,sizeof(vd),vd};
+    VERIFY_DATA(sha,&VD,SHTS,H);
     return OCT_comp(SF,&VD);
 }
 

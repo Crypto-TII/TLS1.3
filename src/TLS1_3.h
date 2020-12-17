@@ -36,6 +36,17 @@
 #define PSK_MODE 0x002d
 #define TLS_VER 0x002b
 
+// record types
+#define HSHAKE 1
+#define APPLICATION 2
+#define ALERT 3
+
+// message types
+#define CERTIFICATE 0x0b
+#define CERT_VERIFY 0x0f
+#define SERVER_FINISHED 0x14
+#define ENCRYPTED_EXTENSIONS 0x08
+#define TICKET 0x04
 
 #endif
 
