@@ -280,6 +280,7 @@ int getServerResponseFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,oc
     pos=SR->len;  // current end of SR
 // get record Header - should be something like 17 03 03 XX YY
     OCT_clear(&RH);
+//printf("Waiting\n");
     getOctet(sock,&RH,3);  // Signed Cert header
 //printf("Got a header\n");
     left=getInt16(sock);
@@ -423,18 +424,20 @@ int clientGET(octet *HL,octet *K,octet *SIV,char *hostname)
     octet TAG={0,sizeof(tag),tag};
     
     OCT_clear(&PT);
-    OCT_jstring(&PT,(char *)"GET /index.html HTTP/1.1"); // standard HTTP GET command
+    OCT_jstring(&PT,(char *)"GET / HTTP/1.1"); // standard HTTP GET command
     OCT_jbyte(&PT,0x0d,1); OCT_jbyte(&PT,0x0a,1);        // CRLF
     OCT_jstring(&PT,(char *)"Host: ");
-    OCT_jstring(&PT,hostname);
+    OCT_jstring(&PT,hostname); //OCT_jstring(&PT,(char *)":443");
     OCT_jbyte(&PT,0x0d,1); OCT_jbyte(&PT,0x0a,1);        // CRLF
+    //OCT_jstring(&PT,(char *)"Connection: keep-alive");
+    //OCT_jbyte(&PT,0x0d,1); OCT_jbyte(&PT,0x0a,1);        // CRLF
     OCT_jbyte(&PT,0x0d,1); OCT_jbyte(&PT,0x0a,1);        // empty line CRLF
     OCT_jbyte(&PT,0x17,1);  // indicate application data
 
     printf("PT= %d ",PT.len);OCT_output(&PT);
-    printf("PT= ");OCT_output_string(&PT);
+    OCT_output_string(&PT);
 
-    int totlen=PT.len+16+1;
+    int totlen=PT.len+16;
     OCT_clear(HL);
     OCT_fromHex(HL,(char *)"170303");
     OCT_jint(HL,totlen,2);
@@ -470,26 +473,26 @@ int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV)
     nticks=0; // number of tickets received
     while (1)
     {
-        printf("Start of while loop\n");
+        printf("Waiting for Server input \n");
         OCT_clear(RS); ptr=0;
         type=getServerResponseFragment(sock,SAK,SAIV,recno,RS);  // get first fragment
-        printf("Got another fragment %d\n",type);
+        //printf("Got another fragment %d\n",type);
         if (type==HSHAKE)
         {
-            printf("Received RS= "); OCT_output(RS);
+            //printf("Received RS= "); OCT_output(RS);
 
             while (1)
             {
                 nb=parseByteorPull(sock,RS,ptr,SAK,SAIV,recno);
                 len=parseInt24orPull(sock,RS,ptr,SAK,SAIV,recno);           // message length
-                printf("nb= %x len= %d\n",nb,len);
+                //printf("nb= %x len= %d\n",nb,len);
                 switch (nb)
                 {
                 case TICKET :
                     lt=parseInt32orPull(sock,RS,ptr,SAK,SAIV,recno);
                     age=parseInt32orPull(sock,RS,ptr,SAK,SAIV,recno);
                     len=parseByteorPull(sock,RS,ptr,SAK,SAIV,recno);
-                    printf("lt= %d age= %d len= %d\n",lt,age,len);
+                    printf("lt= %d age= %d nonce len= %d\n",lt,age,len);
                     parseOctetorPull(sock,&NONCE,len,RS,ptr,SAK,SAIV,recno);
     printf("Nonce = "); OCT_output(&NONCE);
                     len=parseInt16orPull(sock,RS,ptr,SAK,SAIV,recno);
@@ -498,7 +501,7 @@ int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV)
     printf("Ticket = "); OCT_output(&TICK);
                     te=parseInt16orPull(sock,RS,ptr,SAK,SAIV,recno);
                     ptr+=te;  // skip any ticket extensions
-                    printf("ptr= %d RS->len= %d\n",ptr,RS->len);
+                   // printf("ptr= %d RS->len= %d\n",ptr,RS->len);
                     nticks++;
                     if (ptr==RS->len) fin=true; // record finished
                     if (fin) break;
@@ -514,7 +517,9 @@ int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV)
         }
         if (type==APPLICATION)
         {
-            printf("Application data= ");OCT_output(RS);
+            printf("Application data (truncated) = ");
+            OCT_chop(RS,NULL,20);   // truncate it
+            OCT_output(RS);
         }
         if (type==ALERT)
         {
@@ -735,18 +740,17 @@ int main(int argc, char const *argv[])
     argv++; argc--;
     if (argc!=1)
     {
-        printf("Provide server name\n");
-        exit(0);
+        strcpy(hostname,"localhost");
+        strcpy(ip,"127.0.0.1");
+        port=44330;
+    } else {
+        strcpy(hostname,argv[0]);
+        printf("Hostname= %s\n",hostname);
+        getIPaddress(ip,hostname);
+        port=443;
     }
-    strcpy(hostname,argv[0]);
-
-    printf("Hostname= %s\n",hostname);
-    getIPaddress(ip,hostname);
-
     printf("ip= %s\n",ip);
-
 // tls13.cloudflare.com:443
-    port=443;
     sock=setclientsock(port,ip);
 
 // For Transcript hash must use cipher-suite hash function
@@ -973,10 +977,10 @@ int main(int argc, char const *argv[])
     sendOctet(sock,&CF);  // send it
     sendOctet(sock,&GET);    // should get a load of HTML in response??
 
-    char rs[1000];
+    char rs[10000];
     octet RS={0,sizeof(rs),rs};
 
-    parseServerRecord(&RS,sock,&SAK,&SAIV);
+    parseServerRecord(&RS,sock,&SAK,&SAIV); // get tickets
 
     return 0;
 } 
