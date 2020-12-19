@@ -247,6 +247,28 @@ void sendCCCS(int sock)
     sendOctet(sock,&CCCS);
 }
 
+// Update IV, xor with record number, increment record number
+// NIV - New IV
+// OIV - Original IV
+// See RFC8446 section 5.3
+// OK recno should be 64-bit, but really that is excessive
+unsign32 updateIV(octet *NIV,octet *OIV,unsign32 recno)
+{
+    int i;
+    unsigned char b[4];  
+    b[3] = (unsigned char)(recno);
+    b[2] = (unsigned char)(recno >> 8);
+    b[1] = (unsigned char)(recno >> 16);
+    b[0] = (unsigned char)(recno >> 24);
+    for (i=0;i<12;i++)
+        NIV->val[i]=OIV->val[i];
+    for (i=0;i<4;i++)
+        NIV->val[8+i]^=b[i];
+    NIV->len=12;
+    recno++;  
+    return recno;
+}
+
 // get another fragment of server response
 // decrypt and authenticate it
 // append it to the end of SR
@@ -263,19 +285,7 @@ int getServerResponseFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,oc
     char iv[12];
     octet IV={0,sizeof(iv),iv};
 
-// update new IV from original IV and record number
-// See RFC8446 section 5.3
-// OK should be 64-bit, but really that is excessive
-    b[3] = (unsigned char)(recno);
-    b[2] = (unsigned char)(recno >> 8);
-    b[1] = (unsigned char)(recno >> 16);
-    b[0] = (unsigned char)(recno >> 24);
-    for (i=0;i<12;i++)
-        IV.val[i]=SHIV->val[i];
-    for (i=0;i<4;i++)
-        IV.val[8+i]^=b[i];
-    IV.len=12;
-    recno++;
+    recno=updateIV(&IV,SHIV,recno);
 
     pos=SR->len;  // current end of SR
 // get record Header - should be something like 17 03 03 XX YY
@@ -382,88 +392,61 @@ int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,octet *SHK,oct
     return nb;
 }
 
-// construct encrypted client finished Octet
-int clientFinished(octet *CF,octet *K,octet *SIV,octet *H)
+// Encrypt and transmit a plaintext record of a given type
+// recno is count of records sent with this key/IV combo
+int clientSendRecord(int sock,int type,octet *K,octet *OIV,unsign32 &recno,octet *PT)
 {
-    char pt[64];
-    octet PT={0,sizeof(pt),pt};
+    int reclen=0;
+    int rectype;
+    char record[128];
+    octet RECORD={0,sizeof(record),record};
     char tag[16];
     octet TAG={0,sizeof(tag),tag};
-    int i,totlen=H->len+4+16+1;   // length of record, payload+TAG+1 byte terminator
-    OCT_clear(CF);
-    OCT_fromHex(CF,(char *)"170303");
-    OCT_jint(CF,totlen,2);
-    OCT_jbyte(&PT,0x14,1);
-    OCT_jint(&PT,H->len,3);
-    OCT_joctet(&PT,H);
-    OCT_jbyte(&PT,0x16,1); // indicate handshake data
+    char iv[12];
+    octet IV={0,sizeof(iv),iv};
 
-// encrypt it
+    recno=updateIV(&IV,OIV,recno);
+
+    OCT_fromHex(&RECORD,(char *)"170303");
+    if (type==HSHAKE)
+    {
+        reclen=PT->len+16+5;
+        rectype=0x16;
+        OCT_jint(&RECORD,reclen,2);
+        OCT_jbyte(&RECORD,0x14,1);  // indicates handshake message
+        OCT_jint(&RECORD,PT->len,3); // .. and its length
+    } 
+    if (type==APPLICATION)
+    { // Its application data
+        reclen=PT->len+16+1;
+        rectype=0x17;
+        OCT_jint(&RECORD,reclen,2);
+    }
+    OCT_joctet(&RECORD,PT);
+    OCT_jbyte(&RECORD,rectype,1);
+
+// AES-GCM
     gcm g;
-
-    GCM_init(&g,K->len,K->val,12,SIV->val);  // Encrypt with Client handshake Key and IV
-    GCM_add_header(&g,CF->val,CF->len);
-
-    GCM_add_plain(&g,PT.val,PT.val,PT.len);
+    GCM_init(&g,K->len,K->val,12,IV.val);  // Encrypt with Client Application Key and IV
+    GCM_add_header(&g,RECORD.val,5);
+    GCM_add_plain(&g,&RECORD.val[5],&RECORD.val[5],reclen-16);
 //create TAG
     GCM_finish(&g,TAG.val); TAG.len=16;
 
-    OCT_joctet(CF,&PT);
-    OCT_joctet(CF,&TAG);
+    OCT_joctet(&RECORD,&TAG);
 
-    return 0;
-}
+printf("Client to Server -> "); OCT_output(&RECORD);
 
-// After its all over try and send a GET to the server as application data
-// would hope to get a load of HTML in response??
-int clientGET(octet *HL,octet *K,octet *SIV,char *hostname)
-{ 
-    char pt[128];
-    octet PT={0,sizeof(pt),pt};
-    char tag[16];
-    octet TAG={0,sizeof(tag),tag};
-    
-    OCT_clear(&PT);
-    OCT_jstring(&PT,(char *)"GET / HTTP/1.1"); // standard HTTP GET command
-    OCT_jbyte(&PT,0x0d,1); OCT_jbyte(&PT,0x0a,1);        // CRLF
-    OCT_jstring(&PT,(char *)"Host: ");
-    OCT_jstring(&PT,hostname); //OCT_jstring(&PT,(char *)":443");
-    OCT_jbyte(&PT,0x0d,1); OCT_jbyte(&PT,0x0a,1);        // CRLF
-    //OCT_jstring(&PT,(char *)"Connection: keep-alive");
-    //OCT_jbyte(&PT,0x0d,1); OCT_jbyte(&PT,0x0a,1);        // CRLF
-    OCT_jbyte(&PT,0x0d,1); OCT_jbyte(&PT,0x0a,1);        // empty line CRLF
-    OCT_jbyte(&PT,0x17,1);  // indicate application data
-
-    printf("PT= %d ",PT.len);OCT_output(&PT);
-    OCT_output_string(&PT);
-
-    int totlen=PT.len+16;
-    OCT_clear(HL);
-    OCT_fromHex(HL,(char *)"170303");
-    OCT_jint(HL,totlen,2);
-
-    gcm g;
-
-    GCM_init(&g,K->len,K->val,12,SIV->val);  // Encrypt with Client Application Key and IV
-    GCM_add_header(&g,HL->val,HL->len);
-
-    GCM_add_plain(&g,PT.val,PT.val,PT.len);
-//create TAG
-    GCM_finish(&g,TAG.val); TAG.len=16;
-
-    OCT_joctet(HL,&PT);
-    OCT_joctet(HL,&TAG);
-
+    sendOctet(sock,&RECORD);
     return 0;
 }
 
 // parse Server records received after handshake
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
-int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV)
+int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV,unsign32 &recno)
 {
     int lt,age,nce,nb,len,te,type,nticks,ptr=0;
-    unsign32 recno=0;
     bool fin=false;
     char nonce[32];
     octet NONCE={0,sizeof(nonce),nonce};
@@ -532,11 +515,10 @@ int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV)
 
 // now deals with any kind of fragmentation
 // build up server handshake response in SR, decrypting each fragment in-place
-int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int &hut1,int &hut2,int &hut3) //returns pointers into SR indicating where hashing might end
+int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int &hut1,int &hut2,int &hut3) //returns pointers into SR indicating where hashing might end
 {
     int nb,sigalg,ht,len,olen,ptr=0;
     bool fin=false;
-    unsign32 recno=0;
 
     OCT_clear(SR);
     getServerResponseFragment(sock,SHK,SHIV,recno,SR);  // get first fragment
@@ -874,6 +856,8 @@ int main(int argc, char const *argv[])
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Hash and Shared secret
     GET_HANDSHAKE_SECRETS(cipher_suite,&HS,&CHK,&CHIV,&SHK,&SHIV,&CHTS,&SHTS,&HH,&SS);
+    unsign32 chkrecno=0;  // number of records encrypted with this key
+    unsign32 shkrecno=0;
 
 // Client now receives certificate and verifier. Need to parse these out, check CA signature on the cert
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
@@ -883,7 +867,7 @@ int main(int argc, char const *argv[])
 
     int hut1,hut2,hut3;
 // parse Server Response - extract certchain plus server cert verifier plus server finish
-    int sigalg=parseServerResponse(&SR,sock,&SHK,&SHIV,&CERTCHAIN,&SCVSIG,&FIN,hut1,hut2,hut3); // returns pointers into SR indicating where hashing can end
+    int sigalg=parseServerResponse(&SR,sock,&SHK,&SHIV,shkrecno,&CERTCHAIN,&SCVSIG,&FIN,hut1,hut2,hut3); // returns pointers into SR indicating where hashing can end
 
     printf("Cert Chain= %d ",CERTCHAIN.len); OCT_output(&CERTCHAIN);
     printf("Signature Algorithm= %04x\n",sigalg);
@@ -942,6 +926,8 @@ int main(int argc, char const *argv[])
     octet SAIV={0,sizeof(saiv),saiv};
 
     GET_APPLICATION_SECRETS(cipher_suite,&CAK,&CAIV,&SAK,&SAIV,&TH,&HS);
+    unsign32 cakrecno=0;  // number of records encrypted with this key
+    unsign32 sakrecno=0;
 
     if (IS_SERVER_CERT_VERIFY(sigalg,&SCVSIG,&HH,&CAKEY))
         printf("Server Cert Verification OK\n");
@@ -961,26 +947,28 @@ int main(int argc, char const *argv[])
     char chf[64];   // client verify
     octet CHF={0,sizeof(chf),chf};
 
-    char get[128];
-    octet GET={0,sizeof(get),get};
-
     VERIFY_DATA(sha,&CHF,&CHTS,&TH);  // create client verify data
 
     printf("Client Verify Data= "); OCT_output(&CHF);
+    clientSendRecord(sock,HSHAKE,&CHK,&CHIV,chkrecno,&CHF);
+    
+// Start the Application 
+    char get[128];
+    octet GET={0,sizeof(get),get};
+    OCT_jstring(&GET,(char *)"GET / HTTP/1.1"); // standard HTTP GET command
+    OCT_jbyte(&GET,0x0d,1); OCT_jbyte(&GET,0x0a,1);        // CRLF
+    OCT_jstring(&GET,(char *)"Host: ");
+    OCT_jstring(&GET,hostname); //OCT_jstring(&PT,(char *)":443");
+    OCT_jbyte(&GET,0x0d,1); OCT_jbyte(&GET,0x0a,1);        // CRLF
+    OCT_jbyte(&GET,0x0d,1); OCT_jbyte(&GET,0x0a,1);        // empty line CRLF    
+    printf("Sending Application Message\n\n"); OCT_output_string(&GET);
 
-    clientFinished(&CF,&CHK,&CHIV,&CHF); // wrap it up
-    clientGET(&GET,&CAK,&CAIV,hostname);
-
-    printf("Client Finished= "); OCT_output(&CF);
-    printf("Client GET= "); OCT_output(&GET);
-
-    sendOctet(sock,&CF);  // send it
-    sendOctet(sock,&GET);    // should get a load of HTML in response??
+    clientSendRecord(sock,APPLICATION,&CAK,&CAIV,cakrecno,&GET);
 
     char rs[10000];
     octet RS={0,sizeof(rs),rs};
 
-    parseServerRecord(&RS,sock,&SAK,&SAIV); // get tickets
+    parseServerRecord(&RS,sock,&SAK,&SAIV,sakrecno); // get tickets
 
     return 0;
 } 
