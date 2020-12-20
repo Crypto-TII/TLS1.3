@@ -269,10 +269,27 @@ unsign32 updateIV(octet *NIV,octet *OIV,unsign32 recno)
     return recno;
 }
 
-// get another fragment of server response
+// get another fragment from the Server
+// and append to the end of SR
+int getServerFragment(int sock,octet *SR)
+{
+    int i,left,pos;
+    char rh[5];
+    octet RH={0,sizeof(rh),rh};
+
+    pos=SR->len;  // current end of SR
+    getOctet(sock,&RH,3);  // get record Header - should be something like 16 03 03 XX YY
+    left=getInt16(sock);
+    OCT_jint(&RH,left,2);  // got record header
+
+    getBytes(sock,&SR->val[pos],left);  // read in record body
+    return 0;
+}
+
+// get another encrypted fragment of server response
 // decrypt and authenticate it
 // append it to the end of SR
-int getServerResponseFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
+int getServerEncryptedFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
 {
     int i,left,pos;
     unsigned char b[4];
@@ -288,29 +305,24 @@ int getServerResponseFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,oc
     recno=updateIV(&IV,SHIV,recno);
 
     pos=SR->len;  // current end of SR
-// get record Header - should be something like 17 03 03 XX YY
+
     OCT_clear(&RH);
-//printf("Waiting\n");
-    getOctet(sock,&RH,3);  // Signed Cert header
-//printf("Got a header\n");
+    getOctet(sock,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
     left=getInt16(sock);
     OCT_jint(&RH,left,2);
 //    printf("Header= ");OCT_output(&RH);
     getBytes(sock,&SR->val[pos],left-16);  // read in record body
 
-//decrypt body - depends on cipher suite, which is determined by length of key
+//AES-GCM decrypt body - depends on cipher suite, which is determined by length of key
     gcm g;
-
-    GCM_init(&g,SHK->len,SHK->val,12,IV.val);  // Decrypt with Server handshake Key and IV
+    GCM_init(&g,SHK->len,SHK->val,12,IV.val);  // Decrypt with Server Key and IV
     GCM_add_header(&g,RH.val,RH.len);
     GCM_add_cipher(&g,&SR->val[pos],&SR->val[pos],left-16);
-//check TAG
     GCM_finish(&g,TAG.val); TAG.len=16;
 //    printf("TAG= ");OCT_output(&TAG);
 
     SR->len+=(left-16);    
-// read correct TAG from server
-    getOctet(sock,&RTAG,16);    // read in TAG
+    getOctet(sock,&RTAG,16);    // read in correct TAG
 //    printf("Correct TAG= "); OCT_output(&RTAG);
     if (!OCT_comp(&TAG,&RTAG))
     {
@@ -319,7 +331,7 @@ int getServerResponseFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,oc
     }
     printf("Server fragment authenticates %d\n",left-16);
 
-// get record ending - encodes record type
+// get record ending - encodes real (disguised) record type
     int lb=SR->val[SR->len-1];
     SR->len--; // remove it
     if (lb==0x16)
@@ -338,7 +350,7 @@ int parseByteorPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 
     int nb=parseByte(SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR
-        getServerResponseFragment(sock,SHK,SHIV,recno,SR); 
+        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseByte(SR,ptr);
     }
     return nb;
@@ -350,7 +362,7 @@ unsigned int parseInt32orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV
     unsigned int nb=parseInt32(SR,ptr);
     while (nb == (unsigned int)-1)
     { // not enough bytes in SR - pull in another fragment
-        getServerResponseFragment(sock,SHK,SHIV,recno,SR); 
+        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseInt32(SR,ptr);
     }
     return nb;
@@ -362,7 +374,7 @@ int parseInt24orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32
     int nb=parseInt24(SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - pull in another fragment
-        getServerResponseFragment(sock,SHK,SHIV,recno,SR); 
+        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseInt24(SR,ptr);
     }
     return nb;
@@ -374,7 +386,7 @@ int parseInt16orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32
     int nb=parseInt16(SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - pull in another fragment
-        getServerResponseFragment(sock,SHK,SHIV,recno,SR); 
+        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseInt16(SR,ptr);
     }
     return nb;
@@ -386,7 +398,7 @@ int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,octet *SHK,oct
     int nb=parseOctet(O,len,SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - pull in another fragment
-        getServerResponseFragment(sock,SHK,SHIV,recno,SR); 
+        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseOctet(O,len,SR,ptr);
     }
     return nb;
@@ -458,7 +470,7 @@ int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV,unsign32 &recno)
     {
         printf("Waiting for Server input \n");
         OCT_clear(RS); ptr=0;
-        type=getServerResponseFragment(sock,SAK,SAIV,recno,RS);  // get first fragment
+        type=getServerEncryptedFragment(sock,SAK,SAIV,recno,RS);  // get first fragment
         //printf("Got another fragment %d\n",type);
         if (type==HSHAKE)
         {
@@ -515,13 +527,15 @@ int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV,unsign32 &recno)
 
 // now deals with any kind of fragmentation
 // build up server handshake response in SR, decrypting each fragment in-place
-int parseServerResponse(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int &hut1,int &hut2,int &hut3) //returns pointers into SR indicating where hashing might end
+// extract Certificate Chain, Server Certificate Signature and Server Verifier Data
+// return pointers to hashing check-points
+int parseServerHandshake(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int &hut1,int &hut2,int &hut3) //returns pointers into SR indicating where hashing might end
 {
     int nb,sigalg,ht,len,olen,ptr=0;
     bool fin=false;
 
     OCT_clear(SR);
-    getServerResponseFragment(sock,SHK,SHIV,recno,SR);  // get first fragment
+    getServerEncryptedFragment(sock,SHK,SHIV,recno,SR);  // get first fragment
 
     while (1)
     {
@@ -567,25 +581,23 @@ bool getServerHello(int sock,octet* SH,int &cipher,int &kex,int &tls,octet *PK)
 {
     char rh[3];
     octet RH={0,sizeof(rh),rh};
-    char hh[3];
-    octet HH={0,sizeof(hh),hh};
     char skip[70];
     octet SKIP = {0, sizeof(skip), skip};
 
     kex=cipher=-1;
 
 // get Header
-    getOctet(sock,&RH,3);
-    int left=getInt16(sock);
+    getOctet(sock,&RH,3);     // should be 16 03 03
+    int left=getInt16(sock);  // length of record
 // Get length of whats left
 // Read in Server Hello
-    getOctet(sock,SH,left);
+    getOctet(sock,SH,left);   // read in full record 
 // parse it    
 
     int ptr=0;
-    parseOctet(&HH,2,SH,ptr);
-    left=parseInt16(SH,ptr);
-    int svr=parseInt16(SH,ptr); left-=2;
+    int nb=parseByte(SH,ptr);  // should be 02 (1 byte) - signals Server Hello
+    left=parseInt24(SH,ptr);   // TODO: If not enough, pull in another fragment
+    int svr=parseInt16(SH,ptr); left-=2; 
 
     if (svr!=0x0303)
     {
@@ -721,7 +733,7 @@ int main(int argc, char const *argv[])
 
     argv++; argc--;
     if (argc!=1)
-    {
+    { // if no parameters, default to localhost
         strcpy(hostname,"localhost");
         strcpy(ip,"127.0.0.1");
         port=44330;
@@ -732,7 +744,6 @@ int main(int argc, char const *argv[])
         port=443;
     }
     printf("ip= %s\n",ip);
-// tls13.cloudflare.com:443
     sock=setclientsock(port,ip);
 
 // For Transcript hash must use cipher-suite hash function
@@ -749,9 +760,6 @@ int main(int argc, char const *argv[])
 // Random secret key
     OCT_rand(&SK,&RNG,32);
 
-// For debug only - a secret key
-//    OCT_fromHex(&SK,(char *)"202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f");
-
 // RFC 7748
     OCT_reverse(&SK);
     SK.val[32-1]&=248;  
@@ -765,8 +773,7 @@ int main(int argc, char const *argv[])
     printf("Private key= 0x"); OCT_output(&SK); 
     printf("Client Public key= 0x"); OCT_output(&CPK); 
 
-//    char *serverName=(char *)"example.ulfheim.net";
-    char *serverName=(char *)"tls13.cloudflare.com";
+    char *serverName=(char *)"tls13.cloudflare.com";  // ???
 
 // Server Capabilities to be advertised
 // Supported Cipher Suits
@@ -774,7 +781,7 @@ int main(int argc, char const *argv[])
     int ciphers[4];
     ciphers[0]=TLS_AES_128_GCM_SHA256;
     ciphers[1]=TLS_AES_256_GCM_SHA384;
-    ciphers[2]=TLS_CHACHA20_POLY1305_SHA256;  // not actually supported
+    ciphers[2]=TLS_CHACHA20_POLY1305_SHA256;  // not supported
   //  ciphers[3]=0x00ff;
 
 // Supported Key Exchange Groups
@@ -830,7 +837,7 @@ int main(int argc, char const *argv[])
         Hash_Process(&tlshash,SH.val[i]);
 
     Hash_Output(&tlshash,digest);
-    printf("Hash= "); for (int i=0;i<sha;i++) printf("%02x",(unsigned char)digest[i]); printf("\n");
+//    printf("Hash= "); for (int i=0;i<sha;i++) printf("%02x",(unsigned char)digest[i]); printf("\n");
     
     OCT_jbytes(&HH,digest,sha);
 
@@ -866,8 +873,8 @@ int main(int argc, char const *argv[])
     getSCCS(sock);
 
     int hut1,hut2,hut3;
-// parse Server Response - extract certchain plus server cert verifier plus server finish
-    int sigalg=parseServerResponse(&SR,sock,&SHK,&SHIV,shkrecno,&CERTCHAIN,&SCVSIG,&FIN,hut1,hut2,hut3); // returns pointers into SR indicating where hashing can end
+// parse Server Handshake Response - extract certchain plus server cert verifier plus server finish
+    int sigalg=parseServerHandshake(&SR,sock,&SHK,&SHIV,shkrecno,&CERTCHAIN,&SCVSIG,&FIN,hut1,hut2,hut3); // returns pointers into SR indicating where hashing can end
 
     printf("Cert Chain= %d ",CERTCHAIN.len); OCT_output(&CERTCHAIN);
     printf("Signature Algorithm= %04x\n",sigalg);
@@ -914,7 +921,7 @@ int main(int argc, char const *argv[])
     OCT_jbytes(&TH,digest,sha);
     printf("3. Hash= "); OCT_output(&TH);
 
-// traffic keys
+// calculate traffic and application keys
 
     char cak[32];
     octet CAK={0,sizeof(cak),cak};
@@ -948,7 +955,6 @@ int main(int argc, char const *argv[])
     octet CHF={0,sizeof(chf),chf};
 
     VERIFY_DATA(sha,&CHF,&CHTS,&TH);  // create client verify data
-
     printf("Client Verify Data= "); OCT_output(&CHF);
     clientSendRecord(sock,HSHAKE,&CHK,&CHIV,chkrecno,&CHF);
     
