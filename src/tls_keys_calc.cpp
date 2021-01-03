@@ -5,23 +5,23 @@
 // create expanded HKDF label LB from label and context
 static void hkdfLabel(octet *LB,int length,octet *Label,octet *CTX)
 {
-    OCT_jint(LB,length,2);
-    OCT_jbyte(LB,(char)(6+Label->len),1);
-    OCT_jstring(LB,(char *)"tls13 ");
-    OCT_joctet(LB,Label);
+    OCT_jint(LB,length,2);    // 2
+    OCT_jbyte(LB,(char)(6+Label->len),1);  // 1
+    OCT_jstring(LB,(char *)"tls13 ");   // 6
+    OCT_joctet(LB,Label);  // Label->len
     if (CTX!=NULL)
     {
-        OCT_jbyte(LB, (char)(CTX->len), 1);
-        OCT_joctet(LB,CTX);
+        OCT_jbyte(LB, (char)(CTX->len), 1); // 1
+        OCT_joctet(LB,CTX);   // CTX->len
     } else {
-        OCT_jbyte(LB,0,1);
+        OCT_jbyte(LB,0,1);   // 1
     }
 }
 
 // HKDF extension for TLS1.3
 static void HKDF_Expand_Label(int hash,int hlen,octet *OKM,int olen,octet *PRK,octet *Label,octet *CTX)
 {
-    char hl[200];
+    char hl[TLS_MAX_HASH+24];
     octet HL={0,sizeof(hl),hl};
     hkdfLabel(&HL,olen,Label,CTX);
     HKDF_Expand(hash,hlen,OKM,olen,PRK,&HL);
@@ -30,9 +30,9 @@ static void HKDF_Expand_Label(int hash,int hlen,octet *OKM,int olen,octet *PRK,o
 // create verification data
 void VERIFY_DATA(int sha,octet *CF,octet *CHTS,octet *H)
 {
-    char fk[64];
+    char fk[TLS_MAX_HASH];
     octet FK = {0,sizeof(fk),fk};
-    char info[12];
+    char info[10];
     octet INFO = {0,sizeof(info),info};
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"finished");
@@ -44,7 +44,7 @@ void VERIFY_DATA(int sha,octet *CF,octet *CHTS,octet *H)
 // check verification data
 bool IS_VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H)
 {
-    char vd[64];
+    char vd[TLS_MAX_HASH];
     octet VD = {0,sizeof(vd),vd};
     VERIFY_DATA(sha,&VD,SHTS,H);
     return OCT_comp(SF,&VD);
@@ -54,19 +54,19 @@ bool IS_VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H)
 void GET_APPLICATION_SECRETS(int cipher_suite,octet *CAK,octet *CAIV,octet *SAK,octet *SAIV,octet *H,octet *HS)
 {
     int sha,key;
-    char cts[64];
+    char cts[TLS_MAX_HASH];
     octet CTS = {0,sizeof(cts),cts};
-    char sts[64];
+    char sts[TLS_MAX_HASH];
     octet STS = {0,sizeof(sts),sts};
-    char ds[64];
+    char ds[TLS_MAX_HASH];
     octet DS = {0,sizeof(ds),ds};
-    char ms[64];
+    char ms[TLS_MAX_HASH];
     octet MS = {0,sizeof(ms),ms};
-    char emh[64];
+    char emh[TLS_MAX_HASH];
     octet EMH = {0,sizeof(emh),emh};
-    char zk[64];                    // Zero Key
+    char zk[TLS_MAX_HASH];                    // Zero Key
     octet ZK = {0,sizeof(zk),zk};
-    char info[32];
+    char info[16];
     octet INFO = {0,sizeof(info),info};
 
     if (cipher_suite==TLS_AES_128_GCM_SHA256)
@@ -128,15 +128,15 @@ void GET_APPLICATION_SECRETS(int cipher_suite,octet *CAK,octet *CAIV,octet *SAK,
 void GET_HANDSHAKE_SECRETS(int cipher_suite,octet *HS,octet *CHK,octet *CHIV,octet *SHK,octet *SHIV, octet *CHTS,octet *SHTS,  octet *H,octet *SS)
 {
     int sha,key;
-    char es[64];
+    char es[TLS_MAX_HASH];
     octet ES = {0,sizeof(es),es};
-    char ds[64];
+    char ds[TLS_MAX_HASH];
     octet DS = {0,sizeof(ds),ds};
-    char emh[64];
+    char emh[TLS_MAX_HASH];
     octet EMH = {0,sizeof(emh),emh};
-    char zk[64];                    // Zero Key
+    char zk[TLS_MAX_HASH];                    // Zero Key
     octet ZK = {0,sizeof(zk),zk};
-    char info[32];
+    char info[16];
     octet INFO = {0,sizeof(info),info};
 
     if (cipher_suite==TLS_AES_128_GCM_SHA256)
@@ -196,5 +196,4 @@ void GET_HANDSHAKE_SECRETS(int cipher_suite,octet *HS,octet *CHK,octet *CHIV,oct
     HKDF_Expand_Label(MC_SHA2,sha,SHIV,12,SHTS,&INFO,NULL);
 
     printf("Server handshake IV= "); OCT_output(SHIV);
-
 }

@@ -12,20 +12,20 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
 {
 // Server Certificate Verify
     int sha;
-    char scv[200];
+    char scv[100+TLS_MAX_HASH];
     octet SCV={0,sizeof(scv),scv};
-    char p[512];
+    char p[TLS_MAX_SIGNATURE_SIZE];
     octet P={0,sizeof(p),p};
-    char r[64];
+    char r[TLS_MAX_ECC_FIELD];
     octet R={0,sizeof(r),r};
-    char s[64];
+    char s[TLS_MAX_ECC_FIELD];
     octet S={0,sizeof(s),s};
 
 // TLS1.3 message that was signed
     OCT_jbyte(&SCV,32,64);  // 64 spaces
-    OCT_jstring(&SCV,(char *)"TLS 1.3, server CertificateVerify");
+    OCT_jstring(&SCV,(char *)"TLS 1.3, server CertificateVerify");  // 33 chars
     OCT_jbyte(&SCV,0,1);  // add 0 character
-    OCT_joctet(&SCV,H);   // add Transcript Hash 
+    OCT_joctet(&SCV,H);   // add Transcript Hash - could be MAX_HASH
 
     int len=SCVSIG->len;
     int rlen,slen,Int,der,ptr=0;

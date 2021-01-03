@@ -26,7 +26,7 @@
 #include "tls_parse_octet.h"
 #include "tls_cert_chain.h"
 
-
+// Ticket Structure
 typedef struct
 {
     int lifetime;
@@ -37,111 +37,117 @@ typedef struct
 
 using namespace core;
 
+// Build Pre-Shared Key Share Extension
+void addPresharedKeyExt(octet *EXT,octet *TICK,unsign32 obf_age,octet* BD)
+{
+    int len=4+TICK->len+BD->len;
+    char psk[1024];
+    octet PSK={0,sizeof(psk),psk};
+    OCT_jint(&PSK,PRESHARED_KEY,2);
+
+}
+
 // Build Servername Extension
-int extServerName(octet *SN,char *servername)
+void addServerNameExt(octet *EXT,char *servername)
 {
     int len=strlen(servername);
-    OCT_clear(SN);
-    OCT_jint(SN,SERVER_NAME,2);  // This extension is SERVER_NAME(0)
-    OCT_jint(SN,5+len,2);   // In theory its a list..
-    OCT_jint(SN,3+len,2);   // but only one entry
-    OCT_jint(SN,0,1);     // Server is of type DNS Hostname (only one type supported, and only one of each type)
-    OCT_jint(SN,len,2);   // serverName length
-    OCT_jstring(SN,servername); // servername
-    return SN->len;
+    char sn[TLS_MAX_SERVER_NAME+9];
+    octet SN = {0, sizeof(sn), sn};
+    OCT_jint(&SN,SERVER_NAME,2);  // This extension is SERVER_NAME(0)
+    OCT_jint(&SN,5+len,2);   // In theory its a list..
+    OCT_jint(&SN,3+len,2);   // but only one entry
+    OCT_jint(&SN,0,1);     // Server is of type DNS Hostname (only one type supported, and only one of each type)
+    OCT_jint(&SN,len,2);   // serverName length
+    OCT_jstring(&SN,servername); // servername
+    OCT_joctet(EXT,&SN);
 }
     
 // Build Supported Groups Extension
-int extSupportedGroups(octet *SG,int nsg,int *supportedGroups)
+void addSupportedGroupsExt(octet *EXT,int nsg,int *supportedGroups)
 {
-    OCT_clear(SG);
-    OCT_jint(SG,SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
-    OCT_jint(SG,2*nsg+2,2);          // Total length
-    OCT_jint(SG,2*nsg,2);            // Number of entries
+    char sg[6+TLS_MAX_SUPPORTED_GROUPS*2];
+    octet SG = {0, sizeof(sg), sg};
+    OCT_jint(&SG,SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
+    OCT_jint(&SG,2*nsg+2,2);          // Total length
+    OCT_jint(&SG,2*nsg,2);            // Number of entries
     for (int i=0;i<nsg;i++)          // One entry per supported group 
-        OCT_jint(SG,supportedGroups[i],2);
-    return SG->len;
+        OCT_jint(&SG,supportedGroups[i],2);
+    OCT_joctet(EXT,&SG);
 }
 
 // Build Signature algorithms Extension
-int extSigAlgs(octet *SA,int nsa,int *sigAlgs)
+void addSigAlgsExt(octet *EXT,int nsa,int *sigAlgs)
 {
-    OCT_clear(SA);
-    OCT_jint(SA,SIG_ALGS,2);  // This extension is SIGNATURE_ALGORITHMS(0x0d)
-    OCT_jint(SA,2*nsa+2,2);   // Total length
-    OCT_jint(SA,2*nsa,2);     // Number of entries
+    char sa[6+TLS_MAX_SUPPORTED_SIGS*2];
+    octet SA={0,sizeof(sa),sa};
+    OCT_jint(&SA,SIG_ALGS,2);  // This extension is SIGNATURE_ALGORITHMS(0x0d)
+    OCT_jint(&SA,2*nsa+2,2);   // Total length
+    OCT_jint(&SA,2*nsa,2);     // Number of entries
     for (int i=0;i<nsa;i++)   // One entry per supported signature algorithm
-        OCT_jint(SA,sigAlgs[i],2);
-    return SA->len;
+        OCT_jint(&SA,sigAlgs[i],2);
+    OCT_joctet(EXT,&SA);
 }
 
-// Build Client Key Share extension
+// Add Client Key Share extension
 // Offer a choice of publics keys (some may be PQ!)
-int extClientKeyShare(octet *KS,int nalgs,int alg[],octet PK[])
+void addKeyShareExt(octet *EXT,int nalgs,int alg[],octet PK[])
 {
+    char ks[6+TLS_MAX_KEY_SHARES*(4+TLS_MAX_PUB_KEY_SIZE)];
+    octet KS={0,sizeof(ks),ks};
     int tlen=0;
     for (int i=0;i<nalgs;i++)
     {
         tlen+=4;
         tlen+=PK[i].len;
     }
-    OCT_clear(KS);
-    OCT_jint(KS,KEY_SHARE,2); // This extension is KEY_SHARE(0x33)
-    OCT_jint(KS,tlen+2,2);
-    OCT_jint(KS,tlen,2);
+    OCT_jint(&KS,KEY_SHARE,2); // This extension is KEY_SHARE(0x33)
+    OCT_jint(&KS,tlen+2,2);
+    OCT_jint(&KS,tlen,2);
     for (int i=0;i<nalgs;i++)
     {
-        OCT_jint(KS,alg[i],2);
-        OCT_jint(KS,PK[i].len,2);
-        OCT_joctet(KS,&PK[i]);
+        OCT_jint(&KS,alg[i],2);
+        OCT_jint(&KS,PK[i].len,2);
+        OCT_joctet(&KS,&PK[i]);
     }
-
-    return KS->len;
+    OCT_joctet(EXT,&KS);
 }
 
-int extPSK(octet *PS,int mode)
+void addPSKExt(octet *EXT,int mode)
 {
-    OCT_clear(PS);
-    OCT_jint(PS,PSK_MODE,2);
-    OCT_jint(PS,2,2);
-    OCT_jint(PS,1,1);
-    OCT_jint(PS,mode,1);
-    return PS->len;
+    char ps[6];
+    octet PS={0,sizeof(ps),ps};
+    OCT_jint(&PS,PSK_MODE,2);
+    OCT_jint(&PS,2,2);
+    OCT_jint(&PS,1,1);
+    OCT_jint(&PS,mode,1);
+    OCT_joctet(EXT,&PS);
 }
 
-int extVersion(octet *VS,int version)
+void addVersionExt(octet *EXT,int version)
 {
-    OCT_clear(VS);
-    OCT_jint(VS,TLS_VER,2);
-    OCT_jint(VS,3,2);
-    OCT_jint(VS,2,1);
-    OCT_jint(VS,version,2);
-    return VS->len;
+    char vs[7];
+    octet VS={0,sizeof(vs),vs};
+    OCT_jint(&VS,TLS_VER,2);
+    OCT_jint(&VS,3,2);
+    OCT_jint(&VS,2,1);
+    OCT_jint(&VS,version,2);
+    OCT_joctet(EXT,&VS);
 }
 
-// Create random octet
+// Create 32-byte random octet
 int clientRandom(octet *RN,csprng *RNG)
 {
     OCT_rand(RN,RNG,32);
-    for (int i=0;i<32;i++)    // debug
-        RN->val[i]=i;
+//    for (int i=0;i<32;i++)    // debug
+//        RN->val[i]=i;
     return 32;
 }
 
-// Create random session ID (not used in TLS1.3)
+// Create random 32-byte session ID (not used in TLS1.3)
 int sessionID(octet *SI,csprng *RNG)
 {
-    char r[32];
-    octet R={0, sizeof(r), r};
-    OCT_rand(&R,RNG,32);
-    OCT_clear(SI);
-    OCT_jint(SI,32,1);
-    OCT_joctet(SI,&R);
-
-    for (int i=0;i<32;i++)     // debug
-        SI->val[i+1]=0xe0+i;
-
-    return SI->len;
+    OCT_rand(SI,RNG,32);
+    return 1+SI->len;
 }
 
 int cipherSuites(octet *CS,int ncs,int *ciphers)
@@ -151,77 +157,6 @@ int cipherSuites(octet *CS,int ncs,int *ciphers)
     for (int i=0;i<ncs;i++)
         OCT_jint(CS,ciphers[i],2);
     return CS->len;
-}
-
-// Build Client Hello Octet
-int clientHello(octet *CH,char *serverName,int nsc,int *ciphers,int nsg,int *supportedGroups,int nsa,int *sigAlgs,int alg,octet *CPK,int pskMode,int tlsVersion,csprng *RNG)
-{
-    char sn[100];
-    octet SN = {0, sizeof(sn), sn};
-    char sg[100];
-    octet SG = {0, sizeof(sg), sg};
-    char sa[100];
-    octet SA = {0, sizeof(sa), sa};
-    char ks[100];
-    octet KS = {0, sizeof(ks), ks};
-    char ps[100];
-    octet PS = {0, sizeof(ps), ps};
-    char vs[100];
-    octet VS = {0, sizeof(vs), vs};
-    char rn[32];
-    octet RN = {0, sizeof(rn), rn};
-    char si[33];
-    octet SI = {0, sizeof(si), si};
-    char cs[33];
-    octet CS = {0, sizeof(cs), cs};
-    int clientVersion=0x0303;
-    int compressionMethods=0x0100;
-    int handshakeHeader=0x0100;
-
-    int algs[4];
-    algs[0]=alg;
-
-    char m1[100],m2[100],m3[100],m4[100];
-    octet MCPK[4]={
-        {0,sizeof(m1),m1},{0,sizeof(m2),m2},{0,sizeof(m3),m3},{0,sizeof(m4),m4}
-    };
-    OCT_copy(&MCPK[0],CPK);
-    
-    int total=8;
-    total+=clientRandom(&RN,RNG);
-    total+=sessionID(&SI,RNG);
-    total+=cipherSuites(&CS,nsc,ciphers);
-
-    int extlen=0;
-    extlen+=extServerName(&SN,serverName);
-    extlen+=extSupportedGroups(&SG,nsg,supportedGroups);
-    extlen+=extSigAlgs(&SA,nsa,sigAlgs);
-    //extlen+=extClientKeyShare(&KS,alg,CPK);
-    extlen+=extClientKeyShare(&KS,1,algs,MCPK);
-    extlen+=extPSK(&PS,pskMode);
-    extlen+=extVersion(&VS,tlsVersion);
-
-    OCT_clear(CH);
-    OCT_fromHex(CH,(char *)"160301");
-    OCT_jint(CH,total+extlen+2,2);
-
-    OCT_jint(CH,handshakeHeader,2);
-    OCT_jint(CH,total+extlen-2,2);
-    OCT_jint(CH,clientVersion,2);
-    OCT_joctet(CH,&RN);
-    OCT_joctet(CH,&SI);
-    OCT_joctet(CH,&CS);
-    OCT_jint(CH,compressionMethods,2);
-    OCT_jint(CH,extlen,2);
-    OCT_joctet(CH,&SN);
-    OCT_joctet(CH,&SG);
-    OCT_joctet(CH,&SA);
-    OCT_joctet(CH,&KS);
-    OCT_joctet(CH,&PS);
-    OCT_joctet(CH,&VS);
-
-    printf("\nClient Hello= %d ",CH->len); OCT_output(CH);
-    return CH->len;
 }
 
 // read in SCCS - and ignore it
@@ -269,47 +204,37 @@ unsign32 updateIV(octet *NIV,octet *OIV,unsign32 recno)
     return recno;
 }
 
-// get another fragment from the Server
-// and append to the end of SR
-int getServerFragment(int sock,octet *SR)
+// get another fragment of server response
+// If its encrypted, decrypt and authenticate it
+// append it to the end of SR
+int getServerFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
 {
     int i,left,pos;
     char rh[5];
     octet RH={0,sizeof(rh),rh};
 
-    pos=SR->len;  // current end of SR
-    getOctet(sock,&RH,3);  // get record Header - should be something like 16 03 03 XX YY
-    left=getInt16(sock);
-    OCT_jint(&RH,left,2);  // got record header
-
-    getBytes(sock,&SR->val[pos],left);  // read in record body
-    return 0;
-}
-
-// get another encrypted fragment of server response
-// decrypt and authenticate it
-// append it to the end of SR
-int getServerEncryptedFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
-{
-    int i,left,pos;
-    unsigned char b[4];
-    char rh[10];
-    octet RH={0,sizeof(rh),rh};
-    char tag[16];
+    char tag[TLS_TAG_SIZE];
     octet TAG={0,sizeof(tag),tag};
-    char rtag[16];
+    char rtag[TLS_TAG_SIZE];
     octet RTAG={0,sizeof(rtag),rtag};
-    char iv[12];
+    char iv[TLS_IV_SIZE];
     octet IV={0,sizeof(iv),iv};
 
-    recno=updateIV(&IV,SHIV,recno);
-
     pos=SR->len;  // current end of SR
-
-    OCT_clear(&RH);
     getOctet(sock,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
     left=getInt16(sock);
     OCT_jint(&RH,left,2);
+
+    if (SHK==NULL)
+    { // not encrypted
+        getBytes(sock,&SR->val[pos],left);  // read in record body
+        SR->len+=left;
+        if (RH.val[0]==0x15)
+            return ALERT;
+        return HSHAKE;
+    }
+
+    recno=updateIV(&IV,SHIV,recno);
 //    printf("Header= ");OCT_output(&RH);
     getBytes(sock,&SR->val[pos],left-16);  // read in record body
 
@@ -332,7 +257,7 @@ int getServerEncryptedFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,o
     printf("Server fragment authenticates %d\n",left-16);
 
 // get record ending - encodes real (disguised) record type
-    int lb=SR->val[SR->len-1];
+    int lb=SR->val[SR->len-1];   // need to track back through zero padding for this....
     SR->len--; // remove it
     if (lb==0x16)
         return HSHAKE;
@@ -350,7 +275,7 @@ int parseByteorPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 
     int nb=parseByte(SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR
-        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseByte(SR,ptr);
     }
     return nb;
@@ -362,7 +287,7 @@ unsigned int parseInt32orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV
     unsigned int nb=parseInt32(SR,ptr);
     while (nb == (unsigned int)-1)
     { // not enough bytes in SR - pull in another fragment
-        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseInt32(SR,ptr);
     }
     return nb;
@@ -374,7 +299,7 @@ int parseInt24orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32
     int nb=parseInt24(SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - pull in another fragment
-        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseInt24(SR,ptr);
     }
     return nb;
@@ -386,7 +311,7 @@ int parseInt16orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32
     int nb=parseInt16(SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - pull in another fragment
-        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseInt16(SR,ptr);
     }
     return nb;
@@ -398,59 +323,116 @@ int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,octet *SHK,oct
     int nb=parseOctet(O,len,SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - pull in another fragment
-        getServerEncryptedFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseOctet(O,len,SR,ptr);
     }
     return nb;
 }
 
-// Encrypt and transmit a plaintext record of a given type
+// Send a client message CM (in a single record). AEAD encrypted if K!=NULL
 // recno is count of records sent with this key/IV combo
-int clientSendRecord(int sock,int type,octet *K,octet *OIV,unsign32 &recno,octet *PT)
+void sendClientMessage(int sock,int rectype,int version,octet *K,octet *OIV,unsign32 &recno,octet *CM)
 {
-    int reclen=0;
-    int rectype;
-    char record[128];
+    int reclen;
+    char record[TLS_MAX_CLIENT_RECORD];
     octet RECORD={0,sizeof(record),record};
-    char tag[16];
+    char tag[TLS_TAG_SIZE];
     octet TAG={0,sizeof(tag),tag};
-    char iv[12];
+    char iv[TLS_IV_SIZE];
     octet IV={0,sizeof(iv),iv};
 
-    recno=updateIV(&IV,OIV,recno);
-
-    OCT_fromHex(&RECORD,(char *)"170303");
-    if (type==HSHAKE)
-    {
-        reclen=PT->len+16+5;
-        rectype=0x16;
+    if (K==NULL)
+    { // no encryption
+        OCT_jbyte(&RECORD,rectype,1);
+        OCT_jint(&RECORD,version,2);
+        reclen=CM->len;
         OCT_jint(&RECORD,reclen,2);
-        OCT_jbyte(&RECORD,0x14,1);  // indicates handshake message
-        OCT_jint(&RECORD,PT->len,3); // .. and its length
-    } 
-    if (type==APPLICATION)
-    { // Its application data
-        reclen=PT->len+16+1;
-        rectype=0x17;
+        OCT_joctet(&RECORD,CM); // CM->len
+    } else { // encrypted, and sent as application record
+        OCT_jbyte(&RECORD,APPLICATION,1);
+        OCT_jint(&RECORD,TLS1_2,2);
+        reclen=CM->len+16+1;       // 16 for the TAG, 1 for the record type
         OCT_jint(&RECORD,reclen,2);
-    }
-    OCT_joctet(&RECORD,PT);
-    OCT_jbyte(&RECORD,rectype,1);
+        OCT_joctet(&RECORD,CM); 
+        OCT_jbyte(&RECORD,rectype,1); // append and encrypt actual record type
+// could add random padding after this
 
 // AES-GCM
-    gcm g;
-    GCM_init(&g,K->len,K->val,12,IV.val);  // Encrypt with Client Application Key and IV
-    GCM_add_header(&g,RECORD.val,5);
-    GCM_add_plain(&g,&RECORD.val[5],&RECORD.val[5],reclen-16);
-//create TAG
-    GCM_finish(&g,TAG.val); TAG.len=16;
-
-    OCT_joctet(&RECORD,&TAG);
-
+        recno=updateIV(&IV,OIV,recno); // update record number
+        gcm g;
+        GCM_init(&g,K->len,K->val,12,IV.val);  // Encrypt with Client Application Key and IV
+        GCM_add_header(&g,RECORD.val,5);
+        GCM_add_plain(&g,&RECORD.val[5],&RECORD.val[5],reclen-16);
+//create and append TAG
+        GCM_finish(&g,TAG.val); TAG.len=16;
+        OCT_joctet(&RECORD,&TAG);
+    }
 printf("Client to Server -> "); OCT_output(&RECORD);
-
     sendOctet(sock,&RECORD);
-    return 0;
+}
+
+// build and transmit client hello. Append pre-prepared extensions
+void sendClientHello(int sock,octet *CH,int nsc,int *ciphers,csprng *RNG,octet *CID,octet *EXTENSIONS)
+{
+    char rh[5];
+    octet RH={0,sizeof(rh),rh};
+    char rn[32];
+    octet RN = {0, sizeof(rn), rn};
+    char cs[2+TLS_MAX_CIPHER_SUITES*2];
+    octet CS = {0, sizeof(cs), cs};
+    int compressionMethods=0x0100;
+    int total=8;
+    int extlen=EXTENSIONS->len;
+    total+=clientRandom(&RN,RNG);
+    total+=sessionID(CID,RNG);
+    total+=cipherSuites(&CS,nsc,ciphers);
+
+    OCT_jbyte(&RH,HSHAKE,1);
+    OCT_jint(&RH,TLS1_0,2);  // 160301 3
+    OCT_jint(&RH,total+extlen+2,2);  // +2 for compression   // 2
+
+    OCT_clear(CH);
+    OCT_jbyte(CH,CLIENT_HELLO,1);  // clientHello handshake message  // 1
+    OCT_jint(CH,total+extlen-2,3);   // 3
+
+    OCT_jint(CH,TLS1_2,2);              // 2
+    OCT_joctet(CH,&RN);              // 32
+    OCT_jbyte(CH,CID->len,1);        // 1   
+    OCT_joctet(CH,CID);              // 32
+    OCT_joctet(CH,&CS);             // 2+TLS_MAX_CIPHER_SUITES*2
+    OCT_jint(CH,compressionMethods,2);  // 2
+
+    OCT_jint(CH,extlen,2);            // 2
+    OCT_joctet(CH,EXTENSIONS);
+
+// transmit it
+    unsign32 nulrec=0;
+    sendClientMessage(sock,HSHAKE,TLS1_0,NULL,NULL,nulrec,CH);
+}
+
+// send client alert - might be encrypted if K!=NULL
+void sendClientAlert(int sock,int type,octet *K,octet *OIV,unsign32 &recno)
+{
+    char pt[2];
+    octet PT={0,sizeof(pt),pt};
+
+    OCT_jbyte(&PT,0x02,1);  // alerts are always fatal
+    OCT_jbyte(&PT,type,1);
+
+    sendClientMessage(sock,ALERT,TLS1_2,K,OIV,recno,&PT);
+}
+
+// Send final client handshake verification data
+void sendClientVerify(int sock,octet *K,octet *OIV,unsign32 &recno,octet *CHF)
+{
+    char pt[TLS_MAX_HASH+4];
+    octet PT={0,sizeof(pt),pt};
+
+    OCT_jbyte(&PT,FINISHED,1);  // indicates handshake message "client finished" 1
+    OCT_jint(&PT,CHF->len,3); // .. and its length  3
+    OCT_joctet(&PT,CHF);
+
+    sendClientMessage(sock,HSHAKE,TLS1_2,K,OIV,recno,&PT);
 }
 
 // parse Server records received after handshake
@@ -462,7 +444,7 @@ int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV,unsign32 &recno)
     bool fin=false;
     char nonce[32];
     octet NONCE={0,sizeof(nonce),nonce};
-    char tick[256];
+    char tick[TLS_MAX_TICKET_SIZE];
     octet TICK={0,sizeof(tick),tick};
 
     nticks=0; // number of tickets received
@@ -470,7 +452,7 @@ int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV,unsign32 &recno)
     {
         printf("Waiting for Server input \n");
         OCT_clear(RS); ptr=0;
-        type=getServerEncryptedFragment(sock,SAK,SAIV,recno,RS);  // get first fragment
+        type=getServerFragment(sock,SAK,SAIV,recno,RS);  // get first fragment
         //printf("Got another fragment %d\n",type);
         if (type==HSHAKE)
         {
@@ -525,136 +507,197 @@ int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV,unsign32 &recno)
     return 0;
 }
 
+// Functions to process server response
 // now deals with any kind of fragmentation
 // build up server handshake response in SR, decrypting each fragment in-place
 // extract Certificate Chain, Server Certificate Signature and Server Verifier Data
 // return pointers to hashing check-points
-int parseServerHandshake(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *CERTCHAIN,octet *SCVSIG,octet *HFIN,int &hut1,int &hut2,int &hut3) //returns pointers into SR indicating where hashing might end
+bool getServerEncryptedExtensions(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *SEXT)
 {
-    int nb,sigalg,ht,len,olen,ptr=0;
-    bool fin=false;
+    int nb,len,ptr=0;
 
-    OCT_clear(SR);
-    getServerEncryptedFragment(sock,SHK,SHIV,recno,SR);  // get first fragment
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
 
-    while (1)
-    {
-        nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
-        len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length
-        switch (nb)
-        {
-        case ENCRYPTED_EXTENSIONS:
-            ptr+=len; // skip encrypted extensions for now
-            break;
-        case CERTIFICATE :
-            nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
-            if (nb!=0x00) printf("Something wrong 2 %x\n",nb);  // expecting 0x00 Request context
-            len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);   // get length of certificate chain
-            olen=parseOctetorPull(sock,CERTCHAIN,len,SR,ptr,SHK,SHIV,recno);
-//    printf("Cert Chain= "); OCT_output(CERTCHAIN);
-            hut1=ptr;                   // hash up to this point
-            break;
+    if (nb!=ENCRYPTED_EXTENSIONS)
+        return false;
 
-        case CERT_VERIFY :
-            sigalg=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);   // may for example be 0804 - RSA-PSS-RSAE-SHA256
-            len=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);      // sig data follows
-            olen=parseOctetorPull(sock,SCVSIG,len,SR,ptr,SHK,SHIV,recno);
-            hut2=ptr;               // and hash up to this point
-            break;
+    ptr+=len; // skip encrypted extensions for now
 
-        case SERVER_FINISHED :
-            olen=parseOctetorPull(sock,HFIN,len,SR,ptr,SHK,SHIV,recno);
-            hut3=ptr;              // and finally hash up to this point   
-            fin=true;  // now we are done
-            break;
-        default:
-            printf("Unsupported Handshake message type %x\n",nb);
-            fin=true;
-            break;
-        }
-        if (fin) break;
-    }
+    printf("Length of Encrypted Extension= %d\n",len);
+// Transcript hash
+    for (int i=0;i<ptr;i++)
+        Hash_Process(trans_hash,SR->val[i]);
+   
+    OCT_shl(SR,ptr);  // rewind to start
+
+    return true;
+}
+
+bool getServerCertificateChain(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *CERTCHAIN)
+{
+    int nb,len,ptr=0;
+
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
+
+    if (nb!=CERTIFICATE)
+        return false;
+
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
+    if (nb!=0x00) printf("Something wrong 2 %x\n",nb);  // expecting 0x00 Request context
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);   // get length of certificate chain
+    parseOctetorPull(sock,CERTCHAIN,len,SR,ptr,SHK,SHIV,recno);
+
+// Transcript hash
+    for (int i=0;i<ptr;i++)
+        Hash_Process(trans_hash,SR->val[i]);
+
+    OCT_shl(SR,ptr);  // rewind to start
+
+    return true;
+}
+
+int getServerCertVerify(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *SCVSIG)
+{
+    int sigalg,nb,len,ptr=0;
+
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
+
+    if (nb!=CERT_VERIFY)
+        return 0;
+
+    sigalg=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);   // may for example be 0804 - RSA-PSS-RSAE-SHA256
+    len=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);      // sig data follows
+    parseOctetorPull(sock,SCVSIG,len,SR,ptr,SHK,SHIV,recno);
+   
+// Transcript hash
+    for (int i=0;i<ptr;i++)
+        Hash_Process(trans_hash,SR->val[i]);
+
+    OCT_shl(SR,ptr);  // rewind to start
+
     return sigalg;
 }
 
-bool getServerHello(int sock,octet* SH,int &cipher,int &kex,int &tls,octet *PK)
+bool getServerFinished(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *HFIN)
 {
-    char rh[3];
-    octet RH={0,sizeof(rh),rh};
-    char skip[70];
-    octet SKIP = {0, sizeof(skip), skip};
+    int nb,len,ptr=0;
+
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
+
+    if (nb!=FINISHED)
+        return false;
+
+    parseOctetorPull(sock,HFIN,len,SR,ptr,SHK,SHIV,recno);
+
+    for (int i=0;i<ptr;i++)
+        Hash_Process(trans_hash,SR->val[i]);
+   
+    OCT_shl(SR,ptr);  // rewind to start
+
+    return true;
+}
+
+int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *PK)
+{
+    int i,tls,left;
+    unsign32 recno=0;
+    char sid[32];
+    octet SID = {0, sizeof(sid), sid};
+    char srn[32];
+    octet SRN={0,sizeof(srn),srn};    
+    hash256 sh;
+    char *helloretryrequest=(char *)"HelloRetryRequest";
+    char hrr[32];
+    octet HRR={0,sizeof(hrr),hrr};
+
+    HASH256_init(&sh);
+    for (i=0;i<strlen(helloretryrequest);i++)
+        HASH256_process(&sh,(int)helloretryrequest[i]);
+    HASH256_hash(&sh,&HRR.val[0]); HRR.len=32;
 
     kex=cipher=-1;
 
-// get Header
-    getOctet(sock,&RH,3);     // should be 16 03 03
-    int left=getInt16(sock);  // length of record
-// Get length of whats left
-// Read in Server Hello
-    getOctet(sock,SH,left);   // read in full record 
-// parse it    
+// get first fragment - not encrypted
+// printf("Into Server Hello\n");
+    OCT_clear(SH);
+    if (getServerFragment(sock,NULL,NULL,recno,SH)==ALERT)
+        return SH_ALERT;
 
     int ptr=0;
-    int nb=parseByte(SH,ptr);  // should be 02 (1 byte) - signals Server Hello
-    left=parseInt24(SH,ptr);   // TODO: If not enough, pull in another fragment
-    int svr=parseInt16(SH,ptr); left-=2; 
+    int nb=parseByteorPull(sock,SH,ptr,NULL,NULL,recno);  // should be Server Hello
+    if (nb!=SERVER_HELLO)
+        return BAD_HELLO;
 
-    if (svr!=0x0303)
-    {
-        printf("Something wrong 1\n");   
-        return false;
-    }
-    parseOctet(&SKIP,32,SH,ptr); left-=32;
-    printf("Server Random= "); OCT_output(&SKIP);      
-    int silen=parseByte(SH,ptr); left-=1;
-    parseOctet(&SKIP,silen,SH,ptr); left-=silen;
-    cipher=parseInt16(SH,ptr); left-=2;
+    left=parseInt24orPull(sock,SH,ptr,NULL,NULL,recno);   // If not enough, pull in another fragment
+    int svr=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); left-=2; 
+
+    if (svr!=TLS1_2)  
+        return NOT_TLS1_3;  // don't ask
+   
+    parseOctetorPull(sock,&SRN,32,SH,ptr,NULL,NULL,recno); left-=32;
+    printf("Server Random= "); OCT_output(&SRN);  
+
+    int silen=parseByteorPull(sock,SH,ptr,NULL,NULL,recno); left-=1;
+    parseOctetorPull(sock,&SID,silen,SH,ptr,NULL,NULL,recno); left-=silen;  
+
+    if (!OCT_comp(CID,&SID))
+        return ID_MISMATCH;
+
+    cipher=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); left-=2;
     printf("Cipher suite= %x\n",cipher);
-    int cmp=parseByte(SH,ptr); left-=1; // Compression
+    int cmp=parseByteorPull(sock,SH,ptr,NULL,NULL,recno); left-=1; // Compression
     if (cmp!=0x00)
-    {
-        printf("Something wrong 2\n"); 
-        return false;
-    }
-    int extLen=parseInt16(SH,ptr); left-=2;  
+        return NOT_TLS1_3;
+
+    int extLen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); left-=2;  
 
     if (left!=extLen)
     {
         printf("Something wrong 3\n");
-        return false;
+        return BAD_HELLO;
     }
 
     int tmplen;
     while (extLen>0)
     {
-        int ext=parseInt16(SH,ptr); extLen-=2;
+        int ext=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
         switch (ext)
         {
         case KEY_SHARE :
             {
-                tmplen=parseInt16(SH,ptr); extLen-=2;
+                tmplen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
                 extLen-=tmplen;
-                kex=parseInt16(SH,ptr);
-                int pklen=parseInt16(SH,ptr);
-                parseOctet(PK,pklen,SH,ptr);
+                kex=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);
+                int pklen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);
+                parseOctetorPull(sock,PK,pklen,SH,ptr,NULL,NULL,recno);
                 printf("Key Share = %04x\n",kex);
                 printf("Server Public Key= "); OCT_output(PK);
                 break;
             }
         case TLS_VER :
             {
-                tmplen=parseInt16(SH,ptr); extLen-=2;
+                tmplen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
                 extLen-=tmplen;
-                tls=parseInt16(SH,ptr);  // get TLS version
+                tls=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);  // get TLS version
                 break;
             }
        default :
-            printf("New one on me\n");
-            return false;
+            return UNRECOGNIZED_EXT;
         break;           
         }
     }
-    return true;
+
+    if (tls!=TLS1_3)
+        return NOT_TLS1_3;
+
+    if (OCT_comp(&SRN,&HRR))
+        return HS_RETRY;
+
+    return 0;
 }
 
 int getIPaddress(char *ip,char *hostname)
@@ -672,47 +715,43 @@ int getIPaddress(char *ip,char *hostname)
 
 int main(int argc, char const *argv[]) 
 { 
-    char hostname[80];
+    char hostname[TLS_MAX_SERVER_NAME];
     char ip[40];
-    int tls, sock, valread, port; 
+    int sock, valread, port, rtn; 
     int cipher_suite,kex,sha;
-    char digest[64];
+    char digest[TLS_MAX_HASH];
 
-    char b[100];
-    octet B = {0, sizeof(b), b};
-    char spk[140];
+    char spk[TLS_MAX_PUB_KEY_SIZE];
     octet SPK = {0, sizeof(spk), spk};
-    char ss[64];
+    char ss[TLS_MAX_PUB_KEY_SIZE];
     octet SS = {0, sizeof(ss), ss};
 
-    char ch[1000];
+    char ch[TLS_MAX_EXTENSIONS+100+TLS_MAX_CIPHER_SUITES*2];
     octet CH = {0, sizeof(ch), ch};
-    char sh[1000];
+    char sh[TLS_MAX_SERVER_HELLO];
     octet SH = {0, sizeof(sh), sh};
-    char hs[64];
+    char hs[TLS_MAX_HASH];
     octet HS = {0,sizeof(hs),hs};
-    char lb[64];
-    octet LB = {0,sizeof(lb),lb};
-    char ctx[64];
-    octet CTX = {0,sizeof(ctx),ctx};
-    char hh[64];
+    char hh[TLS_MAX_HASH];
     octet HH={0,sizeof(hh),hh};
-    char fh[64];
+    char fh[TLS_MAX_HASH];
     octet FH={0,sizeof(fh),fh};
-    char th[64];
+    char th[TLS_MAX_HASH];
     octet TH={0,sizeof(th),th};
-    char chk[64];
+    char chk[TLS_MAX_KEY];
     octet CHK={0,sizeof(chk),chk};
-    char shk[64];
+    char shk[TLS_MAX_KEY];
     octet SHK={0,sizeof(shk),shk};
-    char chiv[12];
+    char chiv[TLS_IV_SIZE];
     octet CHIV={0,sizeof(chiv),chiv};
-    char shiv[12];
+    char shiv[TLS_IV_SIZE];
     octet SHIV={0,sizeof(shiv),shiv};
-    char shts[64];
+    char shts[TLS_MAX_HASH];
     octet SHTS={0,sizeof(shts),shts};
-    char chts[64];
+    char chts[TLS_MAX_HASH];
     octet CHTS={0,sizeof(chts),chts};
+    char cid[32];                       // Client ID
+    octet CID={0,sizeof(cid),cid};
 
     int i, res;
     unsigned long ran;
@@ -752,9 +791,9 @@ int main(int argc, char const *argv[])
 
 // Client Side Key Exchange 
 
-    char sk[70];
+    char sk[TLS_MAX_SECRET_KEY_SIZE];
     octet SK = {0, sizeof(sk), sk};
-    char cpk[140];
+    char cpk[TLS_MAX_PUB_KEY_SIZE];
     octet CPK = {0, sizeof(cpk), cpk};
 
 // Random secret key
@@ -773,12 +812,11 @@ int main(int argc, char const *argv[])
     printf("Private key= 0x"); OCT_output(&SK); 
     printf("Client Public key= 0x"); OCT_output(&CPK); 
 
-    char *serverName=(char *)"tls13.cloudflare.com";  // ???
 
-// Server Capabilities to be advertised
+// Client Capabilities to be advertised
 // Supported Cipher Suits
     int nsc=2;      // ********************
-    int ciphers[4];
+    int ciphers[TLS_MAX_CIPHER_SUITES];
     ciphers[0]=TLS_AES_128_GCM_SHA256;
     ciphers[1]=TLS_AES_256_GCM_SHA384;
     ciphers[2]=TLS_CHACHA20_POLY1305_SHA256;  // not supported
@@ -786,14 +824,14 @@ int main(int argc, char const *argv[])
 
 // Supported Key Exchange Groups
     int nsg=3;
-    int supportedGroups[3];
+    int supportedGroups[TLS_MAX_SUPPORTED_GROUPS];
     supportedGroups[0]=X25519;
     supportedGroups[1]=SECP256R1;
     supportedGroups[2]=SECP384R1;
 
 // Supported Cert signing Algorithms
-    int nsa=9;
-    int sigAlgs[10];
+    int nsa=8;
+    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
     sigAlgs[0]=ECDSA_SECP256R1_SHA256;
     sigAlgs[1]=RSA_PSS_RSAE_SHA256;
     sigAlgs[2]=RSA_PKCS1_SHA256;
@@ -802,25 +840,62 @@ int main(int argc, char const *argv[])
     sigAlgs[5]=RSA_PKCS1_SHA384;
     sigAlgs[6]=RSA_PSS_RSAE_SHA512;
     sigAlgs[7]=RSA_PKCS1_SHA512;
-    sigAlgs[8]=RSA_PKCS1_SHA1;
+//    sigAlgs[8]=RSA_PKCS1_SHA1;
 
+// Prepare for extensions
     int tlsVersion=TLS1_3;
     int pskMode=PSKWECDHE;
     int alg=X25519;
 
-// create Client Hello Octet
-    clientHello(&CH,serverName,nsc,ciphers,nsg,supportedGroups,nsa,sigAlgs,alg,&CPK,pskMode,tlsVersion,&RNG);
-    sendOctet(sock,&CH);      // transmit it
-    printf("Client Hello sent\n");
-    getServerHello(sock,&SH,cipher_suite,kex,tls,&SPK);
-    printf("Server Hello received\n");
-    printf("Server Hello= %d ",SH.len); OCT_output(&SH);
+    int algs[TLS_MAX_KEY_SHARES];
+    algs[0]=alg;
 
-    if (tls!=TLS1_3)
+    char m1[TLS_MAX_PUB_KEY_SIZE],m2[TLS_MAX_PUB_KEY_SIZE],m3[TLS_MAX_PUB_KEY_SIZE],m4[TLS_MAX_PUB_KEY_SIZE];
+    octet MCPK[4]={
+        {0,sizeof(m1),m1},{0,sizeof(m2),m2},{0,sizeof(m3),m3},{0,sizeof(m4),m4}
+    };
+    OCT_copy(&MCPK[0],&CPK);
+
+// Client Hello
+    char ext[TLS_MAX_EXTENSIONS];
+    octet EXT={0,sizeof(ext),ext};
+
+// build client Hello extensions
+    addServerNameExt(&EXT,hostname);
+    addSupportedGroupsExt(&EXT,nsg,supportedGroups);
+    addSigAlgsExt(&EXT,nsa,sigAlgs);
+    addKeyShareExt(&EXT,1,algs,MCPK);
+    addPSKExt(&EXT,pskMode);
+    addVersionExt(&EXT,tlsVersion);
+
+// create and send Client Hello Octet
+    sendClientHello(sock,&CH,nsc,ciphers,&RNG,&CID,&EXT);      
+    printf("Client Hello sent\n");
+
+// Process Server Hello
+    rtn=getServerHello(sock,&SH,cipher_suite,kex,&CID,&SPK);
+    if (rtn!=0)
     {
-        printf("Site does not support TLS1.3 - ABORT\n");
-        exit(0);
+        unsign32 nulrec=0;
+        switch (rtn )
+        {
+        case SH_ALERT :
+            printf("Received an alert - "); OCT_output(&SH); exit(0);
+        case NOT_TLS1_3 :
+            printf("Site does not support TLS 1.3\n"); sendClientAlert(sock,ILLEGAL_PARAMETER,NULL,NULL,nulrec); exit(0);
+        case HS_RETRY :
+            printf("Handshake Retry Request\n"); exit(0);     // TODO - should try again with a new clientHello - with version 0303
+        case ID_MISMATCH :
+            printf("Identities do not match\n"); sendClientAlert(sock,ILLEGAL_PARAMETER,NULL,NULL,nulrec); exit(0);
+         case UNRECOGNIZED_EXT :
+            printf("Received an unrecognized extension\n"); sendClientAlert(sock,ILLEGAL_PARAMETER,NULL,NULL,nulrec); exit(0);
+         case BAD_HELLO :
+            printf("Malformed serverHello\n"); sendClientAlert(sock,ILLEGAL_PARAMETER,NULL,NULL,nulrec); exit(0);
+         default: sendClientAlert(sock,ILLEGAL_PARAMETER,NULL,NULL,nulrec); exit(0);
+        }
     }
+    printf("Good Server Hello received\n");
+    printf("Server Hello= %d ",SH.len); OCT_output(&SH);
 
 // Check which cipher-suite chosen by Server
     sha=0;
@@ -830,15 +905,12 @@ int main(int argc, char const *argv[])
     Hash_Init(sha,&tlshash);
 
 // Hash Transcript Hellos 
-    OCT_shl(&CH,5);  // -  strip off client header
     for (int i=0;i<CH.len;i++)
         Hash_Process(&tlshash,CH.val[i]);
     for (int i=0;i<SH.len;i++)
         Hash_Process(&tlshash,SH.val[i]);
 
-    Hash_Output(&tlshash,digest);
-//    printf("Hash= "); for (int i=0;i<sha;i++) printf("%02x",(unsigned char)digest[i]); printf("\n");
-    
+    Hash_Output(&tlshash,digest); 
     OCT_jbytes(&HH,digest,sha);
 
     if (kex==X25519)
@@ -852,13 +924,13 @@ int main(int argc, char const *argv[])
 
     printf("Shared Secret= ");OCT_output(&SS);
 
-    char sr[8000];
+    char sr[TLS_MAX_SERVER_RESPONSE];
     octet SR={0,sizeof(sr),sr};
-    char certchain[8000];
+    char certchain[TLS_MAX_CERTCHAIN_SIZE];
     octet CERTCHAIN={0,sizeof(certchain),certchain};
-    char scvsig[1024];
+    char scvsig[TLS_MAX_SIGNATURE_SIZE];
     octet SCVSIG={0,sizeof(scvsig),scvsig};
-    char fin[200];
+    char fin[TLS_MAX_HASH];
     octet FIN={0,sizeof(fin),fin};
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Hash and Shared secret
@@ -866,80 +938,65 @@ int main(int argc, char const *argv[])
     unsign32 chkrecno=0;  // number of records encrypted with this key
     unsign32 shkrecno=0;
 
-// Client now receives certificate and verifier. Need to parse these out, check CA signature on the cert
+// Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
-// on the "verifier". Note CA signature might use old methods, but server will use PSS padding for its signature (if ECC).
+// on the "verifier". Note CA signature might use old methods, but server will use PSS padding for its signature (or ECC).
 
     getSCCS(sock);
+// get encrypted extensions
+    if (!getServerEncryptedExtensions(&SR,sock,&SHK,&SHIV,shkrecno,&tlshash,&EXT))
+    {
+        sendClientAlert(sock,ILLEGAL_PARAMETER,&CHK,&CHIV,chkrecno);
+        exit(0);
+    }
+// get certificate chain
+    if (!getServerCertificateChain(&SR,sock,&SHK,&SHIV,shkrecno,&tlshash,&CERTCHAIN))
+    {
+        sendClientAlert(sock,ILLEGAL_PARAMETER,&CHK,&CHIV,chkrecno);
+        exit(0);
+    }
+    Hash_Output(&tlshash,HH.val); HH.len=sha;  // hash up to end of Server cert
+    printf("1. Transcript Hash= "); OCT_output(&HH);
 
-    int hut1,hut2,hut3;
-// parse Server Handshake Response - extract certchain plus server cert verifier plus server finish
-    int sigalg=parseServerHandshake(&SR,sock,&SHK,&SHIV,shkrecno,&CERTCHAIN,&SCVSIG,&FIN,hut1,hut2,hut3); // returns pointers into SR indicating where hashing can end
 
-    printf("Cert Chain= %d ",CERTCHAIN.len); OCT_output(&CERTCHAIN);
-    printf("Signature Algorithm= %04x\n",sigalg);
-    printf("Server Certificate Signature= %d ",SCVSIG.len); OCT_output(&SCVSIG);
-    printf("Server Verify Data= %d ",FIN.len); OCT_output(&FIN);
-
-    char scert[2000];
-    octet SCERT={0,sizeof(scert),scert};
-
-    char cert[5000];
-    octet CERT={0,sizeof(cert),cert};
-    char cakey[1000];
+    char cakey[TLS_MAX_PUB_KEY_SIZE];
     octet CAKEY = {0, sizeof(cakey), cakey};
 
-// check certificate chain, and extract Server Cert
+// check certificate chain, and extract Server Cert Public Key
     if (CHECK_CERT_CHAIN(&CERTCHAIN,&CAKEY))
         printf("Certificate Chain is valid\n");
     else
+    {
         printf("Certificate is NOT valid\n");
+        exit(0);
+    }
 
-// Continue Hashing Transcript
-
-    for (int i=0;i<hut1;i++)
-        Hash_Process(&tlshash,SR.val[i]);
-    Hash_Output(&tlshash,digest);  // up to end of Server cert
-
-    OCT_clear(&HH);
-    OCT_jbytes(&HH,digest,sha);
-    printf("1. Hash= "); OCT_output(&HH);
-
-    for (int i=hut1;i<hut2;i++)
-        Hash_Process(&tlshash,SR.val[i]);
-    Hash_Output(&tlshash,digest);   // up to end of Server Verifier
-
-    OCT_clear(&FH);
-    OCT_jbytes(&FH,digest,sha);
-    printf("2. Hash= "); OCT_output(&FH);
-
-    for (int i=hut2;i<hut3;i++)
-        Hash_Process(&tlshash,SR.val[i]);    
-    Hash_Output(&tlshash,digest);   // up to end of Server Finish
-
-    OCT_clear(&TH);
-    OCT_jbytes(&TH,digest,sha);
-    printf("3. Hash= "); OCT_output(&TH);
-
-// calculate traffic and application keys
-
-    char cak[32];
-    octet CAK={0,sizeof(cak),cak};
-    char sak[32];
-    octet SAK={0,sizeof(sak),sak};
-    char caiv[32];
-    octet CAIV={0,sizeof(caiv),caiv};
-    char saiv[32];
-    octet SAIV={0,sizeof(saiv),saiv};
-
-    GET_APPLICATION_SECRETS(cipher_suite,&CAK,&CAIV,&SAK,&SAIV,&TH,&HS);
-    unsign32 cakrecno=0;  // number of records encrypted with this key
-    unsign32 sakrecno=0;
+// get verifier
+    int sigalg=getServerCertVerify(&SR,sock,&SHK,&SHIV,shkrecno,&tlshash,&SCVSIG);
+    if (sigalg<=0)
+    {
+        sendClientAlert(sock,ILLEGAL_PARAMETER,&CHK,&CHIV,chkrecno);
+        exit(0);
+    }
+    Hash_Output(&tlshash,FH.val); FH.len=sha;  // hash up to end of Server Verifier
+    printf("2. Transcript Hash= "); OCT_output(&FH);
+    
+    printf("Signature Algorithm= %04x\n",sigalg);
+    printf("Server Certificate Signature= %d ",SCVSIG.len); OCT_output(&SCVSIG);
 
     if (IS_SERVER_CERT_VERIFY(sigalg,&SCVSIG,&HH,&CAKEY))
         printf("Server Cert Verification OK\n");
     else
         printf("Server Cert Verification failed\n");
+
+// get Server Finished
+    if (!getServerFinished(&SR,sock,&SHK,&SHIV,shkrecno,&tlshash,&FIN))
+    {
+        sendClientAlert(sock,ILLEGAL_PARAMETER,&CHK,&CHIV,chkrecno);
+        exit(0);
+    }
+    Hash_Output(&tlshash,TH.val); TH.len=sha;  // hash up to end of Server Finish
+    printf("3. Transcript Hash= "); OCT_output(&TH);
 
     if (IS_VERIFY_DATA(sha,&FIN,&SHTS,&FH))
         printf("Data is verified\n");
@@ -948,33 +1005,46 @@ int main(int argc, char const *argv[])
 
     sendCCCS(sock);  // send Client Cipher Change
 
-    char cf[128];   // client finish
-    octet CF={0,sizeof(cf),cf};
-
-    char chf[64];   // client verify
+    char chf[TLS_MAX_HASH];   // client verify
     octet CHF={0,sizeof(chf),chf};
 
     VERIFY_DATA(sha,&CHF,&CHTS,&TH);  // create client verify data
     printf("Client Verify Data= "); OCT_output(&CHF);
-    clientSendRecord(sock,HSHAKE,&CHK,&CHIV,chkrecno,&CHF);
-    
-// Start the Application 
+    sendClientVerify(sock,&CHK,&CHIV,chkrecno,&CHF);   
+
+
+// calculate traffic and application keys
+    char cak[TLS_MAX_KEY];
+    octet CAK={0,sizeof(cak),cak};
+    char sak[TLS_MAX_KEY];
+    octet SAK={0,sizeof(sak),sak};
+    char caiv[TLS_IV_SIZE];
+    octet CAIV={0,sizeof(caiv),caiv};
+    char saiv[TLS_IV_SIZE];
+    octet SAIV={0,sizeof(saiv),saiv};
+
+    GET_APPLICATION_SECRETS(cipher_suite,&CAK,&CAIV,&SAK,&SAIV,&TH,&HS);
+    unsign32 cakrecno=0;  // number of records encrypted with this key
+    unsign32 sakrecno=0;
+
+// Start the Application - send HTML GET command
     char get[128];
     octet GET={0,sizeof(get),get};
-    OCT_jstring(&GET,(char *)"GET / HTTP/1.1"); // standard HTTP GET command
-    OCT_jbyte(&GET,0x0d,1); OCT_jbyte(&GET,0x0a,1);        // CRLF
-    OCT_jstring(&GET,(char *)"Host: ");
+    OCT_jstring(&GET,(char *)"GET / HTTP/1.1"); // standard HTTP GET command  14
+    OCT_jbyte(&GET,0x0d,1); OCT_jbyte(&GET,0x0a,1);        // CRLF  2
+    OCT_jstring(&GET,(char *)"Host: ");  // 6
     OCT_jstring(&GET,hostname); //OCT_jstring(&PT,(char *)":443");
     OCT_jbyte(&GET,0x0d,1); OCT_jbyte(&GET,0x0a,1);        // CRLF
     OCT_jbyte(&GET,0x0d,1); OCT_jbyte(&GET,0x0a,1);        // empty line CRLF    
     printf("Sending Application Message\n\n"); OCT_output_string(&GET);
 
-    clientSendRecord(sock,APPLICATION,&CAK,&CAIV,cakrecno,&GET);
+    sendClientMessage(sock,APPLICATION,TLS1_2,&CAK,&CAIV,cakrecno,&GET);
 
-    char rs[10000];
+    char rs[TLS_MAX_SERVER_RESPONSE];
     octet RS={0,sizeof(rs),rs};
 
-    parseServerRecord(&RS,sock,&SAK,&SAIV,sakrecno); // get tickets
+// Server response
+    parseServerRecord(&RS,sock,&SAK,&SAIV,sakrecno); // .. first extract tickets
 
     return 0;
 } 

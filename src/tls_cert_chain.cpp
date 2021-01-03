@@ -5,15 +5,15 @@
 // given root issuer and public key type of signature, search through root CAs and return root public key
 bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 {
-    char sc[2048];  // maximum size for CA certs in bytes
+    char sc[TLS_MAX_SIGNED_CERT_SIZE];  // maximum size for CA certs in bytes
     octet SC={0,sizeof(sc),sc};
-    char c[2048];
+    char c[TLS_MAX_CERT_SIZE];
     octet C={0,sizeof(c),c};
-    char ca[80];
+    char ca[TLS_X509_MAX_FIELD];
     octet CA={0,sizeof(ca),ca};
-    char owner[80];
+    char owner[TLS_X509_MAX_FIELD];
     octet OWNER={0,sizeof(owner),owner};
-    char b[3072];  // maximum size for CA certs in base64
+    char b[TLS_MAX_SIGNED_CERT_B64];  // maximum size for CA signed certs in base64
     ifstream file("ca-certificates.crt");
 
     if (file.is_open()) {
@@ -58,7 +58,7 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 
 void OUTPUT_CERT(octet *CERT)
 {
-    char b[8000];
+    char b[TLS_MAX_SIGNED_CERT_B64];
     printf( "-----BEGIN CERTIFICATE----- ");
     printf("\n");
     OCT_tobase64(b,CERT);
@@ -69,7 +69,7 @@ void OUTPUT_CERT(octet *CERT)
 
 pktype GET_PUBLIC_KEY_FROM_SIGNED_CERT(octet *SCERT,octet *PUBLIC_KEY)
 {
-    char cert[4096];
+    char cert[TLS_MAX_CERT_SIZE];
     octet CERT={0,sizeof(cert),cert};
     X509_extract_cert(SCERT,&CERT);
     pktype pk=X509_extract_public_key(&CERT, PUBLIC_KEY);
@@ -158,9 +158,9 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 
     if (st.type == X509_ECC)
     {
-        char r[66];
+        char r[TLS_MAX_ECC_FIELD];
         octet R={0,sizeof(r),r};
-        char s[66];
+        char s[TLS_MAX_ECC_FIELD];
         octet S={0,sizeof(s),s};
         int res,siglen=SIG->len/2;
         for (int i=0;i<siglen;i++)
@@ -203,14 +203,14 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
     if (st.type == X509_RSA)
     {
         int res;
-        //printf("st.curve= %d\n",st.curve);
-        printf("SIG= \n");
+        printf("st.curve= %d\n",st.curve);
+        printf("SIG= %d\n",SIG->len);
         OCT_output(SIG);
         printf("\n");
         printf("RSA PUBLIC KEY= %d\n",PUBKEY->len);
         OCT_output(PUBKEY);
 
-        printf("Checking RSA Signature on Cert\n");
+        printf("Checking RSA Signature on Cert %d\n",sha);
         if (st.curve==2048)
         {
             char p1[RFS_RSA2048];
@@ -255,17 +255,17 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     int c,ptr=0;
     bool self_signed;
     pktype st,ca,stn;
-    char sig[512];  // signature on certificate
+    char sig[TLS_MAX_SIGNATURE_SIZE];  // signature on certificate
     octet SIG={0,sizeof(sig),sig};
-    char scert[5000]; // signed certificate
+    char scert[TLS_MAX_SIGNED_CERT_SIZE]; // signed certificate
     octet SCERT={0,sizeof(scert),scert};
-    char cert[5000];  // certificate
+    char cert[TLS_MAX_CERT_SIZE];  // certificate
     octet CERT={0,sizeof(cert),cert};
-    char cakey[512];  // Public Key from Cert
+    char cakey[TLS_MAX_PUB_KEY_SIZE];  // Public Key from Cert
     octet CAKEY = {0, sizeof(cakey), cakey};
-    char issuer[80];  
+    char issuer[TLS_X509_MAX_FIELD];  
     octet ISSUER={0,sizeof(issuer),issuer};
-    char subject[80];
+    char subject[TLS_X509_MAX_FIELD];
     octet SUBJECT={0,sizeof(subject),subject};
 
     int len=parseInt24(CERTCHAIN,ptr); // get length of first (server) certificate
@@ -278,6 +278,13 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     ptr+=len;   // skip certificate extensions
     ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,PUBKEY);
     st=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);   // get signature on Server Cert
+
+    if (st.type==0)
+    {
+        printf("Unrecognised Signature Type\n");
+        return false;
+    }
+
     SHOW_CERT_DETAILS((char *)"Server certificate",PUBKEY,ca,&SIG,st,&ISSUER,&SUBJECT);
 
 //    printf("cert.len= %d, ptr= %d\n",CERTCHAIN->len,ptr);
