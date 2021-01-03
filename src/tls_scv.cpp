@@ -55,7 +55,7 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
         }
         return false;
     case ECDSA_SECP256R1_SHA256:  // DER encoded !!
-        sha=32; // SHA256
+        sha=0x20; // SHA256
         ptr=0;
         der=parseByte(SCVSIG,ptr);
         if (der!=0x30) return false;
@@ -90,7 +90,46 @@ if (rlen<0x20 || slen<0x20) printf("**** Signature problem\n");
 
         if (NIST256::ECP_VP_DSA(sha, CERTPK, &SCV, &R, &S) == 0)
             return true;
+    case ECDSA_SECP384R1_SHA384:
+        sha=0x30;
+        ptr=0;
+        der=parseByte(SCVSIG,ptr);
+        if (der!=0x30) return false;
+        slen=parseByte(SCVSIG,ptr);
+        if (slen+2!=len) return false;
+
+        Int=parseByte(SCVSIG,ptr);
+        if (Int!=0x02) return false;
+        rlen=parseByte(SCVSIG,ptr);
+        if (rlen==0x31)
+        { // there must be a leading zero
+            rlen--;
+            int lzero=parseByte(SCVSIG,ptr);
+            if (lzero!=0) return false;
+        }
+        parseOctet(&R,0x30,SCVSIG,ptr);
+
+        Int=parseByte(SCVSIG,ptr);
+        if (Int!=0x02) return false;
+        slen=parseByte(SCVSIG,ptr);
+        if (slen==0x31)
+        { // there must be a leading zero
+            slen--;
+            int lzero=parseByte(SCVSIG,ptr);
+            if (lzero!=0) return false;
+        }
+        parseOctet(&S,0x30,SCVSIG,ptr);
+
+if (rlen<0x30 || slen<0x30) printf("**** Signature problem\n");
+//printf("R= ");OCT_output(&R);
+//printf("S= ");OCT_output(&S);
+
+        if (NIST384::ECP_VP_DSA(sha, CERTPK, &SCV, &R, &S) == 0)
+        return true;
+
+
     default :
+        printf("WHOOPS - Unsupported signature type\n");
         return false;
     }
     return false;

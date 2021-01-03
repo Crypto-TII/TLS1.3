@@ -37,6 +37,8 @@ typedef struct
 
 using namespace core;
 
+// EXTENSIONS
+
 // Build Pre-Shared Key Share Extension
 void addPresharedKeyExt(octet *EXT,octet *TICK,unsign32 obf_age,octet* BD)
 {
@@ -257,8 +259,18 @@ int getServerFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
     printf("Server fragment authenticates %d\n",left-16);
 
 // get record ending - encodes real (disguised) record type
-    int lb=SR->val[SR->len-1];   // need to track back through zero padding for this....
+    int lb=0;
+    int pad=0;
+    lb=SR->val[SR->len-1]; 
     SR->len--; // remove it
+    while (lb==0)
+    { // could be zero padding
+        lb=SR->val[SR->len-1];   // need to track back through zero padding for this....
+        SR->len--; // remove it
+        pad++;
+    }
+    if (pad>0) printf("%d padding bytes removed \n",pad);
+
     if (lb==0x16)
         return HSHAKE;
     if (lb==0x17)
@@ -269,12 +281,15 @@ int getServerFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
     return 0;
 }
 
+// These functions parse out a data type from an octet
+// They may also have to pull in more bytes from the socket.
+
 // return Byte, or pull in and decrypt another fragment
 int parseByteorPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
 {
     int nb=parseByte(SR,ptr);
     while (nb < 0)
-    { // not enough bytes in SR
+    { // not enough bytes in SR - Pull in some more
         getServerFragment(sock,SHK,SHIV,recno,SR); 
         nb=parseByte(SR,ptr);
     }
@@ -435,78 +450,6 @@ void sendClientVerify(int sock,octet *K,octet *OIV,unsign32 &recno,octet *CHF)
     sendClientMessage(sock,HSHAKE,TLS1_2,K,OIV,recno,&PT);
 }
 
-// parse Server records received after handshake
-// Should be mostly application data, but..
-// could be more handshake data disguised as application data
-int parseServerRecord(octet *RS,int sock,octet *SAK,octet *SAIV,unsign32 &recno)
-{
-    int lt,age,nce,nb,len,te,type,nticks,ptr=0;
-    bool fin=false;
-    char nonce[32];
-    octet NONCE={0,sizeof(nonce),nonce};
-    char tick[TLS_MAX_TICKET_SIZE];
-    octet TICK={0,sizeof(tick),tick};
-
-    nticks=0; // number of tickets received
-    while (1)
-    {
-        printf("Waiting for Server input \n");
-        OCT_clear(RS); ptr=0;
-        type=getServerFragment(sock,SAK,SAIV,recno,RS);  // get first fragment
-        //printf("Got another fragment %d\n",type);
-        if (type==HSHAKE)
-        {
-            //printf("Received RS= "); OCT_output(RS);
-
-            while (1)
-            {
-                nb=parseByteorPull(sock,RS,ptr,SAK,SAIV,recno);
-                len=parseInt24orPull(sock,RS,ptr,SAK,SAIV,recno);           // message length
-                //printf("nb= %x len= %d\n",nb,len);
-                switch (nb)
-                {
-                case TICKET :
-                    lt=parseInt32orPull(sock,RS,ptr,SAK,SAIV,recno);
-                    age=parseInt32orPull(sock,RS,ptr,SAK,SAIV,recno);
-                    len=parseByteorPull(sock,RS,ptr,SAK,SAIV,recno);
-                    printf("lt= %d age= %d nonce len= %d\n",lt,age,len);
-                    parseOctetorPull(sock,&NONCE,len,RS,ptr,SAK,SAIV,recno);
-    printf("Nonce = "); OCT_output(&NONCE);
-                    len=parseInt16orPull(sock,RS,ptr,SAK,SAIV,recno);
-
-                    parseOctetorPull(sock,&TICK,len,RS,ptr,SAK,SAIV,recno);
-    printf("Ticket = "); OCT_output(&TICK);
-                    te=parseInt16orPull(sock,RS,ptr,SAK,SAIV,recno);
-                    ptr+=te;  // skip any ticket extensions
-                   // printf("ptr= %d RS->len= %d\n",ptr,RS->len);
-                    nticks++;
-                    if (ptr==RS->len) fin=true; // record finished
-                    if (fin) break;
-                    continue;
-                default:
-                    printf("Unsupported Handshake message type %x\n",nb);
-                    fin=true;
-                    break;            
-                }
-                if (fin) break;
-            }
-            //if (fin) break;
-        }
-        if (type==APPLICATION)
-        {
-            printf("Application data (truncated) = ");
-            OCT_chop(RS,NULL,20);   // truncate it
-            OCT_output(RS);
-        }
-        if (type==ALERT)
-        {
-            printf("Alert received from Server - type= "); OCT_output(RS); exit(0);
-        }
-    }
-
-    return 0;
-}
-
 // Functions to process server response
 // now deals with any kind of fragmentation
 // build up server handshake response in SR, decrypting each fragment in-place
@@ -641,6 +584,11 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *PK)
     parseOctetorPull(sock,&SRN,32,SH,ptr,NULL,NULL,recno); left-=32;
     printf("Server Random= "); OCT_output(&SRN);  
 
+    if (OCT_comp(&SRN,&HRR))
+    {
+        printf("TBD - Handshake Retry request - not yet implemented!\n");
+        exit(0);
+    }
     int silen=parseByteorPull(sock,SH,ptr,NULL,NULL,recno); left-=1;
     parseOctetorPull(sock,&SID,silen,SH,ptr,NULL,NULL,recno); left-=silen;  
 
@@ -654,7 +602,6 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *PK)
         return NOT_TLS1_3;
 
     int extLen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); left-=2;  
-
     if (left!=extLen)
     {
         printf("Something wrong 3\n");
@@ -672,9 +619,11 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *PK)
                 tmplen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
                 extLen-=tmplen;
                 kex=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);
-                int pklen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);
-                parseOctetorPull(sock,PK,pklen,SH,ptr,NULL,NULL,recno);
                 printf("Key Share = %04x\n",kex);
+                int pklen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);
+  //              printf("pklen = %d\n",pklen);
+  //              printf("SH= ");OCT_output(SH);
+                parseOctetorPull(sock,PK,pklen,SH,ptr,NULL,NULL,recno);
                 printf("Server Public Key= "); OCT_output(PK);
                 break;
             }
@@ -686,6 +635,7 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *PK)
                 break;
             }
        default :
+            printf("Unrecognized extension= %d\n",ext);
             return UNRECOGNIZED_EXT;
         break;           
         }
@@ -696,6 +646,82 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *PK)
 
     if (OCT_comp(&SRN,&HRR))
         return HS_RETRY;
+
+    return 0;
+}
+
+// parse Server records received after handshake
+// Should be mostly application data, but..
+// could be more handshake data disguised as application data
+int getServerMessage(octet *RS,int sock,octet *SAK,octet *SAIV,unsign32 &recno)
+{
+    int lt,age,nce,nb,len,te,type,nticks,ptr=0;
+    bool fin=false;
+    char nonce[32];
+    octet NONCE={0,sizeof(nonce),nonce};
+    char tick[TLS_MAX_TICKET_SIZE];
+    octet TICK={0,sizeof(tick),tick};
+
+    nticks=0; // number of tickets received
+    while (1)
+    {
+        printf("Waiting for Server input \n");
+        OCT_clear(RS); ptr=0;
+        type=getServerFragment(sock,SAK,SAIV,recno,RS);  // get first fragment to determine type
+        //printf("Got another fragment %d\n",type);
+        if (type==HSHAKE)
+        {
+            //printf("Received RS= "); OCT_output(RS);
+
+            while (1)
+            {
+                nb=parseByteorPull(sock,RS,ptr,SAK,SAIV,recno);
+                len=parseInt24orPull(sock,RS,ptr,SAK,SAIV,recno);           // message length
+                //printf("nb= %x len= %d\n",nb,len);
+                switch (nb)
+                {
+                case TICKET :
+                    lt=parseInt32orPull(sock,RS,ptr,SAK,SAIV,recno);
+                    age=parseInt32orPull(sock,RS,ptr,SAK,SAIV,recno);
+                    len=parseByteorPull(sock,RS,ptr,SAK,SAIV,recno);
+                    printf("lt= %d age= %d nonce len= %d\n",lt,age,len);
+                    parseOctetorPull(sock,&NONCE,len,RS,ptr,SAK,SAIV,recno);
+    printf("Nonce = "); OCT_output(&NONCE);
+                    len=parseInt16orPull(sock,RS,ptr,SAK,SAIV,recno);
+
+                    parseOctetorPull(sock,&TICK,len,RS,ptr,SAK,SAIV,recno);
+    printf("Ticket = "); OCT_output(&TICK);
+                    te=parseInt16orPull(sock,RS,ptr,SAK,SAIV,recno);
+                    ptr+=te;  // skip any ticket extensions
+                   // printf("ptr= %d RS->len= %d\n",ptr,RS->len);
+                    nticks++;
+                    if (ptr==RS->len) fin=true; // record finished
+                    if (fin) break;
+                    continue;
+               case KEY_UPDATE :
+                    printf("TBD - Key Update - Not Yet supported!\n");
+                    exit(0);
+
+                default:
+                    printf("Unsupported Handshake message type %x\n",nb);
+                    fin=true;
+                    break;            
+                }
+                if (fin) break;
+            }
+            //if (fin) break;
+        }
+        if (type==APPLICATION)
+        {
+            printf("Application data (truncated) = ");
+            OCT_chop(RS,NULL,20);   // truncate it to 20 bytes
+            OCT_output(RS);
+        }
+        if (type==ALERT)
+        {
+            printf("Alert received from Server - type= "); OCT_output(RS); exit(0);
+        }
+    }
 
     return 0;
 }
@@ -975,6 +1001,7 @@ int main(int argc, char const *argv[])
     int sigalg=getServerCertVerify(&SR,sock,&SHK,&SHIV,shkrecno,&tlshash,&SCVSIG);
     if (sigalg<=0)
     {
+        printf("sigalg is wrong\n");
         sendClientAlert(sock,ILLEGAL_PARAMETER,&CHK,&CHIV,chkrecno);
         exit(0);
     }
@@ -1044,7 +1071,7 @@ int main(int argc, char const *argv[])
     octet RS={0,sizeof(rs),rs};
 
 // Server response
-    parseServerRecord(&RS,sock,&SAK,&SAIV,sakrecno); // .. first extract tickets
+    getServerMessage(&RS,sock,&SAK,&SAIV,sakrecno); // .. first extract tickets
 
     return 0;
 } 

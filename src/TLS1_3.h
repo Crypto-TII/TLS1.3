@@ -83,6 +83,7 @@
 #define FINISHED 0x14
 #define ENCRYPTED_EXTENSIONS 0x08
 #define TICKET 0x04
+#define KEY_UPDATE 0x18
 
 // server Hello reponses
 #define SH_ALERT 1

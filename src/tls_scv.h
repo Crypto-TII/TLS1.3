@@ -5,6 +5,7 @@
 #include "tls_parse_octet.h"
 #include "core.h"
 #include "ecdh_NIST256.h"  
+#include "ecdh_NIST384.h" 
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
 
