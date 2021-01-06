@@ -32,3 +32,38 @@ void Hash_Output(unihash *h,char *d)
     if (h->hlen==64)
         HASH384_continuing_hash(&(h->sh64),d);
 }
+
+// Add to transcript hash 
+void running_hash(unihash *h,octet *O)
+{
+    for (int i=0;i<O->len;i++)
+        Hash_Process(h,O->val[i]);
+}
+
+// Output transcript hash 
+void transcript_hash(octet *O,unihash *h)
+{
+    Hash_Output(h,O->val); O->len=h->hlen; 
+}
+
+// special case handling for first clientHello after retry request
+void running_syn_hash(unihash *h,octet *O)
+{
+    int sha=h->hlen;
+    unihash rhash;
+    char hh[TLS_MAX_HASH];
+    octet HH={0,sizeof(hh),hh};
+
+    Hash_Init(sha,&rhash); 
+ // RFC 8446 - "special synthetic message"
+    running_hash(&rhash,O);
+    transcript_hash(&HH,&rhash);
+    
+    Hash_Process(h,MESSAGE_HASH);
+    Hash_Process(h,0); Hash_Process(h,0);
+    Hash_Process(h,sha);   // fe 00 00 sha
+    
+    running_hash(h,&HH);
+}
+
+

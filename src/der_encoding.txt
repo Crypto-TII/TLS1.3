@@ -1,8 +1,0 @@
- 30 // DER encoding
- 45 // 69 bytes remaining
- 02 // DER thing
- 21 // 21 bytes for r
- 00 84 03 d8 92 a3 43 92 1e da a9 b2 e6 42 dd 38 83 e9 74 31 27 b7 10 37 de a4 f5 34 b9 22 52 e0 c0 
- 02 // DER thing
- 20 // 20 bytes for s
- 47 07 f0 16 77 c8 44 2d 59 dd 02 90 92 82 09 c7 66 35 6b 25 db 55 32 70 6b ac 2d fa 34 c9 ed fd

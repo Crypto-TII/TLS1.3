@@ -50,14 +50,40 @@ bool IS_VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H)
     return OCT_comp(SF,&VD);
 }
 
-// Extract Client and Server Application keys and IVs from Transcript Hash, Handshake secret, 
-void GET_APPLICATION_SECRETS(int cipher_suite,octet *CAK,octet *CAIV,octet *SAK,octet *SAIV,octet *H,octet *HS)
+// update Traffic secret and associated traffic key and IV
+unsign32 UPDATE_KEYS(octet *K,octet *IV,octet *TS)
 {
     int sha,key;
-    char cts[TLS_MAX_HASH];
-    octet CTS = {0,sizeof(cts),cts};
-    char sts[TLS_MAX_HASH];
-    octet STS = {0,sizeof(sts),sts};
+    char info[16];
+    octet INFO = {0,sizeof(info),info};
+    char nts[TLS_MAX_HASH];
+    octet NTS={0,sizeof(nts),nts};
+
+// find cipher suite
+    sha=TS->len;
+    key=K->len;
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"traffic upd");
+    HKDF_Expand_Label(MC_SHA2,sha,&NTS,sha,TS,&INFO,NULL);
+
+    OCT_copy(TS,&NTS);
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"key");
+    HKDF_Expand_Label(MC_SHA2,sha,K,key,TS,&INFO,NULL);
+
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"iv");
+    HKDF_Expand_Label(MC_SHA2,sha,IV,12,TS,&INFO,NULL);
+// reset record number
+    return 0;
+}
+
+// Extract Client and Server Application keys and IVs from Transcript Hash, Handshake secret, 
+void GET_APPLICATION_SECRETS(int cipher_suite,octet *CAK,octet *CAIV,octet *SAK,octet *SAIV,octet *CTS,octet *STS,octet *H,octet *HS)
+{
+    int sha,key;
     char ds[TLS_MAX_HASH];
     octet DS = {0,sizeof(ds),ds};
     char ms[TLS_MAX_HASH];
@@ -93,35 +119,57 @@ void GET_APPLICATION_SECRETS(int cipher_suite,octet *CAK,octet *CAIV,octet *SAK,
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"c ap traffic");
-    HKDF_Expand_Label(MC_SHA2,sha,&CTS,sha,&MS,&INFO,H);
+    HKDF_Expand_Label(MC_SHA2,sha,CTS,sha,&MS,&INFO,H);
 
-    printf("Client application traffic secret= ");OCT_output(&CTS);
+    printf("Client application traffic secret= ");OCT_output(CTS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"s ap traffic");
-    HKDF_Expand_Label(MC_SHA2,sha,&STS,sha,&MS,&INFO,H);
+    HKDF_Expand_Label(MC_SHA2,sha,STS,sha,&MS,&INFO,H);
 
-    printf("Server application traffic secret= ");OCT_output(&STS);
+    printf("Server application traffic secret= ");OCT_output(STS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,sha,CAK,key,&CTS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,CAK,key,CTS,&INFO,NULL);
 
     printf("Client application key= "); OCT_output(CAK);
 
-    HKDF_Expand_Label(MC_SHA2,sha,SAK,key,&STS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,SAK,key,STS,&INFO,NULL);
 
     printf("Server application key= "); OCT_output(SAK);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"iv");
-    HKDF_Expand_Label(MC_SHA2,sha,CAIV,12,&CTS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,CAIV,12,CTS,&INFO,NULL);
 
     printf("Client application IV= "); OCT_output(CAIV);
 
-    HKDF_Expand_Label(MC_SHA2,sha,SAIV,12,&STS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,SAIV,12,STS,&INFO,NULL);
 
     printf("Server application IV= "); OCT_output(SAIV);
+}
+
+// Update IV, xor with record number, increment record number
+// NIV - New IV
+// OIV - Original IV
+// See RFC8446 section 5.3
+// OK recno should be 64-bit, but really that is excessive
+unsign32 updateIV(octet *NIV,octet *OIV,unsign32 recno)
+{
+    int i;
+    unsigned char b[4];  
+    b[3] = (unsigned char)(recno);
+    b[2] = (unsigned char)(recno >> 8);
+    b[1] = (unsigned char)(recno >> 16);
+    b[0] = (unsigned char)(recno >> 24);
+    for (i=0;i<12;i++)
+        NIV->val[i]=OIV->val[i];
+    for (i=0;i<4;i++)
+        NIV->val[8+i]^=b[i];
+    NIV->len=12;
+    recno++;  
+    return recno;
 }
 
 // Extract Handshake secret, Client and Server Handshake keys and IVs, and Client and Server Handshake Traffic keys from Transcript Hash and Shared secret
@@ -196,4 +244,54 @@ void GET_HANDSHAKE_SECRETS(int cipher_suite,octet *HS,octet *CHK,octet *CHIV,oct
     HKDF_Expand_Label(MC_SHA2,sha,SHIV,12,SHTS,&INFO,NULL);
 
     printf("Server handshake IV= "); OCT_output(SHIV);
+}
+
+// generate a public/private key pair in an approved group for a key exchange
+void GENERATE_KEY_PAIR(csprng *RNG,int group,octet *SK,octet *PK)
+{
+    int sklen=32;
+    if (group==SECP384R1)
+        sklen=48;
+// Random secret key
+    OCT_rand(SK,RNG,32);
+    if (group==X25519)
+    {
+// RFC 7748
+        OCT_reverse(SK);
+        SK->val[32-1]&=248;  
+        SK->val[0]&=127;
+        SK->val[0]|=64;
+        C25519::ECP_KEY_PAIR_GENERATE(NULL, SK, PK);
+        OCT_reverse(PK);
+    }
+    if (group==SECP256R1)
+    {
+        NIST256::ECP_KEY_PAIR_GENERATE(NULL, SK, PK);
+    }
+    if (group==SECP384R1)
+    {
+        NIST384::ECP_KEY_PAIR_GENERATE(NULL, SK, PK);
+    }
+}
+
+// generate shared secret SS from secret key SK and public hey PK
+void GENERATE_SHARED_SECRET(int group,octet *SK,octet *PK,octet *SS)
+{
+    if (group==X25519)
+    { // RFC 7748
+        printf("X25519 Key Exchange\n");
+        OCT_reverse(PK);
+        C25519::ECP_SVDP_DH(SK, PK, SS,0);
+        OCT_reverse(SS);
+    }
+    if (group==SECP256R1)
+    {
+        printf("SECP256R1 Key Exchange\n");
+        NIST256::ECP_SVDP_DH(SK, PK, SS,0);
+    }
+    if (group==SECP384R1)
+    {
+        printf("SECP384R1 Key Exchange\n");
+        NIST384::ECP_SVDP_DH(SK, PK, SS,0);
+    }
 }

@@ -16,11 +16,12 @@
 #define TLS_MAX_ECC_FIELD 66
 #define TLS_IV_SIZE 12
 #define TLS_TAG_SIZE 16
+#define TLS_MAX_COOKIE 100
 
 #define TLS_MAX_SERVER_NAME 128
 #define TLS_MAX_SUPPORTED_GROUPS 5
 #define TLS_MAX_SUPPORTED_SIGS 12
-#define TLS_MAX_KEY_SHARES 4
+#define TLS_MAX_KEY_SHARES 3
 #define TLS_MAX_PSK_MODES 2
 #define TLS_MAX_CIPHER_SUITES 5
 
@@ -36,7 +37,7 @@
 #define TLS_AES_256_GCM_SHA384 0x1302
 #define TLS_CHACHA20_POLY1305_SHA256 0x1303
 
-// Supported groups
+// Supported key exchange groups
 #define X25519 0x001d
 #define SECP256R1 0x0017
 #define SECP384R1 0x0018
@@ -68,6 +69,7 @@
 #define PSK_MODE 0x002d
 #define PRESHARED_KEY 0x0029
 #define TLS_VER 0x002b
+#define COOKIE 0x002c
 
 // record types
 #define HSHAKE 0x16
@@ -84,6 +86,7 @@
 #define ENCRYPTED_EXTENSIONS 0x08
 #define TICKET 0x04
 #define KEY_UPDATE 0x18
+#define MESSAGE_HASH 0xFE
 
 // server Hello reponses
 #define SH_ALERT 1
@@ -95,6 +98,7 @@
 
 // alerts
 #define ILLEGAL_PARAMETER 0x2F
+#define UNEXPECTED_MESSAGE 0x0A
 
 #endif
 

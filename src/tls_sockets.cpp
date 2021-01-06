@@ -1,12 +1,7 @@
 
 // Set up and read/write sockets
 
-#include <unistd.h> 
-#include <stdio.h> 
-#include <sys/socket.h> 
-#include <arpa/inet.h> 
-#include <stdlib.h> 
-#include <netinet/in.h> 
+
 #include "tls_sockets.h"
 
 int setserversock(int port)
@@ -143,4 +138,17 @@ int getOctet(int sock,octet *B,int expected)
 {
     B->len=expected;
     return getBytes(sock,B->val,expected);
+}
+
+int getIPaddress(char *ip,char *hostname)
+{
+	hostent * record = gethostbyname(hostname);
+	if(record == NULL)
+	{
+		printf("%s is unavailable\n", hostname);
+		exit(1);
+	}
+	in_addr * address = (in_addr * )record->h_addr;
+	strcpy(ip,inet_ntoa(* address));
+    return 1;
 }
