@@ -26,7 +26,7 @@
 #define TLS_MAX_CIPHER_SUITES 5
 
 #define TLS_MAX_CLIENT_RECORD 2048
-#define TLS_MAX_TICKET_SIZE 256
+#define TLS_MAX_TICKET_SIZE 512
 
 #define TLS_MAX_EXTENSIONS 1024
 #define TLS_MAX_SERVER_HELLO 1024
@@ -76,6 +76,7 @@
 #define APPLICATION 0x17
 #define ALERT 0x15
 #define CHANGE_CIPHER 0x14
+#define TIME_OUT 0x00
 
 // message types
 #define CLIENT_HELLO 0x01

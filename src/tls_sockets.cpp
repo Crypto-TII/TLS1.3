@@ -69,7 +69,12 @@ int setclientsock(int port,char *ip)
         printf("\nInvalid address/ Address not supported \n"); 
         return -1; 
     } 
-   
+
+    struct timeval timeout;
+    timeout.tv_sec  = 5;  // after 5 seconds read() will timeout
+    timeout.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
     { 
         printf("\nConnection Failed \n"); 

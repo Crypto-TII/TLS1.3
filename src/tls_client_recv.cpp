@@ -8,7 +8,7 @@
 // append it to the end of SR
 int getServerFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
 {
-    int i,left,pos;
+    int i,rtn,left,pos;
     char rh[5];
     octet RH={0,sizeof(rh),rh};
 
@@ -20,7 +20,22 @@ int getServerFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
     octet IV={0,sizeof(iv),iv};
 
     pos=SR->len;  // current end of SR
-    getOctet(sock,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
+    rtn=getOctet(sock,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
+    if (rtn<0)
+        return TIME_OUT;
+    if (RH.val[0]==ALERT)
+            return ALERT;
+    if (RH.val[0]==CHANGE_CIPHER)
+    { // read it, and ignore it
+        char sccs[10];
+        octet SCCS={0,sizeof(sccs),sccs};
+        left=getInt16(sock);
+        OCT_joctet(&SCCS,&RH);
+        OCT_jint(&SCCS,left,2);
+        getBytes(sock,&SCCS.val[5],left);
+        SCCS.len+=left;
+        rtn=getOctet(sock,&RH,3); // get the next record
+    }
     left=getInt16(sock);
     OCT_jint(&RH,left,2);
 //printf("Record Header= "); OCT_output(&RH);
@@ -28,10 +43,6 @@ int getServerFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
     { // not encrypted
         getBytes(sock,&SR->val[pos],left);  // read in record body
         SR->len+=left;
-        if (RH.val[0]==ALERT)
-            return ALERT;
-        if (RH.val[0]==CHANGE_CIPHER)
-            return CHANGE_CIPHER;
         return HSHAKE;
     }
 
@@ -237,7 +248,7 @@ bool getServerFinished(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno
     return true;
 }
 
-int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK)
+int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK,int &pskid)
 {
     int i,tls,left,rtn;
     bool retry=false;
@@ -257,16 +268,17 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
     HASH256_hash(&sh,&HRR.val[0]); HRR.len=32;
 
     kex=cipher=-1;
+    pskid=-1;
 
 // get first fragment - not encrypted
 // printf("Into Server Hello\n");
     OCT_clear(SH);
     rtn=getServerFragment(sock,NULL,NULL,recno,SH);
-    if (rtn==CHANGE_CIPHER)
-    { // ignore it
-        OCT_clear(SH);
-        rtn=getServerFragment(sock,NULL,NULL,recno,SH);
-    }
+//    if (rtn==CHANGE_CIPHER)
+//    { // ignore it
+//        OCT_clear(SH);
+//        rtn=getServerFragment(sock,NULL,NULL,recno,SH);
+//    }
     if (rtn==ALERT)
         return SH_ALERT;
 
@@ -327,6 +339,14 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
                 }
                 break;
             }
+        case PRESHARED_KEY :
+            {
+                tmplen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
+                extLen-=tmplen;
+                pskid=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);
+                printf("PSK ID= %d\n",pskid);
+                break;
+            }
         case COOKIE :
             {
                 printf("Picked up a cookie\n");
@@ -341,6 +361,7 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
                 tmplen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
                 extLen-=tmplen;
                 tls=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);  // get TLS version
+                printf("tls version= %04x\n",tls);
                 break;
             }
        default :
@@ -353,7 +374,7 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
     if (tls!=TLS1_3)
         return NOT_TLS1_3;
 
-    if (OCT_comp(&SRN,&HRR))
+    if (retry)
         return HS_RETRY;
 
     return 0;

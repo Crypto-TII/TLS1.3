@@ -54,6 +54,43 @@ void addSigAlgsExt(octet *EXT,int nsa,int *sigAlgs)
     OCT_joctet(EXT,&SA);
 }
 
+// Add PSK vector
+// but omit bindings
+int addPreSharedKeyExt(octet *EXT,int npsks,unsign32 age[],octet IDS[],int sha)
+{
+    char psk[1024];
+    octet PSK={0,sizeof(psk),psk};
+    int tlen1,tlen2;
+    tlen1=tlen2=0;
+    for (int i=0;i<npsks;i++)
+    {
+        tlen1+=IDS[i].len+2+4;
+        tlen2+=sha+1;
+    }
+    OCT_jint(&PSK,PRESHARED_KEY,2);
+    OCT_jint(&PSK,tlen1+tlen2+4,2);
+// PSK Identifiers
+    OCT_jint(&PSK,tlen1,2);
+    for (int i=0;i<npsks;i++)
+    {
+        OCT_jint(&PSK,IDS[i].len,2);
+        OCT_joctet(&PSK,&IDS[i]);
+        OCT_jint(&PSK,age[i],4);
+    }
+    OCT_joctet(EXT,&PSK);
+
+    return tlen2+2;  // length of binders
+// Bindings - Truncate Client Hello here
+/*
+    OCT_jint(&PSK,tlen2,2);
+    for (int i=0;i<npsks;i++)
+    {
+        OCT_jint(&PSK,BNDS[i].len,1);
+        OCT_joctet(&PSK,&BNDS[i]);
+    }
+*/
+}
+
 // Add Client Key Share extension
 // Offer a choice of publics keys (some may be PQ!)
 void addKeyShareExt(octet *EXT,int nalgs,int alg[],octet PK[])
@@ -62,11 +99,9 @@ void addKeyShareExt(octet *EXT,int nalgs,int alg[],octet PK[])
     octet KS={0,sizeof(ks),ks};
     int tlen=0;
     for (int i=0;i<nalgs;i++)
-    {
-        tlen+=4;
-        tlen+=PK[i].len;
-    }
-    OCT_jint(&KS,KEY_SHARE,2); // This extension is KEY_SHARE(0x33)
+        tlen+=PK[i].len+4;
+    
+    OCT_jint(&KS,KEY_SHARE,2); // This extension is KEY_SHARE(0x0033)
     OCT_jint(&KS,tlen+2,2);
     OCT_jint(&KS,tlen,2);
     for (int i=0;i<nalgs;i++)
@@ -174,7 +209,7 @@ printf("Client to Server -> "); OCT_output(&RECORD);
 }
 
 // build and transmit client hello. Append pre-prepared extensions
-void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng *RNG,octet *CID,octet *EXTENSIONS)
+void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng *RNG,octet *CID,octet *EXTENSIONS,int extra)
 {
     char rn[32];
     octet RN = {0, sizeof(rn), rn};
@@ -182,7 +217,7 @@ void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng 
     octet CS = {0, sizeof(cs), cs};
     int compressionMethods=0x0100;
     int total=8;
-    int extlen=EXTENSIONS->len;
+    int extlen=EXTENSIONS->len+extra;
     total+=clientRandom(&RN,RNG);
     total+=sessionID(CID,RNG);
     total+=cipherSuites(&CS,nsc,ciphers);
@@ -206,6 +241,25 @@ void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng 
     sendClientMessage(sock,HSHAKE,version,NULL,NULL,nulrec,CH);
 }
 
+void sendBindersList(int sock,octet *B,int npsks,octet BNDS[])
+{
+    int tlen2=0;
+    OCT_clear(B);
+    for (int i=0;i<npsks;i++)
+        tlen2+=BNDS[i].len+1;
+    OCT_jint(B,tlen2,2);
+    for (int i=0;i<npsks;i++)
+    {
+        OCT_jint(B,BNDS[i].len,1);
+        OCT_joctet(B,&BNDS[i]);
+    }
+// transmit it
+    unsign32 nulrec=0;
+    sendClientMessage(sock,HSHAKE,TLS1_2,NULL,NULL,nulrec,B);
+
+    //sendOctet(sock,B);
+}
+
 // send client alert - might be encrypted if K!=NULL
 void sendClientAlert(int sock,int type,octet *K,octet *OIV,unsign32 &recno)
 {
@@ -219,7 +273,7 @@ void sendClientAlert(int sock,int type,octet *K,octet *OIV,unsign32 &recno)
 }
 
 // Send final client handshake verification data
-void sendClientVerify(int sock,octet *K,octet *OIV,unsign32 &recno,octet *CHF)
+void sendClientVerify(int sock,octet *K,octet *OIV,unsign32 &recno,unihash *h,octet *CHF)
 {
     char pt[TLS_MAX_HASH+4];
     octet PT={0,sizeof(pt),pt};
@@ -227,6 +281,8 @@ void sendClientVerify(int sock,octet *K,octet *OIV,unsign32 &recno,octet *CHF)
     OCT_jbyte(&PT,FINISHED,1);  // indicates handshake message "client finished" 1
     OCT_jint(&PT,CHF->len,3); // .. and its length  3
     OCT_joctet(&PT,CHF);
+
+    running_hash(h,&PT);
 
     sendClientMessage(sock,HSHAKE,TLS1_2,K,OIV,recno,&PT);
 }

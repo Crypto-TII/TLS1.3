@@ -4,6 +4,7 @@
 #define TLS_SOCKETS_H
 
 #include <string.h>
+#include <time.h>
 #include "core.h"
 #include <unistd.h> 
 #include <stdio.h> 

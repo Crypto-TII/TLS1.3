@@ -80,21 +80,10 @@ unsign32 UPDATE_KEYS(octet *K,octet *IV,octet *TS)
     return 0;
 }
 
-// Extract Client and Server Application keys and IVs from Transcript Hash, Handshake secret, 
-void GET_APPLICATION_SECRETS(int cipher_suite,octet *CAK,octet *CAIV,octet *SAK,octet *SAIV,octet *CTS,octet *STS,octet *H,octet *HS)
+// get Key and IV from Traffic secret
+void GET_KEY_AND_IV(int cipher_suite,octet *TS,octet *K,octet *IV)
 {
     int sha,key;
-    char ds[TLS_MAX_HASH];
-    octet DS = {0,sizeof(ds),ds};
-    char ms[TLS_MAX_HASH];
-    octet MS = {0,sizeof(ms),ms};
-    char emh[TLS_MAX_HASH];
-    octet EMH = {0,sizeof(emh),emh};
-    char zk[TLS_MAX_HASH];                    // Zero Key
-    octet ZK = {0,sizeof(zk),zk};
-    char info[16];
-    octet INFO = {0,sizeof(info),info};
-
     if (cipher_suite==TLS_AES_128_GCM_SHA256)
     {
         sha=32;
@@ -105,49 +94,16 @@ void GET_APPLICATION_SECRETS(int cipher_suite,octet *CAK,octet *CAIV,octet *SAK,
         sha=48;
         key=32;
     }
-
-    OCT_jbyte(&ZK,0,sha);
-    SPhash(MC_SHA2,sha,&EMH,NULL);  // 
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"derived");
-    HKDF_Expand_Label(MC_SHA2,sha,&DS,sha,HS,&INFO,&EMH);   // Use handshake secret from above
-//    printf("Derived Secret = "); OCT_output(&DS);
-
-    HKDF_Extract(MC_SHA2,sha,&MS,&DS,&ZK);
-//    printf("Master Secret= ");OCT_output(&MS);
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"c ap traffic");
-    HKDF_Expand_Label(MC_SHA2,sha,CTS,sha,&MS,&INFO,H);
-
-    printf("Client application traffic secret= ");OCT_output(CTS);
-
-    OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"s ap traffic");
-    HKDF_Expand_Label(MC_SHA2,sha,STS,sha,&MS,&INFO,H);
-
-    printf("Server application traffic secret= ");OCT_output(STS);
+    char info[16];
+    octet INFO = {0,sizeof(info),info};
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,sha,CAK,key,CTS,&INFO,NULL);
-
-    printf("Client application key= "); OCT_output(CAK);
-
-    HKDF_Expand_Label(MC_SHA2,sha,SAK,key,STS,&INFO,NULL);
-
-    printf("Server application key= "); OCT_output(SAK);
+    HKDF_Expand_Label(MC_SHA2,sha,K,key,TS,&INFO,NULL);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"iv");
-    HKDF_Expand_Label(MC_SHA2,sha,CAIV,12,CTS,&INFO,NULL);
-
-    printf("Client application IV= "); OCT_output(CAIV);
-
-    HKDF_Expand_Label(MC_SHA2,sha,SAIV,12,STS,&INFO,NULL);
-
-    printf("Server application IV= "); OCT_output(SAIV);
+    HKDF_Expand_Label(MC_SHA2,sha,IV,12,TS,&INFO,NULL);
 }
 
 // Update IV, xor with record number, increment record number
@@ -172,42 +128,90 @@ unsign32 updateIV(octet *NIV,octet *OIV,unsign32 recno)
     return recno;
 }
 
-// Extract Handshake secret, Client and Server Handshake keys and IVs, and Client and Server Handshake Traffic keys from Transcript Hash and Shared secret
-void GET_HANDSHAKE_SECRETS(int cipher_suite,octet *HS,octet *CHK,octet *CHIV,octet *SHK,octet *SHIV, octet *CHTS,octet *SHTS,  octet *H,octet *SS)
+// recover PSK from Resumption Master Secret
+void RECOVER_PSK(int sha,octet *RMS,octet *NONCE,octet *PSK)
 {
-    int sha,key;
-    char es[TLS_MAX_HASH];
-    octet ES = {0,sizeof(es),es};
-    char ds[TLS_MAX_HASH];
-    octet DS = {0,sizeof(ds),ds};
-    char emh[TLS_MAX_HASH];
-    octet EMH = {0,sizeof(emh),emh};
-    char zk[TLS_MAX_HASH];                    // Zero Key
-    octet ZK = {0,sizeof(zk),zk};
     char info[16];
     octet INFO = {0,sizeof(info),info};
 
-    if (cipher_suite==TLS_AES_128_GCM_SHA256)
-    {
-        sha=32;
-        key=16;
-    }
-    if (cipher_suite==TLS_AES_256_GCM_SHA384)
-    {
-        sha=48;
-        key=32;
-    }
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"resumption");
+    HKDF_Expand_Label(MC_SHA2,sha,PSK,sha,RMS, &INFO, NONCE);
+}
 
-    OCT_jbyte(&ZK,0,sha);
+// Key Schedule code
+
+// Get Early Secret and optional Binder Key (either External or Resumption)
+void GET_EARLY_SECRET(int sha,octet *PSK,octet *ES,octet *BKE,octet *BKR)
+{
+    char emh[TLS_MAX_HASH];
+    octet EMH = {0,sizeof(emh),emh};    // Empty Hash
+    char zk[TLS_MAX_HASH];              
+    octet ZK = {0,sizeof(zk),zk};       // Zero Key
+    char info[16];
+    octet INFO = {0,sizeof(info),info};
+    char ps[TLS_MAX_HASH];
+    octet PS={0,sizeof(ps),ps};
+
+    OCT_jbyte(&ZK,0,sha);  // Zero key
+
+    if (PSK==NULL)
+        OCT_copy(&PS,&ZK);
+    else
+        OCT_copy(&PS,PSK);
+
     SPhash(MC_SHA2,sha,&EMH,NULL);  // hash of ""
 
-    HKDF_Extract(MC_SHA2,sha,&ES,&ZK,&ZK);  // hash function, ES is output, ZK is salt and IKM
+    HKDF_Extract(MC_SHA2,sha,ES,&ZK,&PS);  // hash function, ES is output, ZK is salt and PS is IKM
+
+    if (BKE!=NULL)
+    {  // External Binder Key
+        OCT_clear(&INFO);
+        OCT_jstring(&INFO,(char *)"ext binder");
+        HKDF_Expand_Label(MC_SHA2,sha,BKE,sha,ES,&INFO,&EMH);
+    }
+    if (BKR!=NULL)
+    { // Resumption Binder Key
+        OCT_clear(&INFO);
+        OCT_jstring(&INFO,(char *)"res binder");
+        HKDF_Expand_Label(MC_SHA2,sha,BKR,sha,ES,&INFO,&EMH);
+    }
+}
+
+// Get Later Secrets (Client Early Traffic Secret and Early Exporter Master Secret) - requires partial transcript hash H
+void GET_LATER_SECRETS(int sha,octet *ES,octet *CETS,octet *EEMS,octet *H)
+{
+    char info[16];
+    octet INFO = {0,sizeof(info),info};
+
+    if (CETS!=NULL)
+    {
+        OCT_clear(&INFO);
+        OCT_jstring(&INFO,(char *)"c e traffic");
+        HKDF_Expand_Label(MC_SHA2,sha,CETS,sha,ES,&INFO,H);
+    }
+    if (EEMS!=NULL)
+    {
+        OCT_clear(&INFO);
+        OCT_jstring(&INFO,(char *)"e exp master");
+        HKDF_Expand_Label(MC_SHA2,sha,EEMS,sha,ES,&INFO,H);
+    }
+}
+
+void GET_HANDSHAKE_SECRETS(int sha,octet *SS,octet *ES,octet *HS,octet *CHTS,octet *SHTS,octet *H)
+{
+    char ds[TLS_MAX_HASH];
+    octet DS = {0,sizeof(ds),ds};       // Derived Secret
+    char emh[TLS_MAX_HASH];
+    octet EMH = {0,sizeof(emh),emh};    // Empty Hash
+    char info[16];
+    octet INFO = {0,sizeof(info),info};
+
+    SPhash(MC_SHA2,sha,&EMH,NULL);  // hash of ""
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"derived");
-    HKDF_Expand_Label(MC_SHA2,sha,&DS,sha,&ES,&INFO,&EMH);
-
-//    printf("Derived Secret = "); OCT_output(&DS);
+    HKDF_Expand_Label(MC_SHA2,sha,&DS,sha,ES,&INFO,&EMH);
 
     HKDF_Extract(MC_SHA2,sha,HS,&DS,SS);
 
@@ -224,26 +228,56 @@ void GET_HANDSHAKE_SECRETS(int cipher_suite,octet *HS,octet *CHK,octet *CHIV,oct
     HKDF_Expand_Label(MC_SHA2,sha,SHTS,sha,HS,&INFO,H);
 
     printf("Server handshake traffic secret= ");OCT_output(SHTS);
+}
+
+// Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
+void GET_APPLICATION_SECRETS(int sha,octet *HS,octet *CTS,octet *STS,octet *EMS,octet *RMS,octet *SFH,octet *CFH)
+{
+    char ds[TLS_MAX_HASH];
+    octet DS = {0,sizeof(ds),ds};
+    char ms[TLS_MAX_HASH];
+    octet MS = {0,sizeof(ms),ms};
+    char emh[TLS_MAX_HASH];
+    octet EMH = {0,sizeof(emh),emh};
+    char zk[TLS_MAX_HASH];                    // Zero Key
+    octet ZK = {0,sizeof(zk),zk};
+    char info[16];
+    octet INFO = {0,sizeof(info),info};
+
+    OCT_jbyte(&ZK,0,sha);
+    SPhash(MC_SHA2,sha,&EMH,NULL);  // 
 
     OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,sha,CHK,key,CHTS,&INFO,NULL);
+    OCT_jstring(&INFO,(char *)"derived");
+    HKDF_Expand_Label(MC_SHA2,sha,&DS,sha,HS,&INFO,&EMH);   // Use handshake secret from above
+//    printf("Derived Secret = "); OCT_output(&DS);
 
-    printf("Client handshake key= "); OCT_output(CHK);
-
-    HKDF_Expand_Label(MC_SHA2,sha,SHK,key,SHTS,&INFO,NULL);
-
-    printf("Server handshake key= "); OCT_output(SHK);
+    HKDF_Extract(MC_SHA2,sha,&MS,&DS,&ZK);
 
     OCT_clear(&INFO);
-    OCT_jstring(&INFO,(char *)"iv");
-    HKDF_Expand_Label(MC_SHA2,sha,CHIV,12,CHTS,&INFO,NULL);
+    OCT_jstring(&INFO,(char *)"c ap traffic");
+    HKDF_Expand_Label(MC_SHA2,sha,CTS,sha,&MS,&INFO,SFH);
 
-    printf("Client handshake IV= "); OCT_output(CHIV);
+    printf("Client application traffic secret= ");OCT_output(CTS);
 
-    HKDF_Expand_Label(MC_SHA2,sha,SHIV,12,SHTS,&INFO,NULL);
+    OCT_clear(&INFO);
+    OCT_jstring(&INFO,(char *)"s ap traffic");
+    HKDF_Expand_Label(MC_SHA2,sha,STS,sha,&MS,&INFO,SFH);
 
-    printf("Server handshake IV= "); OCT_output(SHIV);
+    printf("Server application traffic secret= ");OCT_output(STS);
+
+    if (EMS!=NULL)
+    {
+        OCT_clear(&INFO);
+        OCT_jstring(&INFO,(char *)"exp master");
+        HKDF_Expand_Label(MC_SHA2,sha,EMS,sha,&MS,&INFO,SFH);
+    }
+    if (RMS!=NULL)
+    {
+        OCT_clear(&INFO);
+        OCT_jstring(&INFO,(char *)"res master");
+        HKDF_Expand_Label(MC_SHA2,sha,RMS,sha,&MS,&INFO,CFH);
+    }
 }
 
 // generate a public/private key pair in an approved group for a key exchange

@@ -22,6 +22,6 @@ extern bool getServerEncryptedExtensions(octet *SR,int sock,octet *SHK,octet *SH
 extern bool getServerCertificateChain(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *CERTCHAIN);
 extern int getServerCertVerify(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *SCVSIG);
 extern bool getServerFinished(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *HFIN);
-extern int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK);
+extern int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK,int &pskid);
 
 #endif

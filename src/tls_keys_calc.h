@@ -11,8 +11,13 @@
 
 using namespace core;
 
-extern void GET_HANDSHAKE_SECRETS(int sha,octet *HS,octet *CHK,octet *CHIV,octet *SHK,octet *SHIV,octet *CHTS,octet *SHTS, octet *H,octet *SS);
-extern void GET_APPLICATION_SECRETS(int sha,octet *CAK,octet *CAIV,octet *SAK,octet *SAIV,octet *CTS,octet *STS,octet *H,octet *HS);
+extern void GET_KEY_AND_IV(int cipher_suite,octet *TS,octet *K,octet *IV);
+extern void RECOVER_PSK(int sha,octet *RMS,octet *NONCE,octet *PSK);
+extern void GET_EARLY_SECRET(int sha,octet *PSK,octet *ES,octet *BKE,octet *BKR);
+extern void GET_LATER_SECRETS(int sha,octet *ES,octet *CETS,octet *EEMS,octet *H);
+//extern void GET_EARLY_SECRETS(int cipher_suite,octet *PSK,octet *ES,octet *BKE,octet *BKR,octet *CETS,octet *EEMS,octet *H);
+extern void GET_HANDSHAKE_SECRETS(int sha,octet *SS,octet *PSK,octet *HS,octet *CHTS,octet *SHTS, octet *H);
+extern void GET_APPLICATION_SECRETS(int sha,octet *HS,octet *CTS,octet *STS,octet *EMS,octet *RMS,octet *SFH,octet *CFH);
 extern unsign32 UPDATE_KEYS(octet *K,octet *IV,octet *TS);
 extern bool IS_VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H);
 extern void VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H);
