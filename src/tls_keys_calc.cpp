@@ -27,6 +27,38 @@ static void HKDF_Expand_Label(int hash,int hlen,octet *OKM,int olen,octet *PRK,o
     HKDF_Expand(hash,hlen,OKM,olen,PRK,&HL);
 }
 
+void init_crypto_context(crypto *C)
+{
+    C->K={0,TLS_MAX_KEY,C->k};
+    C->IV={0,12,C->iv};
+    C->record=0;
+}
+
+void create_crypto_context(crypto *C,octet *K,octet *IV)
+{ // initialise crypto structure
+    OCT_copy(&(C->K),K);
+    OCT_copy(&(C->IV),IV);
+    C->record=0;
+}
+
+void increment_crypto_context(crypto *C)
+{ //  increment record, and update IV
+    unsigned char b[4];  
+    b[3] = (unsigned char)(C->record);
+    b[2] = (unsigned char)(C->record >> 8);
+    b[1] = (unsigned char)(C->record >> 16);
+    b[0] = (unsigned char)(C->record >> 24);
+    for (int i=0;i<4;i++)
+        C->IV.val[8+i]^=b[i];  // revert to original IV
+    C->record++;
+    b[3] = (unsigned char)(C->record);
+    b[2] = (unsigned char)(C->record >> 8);
+    b[1] = (unsigned char)(C->record >> 16);
+    b[0] = (unsigned char)(C->record >> 24);
+    for (int i=0;i<4;i++)
+        C->IV.val[8+i]^=b[i];  // advance to new IV
+}
+
 // create verification data
 void VERIFY_DATA(int sha,octet *CF,octet *CHTS,octet *H)
 {
@@ -51,7 +83,7 @@ bool IS_VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H)
 }
 
 // update Traffic secret and associated traffic key and IV
-unsign32 UPDATE_KEYS(octet *K,octet *IV,octet *TS)
+unsign32 UPDATE_KEYS(crypto *context,octet *TS)
 {
     int sha,key;
     char info[16];
@@ -61,7 +93,7 @@ unsign32 UPDATE_KEYS(octet *K,octet *IV,octet *TS)
 
 // find cipher suite
     sha=TS->len;
-    key=K->len;
+    key=context->K.len;
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"traffic upd");
@@ -71,17 +103,18 @@ unsign32 UPDATE_KEYS(octet *K,octet *IV,octet *TS)
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,sha,K,key,TS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,&(context->K),key,TS,&INFO,NULL);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"iv");
-    HKDF_Expand_Label(MC_SHA2,sha,IV,12,TS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,&(context->IV),12,TS,&INFO,NULL);
 // reset record number
+    context->record=0;
     return 0;
 }
 
 // get Key and IV from Traffic secret
-void GET_KEY_AND_IV(int cipher_suite,octet *TS,octet *K,octet *IV)
+void GET_KEY_AND_IV(int cipher_suite,octet *TS,crypto *context)
 {
     int sha,key;
     if (cipher_suite==TLS_AES_128_GCM_SHA256)
@@ -99,33 +132,13 @@ void GET_KEY_AND_IV(int cipher_suite,octet *TS,octet *K,octet *IV)
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"key");
-    HKDF_Expand_Label(MC_SHA2,sha,K,key,TS,&INFO,NULL);
+    HKDF_Expand_Label(MC_SHA2,sha,&(context->K),key,TS,&INFO,NULL);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"iv");
-    HKDF_Expand_Label(MC_SHA2,sha,IV,12,TS,&INFO,NULL);
-}
+    HKDF_Expand_Label(MC_SHA2,sha,&(context->IV),12,TS,&INFO,NULL);
 
-// Update IV, xor with record number, increment record number
-// NIV - New IV
-// OIV - Original IV
-// See RFC8446 section 5.3
-// OK recno should be 64-bit, but really that is excessive
-unsign32 updateIV(octet *NIV,octet *OIV,unsign32 recno)
-{
-    int i;
-    unsigned char b[4];  
-    b[3] = (unsigned char)(recno);
-    b[2] = (unsigned char)(recno >> 8);
-    b[1] = (unsigned char)(recno >> 16);
-    b[0] = (unsigned char)(recno >> 24);
-    for (i=0;i<12;i++)
-        NIV->val[i]=OIV->val[i];
-    for (i=0;i<4;i++)
-        NIV->val[8+i]^=b[i];
-    NIV->len=12;
-    recno++;  
-    return recno;
+    context->record=0;
 }
 
 // recover PSK from Resumption Master Secret

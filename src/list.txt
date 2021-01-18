@@ -1,10 +1,12 @@
-www.bbc.co.uk
-www.protonmail.com
-www.miracl.com
-www.facebook.com
-tls13.ulfheim.net
-tls13.cloudfare.com
-www.google.com
-slack.com
-owasp.org
-mozilla.org
+
+			Allow early data
+www.bbc.co.uk			No
+www.protonmail.com		No
+www.miracl.com			Yes
+www.facebook.com		No
+tls13.ulfheim.net		-
+tls13.cloudfare.com		No
+www.google.com			No
+slack.com			No
+owasp.org			No
+mozilla.org			No

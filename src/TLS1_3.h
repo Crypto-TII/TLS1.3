@@ -1,6 +1,8 @@
 #ifndef TLS1_3_H
 #define TLS1_3_H
 
+#include "core.h"
+
 // Some maximum sizes
 // Handshake will fail if these sizes are exceeded
 #define TLS_MAX_HASH 64
@@ -70,6 +72,7 @@
 #define PRESHARED_KEY 0x0029
 #define TLS_VER 0x002b
 #define COOKIE 0x002c
+#define EARLY_DATA 0x002a
 
 // record types
 #define HSHAKE 0x16
@@ -88,6 +91,7 @@
 #define TICKET 0x04
 #define KEY_UPDATE 0x18
 #define MESSAGE_HASH 0xFE
+#define END_OF_EARLY_DATA 0x05
 
 // server Hello reponses
 #define SH_ALERT 1
@@ -100,6 +104,20 @@
 // alerts
 #define ILLEGAL_PARAMETER 0x2F
 #define UNEXPECTED_MESSAGE 0x0A
+#define DECRYPT_ERROR 0x33
+#define BAD_CERTIFICATE 0x2A
+
+using namespace core;
+
+// crypto context. Length of K=0 for no crypto.
+typedef struct
+{
+    char k[TLS_MAX_KEY];
+    char iv[12];
+    octet K;
+    octet IV;
+    unsign32 record;
+} crypto;
 
 #endif
 

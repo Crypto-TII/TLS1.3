@@ -6,7 +6,7 @@
 // get another fragment of server response
 // If its encrypted, decrypt and authenticate it
 // append it to the end of SR
-int getServerFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
+int getServerFragment(int sock,crypto *recv,octet *SR)
 {
     int i,rtn,left,pos;
     char rh[5];
@@ -24,7 +24,11 @@ int getServerFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
     if (rtn<0)
         return TIME_OUT;
     if (RH.val[0]==ALERT)
-            return ALERT;
+    {
+        left=getInt16(sock);
+        getOctet(sock,SR,left);
+        return ALERT;
+    }
     if (RH.val[0]==CHANGE_CIPHER)
     { // read it, and ignore it
         char sccs[10];
@@ -64,6 +68,7 @@ int getServerFragment(int sock,octet *SHK,octet *SHIV,unsign32 &recno,octet *SR)
     if (!OCT_comp(&TAG,&RTAG))
     {
         printf("NOT authenticated!\n");
+        printf("Processing %d ",SR->len);OCT_output(SR);
         return -1;
     }
     printf("Server fragment authenticates %d\n",left-16);
@@ -159,6 +164,7 @@ int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,octet *SHK,oct
 // build up server handshake response in SR, decrypting each fragment in-place
 // extract Certificate Chain, Server Certificate Signature and Server Verifier Data
 // return pointers to hashing check-points
+/*
 bool getServerEncryptedExtensions(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *SEXT)
 {
     int nb,len,ptr=0;
@@ -169,9 +175,60 @@ bool getServerEncryptedExtensions(octet *SR,int sock,octet *SHK,octet *SHIV,unsi
     if (nb!=ENCRYPTED_EXTENSIONS)
         return false;
 
-    ptr+=len; // skip encrypted extensions for now
+    OCT_clear(SEXT);
+    len=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);
+    parseOctetorPull(sock,SEXT,len,SR,ptr,SHK,SHIV,recno);
+    //ptr+=len; // skip encrypted extensions for now
 
     printf("Length of Encrypted Extension= %d\n",len);
+// Transcript hash
+    for (int i=0;i<ptr;i++)
+        Hash_Process(trans_hash,SR->val[i]);
+   
+    OCT_shl(SR,ptr);  // rewind to start
+
+    return true;
+}
+*/
+
+// Functions to process server response
+// now deals with any kind of fragmentation
+// build up server handshake response in SR, decrypting each fragment in-place
+// extract Certificate Chain, Server Certificate Signature and Server Verifier Data
+// return pointers to hashing check-points
+bool getServerEncryptedExtensions(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,bool &early_data_accepted)
+{
+    int nb,ext,len,tlen,ptr=0;
+
+    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
+    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
+
+    early_data_accepted=false;
+    if (nb!=ENCRYPTED_EXTENSIONS)
+        return false;
+
+    len=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);  // length of extensions
+
+    printf("Length of Encrypted Extension= %d\n",len);
+    while (len>0)
+    {
+        ext=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno); len-=2;
+        switch (ext)
+        {
+        case EARLY_DATA :
+            {
+                parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno); len-=2;  // length is zero
+                early_data_accepted=true;
+                break;
+            }
+            default:
+                tlen=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno); len-=2;  // length of extension
+                len-=tlen;
+                printf("Unexpected extension in encrypted extensions %d\n",ext);
+                break;
+        }
+    }
+
 // Transcript hash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,SR->val[i]);
@@ -191,6 +248,7 @@ bool getServerCertificateChain(octet *SR,int sock,octet *SHK,octet *SHIV,unsign3
     if (nb!=CERTIFICATE)
         return false;
 
+    OCT_clear(CERTCHAIN);
     nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
     if (nb!=0x00) printf("Something wrong 2 %x\n",nb);  // expecting 0x00 Request context
     len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);   // get length of certificate chain
@@ -215,6 +273,7 @@ int getServerCertVerify(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recn
     if (nb!=CERT_VERIFY)
         return 0;
 
+    OCT_clear(SCVSIG);
     sigalg=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);   // may for example be 0804 - RSA-PSS-RSAE-SHA256
     len=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);      // sig data follows
     parseOctetorPull(sock,SCVSIG,len,SR,ptr,SHK,SHIV,recno);
@@ -238,6 +297,7 @@ bool getServerFinished(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno
     if (nb!=FINISHED)
         return false;
 
+    OCT_clear(HFIN);
     parseOctetorPull(sock,HFIN,len,SR,ptr,SHK,SHIV,recno);
 
     for (int i=0;i<ptr;i++)

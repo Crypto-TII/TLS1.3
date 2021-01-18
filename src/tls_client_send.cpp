@@ -142,6 +142,12 @@ void addCookieExt(octet *EXT,octet *CK)
     OCT_joctet(EXT,CK);
 }
 
+void addEarlyDataExt(octet *EXT)
+{
+    OCT_jint(EXT,EARLY_DATA,2);
+    OCT_jint(EXT,0,2);
+}
+
 // Create 32-byte random octet
 int clientRandom(octet *RN,csprng *RNG)
 {
@@ -168,7 +174,7 @@ int cipherSuites(octet *CS,int ncs,int *ciphers)
 
 // Send a client message CM (in a single record). AEAD encrypted if K!=NULL
 // recno is count of records sent with this key/IV combo
-void sendClientMessage(int sock,int rectype,int version,octet *K,octet *OIV,unsign32 &recno,octet *CM)
+void sendClientMessage(int sock,int rectype,int version,crypto *send,octet *CM)
 {
     int reclen;
     char record[TLS_MAX_CLIENT_RECORD];
@@ -178,7 +184,7 @@ void sendClientMessage(int sock,int rectype,int version,octet *K,octet *OIV,unsi
     char iv[TLS_IV_SIZE];
     octet IV={0,sizeof(iv),iv};
 
-    if (K==NULL)
+    if (send==NULL)
     { // no encryption
         OCT_jbyte(&RECORD,rectype,1);
         OCT_jint(&RECORD,version,2);
@@ -195,13 +201,14 @@ void sendClientMessage(int sock,int rectype,int version,octet *K,octet *OIV,unsi
 // could add random padding after this
 
 // AES-GCM
-        recno=updateIV(&IV,OIV,recno); // update record number
+
         gcm g;
-        GCM_init(&g,K->len,K->val,12,IV.val);  // Encrypt with Client Application Key and IV
+        GCM_init(&g,send->K.len,send->K.val,12,send->IV.val);  // Encrypt with Client Application Key and IV
         GCM_add_header(&g,RECORD.val,5);
         GCM_add_plain(&g,&RECORD.val[5],&RECORD.val[5],reclen-16);
 //create and append TAG
         GCM_finish(&g,TAG.val); TAG.len=16;
+        increment_crypto_context(send);
         OCT_joctet(&RECORD,&TAG);
     }
 printf("Client to Server -> "); OCT_output(&RECORD);
@@ -237,8 +244,7 @@ void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng 
     OCT_joctet(CH,EXTENSIONS);
 
 // transmit it
-    unsign32 nulrec=0;
-    sendClientMessage(sock,HSHAKE,version,NULL,NULL,nulrec,CH);
+    sendClientMessage(sock,HSHAKE,version,NULL,CH);
 }
 
 void sendBindersList(int sock,octet *B,int npsks,octet BNDS[])
@@ -254,14 +260,12 @@ void sendBindersList(int sock,octet *B,int npsks,octet BNDS[])
         OCT_joctet(B,&BNDS[i]);
     }
 // transmit it
-    unsign32 nulrec=0;
-    sendClientMessage(sock,HSHAKE,TLS1_2,NULL,NULL,nulrec,B);
+    sendClientMessage(sock,HSHAKE,TLS1_2,NULL,B);
 
-    //sendOctet(sock,B);
 }
 
 // send client alert - might be encrypted if K!=NULL
-void sendClientAlert(int sock,int type,octet *K,octet *OIV,unsign32 &recno)
+void sendClientAlert(int sock,int type,crypto *send)
 {
     char pt[2];
     octet PT={0,sizeof(pt),pt};
@@ -269,11 +273,11 @@ void sendClientAlert(int sock,int type,octet *K,octet *OIV,unsign32 &recno)
     OCT_jbyte(&PT,0x02,1);  // alerts are always fatal
     OCT_jbyte(&PT,type,1);
 
-    sendClientMessage(sock,ALERT,TLS1_2,K,OIV,recno,&PT);
+    sendClientMessage(sock,ALERT,TLS1_2,send,&PT);
 }
 
 // Send final client handshake verification data
-void sendClientVerify(int sock,octet *K,octet *OIV,unsign32 &recno,unihash *h,octet *CHF)
+void sendClientVerify(int sock,crypto *send,unihash *h,octet *CHF)
 {
     char pt[TLS_MAX_HASH+4];
     octet PT={0,sizeof(pt),pt};
@@ -284,7 +288,19 @@ void sendClientVerify(int sock,octet *K,octet *OIV,unsign32 &recno,unihash *h,oc
 
     running_hash(h,&PT);
 
-    sendClientMessage(sock,HSHAKE,TLS1_2,K,OIV,recno,&PT);
+    sendClientMessage(sock,HSHAKE,TLS1_2,send,&PT);
 }
 
+void sendEndOfEarlyData(int sock,crypto *send,unihash *h)
+{
+    char ed[5];
+    octet ED={0,sizeof(ed),ed};
+
+    OCT_jbyte(&ED,END_OF_EARLY_DATA,1);
+    OCT_jint(&ED,0,3);
+
+    if (h!=NULL) running_hash(h,&ED);
+
+    sendClientMessage(sock,HSHAKE,TLS1_2,send,&ED);
+}
 

@@ -34,7 +34,7 @@ int parseInt24(octet *M,int &ptr)
     return 65536*b0+256*b1+b2;
 }
 
-// parse out a 32-bit integer from octet M
+// parse out an unsigned 32-bit integer from octet M
 unsigned int parseInt32(octet *M,int &ptr)
 {
     unsigned int b0,b1,b2,b3;

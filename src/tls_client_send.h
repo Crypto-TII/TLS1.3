@@ -21,13 +21,15 @@ extern void sendBindersList(int sock,octet *B,int npsks,octet BNDS[]);
 extern void addPSKExt(octet *EXT,int mode);
 extern void addVersionExt(octet *EXT,int version);
 extern void addCookieExt(octet *EXT,octet *CK);
+extern void addEarlyDataExt(octet *EXT);
 extern int clientRandom(octet *RN,csprng *RNG);
 extern int sessionID(octet *SI,csprng *RNG);
 extern int cipherSuites(octet *CS,int ncs,int *ciphers); 
 
-extern void sendClientMessage(int sock,int rectype,int version,octet *K,octet *OIV,unsign32 &recno,octet *CM);
+extern void sendClientMessage(int sock,int rectype,int version,crypto *send,octet *CM);
 extern void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng *RNG,octet *CID,octet *EXTENSIONS,int extra);
-extern void sendClientAlert(int sock,int type,octet *K,octet *OIV,unsign32 &recno);
-extern void sendClientVerify(int sock,octet *K,octet *OIV,unsign32 &recno,unihash *h,octet *CHF);
+extern void sendClientAlert(int sock,int type,crypto *send);
+extern void sendClientVerify(int sock,crypto *send,unihash *h,octet *CHF);
+extern void sendEndOfEarlyData(int sock,crypto *send,unihash *h);
 
 #endif
