@@ -16,8 +16,6 @@ int getServerFragment(int sock,crypto *recv,octet *SR)
     octet TAG={0,sizeof(tag),tag};
     char rtag[TLS_TAG_SIZE];
     octet RTAG={0,sizeof(rtag),rtag};
-    char iv[TLS_IV_SIZE];
-    octet IV={0,sizeof(iv),iv};
 
     pos=SR->len;  // current end of SR
     rtn=getOctet(sock,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
@@ -43,24 +41,26 @@ int getServerFragment(int sock,crypto *recv,octet *SR)
     left=getInt16(sock);
     OCT_jint(&RH,left,2);
 //printf("Record Header= "); OCT_output(&RH);
-    if (SHK==NULL)
+    if (recv==NULL)
     { // not encrypted
         getBytes(sock,&SR->val[pos],left);  // read in record body
         SR->len+=left;
         return HSHAKE;
     }
 
-    recno=updateIV(&IV,SHIV,recno);
+
 //    printf("Header= ");OCT_output(&RH);
     getBytes(sock,&SR->val[pos],left-16);  // read in record body
 
 //AES-GCM decrypt body - depends on cipher suite, which is determined by length of key
     gcm g;
-    GCM_init(&g,SHK->len,SHK->val,12,IV.val);  // Decrypt with Server Key and IV
+    GCM_init(&g,recv->K.len,recv->K.val,12,recv->IV.val);  // Decrypt with Server Key and IV
     GCM_add_header(&g,RH.val,RH.len);
     GCM_add_cipher(&g,&SR->val[pos],&SR->val[pos],left-16);
     GCM_finish(&g,TAG.val); TAG.len=16;
 //    printf("TAG= ");OCT_output(&TAG);
+
+    increment_crypto_context(recv);
 
     SR->len+=(left-16);    
     getOctet(sock,&RTAG,16);    // read in correct TAG
@@ -100,60 +100,60 @@ int getServerFragment(int sock,crypto *recv,octet *SR)
 // They may also have to pull in more bytes from the socket.
 
 // return Byte, or pull in and decrypt another fragment
-int parseByteorPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
+int parseByteorPull(int sock,octet *SR,int &ptr,crypto *recv)
 {
     int nb=parseByte(SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - Pull in some more
-        getServerFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,recv,SR); 
         nb=parseByte(SR,ptr);
     }
     return nb;
 }
 
 // return 32-bit Int, or pull in another fragment and try again
-unsigned int parseInt32orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
+unsigned int parseInt32orPull(int sock,octet *SR,int &ptr,crypto *recv)
 {
     unsigned int nb=parseInt32(SR,ptr);
     while (nb == (unsigned int)-1)
     { // not enough bytes in SR - pull in another fragment
-        getServerFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,recv,SR); 
         nb=parseInt32(SR,ptr);
     }
     return nb;
 }
 
 // return 24-bit Int, or pull in another fragment and try again
-int parseInt24orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
+int parseInt24orPull(int sock,octet *SR,int &ptr,crypto *recv)
 {
     int nb=parseInt24(SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - pull in another fragment
-        getServerFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,recv,SR); 
         nb=parseInt24(SR,ptr);
     }
     return nb;
 }
 
 // return 16-bit Int, or pull in another fragment and try again
-int parseInt16orPull(int sock,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
+int parseInt16orPull(int sock,octet *SR,int &ptr,crypto *recv)
 {
     int nb=parseInt16(SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - pull in another fragment
-        getServerFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,recv,SR); 
         nb=parseInt16(SR,ptr);
     }
     return nb;
 }
 
 // return Octet O of length len, or pull in another fragment and try again
-int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,octet *SHK,octet *SHIV,unsign32 &recno)
+int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,crypto *recv)
 {
     int nb=parseOctet(O,len,SR,ptr);
     while (nb < 0)
     { // not enough bytes in SR - pull in another fragment
-        getServerFragment(sock,SHK,SHIV,recno,SR); 
+        getServerFragment(sock,recv,SR); 
         nb=parseOctet(O,len,SR,ptr);
     }
     return nb;
@@ -164,65 +164,33 @@ int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,octet *SHK,oct
 // build up server handshake response in SR, decrypting each fragment in-place
 // extract Certificate Chain, Server Certificate Signature and Server Verifier Data
 // return pointers to hashing check-points
-/*
-bool getServerEncryptedExtensions(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *SEXT)
-{
-    int nb,len,ptr=0;
-
-    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
-    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
-
-    if (nb!=ENCRYPTED_EXTENSIONS)
-        return false;
-
-    OCT_clear(SEXT);
-    len=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);
-    parseOctetorPull(sock,SEXT,len,SR,ptr,SHK,SHIV,recno);
-    //ptr+=len; // skip encrypted extensions for now
-
-    printf("Length of Encrypted Extension= %d\n",len);
-// Transcript hash
-    for (int i=0;i<ptr;i++)
-        Hash_Process(trans_hash,SR->val[i]);
-   
-    OCT_shl(SR,ptr);  // rewind to start
-
-    return true;
-}
-*/
-
-// Functions to process server response
-// now deals with any kind of fragmentation
-// build up server handshake response in SR, decrypting each fragment in-place
-// extract Certificate Chain, Server Certificate Signature and Server Verifier Data
-// return pointers to hashing check-points
-bool getServerEncryptedExtensions(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,bool &early_data_accepted)
+bool getServerEncryptedExtensions(octet *SR,int sock,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
 {
     int nb,ext,len,tlen,ptr=0;
 
-    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
-    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
+    nb=parseByteorPull(sock,SR,ptr,recv);
+    len=parseInt24orPull(sock,SR,ptr,recv);           // message length    
 
     early_data_accepted=false;
     if (nb!=ENCRYPTED_EXTENSIONS)
         return false;
 
-    len=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);  // length of extensions
+    len=parseInt16orPull(sock,SR,ptr,recv);  // length of extensions
 
     printf("Length of Encrypted Extension= %d\n",len);
     while (len>0)
     {
-        ext=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno); len-=2;
+        ext=parseInt16orPull(sock,SR,ptr,recv); len-=2;
         switch (ext)
         {
         case EARLY_DATA :
             {
-                parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno); len-=2;  // length is zero
+                parseInt16orPull(sock,SR,ptr,recv); len-=2;  // length is zero
                 early_data_accepted=true;
                 break;
             }
             default:
-                tlen=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno); len-=2;  // length of extension
+                tlen=parseInt16orPull(sock,SR,ptr,recv); len-=2;  // length of extension
                 len-=tlen;
                 printf("Unexpected extension in encrypted extensions %d\n",ext);
                 break;
@@ -238,21 +206,21 @@ bool getServerEncryptedExtensions(octet *SR,int sock,octet *SHK,octet *SHIV,unsi
     return true;
 }
 
-bool getServerCertificateChain(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *CERTCHAIN)
+bool getServerCertificateChain(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet *CERTCHAIN)
 {
     int nb,len,ptr=0;
 
-    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
-    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
+    nb=parseByteorPull(sock,SR,ptr,recv);
+    len=parseInt24orPull(sock,SR,ptr,recv);           // message length    
 
     if (nb!=CERTIFICATE)
         return false;
 
     OCT_clear(CERTCHAIN);
-    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
+    nb=parseByteorPull(sock,SR,ptr,recv);
     if (nb!=0x00) printf("Something wrong 2 %x\n",nb);  // expecting 0x00 Request context
-    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);   // get length of certificate chain
-    parseOctetorPull(sock,CERTCHAIN,len,SR,ptr,SHK,SHIV,recno);
+    len=parseInt24orPull(sock,SR,ptr,recv);   // get length of certificate chain
+    parseOctetorPull(sock,CERTCHAIN,len,SR,ptr,recv);
 
 // Transcript hash
     for (int i=0;i<ptr;i++)
@@ -263,20 +231,20 @@ bool getServerCertificateChain(octet *SR,int sock,octet *SHK,octet *SHIV,unsign3
     return true;
 }
 
-int getServerCertVerify(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *SCVSIG)
+int getServerCertVerify(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet *SCVSIG)
 {
     int sigalg,nb,len,ptr=0;
 
-    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
-    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
+    nb=parseByteorPull(sock,SR,ptr,recv);
+    len=parseInt24orPull(sock,SR,ptr,recv);           // message length    
 
     if (nb!=CERT_VERIFY)
         return 0;
 
     OCT_clear(SCVSIG);
-    sigalg=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);   // may for example be 0804 - RSA-PSS-RSAE-SHA256
-    len=parseInt16orPull(sock,SR,ptr,SHK,SHIV,recno);      // sig data follows
-    parseOctetorPull(sock,SCVSIG,len,SR,ptr,SHK,SHIV,recno);
+    sigalg=parseInt16orPull(sock,SR,ptr,recv);   // may for example be 0804 - RSA-PSS-RSAE-SHA256
+    len=parseInt16orPull(sock,SR,ptr,recv);      // sig data follows
+    parseOctetorPull(sock,SCVSIG,len,SR,ptr,recv);
    
 // Transcript hash
     for (int i=0;i<ptr;i++)
@@ -287,18 +255,18 @@ int getServerCertVerify(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recn
     return sigalg;
 }
 
-bool getServerFinished(octet *SR,int sock,octet *SHK,octet *SHIV,unsign32 &recno,unihash *trans_hash,octet *HFIN)
+bool getServerFinished(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet *HFIN)
 {
     int nb,len,ptr=0;
 
-    nb=parseByteorPull(sock,SR,ptr,SHK,SHIV,recno);
-    len=parseInt24orPull(sock,SR,ptr,SHK,SHIV,recno);           // message length    
+    nb=parseByteorPull(sock,SR,ptr,recv);
+    len=parseInt24orPull(sock,SR,ptr,recv);           // message length    
 
     if (nb!=FINISHED)
         return false;
 
     OCT_clear(HFIN);
-    parseOctetorPull(sock,HFIN,len,SR,ptr,SHK,SHIV,recno);
+    parseOctetorPull(sock,HFIN,len,SR,ptr,recv);
 
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,SR->val[i]);
@@ -312,7 +280,6 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
 {
     int i,tls,left,rtn;
     bool retry=false;
-    unsign32 recno=0;
     char sid[32];
     octet SID = {0, sizeof(sid), sid};
     char srn[32];
@@ -333,27 +300,23 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
 // get first fragment - not encrypted
 // printf("Into Server Hello\n");
     OCT_clear(SH);
-    rtn=getServerFragment(sock,NULL,NULL,recno,SH);
-//    if (rtn==CHANGE_CIPHER)
-//    { // ignore it
-//        OCT_clear(SH);
-//        rtn=getServerFragment(sock,NULL,NULL,recno,SH);
-//    }
+    rtn=getServerFragment(sock,NULL,SH);
+
     if (rtn==ALERT)
         return SH_ALERT;
 
     int ptr=0;
-    int nb=parseByteorPull(sock,SH,ptr,NULL,NULL,recno);  // should be Server Hello
+    int nb=parseByteorPull(sock,SH,ptr,NULL);  // should be Server Hello
     if (nb!=SERVER_HELLO)
         return BAD_HELLO;
 
-    left=parseInt24orPull(sock,SH,ptr,NULL,NULL,recno);   // If not enough, pull in another fragment
-    int svr=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); left-=2; 
+    left=parseInt24orPull(sock,SH,ptr,NULL);   // If not enough, pull in another fragment
+    int svr=parseInt16orPull(sock,SH,ptr,NULL); left-=2; 
 
     if (svr!=TLS1_2)  
         return NOT_TLS1_3;  // don't ask
    
-    parseOctetorPull(sock,&SRN,32,SH,ptr,NULL,NULL,recno); left-=32;
+    parseOctetorPull(sock,&SRN,32,SH,ptr,NULL); left-=32;
     printf("Server Random= "); OCT_output(&SRN);  
 
     if (OCT_comp(&SRN,&HRR))
@@ -361,66 +324,66 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
         printf("Handshake Retry request!\n");
         retry=true;
     }
-    int silen=parseByteorPull(sock,SH,ptr,NULL,NULL,recno); left-=1;
-    parseOctetorPull(sock,&SID,silen,SH,ptr,NULL,NULL,recno); left-=silen;  
+    int silen=parseByteorPull(sock,SH,ptr,NULL); left-=1;
+    parseOctetorPull(sock,&SID,silen,SH,ptr,NULL); left-=silen;  
 
     if (!OCT_comp(CID,&SID))
         return ID_MISMATCH;
 
-    cipher=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); left-=2;
+    cipher=parseInt16orPull(sock,SH,ptr,NULL); left-=2;
     printf("Cipher suite= %x\n",cipher);
-    int cmp=parseByteorPull(sock,SH,ptr,NULL,NULL,recno); left-=1; // Compression
+    int cmp=parseByteorPull(sock,SH,ptr,NULL); left-=1; // Compression
     if (cmp!=0x00)
         return NOT_TLS1_3;
 
-    int extLen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); left-=2;  
+    int extLen=parseInt16orPull(sock,SH,ptr,NULL); left-=2;  
     if (left!=extLen)
         return BAD_HELLO;
 
     int tmplen;
     while (extLen>0)
     {
-        int ext=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
+        int ext=parseInt16orPull(sock,SH,ptr,NULL); extLen-=2;
         switch (ext)
         {
         case KEY_SHARE :
             {
-                tmplen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
+                tmplen=parseInt16orPull(sock,SH,ptr,NULL); extLen-=2;
                 extLen-=tmplen;
-                kex=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);
+                kex=parseInt16orPull(sock,SH,ptr,NULL);
                 printf("Key Share = %04x\n",kex);
                 if (!retry)
                 { // its not a retry request
-                    int pklen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);    // FIX this first for HRR
+                    int pklen=parseInt16orPull(sock,SH,ptr,NULL);    // FIX this first for HRR
                     //printf("pklen = %d\n",pklen);
                     //printf("SH= ");OCT_output(SH);
-                    parseOctetorPull(sock,PK,pklen,SH,ptr,NULL,NULL,recno);
+                    parseOctetorPull(sock,PK,pklen,SH,ptr,NULL);
                     printf("Server Public Key= "); OCT_output(PK);
                 }
                 break;
             }
         case PRESHARED_KEY :
             {
-                tmplen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
+                tmplen=parseInt16orPull(sock,SH,ptr,NULL); extLen-=2;
                 extLen-=tmplen;
-                pskid=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);
+                pskid=parseInt16orPull(sock,SH,ptr,NULL);
                 printf("PSK ID= %d\n",pskid);
                 break;
             }
         case COOKIE :
             {
                 printf("Picked up a cookie\n");
-                tmplen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
+                tmplen=parseInt16orPull(sock,SH,ptr,NULL); extLen-=2;
                 extLen-=tmplen;
-                parseOctetorPull(sock,CK,tmplen,SH,ptr,NULL,NULL,recno);
+                parseOctetorPull(sock,CK,tmplen,SH,ptr,NULL);
                 printf("Cookie= (Coffee I code fast?) "); OCT_output(CK);
                 break;
             }
         case TLS_VER :
             {
-                tmplen=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno); extLen-=2;
+                tmplen=parseInt16orPull(sock,SH,ptr,NULL); extLen-=2;
                 extLen-=tmplen;
-                tls=parseInt16orPull(sock,SH,ptr,NULL,NULL,recno);  // get TLS version
+                tls=parseInt16orPull(sock,SH,ptr,NULL);  // get TLS version
                 printf("tls version= %04x\n",tls);
                 break;
             }
