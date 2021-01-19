@@ -1,5 +1,5 @@
 // 
-// Process input recieved from Server
+// Process input received from Server
 //
 #include "tls_client_recv.h"
 
@@ -164,7 +164,7 @@ int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,crypto *recv)
 // build up server handshake response in SR, decrypting each fragment in-place
 // extract Certificate Chain, Server Certificate Signature and Server Verifier Data
 // return pointers to hashing check-points
-bool getServerEncryptedExtensions(octet *SR,int sock,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
+bool getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
 {
     int nb,ext,len,tlen,ptr=0;
 
@@ -206,7 +206,7 @@ bool getServerEncryptedExtensions(octet *SR,int sock,crypto *recv,unihash *trans
     return true;
 }
 
-bool getServerCertificateChain(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet *CERTCHAIN)
+bool getServerCertificateChain(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *CERTCHAIN)
 {
     int nb,len,ptr=0;
 
@@ -231,7 +231,7 @@ bool getServerCertificateChain(octet *SR,int sock,crypto *recv,unihash *trans_ha
     return true;
 }
 
-int getServerCertVerify(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet *SCVSIG)
+int getServerCertVerify(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *SCVSIG)
 {
     int sigalg,nb,len,ptr=0;
 
@@ -255,7 +255,7 @@ int getServerCertVerify(octet *SR,int sock,crypto *recv,unihash *trans_hash,octe
     return sigalg;
 }
 
-bool getServerFinished(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet *HFIN)
+bool getServerFinished(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *HFIN)
 {
     int nb,len,ptr=0;
 
@@ -276,6 +276,7 @@ bool getServerFinished(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet
     return true;
 }
 
+// pskid >=0 if PSK is accepted
 int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK,int &pskid)
 {
     int i,tls,left,rtn;

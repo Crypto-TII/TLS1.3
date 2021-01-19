@@ -18,10 +18,10 @@ extern unsigned int parseInt32orPull(int sock,octet *SR,int &ptr,crypto *recv);
 extern int parseInt24orPull(int sock,octet *SR,int &ptr,crypto *recv);
 extern int parseInt16orPull(int sock,octet *SR,int &ptr,crypto *recv);
 extern int parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,crypto *recv);
-extern bool getServerEncryptedExtensions(octet *SR,int sock,crypto *recv,unihash *trans_hash,bool &early_data_accepted);
-extern bool getServerCertificateChain(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet *CERTCHAIN);
-extern int getServerCertVerify(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet *SCVSIG);
-extern bool getServerFinished(octet *SR,int sock,crypto *recv,unihash *trans_hash,octet *HFIN);
+extern bool getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_hash,bool &early_data_accepted);
+extern bool getServerCertificateChain(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *CERTCHAIN);
+extern int getServerCertVerify(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *SCVSIG);
+extern bool getServerFinished(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *HFIN);
 extern int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK,int &pskid);
 
 #endif

@@ -192,7 +192,7 @@ void GET_EARLY_SECRET(int sha,octet *PSK,octet *ES,octet *BKE,octet *BKR)
 }
 
 // Get Later Secrets (Client Early Traffic Secret and Early Exporter Master Secret) - requires partial transcript hash H
-void GET_LATER_SECRETS(int sha,octet *ES,octet *CETS,octet *EEMS,octet *H)
+void GET_LATER_SECRETS(int sha,octet *ES,octet *H,octet *CETS,octet *EEMS)
 {
     char info[16];
     octet INFO = {0,sizeof(info),info};
@@ -211,7 +211,7 @@ void GET_LATER_SECRETS(int sha,octet *ES,octet *CETS,octet *EEMS,octet *H)
     }
 }
 
-void GET_HANDSHAKE_SECRETS(int sha,octet *SS,octet *ES,octet *HS,octet *CHTS,octet *SHTS,octet *H)
+void GET_HANDSHAKE_SECRETS(int sha,octet *SS,octet *ES,octet *H,octet *HS,octet *CHTS,octet *SHTS)
 {
     char ds[TLS_MAX_HASH];
     octet DS = {0,sizeof(ds),ds};       // Derived Secret
@@ -244,7 +244,7 @@ void GET_HANDSHAKE_SECRETS(int sha,octet *SS,octet *ES,octet *HS,octet *CHTS,oct
 }
 
 // Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
-void GET_APPLICATION_SECRETS(int sha,octet *HS,octet *CTS,octet *STS,octet *EMS,octet *RMS,octet *SFH,octet *CFH)
+void GET_APPLICATION_SECRETS(int sha,octet *HS,octet *SFH,octet *CFH,octet *CTS,octet *STS,octet *EMS,octet *RMS)
 {
     char ds[TLS_MAX_HASH];
     octet DS = {0,sizeof(ds),ds};

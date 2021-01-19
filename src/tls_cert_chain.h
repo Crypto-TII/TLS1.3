@@ -23,5 +23,6 @@ extern bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY);
 extern bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY);
 extern void OUTPUT_CERT(octet *CERT);
 extern bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY);
+extern bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK);
 
 #endif

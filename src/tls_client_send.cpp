@@ -10,7 +10,6 @@ void addPresharedKeyExt(octet *EXT,octet *TICK,unsign32 obf_age,octet* BD)
     char psk[1024];
     octet PSK={0,sizeof(psk),psk};
     OCT_jint(&PSK,PRESHARED_KEY,2);
-
 }
 
 // Build Servername Extension
@@ -286,20 +285,20 @@ void sendClientVerify(int sock,crypto *send,unihash *h,octet *CHF)
     OCT_jint(&PT,CHF->len,3); // .. and its length  3
     OCT_joctet(&PT,CHF);
 
-    running_hash(h,&PT);
+    running_hash(&PT,h);
 
     sendClientMessage(sock,HSHAKE,TLS1_2,send,&PT);
 }
 
 void sendEndOfEarlyData(int sock,crypto *send,unihash *h)
 {
-    char ed[5];
+    char ed[4];
     octet ED={0,sizeof(ed),ed};
 
     OCT_jbyte(&ED,END_OF_EARLY_DATA,1);
     OCT_jint(&ED,0,3);
 
-    if (h!=NULL) running_hash(h,&ED);
+    running_hash(&ED,h);
 
     sendClientMessage(sock,HSHAKE,TLS1_2,send,&ED);
 }
