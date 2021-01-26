@@ -13,18 +13,13 @@ int setserversock(int port)
 
     // Creating socket file descriptor 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) 
-    { 
-        perror("socket failed"); 
-        exit(EXIT_FAILURE); 
-    } 
+        return -1;  // socket failed
        
     // Forcefully attaching socket to the port 
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
                                                   &opt, sizeof(opt))) 
-    { 
-        perror("setsockopt"); 
-        exit(EXIT_FAILURE); 
-    } 
+        return -2; // setsockopt failed
+ 
     address.sin_family = AF_INET; 
     address.sin_addr.s_addr = INADDR_ANY; 
     address.sin_port = htons( port ); 
@@ -32,21 +27,15 @@ int setserversock(int port)
     // Forcefully attaching socket to the port 
     if (bind(server_fd, (struct sockaddr *)&address,  
                                  sizeof(address))<0) 
-    { 
-        perror("bind failed"); 
-        exit(EXIT_FAILURE); 
-    } 
+        return -3;  // bind failed
+
     if (listen(server_fd, 3) < 0) 
-    { 
-        perror("listen"); 
-        exit(EXIT_FAILURE); 
-    } 
+        return -4; // listen failed
+
     if ((new_socket = accept(server_fd, (struct sockaddr *)&address,  
                        (socklen_t*)&addrlen))<0) 
-    { 
-        perror("accept"); 
-        exit(EXIT_FAILURE); 
-    }
+        return -5; // accept failed
+
     return new_socket;
 }
 
@@ -55,31 +44,23 @@ int setclientsock(int port,char *ip)
     int sock = 0, valread; 
     struct sockaddr_in serv_addr; 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
-    { 
-        printf("\n Socket creation error \n"); 
         return -1; 
-    } 
    
     serv_addr.sin_family = AF_INET; 
     serv_addr.sin_port = htons(port); 
        
     // Convert IPv4 and IPv6 addresses from text to binary form 
     if(inet_pton(AF_INET, ip, &serv_addr.sin_addr)<=0)  
-    { 
-        printf("\nInvalid address/ Address not supported \n"); 
-        return -1; 
-    } 
-
+        return -2; 
+    
     struct timeval timeout;
     timeout.tv_sec  = 5;  // after 5 seconds read() will timeout
     timeout.tv_usec = 0;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
-    { 
-        printf("\nConnection Failed \n"); 
-        return -1; 
-    } 
+        return -3; 
+    
     return sock;
 }
 
@@ -148,11 +129,7 @@ int getOctet(int sock,octet *B,int expected)
 int getIPaddress(char *ip,char *hostname)
 {
 	hostent * record = gethostbyname(hostname);
-	if(record == NULL)
-	{
-		printf("%s is unavailable\n", hostname);
-		exit(1);
-	}
+	if(record == NULL) return 0;
 	in_addr * address = (in_addr * )record->h_addr;
 	strcpy(ip,inet_ntoa(* address));
     return 1;

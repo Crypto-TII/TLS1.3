@@ -3,62 +3,50 @@
 //
 #include "tls_client_send.h"
 
-// Build Pre-Shared Key Share Extension
-void addPresharedKeyExt(octet *EXT,octet *TICK,unsign32 obf_age,octet* BD)
+void sendCCCS(int sock)
 {
-    int len=4+TICK->len+BD->len;
-    char psk[1024];
-    octet PSK={0,sizeof(psk),psk};
-    OCT_jint(&PSK,PRESHARED_KEY,2);
+    char cccs[10];
+    octet CCCS={0,sizeof(cccs),cccs};
+    OCT_fromHex(&CCCS,(char *)"140303000101");
+    sendOctet(sock,&CCCS);
 }
 
 // Build Servername Extension
 void addServerNameExt(octet *EXT,char *servername)
 {
     int len=strlen(servername);
-    char sn[TLS_MAX_SERVER_NAME+9];
-    octet SN = {0, sizeof(sn), sn};
-    OCT_jint(&SN,SERVER_NAME,2);  // This extension is SERVER_NAME(0)
-    OCT_jint(&SN,5+len,2);   // In theory its a list..
-    OCT_jint(&SN,3+len,2);   // but only one entry
-    OCT_jint(&SN,0,1);     // Server is of type DNS Hostname (only one type supported, and only one of each type)
-    OCT_jint(&SN,len,2);   // serverName length
-    OCT_jstring(&SN,servername); // servername
-    OCT_joctet(EXT,&SN);
+    OCT_jint(EXT,SERVER_NAME,2);  // This extension is SERVER_NAME(0)
+    OCT_jint(EXT,5+len,2);   // In theory its a list..
+    OCT_jint(EXT,3+len,2);   // but only one entry
+    OCT_jint(EXT,0,1);     // Server is of type DNS Hostname (only one type supported, and only one of each type)
+    OCT_jint(EXT,len,2);   // serverName length
+    OCT_jstring(EXT,servername); // servername
 }
     
 // Build Supported Groups Extension
 void addSupportedGroupsExt(octet *EXT,int nsg,int *supportedGroups)
 {
-    char sg[6+TLS_MAX_SUPPORTED_GROUPS*2];
-    octet SG = {0, sizeof(sg), sg};
-    OCT_jint(&SG,SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
-    OCT_jint(&SG,2*nsg+2,2);          // Total length
-    OCT_jint(&SG,2*nsg,2);            // Number of entries
+    OCT_jint(EXT,SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
+    OCT_jint(EXT,2*nsg+2,2);          // Total length
+    OCT_jint(EXT,2*nsg,2);            // Number of entries
     for (int i=0;i<nsg;i++)          // One entry per supported group 
-        OCT_jint(&SG,supportedGroups[i],2);
-    OCT_joctet(EXT,&SG);
+        OCT_jint(EXT,supportedGroups[i],2);
 }
 
 // Build Signature algorithms Extension
 void addSigAlgsExt(octet *EXT,int nsa,int *sigAlgs)
 {
-    char sa[6+TLS_MAX_SUPPORTED_SIGS*2];
-    octet SA={0,sizeof(sa),sa};
-    OCT_jint(&SA,SIG_ALGS,2);  // This extension is SIGNATURE_ALGORITHMS(0x0d)
-    OCT_jint(&SA,2*nsa+2,2);   // Total length
-    OCT_jint(&SA,2*nsa,2);     // Number of entries
+    OCT_jint(EXT,SIG_ALGS,2);  // This extension is SIGNATURE_ALGORITHMS(0x0d)
+    OCT_jint(EXT,2*nsa+2,2);   // Total length
+    OCT_jint(EXT,2*nsa,2);     // Number of entries
     for (int i=0;i<nsa;i++)   // One entry per supported signature algorithm
-        OCT_jint(&SA,sigAlgs[i],2);
-    OCT_joctet(EXT,&SA);
+        OCT_jint(EXT,sigAlgs[i],2);
 }
 
 // Add PSK vector
 // but omit bindings
 int addPreSharedKeyExt(octet *EXT,int npsks,unsign32 age[],octet IDS[],int sha)
 {
-    char psk[1024];
-    octet PSK={0,sizeof(psk),psk};
     int tlen1,tlen2;
     tlen1=tlen2=0;
     for (int i=0;i<npsks;i++)
@@ -66,17 +54,16 @@ int addPreSharedKeyExt(octet *EXT,int npsks,unsign32 age[],octet IDS[],int sha)
         tlen1+=IDS[i].len+2+4;
         tlen2+=sha+1;
     }
-    OCT_jint(&PSK,PRESHARED_KEY,2);
-    OCT_jint(&PSK,tlen1+tlen2+4,2);
+    OCT_jint(EXT,PRESHARED_KEY,2);
+    OCT_jint(EXT,tlen1+tlen2+4,2);
 // PSK Identifiers
-    OCT_jint(&PSK,tlen1,2);
+    OCT_jint(EXT,tlen1,2);
     for (int i=0;i<npsks;i++)
     {
-        OCT_jint(&PSK,IDS[i].len,2);
-        OCT_joctet(&PSK,&IDS[i]);
-        OCT_jint(&PSK,age[i],4);
+        OCT_jint(EXT,IDS[i].len,2);
+        OCT_joctet(EXT,&IDS[i]);
+        OCT_jint(EXT,age[i],4);
     }
-    OCT_joctet(EXT,&PSK);
 
     return tlen2+2;  // length of binders
 // Bindings - Truncate Client Hello here
@@ -94,44 +81,35 @@ int addPreSharedKeyExt(octet *EXT,int npsks,unsign32 age[],octet IDS[],int sha)
 // Offer a choice of publics keys (some may be PQ!)
 void addKeyShareExt(octet *EXT,int nalgs,int alg[],octet PK[])
 {
-    char ks[6+TLS_MAX_KEY_SHARES*(4+TLS_MAX_PUB_KEY_SIZE)];
-    octet KS={0,sizeof(ks),ks};
     int tlen=0;
     for (int i=0;i<nalgs;i++)
         tlen+=PK[i].len+4;
     
-    OCT_jint(&KS,KEY_SHARE,2); // This extension is KEY_SHARE(0x0033)
-    OCT_jint(&KS,tlen+2,2);
-    OCT_jint(&KS,tlen,2);
+    OCT_jint(EXT,KEY_SHARE,2); // This extension is KEY_SHARE(0x0033)
+    OCT_jint(EXT,tlen+2,2);
+    OCT_jint(EXT,tlen,2);
     for (int i=0;i<nalgs;i++)
     {
-        OCT_jint(&KS,alg[i],2);
-        OCT_jint(&KS,PK[i].len,2);
-        OCT_joctet(&KS,&PK[i]);
+        OCT_jint(EXT,alg[i],2);
+        OCT_jint(EXT,PK[i].len,2);
+        OCT_joctet(EXT,&PK[i]);
     }
-    OCT_joctet(EXT,&KS);
 }
 
 void addPSKExt(octet *EXT,int mode)
 {
-    char ps[6];
-    octet PS={0,sizeof(ps),ps};
-    OCT_jint(&PS,PSK_MODE,2);
-    OCT_jint(&PS,2,2);
-    OCT_jint(&PS,1,1);
-    OCT_jint(&PS,mode,1);
-    OCT_joctet(EXT,&PS);
+    OCT_jint(EXT,PSK_MODE,2);
+    OCT_jint(EXT,2,2);
+    OCT_jint(EXT,1,1);
+    OCT_jint(EXT,mode,1);
 }
 
 void addVersionExt(octet *EXT,int version)
 {
-    char vs[7];
-    octet VS={0,sizeof(vs),vs};
-    OCT_jint(&VS,TLS_VER,2);
-    OCT_jint(&VS,3,2);
-    OCT_jint(&VS,2,1);
-    OCT_jint(&VS,version,2);
-    OCT_joctet(EXT,&VS);
+    OCT_jint(EXT,TLS_VER,2);
+    OCT_jint(EXT,3,2);
+    OCT_jint(EXT,2,1);
+    OCT_jint(EXT,version,2);
 }
 
 void addCookieExt(octet *EXT,octet *CK)
@@ -173,49 +151,44 @@ int cipherSuites(octet *CS,int ncs,int *ciphers)
 
 // Send a client message CM (in a single record). AEAD encrypted if K!=NULL
 // recno is count of records sent with this key/IV combo
-void sendClientMessage(int sock,int rectype,int version,crypto *send,octet *CM)
+void sendClientMessage(int sock,int rectype,int version,crypto *send,octet *CM,octet *RECORD)
 {
     int reclen;
-    char record[TLS_MAX_CLIENT_RECORD];
-    octet RECORD={0,sizeof(record),record};
     char tag[TLS_TAG_SIZE];
     octet TAG={0,sizeof(tag),tag};
-    char iv[TLS_IV_SIZE];
-    octet IV={0,sizeof(iv),iv};
 
+    OCT_clear(RECORD);
     if (send==NULL)
     { // no encryption
-        OCT_jbyte(&RECORD,rectype,1);
-        OCT_jint(&RECORD,version,2);
+        OCT_jbyte(RECORD,rectype,1);
+        OCT_jint(RECORD,version,2);
         reclen=CM->len;
-        OCT_jint(&RECORD,reclen,2);
-        OCT_joctet(&RECORD,CM); // CM->len
+        OCT_jint(RECORD,reclen,2);
+        OCT_joctet(RECORD,CM); // CM->len
     } else { // encrypted, and sent as application record
-        OCT_jbyte(&RECORD,APPLICATION,1);
-        OCT_jint(&RECORD,TLS1_2,2);
+        OCT_jbyte(RECORD,APPLICATION,1);
+        OCT_jint(RECORD,TLS1_2,2);
         reclen=CM->len+16+1;       // 16 for the TAG, 1 for the record type
-        OCT_jint(&RECORD,reclen,2);
-        OCT_joctet(&RECORD,CM); 
-        OCT_jbyte(&RECORD,rectype,1); // append and encrypt actual record type
+        OCT_jint(RECORD,reclen,2);
+        OCT_joctet(RECORD,CM); 
+        OCT_jbyte(RECORD,rectype,1); // append and encrypt actual record type
 // could add random padding after this
 
 // AES-GCM
-
         gcm g;
         GCM_init(&g,send->K.len,send->K.val,12,send->IV.val);  // Encrypt with Client Application Key and IV
-        GCM_add_header(&g,RECORD.val,5);
-        GCM_add_plain(&g,&RECORD.val[5],&RECORD.val[5],reclen-16);
+        GCM_add_header(&g,RECORD->val,5);
+        GCM_add_plain(&g,&RECORD->val[5],&RECORD->val[5],reclen-16);
 //create and append TAG
         GCM_finish(&g,TAG.val); TAG.len=16;
         increment_crypto_context(send);
-        OCT_joctet(&RECORD,&TAG);
+        OCT_joctet(RECORD,&TAG);
     }
-printf("Client to Server -> "); OCT_output(&RECORD);
-    sendOctet(sock,&RECORD);
+    sendOctet(sock,RECORD);
 }
 
 // build and transmit client hello. Append pre-prepared extensions
-void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng *RNG,octet *CID,octet *EXTENSIONS,int extra)
+void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng *RNG,octet *CID,octet *EXTENSIONS,int extra,octet *RECORD)
 {
     char rn[32];
     octet RN = {0, sizeof(rn), rn};
@@ -243,10 +216,10 @@ void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng 
     OCT_joctet(CH,EXTENSIONS);
 
 // transmit it
-    sendClientMessage(sock,HSHAKE,version,NULL,CH);
+    sendClientMessage(sock,HSHAKE,version,NULL,CH,RECORD);
 }
 
-void sendBindersList(int sock,octet *B,int npsks,octet BNDS[])
+void sendBindersList(int sock,octet *B,int npsks,octet BNDS[],octet *RECORD)
 {
     int tlen2=0;
     OCT_clear(B);
@@ -259,12 +232,12 @@ void sendBindersList(int sock,octet *B,int npsks,octet BNDS[])
         OCT_joctet(B,&BNDS[i]);
     }
 // transmit it
-    sendClientMessage(sock,HSHAKE,TLS1_2,NULL,B);
+    sendClientMessage(sock,HSHAKE,TLS1_2,NULL,B,RECORD);
 
 }
 
 // send client alert - might be encrypted if K!=NULL
-void sendClientAlert(int sock,int type,crypto *send)
+void sendClientAlert(int sock,int type,crypto *send,octet *RECORD)
 {
     char pt[2];
     octet PT={0,sizeof(pt),pt};
@@ -272,11 +245,11 @@ void sendClientAlert(int sock,int type,crypto *send)
     OCT_jbyte(&PT,0x02,1);  // alerts are always fatal
     OCT_jbyte(&PT,type,1);
 
-    sendClientMessage(sock,ALERT,TLS1_2,send,&PT);
+    sendClientMessage(sock,ALERT,TLS1_2,send,&PT,RECORD);
 }
 
 // Send final client handshake verification data
-void sendClientVerify(int sock,crypto *send,unihash *h,octet *CHF)
+void sendClientVerify(int sock,crypto *send,unihash *h,octet *CHF,octet *RECORD)
 {
     char pt[TLS_MAX_HASH+4];
     octet PT={0,sizeof(pt),pt};
@@ -287,10 +260,10 @@ void sendClientVerify(int sock,crypto *send,unihash *h,octet *CHF)
 
     running_hash(&PT,h);
 
-    sendClientMessage(sock,HSHAKE,TLS1_2,send,&PT);
+    sendClientMessage(sock,HSHAKE,TLS1_2,send,&PT,RECORD);
 }
 
-void sendEndOfEarlyData(int sock,crypto *send,unihash *h)
+void sendEndOfEarlyData(int sock,crypto *send,unihash *h,octet *RECORD)
 {
     char ed[4];
     octet ED={0,sizeof(ed),ed};
@@ -300,6 +273,34 @@ void sendEndOfEarlyData(int sock,crypto *send,unihash *h)
 
     running_hash(&ED,h);
 
-    sendClientMessage(sock,HSHAKE,TLS1_2,send,&ED);
+    sendClientMessage(sock,HSHAKE,TLS1_2,send,&ED,RECORD);
+}
+
+// map causes to alerts
+int alert_from_cause(int rtn)
+{
+    switch (rtn)
+    {
+    case NOT_TLS1_3:
+        return ILLEGAL_PARAMETER;
+    case ID_MISMATCH:
+        return ILLEGAL_PARAMETER;
+    case UNRECOGNIZED_EXT:
+        return ILLEGAL_PARAMETER;
+    case BAD_HELLO:
+        return ILLEGAL_PARAMETER;        
+    case WRONG_MESSAGE:
+        return UNEXPECTED_MESSAGE;
+    case MISSING_REQUEST_CONTEXT:
+        return ILLEGAL_PARAMETER;
+    case AUTHENTICATION_FAILURE:
+        return DECRYPT_ERROR;
+    case BAD_RECORD:
+        return ILLEGAL_PARAMETER;
+    case BAD_TICKET:
+        return ILLEGAL_PARAMETER;
+    default:
+        return ILLEGAL_PARAMETER;    
+    }
 }
 

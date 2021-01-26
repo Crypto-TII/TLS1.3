@@ -3,6 +3,8 @@
 
 #include "core.h"
 
+#define LOGGER   // define to output debug info to log file
+
 // Some maximum sizes
 // Handshake will fail if these sizes are exceeded
 #define TLS_MAX_HASH 64
@@ -10,7 +12,7 @@
 #define TLS_MAX_SIGNED_CERT_SIZE 5000
 #define TLS_MAX_CERT_SIZE 4096
 #define TLS_MAX_CERTCHAIN_SIZE 3*TLS_MAX_SIGNED_CERT_SIZE
-#define TLS_X509_MAX_FIELD 80
+#define TLS_X509_MAX_FIELD 240
 #define TLS_MAX_SIGNED_CERT_B64 (1+(TLS_MAX_SIGNED_CERT_SIZE*4)/3)
 #define TLS_MAX_SIGNATURE_SIZE 512
 #define TLS_MAX_PUB_KEY_SIZE 512
@@ -31,8 +33,7 @@
 #define TLS_MAX_TICKET_SIZE 512
 
 #define TLS_MAX_EXTENSIONS 1024
-#define TLS_MAX_SERVER_HELLO 1024
-#define TLS_MAX_SERVER_RESPONSE 8192
+#define TLS_MAX_SERVER_RESPONSE 32768 //16384//8192 - we will want to reduce this!
 
 // Cipher Suites
 #define TLS_AES_128_GCM_SHA256 0x1301  // this is only one which MUST be implemented
@@ -59,6 +60,7 @@
 #define PSKOK 0x00
 #define PSKWECDHE 0x01
 
+// TLS versions
 #define TLS1_0 0x0301
 #define TLS1_2 0x0303
 #define TLS1_3 0x0304
@@ -79,7 +81,10 @@
 #define APPLICATION 0x17
 #define ALERT 0x15
 #define CHANGE_CIPHER 0x14
-#define TIME_OUT 0x00
+// pseudo-types
+#define TIME_OUT 0x01
+#define HANDSHAKE_RETRY 0x02
+#define STRANGE_EXTENSION 0x03
 
 // message types
 #define CLIENT_HELLO 0x01
@@ -93,21 +98,32 @@
 #define MESSAGE_HASH 0xFE
 #define END_OF_EARLY_DATA 0x05
 
-// server Hello reponses
-#define SH_ALERT 1
-#define NOT_TLS1_3 2
-#define HS_RETRY 3
-#define ID_MISMATCH 4
-#define UNRECOGNIZED_EXT 5
-#define BAD_HELLO 6
+// Causes of server error - which should generate an alert
+#define NOT_TLS1_3 -2
+#define ID_MISMATCH -4
+#define UNRECOGNIZED_EXT -5
+#define BAD_HELLO -6
+#define WRONG_MESSAGE -7
+#define MISSING_REQUEST_CONTEXT -8
+#define AUTHENTICATION_FAILURE -9
+#define BAD_RECORD -10
+#define BAD_TICKET -11
 
 // alerts
 #define ILLEGAL_PARAMETER 0x2F
 #define UNEXPECTED_MESSAGE 0x0A
 #define DECRYPT_ERROR 0x33
 #define BAD_CERTIFICATE 0x2A
+#define UNSUPPORTED_EXTENSION 0x6E
 
 using namespace core;
+
+//function return structure
+typedef struct 
+{
+    unsign32 val;
+    int err;
+} ret;
 
 // crypto context. Length of K=0 for no crypto.
 typedef struct
@@ -118,6 +134,38 @@ typedef struct
     octet IV;
     unsign32 record;
 } crypto;
+
+// ticket context
+typedef struct 
+{
+    char tick[TLS_MAX_TICKET_SIZE];
+    char nonce[32];
+    octet TICK;
+    octet NONCE;
+    int lifetime;
+    unsign32 age_obfuscator;
+    unsign32 max_early_data;
+    struct timeval birth;
+} ticket;
+
+// crypto capabilities structure
+typedef struct 
+{
+    int nsg;
+    int supportedGroups[TLS_MAX_SUPPORTED_GROUPS];
+    int nsc;
+    int ciphers[TLS_MAX_CIPHER_SUITES];
+    int nsa;
+    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
+} capabilities;
+
+// unified hashing
+typedef struct 
+{
+    hash256 sh32;
+    hash512 sh64;
+    int hlen;
+} unihash;
 
 #endif
 

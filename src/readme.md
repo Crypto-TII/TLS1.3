@@ -1,8 +1,8 @@
 # Description
 
-This C++ version is really just C plus namespaces. Namespaces are the only feature of C++ that is used. The Rust version will come later.
+This C++ version is really just C plus namespaces plus pass-by-reference. These the only features of C++ that are used. The Rust version will come later.
 
-First inside a working deirectory build the C++ version of MIRACL core (https://github.com/miracl/core), selecting support for C25519, NIST256, NIST384, RSA2048 and RSA4096.
+First inside a working directory build the C++ version of MIRACL core (https://github.com/miracl/core), selecting support for C25519, NIST256, NIST384, RSA2048 and RSA4096.
 
 This library does all the crypto, and can be regarded as a "placeholder" as we may in the future replace its functionality from other sources.
 
@@ -10,7 +10,7 @@ Then copy the contents of this archive to the same directory, in particular clie
 
 Build the client app by 
 
-	g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_hash.cpp tls_cert_chain.cpp tls_parse_octet.cpp tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp core.a -o client
+	g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp core.a -o client
 
 Then execute the client process as for example
 
@@ -189,7 +189,8 @@ The output should look something like
 	Waiting for Server input
 	TIMEOUT
 
-
+(This detailed output by default now goes to logger.log)
+ 
 Try it out on your favourite websites. It will abort if TLS1.3 is not supported. 
 At this stage the tool is still quite fragile (only tested and debuggd aginst a dozen websites or so!), and would be expected to often fail.
 
@@ -198,3 +199,5 @@ Also try
 	./client tls13.1d.pw
 
 Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
+
+See list.txt for some websites that work OK.

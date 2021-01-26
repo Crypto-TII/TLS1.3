@@ -8,8 +8,15 @@
 #include "ecdh_NIST384.h"
 #include "ecdh_C25519.h"
 
-
 using namespace core;
+
+extern void Hash_Init(int hlen,unihash *h);
+extern void Hash_Process(unihash *h,int b);
+extern void Hash_Output(unihash *h,char *d);
+
+extern void running_hash(octet *O,unihash *h);
+extern void transcript_hash(unihash *h,octet *O);
+extern void running_syn_hash(octet *O,unihash *h);
 
 extern void init_crypto_context(crypto *C);
 extern void create_crypto_context(crypto *C,octet *K,octet *IV);
@@ -19,7 +26,6 @@ extern void GET_KEY_AND_IV(int cipher_suite,octet *TS,crypto *context);
 extern void RECOVER_PSK(int sha,octet *RMS,octet *NONCE,octet *PSK);
 extern void GET_EARLY_SECRET(int sha,octet *PSK,octet *ES,octet *BKE,octet *BKR);
 extern void GET_LATER_SECRETS(int sha,octet *H,octet *ES,octet *CETS,octet *EEMS);
-//extern void GET_EARLY_SECRETS(int cipher_suite,octet *PSK,octet *ES,octet *BKE,octet *BKR,octet *CETS,octet *EEMS,octet *H);
 extern void GET_HANDSHAKE_SECRETS(int sha,octet *SS,octet *PSK, octet *H,octet *HS,octet *CHTS,octet *SHTS);
 extern void GET_APPLICATION_SECRETS(int sha,octet *HS,octet *SFH,octet *CFH,octet *CTS,octet *STS,octet *EMS,octet *RMS);
 extern unsign32 UPDATE_KEYS(crypto *context,octet *TS);

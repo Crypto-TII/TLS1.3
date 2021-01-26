@@ -1,6 +1,22 @@
 // TLS Server Certchain Code
 #include "tls_cert_chain.h"
-#include "tls_parse_octet.h"
+#include "tls_client_recv.h"
+#include "tls_logger.h"
+
+// combine Common Name, Organisation Name and Unit Name
+static void FULL_NAME(octet *FN,octet *CERT,int ic)
+{
+    int c,len;
+    OCT_clear(FN);
+    c=X509_find_entity_property(CERT,&X509_MN,ic,&len);
+    OCT_jbytes(FN,&CERT->val[c],len);
+    OCT_jbyte(FN,'/',1); // spacer
+    c=X509_find_entity_property(CERT,&X509_ON,ic,&len);
+    OCT_jbytes(FN,&CERT->val[c],len);
+    OCT_jbyte(FN,'/',1);
+    c=X509_find_entity_property(CERT,&X509_UN,ic,&len);
+    OCT_jbytes(FN,&CERT->val[c],len);
+}
 
 // given root issuer and public key type of signature, search through root CAs and return root public key
 bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
@@ -36,9 +52,10 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
             int c = X509_extract_cert(&SC, &C);
 
             int ic = X509_find_issuer(&C);
-            int alen,ac=X509_find_entity_property(&C, &X509_MN, ic, &alen);
-            OCT_clear(&OWNER);
-            OCT_jbytes(&OWNER,&C.val[ac],alen);
+            FULL_NAME(&OWNER,&C,ic);
+            //int alen,ac=X509_find_entity_property(&C, &X509_MN, ic, &alen);
+            //OCT_clear(&OWNER);
+            //OCT_jbytes(&OWNER,&C.val[ac],alen);
 
             if (OCT_comp(&OWNER,ISSUER))
             {
@@ -46,6 +63,8 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 
                 if (st.type==pt.type && st.curve==pt.curve) 
                 {
+//printf("Owner=  "); OCT_output_string(&OWNER); printf("\n");
+//printf("Issuer= "); OCT_output_string(ISSUER); printf("\n");
                     file.close();   
                     return true;
                 }
@@ -54,17 +73,6 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
         file.close();   
     }
     return false;
-}
-
-void OUTPUT_CERT(octet *CERT)
-{
-    char b[TLS_MAX_SIGNED_CERT_B64];
-    printf( "-----BEGIN CERTIFICATE----- ");
-    printf("\n");
-    OCT_tobase64(b,CERT);
-    printf("%s\n",b);
-    printf("-----END CERTIFICATE----- ");
-    printf("\n");
 }
 
 pktype GET_PUBLIC_KEY_FROM_SIGNED_CERT(octet *SCERT,octet *PUBLIC_KEY)
@@ -85,77 +93,37 @@ pktype GET_CERT_DETAILS(octet *SCERT,octet *CERT,octet *SIG,octet *ISSUER,octet 
     X509_extract_cert(SCERT,CERT);
 
     ic = X509_find_issuer(CERT);
-    c = X509_find_entity_property(CERT, &X509_MN, ic, &len);
-    OCT_clear(ISSUER);
-    OCT_jbytes(ISSUER,&CERT->val[c],len);
+    FULL_NAME(ISSUER,CERT,ic);
+
+//    c = X509_find_entity_property(CERT, &X509_MN, ic, &len);
+//    OCT_clear(ISSUER);
+//    OCT_jbytes(ISSUER,&CERT->val[c],len);
 
     ic = X509_find_subject(CERT);
-    c = X509_find_entity_property(CERT, &X509_MN, ic, &len);
-    OCT_clear(SUBJECT);
-    OCT_jbytes(SUBJECT,&CERT->val[c],len);
+    FULL_NAME(SUBJECT,CERT,ic);
+//    c = X509_find_entity_property(CERT, &X509_MN, ic, &len);
+//    OCT_clear(SUBJECT);
+//    OCT_jbytes(SUBJECT,&CERT->val[c],len);
     return sg;
 }
 
-void SHOW_CERT_DETAILS(char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet *ISSUER,octet *SUBJECT)
-{
-    printf("\n%s\n",txt);
-    printf("Signature is "); OCT_output(SIG);
-    if (sg.type==X509_ECC)
-    {
-        printf("ECC signature ");
-        if (sg.curve==USE_NIST256)
-            printf("Curve is SECP256R1\n");
-        if (sg.curve==USE_NIST384)
-            printf("Curve is SECP384R1\n");
-        if (sg.curve==USE_NIST521)
-            printf("Curve is SECP521R1\n");
-        if (sg.hash == X509_H256) printf("Hashed with SHA256\n");
-        if (sg.hash == X509_H384) printf("Hashed with SHA384\n");
-        if (sg.hash == X509_H512) printf("Hashed with SHA512\n");
-    }
-    if (sg.type==X509_RSA)
-        printf("RSA signature of length %d\n",sg.curve);
-
-    printf("Public key= %d ",PUBKEY->len); OCT_output(PUBKEY);
-    if (pk.type==X509_ECC)
-    {
-        printf("ECC public key ");
-        if (pk.curve==USE_NIST256)
-            printf("Curve is SECP256R1\n");
-        if (pk.curve==USE_NIST384)
-            printf("Curve is SECP384R1\n");
-        if (pk.curve==USE_NIST521)
-            printf("Curve is SECP521R1\n");
-    }
-    if (pk.type==X509_RSA)
-        printf("RSA public key of length %d\n",pk.curve);
-    
-    printf("Issuer is  ");OCT_output_string(ISSUER); printf("\n");
-    printf("Subject is ");OCT_output_string(SUBJECT); printf("\n");
-    printf("\n");
-   
-}
-
 // Check signature on Certificate given signature type and public key
-bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
+bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 {
     int sha=0;
-
     if (st.hash == X509_H256) sha = SHA256;
     if (st.hash == X509_H384) sha = SHA384;
     if (st.hash == X509_H512) sha = SHA512;
     if (st.hash == 0)
     {
-        printf("Hash Function not supported\n");
+        logger(fp,(char *)"Hash Function not supported\n",NULL,0,NULL);
         return 0;
     }
-
     if (st.type == 0)
     {
-        printf("Unable to check cert signature\n");
+        logger(fp,(char *)"Unable to check cert signature\n",NULL,0,NULL);
         return false;
     }
-
     if (st.type == X509_ECC)
     {
         char r[TLS_MAX_ECC_FIELD];
@@ -168,22 +136,20 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
             OCT_jbyte(&R,SIG->val[i],1);
             OCT_jbyte(&S,SIG->val[i+siglen],1);
         }
-        printf("SIG= \n");
-        OCT_output(&R);
-        OCT_output(&S);
-        printf("\n");
-        printf("ECC PUBLIC KEY= \n");
-        OCT_output(PUBKEY);
+        logger(fp,(char *)"SIG= \n",NULL,0,&R);
+        logger(fp,(char *)"",NULL,0,&S);
 
-        printf("Checking ECC Signature on Cert %d\n",st.curve);
+        logger(fp,(char *)"\nECC PUBLIC KEY= \n",NULL,0,PUBKEY);
+
+        logger(fp,(char *)"Checking ECC Signature on Cert ",(char *)"%d",st.curve,NULL);
 
         if (st.curve==USE_NIST256)
             res = NIST256::ECP_PUBLIC_KEY_VALIDATE(PUBKEY);
         if (st.curve==USE_NIST384)
             res = NIST384::ECP_PUBLIC_KEY_VALIDATE(PUBKEY);
         if (res != 0)
-            printf("ECP Public Key is invalid!\n");
-        else printf("ECP Public Key is Valid\n");
+            logger(fp,(char *)"ECP Public Key is invalid!\n",NULL,0,NULL);
+        else logger(fp,(char *)"ECP Public Key is Valid\n",NULL,0,NULL);
 
         if (st.curve==USE_NIST256)
             res=NIST256::ECP_VP_DSA(sha, PUBKEY, CERT, &R, &S);
@@ -192,25 +158,21 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 
         if (res!=0)
         {
-            printf("***ECDSA Verification Failed\n");
+            logger(fp,(char *)"***ECDSA Verification Failed\n",NULL,0,NULL);
             return false;
         } else {
-            printf("ECDSA Signature/Verification succeeded \n");
+            logger(fp,(char *)"ECDSA Signature/Verification succeeded \n",NULL,0,NULL);
             return true;
         }
     }
-
     if (st.type == X509_RSA)
     {
         int res;
-        printf("st.curve= %d\n",st.curve);
-        printf("SIG= %d\n",SIG->len);
-        OCT_output(SIG);
-        printf("\n");
-        printf("RSA PUBLIC KEY= %d\n",PUBKEY->len);
-        OCT_output(PUBKEY);
+        logger(fp,(char *)"st.curve= ",(char *)"%d",st.curve,NULL);
+        logger(fp,(char *)"SIG= ",NULL,0,SIG);
+        logger(fp,(char *)"\nRSA PUBLIC KEY= ",NULL,0,PUBKEY);
 
-        printf("Checking RSA Signature on Cert %d\n",sha);
+        logger(fp,(char *)"Checking RSA Signature on Cert \n",NULL,0,NULL);
         if (st.curve==2048)
         {
             char p1[RFS_RSA2048];
@@ -223,6 +185,9 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
             core::PKCS15(sha, CERT, &P1);
             RSA2048::RSA_ENCRYPT(&PK, SIG, &P2);
             res=OCT_comp(&P1, &P2);
+//printf("P1= "); OCT_output(&P1);
+//printf("P2= "); OCT_output(&P2);
+
         }
         if (st.curve==4096)
         {
@@ -239,10 +204,10 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         } 
         if (res)
         {
-            printf("RSA Signature/Verification succeeded \n");
+            logger(fp,(char *)"RSA Signature/Verification succeeded \n",NULL,0,NULL);
             return true;
         } else {
-            printf("***RSA Verification Failed\n");
+            logger(fp,(char *)"***RSA Verification Failed\n",NULL,0,NULL);
             return false;
         }
     }
@@ -250,9 +215,10 @@ bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 }
 
 //extract server public key, and check validity of certificate chain
-bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
+bool CHECK_CERT_CHAIN(FILE *fp,octet *CERTCHAIN,octet *PUBKEY)
 {
-    int c,ptr=0;
+    ret r;
+    int len,c,ptr=0;
     bool self_signed;
     pktype st,ca,stn;
     char sig[TLS_MAX_SIGNATURE_SIZE];  // signature on certificate
@@ -268,63 +234,56 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     char subject[TLS_X509_MAX_FIELD];
     octet SUBJECT={0,sizeof(subject),subject};
 
-    int len=parseInt24(CERTCHAIN,ptr); // get length of first (server) certificate
-    parseOctet(&SCERT,len,CERTCHAIN,ptr); 
+    r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false;// get length of first (server) certificate
+    r=parseOctet(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
 
-//printf("Server Cert= %d \n",SCERT.len);
-//OUTPUT_CERT(&SCERT);
-
-    len=parseInt16(CERTCHAIN,ptr);
+    r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
     ptr+=len;   // skip certificate extensions
     ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,PUBKEY);
+
     st=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);   // get signature on Server Cert
 
     if (st.type==0)
     {
-        printf("Unrecognised Signature Type\n");
+        logger(fp,(char *)"Unrecognised Signature Type\n",NULL,0,NULL);
         return false;
     }
 
-    SHOW_CERT_DETAILS((char *)"Server certificate",PUBKEY,ca,&SIG,st,&ISSUER,&SUBJECT);
+    logCertDetails(fp,(char *)"Server certificate",PUBKEY,ca,&SIG,st,&ISSUER,&SUBJECT);
 
-//    printf("cert.len= %d, ptr= %d\n",CERTCHAIN->len,ptr);
-    len=parseInt24(CERTCHAIN,ptr); // get length of next certificate
-    parseOctet(&SCERT,len,CERTCHAIN,ptr); 
-//printf("Inter Cert= %d \n",SCERT.len);
-//OUTPUT_CERT(&SCERT);
+    r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false; // get length of next certificate
+    r=parseOctet(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
 
-    len=parseInt16(CERTCHAIN,ptr);
+
+    r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
     ptr+=len;   // skip certificate extensions
 
     ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,&CAKEY);  // get public key from Intermediate Cert
-//    printf("Public Key of Intermediate Cert = %d ",CAKEY.len); OCT_output(&CAKEY);
-//    printf("Signature on Server Cert = %d ",SIG.len); OCT_output(&SIG);
 
-    if (CHECK_CERT_SIG(st,&CERT,&SIG,&CAKEY)) {
-        printf("Intermediate Certificate Chain sig is OK\n");
+    if (CHECK_CERT_SIG(fp,st,&CERT,&SIG,&CAKEY)) {
+        logger(fp,(char *)"Intermediate Certificate Chain sig is OK\n",NULL,0,NULL);
     } else {
-        printf("Intermediate Certificate Chain sig is NOT OK\n");
+        logger(fp,(char *)"Intermediate Certificate Chain sig is NOT OK\n",NULL,0,NULL);
         return false;
     }
 
     stn=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);
 
-    SHOW_CERT_DETAILS((char *)"Intermediate Certificate",&CAKEY,ca,&SIG,stn,&ISSUER,&SUBJECT);
+    //logCert(fp,&SCERT);
 
-//printf("Issuer= ");OCT_output_string(&ISSUER); printf("\n");
+    logCertDetails(fp,(char *)"Intermediate Certificate",&CAKEY,ca,&SIG,stn,&ISSUER,&SUBJECT);
 
     if (FIND_ROOT_CA(&ISSUER,stn,&CAKEY)) {
-        printf("\nPublic Key from root CA cert= "); OCT_output(&CAKEY);
- //       printf("type= %d, hash= %d, curve/len= %d\n",stn.type,stn.hash,stn.curve); 
+        logger(fp,(char *)"\nPublic Key from root CA cert= ",NULL,0,&CAKEY);
     } else {
-        printf("Root CA not found\n");
+        logger(fp,(char *)"Root CA not found\n",NULL,0,NULL);
         return false;
     }
 
-    if (CHECK_CERT_SIG(stn,&CERT,&SIG,&CAKEY)) {
-        printf("Root Certificate sig is OK!!!!\n");
+    if (CHECK_CERT_SIG(fp,stn,&CERT,&SIG,&CAKEY)) {
+        logger(fp,(char *)"Root Certificate sig is OK!!!!\n",NULL,0,NULL);
     } else {
-        printf("Root Certificate sig is NOT OK\n");
+        logger(fp,(char *)"Root Certificate sig is NOT OK\n",NULL,0,NULL);
         return false;
     }
 
@@ -337,10 +296,11 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
 //              rsa_pkcs1_sha256 (for certificates), rsa_pss_rsae_sha256 (for
 //              CertificateVerify and certificates), and ecdsa_secp256r1_sha256."
 
-bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
+bool IS_SERVER_CERT_VERIFY(FILE *fp,int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
 {
 // Server Certificate Verify
-    int sha;
+    ret rt;
+    int lzero,sha;
     char scv[100+TLS_MAX_HASH];
     octet SCV={0,sizeof(scv),scv};
     char p[TLS_MAX_SIGNATURE_SIZE];
@@ -386,79 +346,76 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
     case ECDSA_SECP256R1_SHA256:  // DER encoded !!
         sha=0x20; // SHA256
         ptr=0;
-        der=parseByte(SCVSIG,ptr);
-        if (der!=0x30) return false;
-        slen=parseByte(SCVSIG,ptr);
-        if (slen+2!=len) return false;
+        rt=parseByte(SCVSIG,ptr); der=rt.val;
+        if (rt.err || der!=0x30) return false;
+        rt=parseByte(SCVSIG,ptr); slen=rt.val;
+        if (rt.err || slen+2!=len) return false;
 
-        Int=parseByte(SCVSIG,ptr);
-        if (Int!=0x02) return false;
-        rlen=parseByte(SCVSIG,ptr);
+        rt=parseByte(SCVSIG,ptr); Int=rt.val;
+        if (rt.err || Int!=0x02) return false;
+        rt=parseByte(SCVSIG,ptr); rlen=rt.val;
+        if (rt.err) return false;
         if (rlen==0x21)
         {
             rlen--;
-            int lzero=parseByte(SCVSIG,ptr);
-            if (lzero!=0) return false;
+            rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+            if (rt.err || lzero!=0) return false;
         }
-        parseOctet(&R,0x20,SCVSIG,ptr);
+        rt=parseOctet(&R,0x20,SCVSIG,ptr); if (rt.err) return false;
 
-        Int=parseByte(SCVSIG,ptr);
-        if (Int!=0x02) return false;
-        slen=parseByte(SCVSIG,ptr);
-        if (slen==0x21)
+        rt=parseByte(SCVSIG,ptr); Int=rt.val;
+        if (rt.err || Int!=0x02) return false;
+        rt=parseByte(SCVSIG,ptr); slen=rt.val;
+        if (rt.err || slen==0x21)
         {
             slen--;
-            int lzero=parseByte(SCVSIG,ptr);
-            if (lzero!=0) return false;
+            rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+            if (rt.err || lzero!=0) return false;
         }
-        parseOctet(&S,0x20,SCVSIG,ptr);
+        rt=parseOctet(&S,0x20,SCVSIG,ptr); if (rt.err) return false;
 
-if (rlen<0x20 || slen<0x20) printf("**** Signature problem\n");
-//printf("R= ");OCT_output(&R);
-//printf("S= ");OCT_output(&S);
+        if (rlen<0x20 || slen<0x20) return false;
 
         if (NIST256::ECP_VP_DSA(sha, CERTPK, &SCV, &R, &S) == 0)
             return true;
     case ECDSA_SECP384R1_SHA384:
         sha=0x30;
         ptr=0;
-        der=parseByte(SCVSIG,ptr);
-        if (der!=0x30) return false;
-        slen=parseByte(SCVSIG,ptr);
-        if (slen+2!=len) return false;
+        rt=parseByte(SCVSIG,ptr); der=rt.val;
+        if (rt.err || der!=0x30) return false;
+        rt=parseByte(SCVSIG,ptr); slen=rt.val;
+        if (rt.err || slen+2!=len) return false;
 
-        Int=parseByte(SCVSIG,ptr);
-        if (Int!=0x02) return false;
-        rlen=parseByte(SCVSIG,ptr);
-        if (rlen==0x31)
+        rt=parseByte(SCVSIG,ptr); Int=rt.val;
+        if (rt.err || Int!=0x02) return false;
+        rt=parseByte(SCVSIG,ptr); rlen=rt.val;
+        if (rt.err || rlen==0x31)
         { // there must be a leading zero
             rlen--;
-            int lzero=parseByte(SCVSIG,ptr);
-            if (lzero!=0) return false;
+            rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+            if (rt.err || lzero!=0) return false;
         }
-        parseOctet(&R,0x30,SCVSIG,ptr);
+        rt=parseOctet(&R,0x30,SCVSIG,ptr);  if (rt.err) return false;
 
-        Int=parseByte(SCVSIG,ptr);
-        if (Int!=0x02) return false;
-        slen=parseByte(SCVSIG,ptr);
+        rt=parseByte(SCVSIG,ptr); Int=rt.val;
+        if (rt.err || Int!=0x02) return false;
+        rt=parseByte(SCVSIG,ptr); slen=rt.val;
+        if (rt.err) return false;
         if (slen==0x31)
         { // there must be a leading zero
             slen--;
-            int lzero=parseByte(SCVSIG,ptr);
-            if (lzero!=0) return false;
+            rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+            if (rt.err || lzero!=0) return false;
         }
-        parseOctet(&S,0x30,SCVSIG,ptr);
+        rt=parseOctet(&S,0x30,SCVSIG,ptr); if (rt.err) return false;
 
-if (rlen<0x30 || slen<0x30) printf("**** Signature problem\n");
-//printf("R= ");OCT_output(&R);
-//printf("S= ");OCT_output(&S);
+        if (rlen<0x30 || slen<0x30) return false;
 
         if (NIST384::ECP_VP_DSA(sha, CERTPK, &SCV, &R, &S) == 0)
         return true;
 
-
     default :
-        printf("WHOOPS - Unsupported signature type\n");
+        logger(fp,(char *)"WHOOPS - Unsupported signature type\n",NULL,0,NULL);
         return false;
     }
     return false;

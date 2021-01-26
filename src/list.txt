@@ -2,11 +2,13 @@
 			Allow early data
 www.bbc.co.uk			No
 www.protonmail.com		No
-www.miracl.com			Yes
+www.miracl.com			No
 www.facebook.com		No
-tls13.ulfheim.net		-
+tls13.ulfheim.net		No
 tls13.cloudfare.com		No
 www.google.com			No
 slack.com			No
 owasp.org			No
 mozilla.org			No
+swifttls.org			Yes
+tls13.1d.pw			No

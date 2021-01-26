@@ -5,13 +5,12 @@
 #include <string.h>
 #include "core.h"
 #include "tls1_3.h"
-#include "tls_hash.h"
 #include "tls_sockets.h"
 #include "tls_keys_calc.h"
-#include "tls_parse_octet.h"
 
 using namespace core;
 
+extern void sendCCCS(int sock);
 extern int addPreSharedKeyExt(octet *EXT,int npsks,unsign32 age[],octet IDS[],int sha);
 extern void addServerNameExt(octet *EXT,char *servername);
 extern void addSupportedGroupsExt(octet *EXT,int nsg,int *supportedGroups);
@@ -26,10 +25,12 @@ extern int clientRandom(octet *RN,csprng *RNG);
 extern int sessionID(octet *SI,csprng *RNG);
 extern int cipherSuites(octet *CS,int ncs,int *ciphers); 
 
-extern void sendClientMessage(int sock,int rectype,int version,crypto *send,octet *CM);
-extern void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng *RNG,octet *CID,octet *EXTENSIONS,int extra);
-extern void sendClientAlert(int sock,int type,crypto *send);
-extern void sendClientVerify(int sock,crypto *send,unihash *h,octet *CHF);
-extern void sendEndOfEarlyData(int sock,crypto *send,unihash *h);
+extern void sendClientMessage(int sock,int rectype,int version,crypto *send,octet *CM,octet *RECORD);
+extern void sendClientHello(int sock,int version,octet *CH,int nsc,int *ciphers,csprng *RNG,octet *CID,octet *EXTENSIONS,int extra,octet *RECORD);
+extern void sendClientAlert(int sock,int type,crypto *send,octet *RECORD);
+extern void sendClientVerify(int sock,crypto *send,unihash *h,octet *CHF,octet *RECORD);
+extern void sendEndOfEarlyData(int sock,crypto *send,unihash *h,octet *RECORD);
+extern void sendBindersList(int sock,octet *B,int npsks,octet BNDS[],octet *RECORD);
 
+extern int alert_from_cause(int rtn);
 #endif

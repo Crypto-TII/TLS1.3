@@ -13,16 +13,11 @@
 using namespace core;
 using namespace std;
 
-extern void SHOW_CERT_DETAILS(char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet *ISSUER,octet *SUBJECT);
-
 extern pktype GET_CERT_DETAILS(octet *SCERT,octet *CERT,octet *SIG,octet *ISSUER,octet *SUBJECT);
 extern pktype GET_PUBLIC_KEY_FROM_SIGNED_CERT(octet *SCERT,octet *PUBLIC_KEY);
-
-//extern void GET_CERT_DETAILS(octet *CERTIFICATE,octet *CERT,octet *PUBKEY,pktype *pk,octet *SIG,pktype *sg,octet *ISSUER,octet *SUBJECT);
-extern bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY);
-extern bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY);
-extern void OUTPUT_CERT(octet *CERT);
+extern bool CHECK_CERT_CHAIN(FILE *fp,octet *CERTCHAIN,octet *PUBKEY);
+extern bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY);
 extern bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY);
-extern bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK);
+extern bool IS_SERVER_CERT_VERIFY(FILE *fp,int sigalg,octet *SCVSIG,octet *H,octet *CERTPK);
 
 #endif

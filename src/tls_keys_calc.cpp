@@ -1,6 +1,69 @@
-
-// extract traffic, handshake and application keys from raw secrets
+// TLS1.3 crypto
 #include "tls_keys_calc.h"
+
+void Hash_Init(int hlen,unihash *h)
+{
+    if (hlen==32) 
+        HASH256_init(&(h->sh32));
+    if (hlen==48)
+        HASH384_init(&(h->sh64));
+    if (hlen==64)
+        HASH512_init(&(h->sh64));
+    h->hlen=hlen;
+}
+
+void Hash_Process(unihash *h,int b)
+{
+    if (h->hlen==32)
+        HASH256_process(&(h->sh32),b);
+    if (h->hlen==48)
+        HASH384_process(&(h->sh64),b);
+    if (h->hlen==64)
+        HASH512_process(&(h->sh64),b);
+}
+
+void Hash_Output(unihash *h,char *d)
+{
+    if (h->hlen==32)
+        HASH256_continuing_hash(&(h->sh32),d);
+    if (h->hlen==48)
+        HASH384_continuing_hash(&(h->sh64),d);
+    if (h->hlen==64)
+        HASH384_continuing_hash(&(h->sh64),d);
+}
+
+// Add to transcript hash 
+void running_hash(octet *O,unihash *h)
+{
+    for (int i=0;i<O->len;i++)
+        Hash_Process(h,O->val[i]);
+}
+
+// Output transcript hash 
+void transcript_hash(unihash *h,octet *O)
+{
+    Hash_Output(h,O->val); O->len=h->hlen; 
+}
+
+// special case handling for first clientHello after retry request
+void running_syn_hash(octet *O,unihash *h)
+{
+    int sha=h->hlen;
+    unihash rhash;
+    char hh[TLS_MAX_HASH];
+    octet HH={0,sizeof(hh),hh};
+
+    Hash_Init(sha,&rhash); 
+ // RFC 8446 - "special synthetic message"
+    running_hash(O,&rhash);
+    transcript_hash(&rhash,&HH);
+    
+    Hash_Process(h,MESSAGE_HASH);
+    Hash_Process(h,0); Hash_Process(h,0);
+    Hash_Process(h,sha);   // fe 00 00 sha
+    
+    running_hash(&HH,h);
+}
 
 // create expanded HKDF label LB from label and context
 static void hkdfLabel(octet *LB,int length,octet *Label,octet *CTX)
@@ -127,7 +190,7 @@ void GET_KEY_AND_IV(int cipher_suite,octet *TS,crypto *context)
         sha=48;
         key=32;
     }
-    char info[16];
+    char info[8];
     octet INFO = {0,sizeof(info),info};
 
     OCT_clear(&INFO);
@@ -163,19 +226,17 @@ void GET_EARLY_SECRET(int sha,octet *PSK,octet *ES,octet *BKE,octet *BKR)
     octet ZK = {0,sizeof(zk),zk};       // Zero Key
     char info[16];
     octet INFO = {0,sizeof(info),info};
-    char ps[TLS_MAX_HASH];
-    octet PS={0,sizeof(ps),ps};
 
     OCT_jbyte(&ZK,0,sha);  // Zero key
 
     if (PSK==NULL)
-        OCT_copy(&PS,&ZK);
+        OCT_copy(&EMH,&ZK);
     else
-        OCT_copy(&PS,PSK);
+        OCT_copy(&EMH,PSK);
 
-    SPhash(MC_SHA2,sha,&EMH,NULL);  // hash of ""
+    HKDF_Extract(MC_SHA2,sha,ES,&ZK,&EMH);  // hash function, ES is output, ZK is salt and EMH is IKM
 
-    HKDF_Extract(MC_SHA2,sha,ES,&ZK,&PS);  // hash function, ES is output, ZK is salt and PS is IKM
+    SPhash(MC_SHA2,sha,&EMH,NULL);  // EMH = hash of ""
 
     if (BKE!=NULL)
     {  // External Binder Key
@@ -224,23 +285,17 @@ void GET_HANDSHAKE_SECRETS(int sha,octet *SS,octet *ES,octet *H,octet *HS,octet 
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"derived");
-    HKDF_Expand_Label(MC_SHA2,sha,&DS,sha,ES,&INFO,&EMH);
+    HKDF_Expand_Label(MC_SHA2,sha,&DS,sha,ES,&INFO,&EMH);  
 
     HKDF_Extract(MC_SHA2,sha,HS,&DS,SS);
-
-    printf("Handshake Secret= ");OCT_output(HS);
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"c hs traffic");
     HKDF_Expand_Label(MC_SHA2,sha,CHTS,sha,HS,&INFO,H);
 
-    printf("Client handshake traffic secret= ");OCT_output(CHTS);
-
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"s hs traffic");
     HKDF_Expand_Label(MC_SHA2,sha,SHTS,sha,HS,&INFO,H);
-
-    printf("Server handshake traffic secret= ");OCT_output(SHTS);
 }
 
 // Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
@@ -257,13 +312,12 @@ void GET_APPLICATION_SECRETS(int sha,octet *HS,octet *SFH,octet *CFH,octet *CTS,
     char info[16];
     octet INFO = {0,sizeof(info),info};
 
-    OCT_jbyte(&ZK,0,sha);
-    SPhash(MC_SHA2,sha,&EMH,NULL);  // 
+    OCT_jbyte(&ZK,0,sha);           // 00..00  
+    SPhash(MC_SHA2,sha,&EMH,NULL);  // hash("")
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"derived");
     HKDF_Expand_Label(MC_SHA2,sha,&DS,sha,HS,&INFO,&EMH);   // Use handshake secret from above
-//    printf("Derived Secret = "); OCT_output(&DS);
 
     HKDF_Extract(MC_SHA2,sha,&MS,&DS,&ZK);
 
@@ -271,13 +325,9 @@ void GET_APPLICATION_SECRETS(int sha,octet *HS,octet *SFH,octet *CFH,octet *CTS,
     OCT_jstring(&INFO,(char *)"c ap traffic");
     HKDF_Expand_Label(MC_SHA2,sha,CTS,sha,&MS,&INFO,SFH);
 
-    printf("Client application traffic secret= ");OCT_output(CTS);
-
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"s ap traffic");
     HKDF_Expand_Label(MC_SHA2,sha,STS,sha,&MS,&INFO,SFH);
-
-    printf("Server application traffic secret= ");OCT_output(STS);
 
     if (EMS!=NULL)
     {
@@ -324,21 +374,15 @@ void GENERATE_KEY_PAIR(csprng *RNG,int group,octet *SK,octet *PK)
 // generate shared secret SS from secret key SK and public hey PK
 void GENERATE_SHARED_SECRET(int group,octet *SK,octet *PK,octet *SS)
 {
-    if (group==X25519)
-    { // RFC 7748
-        printf("X25519 Key Exchange\n");
+    if (group==X25519) { // RFC 7748
         OCT_reverse(PK);
         C25519::ECP_SVDP_DH(SK, PK, SS,0);
         OCT_reverse(SS);
     }
-    if (group==SECP256R1)
-    {
-        printf("SECP256R1 Key Exchange\n");
+    if (group==SECP256R1) {
         NIST256::ECP_SVDP_DH(SK, PK, SS,0);
     }
-    if (group==SECP384R1)
-    {
-        printf("SECP384R1 Key Exchange\n");
+    if (group==SECP384R1) {
         NIST384::ECP_SVDP_DH(SK, PK, SS,0);
     }
 }
