@@ -12,3 +12,5 @@ owasp.org			No
 mozilla.org			No
 swifttls.org			Yes
 tls13.1d.pw			No
+realpython.com                  Yes
+www.padok.fr                    Yes

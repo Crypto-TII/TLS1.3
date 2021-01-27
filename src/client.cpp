@@ -1,5 +1,5 @@
 // Client side C/C++ program to demonstrate TLS1.3 
-// g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_hash.cpp tls_cert_chain.cpp tls_parse_octet.cpp tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp core.a -o client
+// g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp  tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp core.a -o client
 
 #include <stdio.h> 
 #include <fstream>
@@ -246,8 +246,9 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     int pskMode=PSKWECDHE;
     favourite_group=CPB.supportedGroups[0]; // only sending one key share in favourite group
 
-
+//
 // Generate key pair in favourite group
+//
     GENERATE_KEY_PAIR(&RNG,favourite_group,&CSK,&CPK);
 
     logger(fp,(char *)"Private key= ",NULL,0,&CSK);
@@ -258,7 +259,7 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     OCT_copy(&MCPK[0],&CPK);   // Just one Public Key Share
 
 // Client Hello
-// First build client Hello extensions
+// First build our preferred mix of client Hello extensions, based on our capabililities
     addServerNameExt(&EXT,hostname);
     addSupportedGroupsExt(&EXT,CPB.nsg,CPB.supportedGroups);
     addSigAlgsExt(&EXT,CPB.nsa,CPB.sigAlgs);
@@ -271,7 +272,7 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     logger(fp,(char *)"Client to Server -> ",NULL,0,&RECORD); 
     logger(fp,(char *)"Client Hello sent\n",NULL,0,NULL);
 
-// Process Server Hello
+// Process Server Hello response
     rtn=getServerHello(sock,&SR,cipher_suite,kex,&CID,&COOK,&SPK,pskid);
     logServerResponse(fp,rtn,&SR);
     if (rtn<0)
@@ -288,8 +289,8 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     {
         if (cipher_suite==CPB.ciphers[i])
         {
-            sha=32; // length of SHA2 hash
-            if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=48;
+            sha=32; // length of SHA256 hash
+            if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=48; // length of SHA384
         }
     }
     if (sha==0)
@@ -303,13 +304,13 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
 
     GET_EARLY_SECRET(sha,NULL,&ES,NULL,NULL);   // Early Secret
 
-// Init Transcript Hash
-// For Transcript hash must use cipher-suite hash function
+// Initialise Transcript Hash
+// For Transcript hash we must use cipher-suite hash function
 // which could be SHA256 or SHA384
     unihash tlshash;
     Hash_Init(sha,&tlshash);    
 
-// HelloRetryRequest ?
+// Did serverHello ask for HelloRetryRequest?
     if (rtn==HANDSHAKE_RETRY)
     {
         if (kex==favourite_group)
@@ -321,7 +322,7 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
         }
         logger(fp,(char *)"Server HelloRetryRequest= ",NULL,0,&SR);
         running_syn_hash(&CH,&tlshash); // RFC 8446 section 4.4.1
-        running_hash(&SR,&tlshash);   // Hash of HelloRetryRequest
+        running_hash(&SR,&tlshash);     // Hash of HelloRetryRequest
 
 // Fix clientHello by supplying public key of Server's preferred key exchange algorithm
 // build new client Hello extensions
@@ -334,28 +335,30 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
         favourite_group=kex;
         GENERATE_KEY_PAIR(&RNG,favourite_group,&CSK,&CPK);
         OCT_copy(&MCPK[0],&CPK);   // Public Key Share in new group
-        kexGroups[0]=favourite_group; addKeyShareExt(&EXT,1,kexGroups,MCPK);
+        kexGroups[0]=favourite_group; 
+        addKeyShareExt(&EXT,1,kexGroups,MCPK);
 
         addPSKExt(&EXT,pskMode);
         addVersionExt(&EXT,tlsVersion);
         if (COOK.len!=0)
-            addCookieExt(&EXT,&COOK);
+            addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR
 
         sendCCCS(sock);  // send Client Cipher Change
         ccs_sent=true;
+
 // create and send new Client Hello Octet
         sendClientHello(sock,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&RNG,&CID,&EXT,0,&RECORD);
         logger(fp,(char *)"Client to Server -> ",NULL,0,&RECORD);
         rtn=getServerHello(sock,&SR,cs_hrr,kex,&CID,&COOK,&SPK,pskid);
         if (rtn==HANDSHAKE_RETRY)
-        {
+        { // only one retry allowed
             logger(fp,(char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
             sendClientAlert(sock,UNEXPECTED_MESSAGE,NULL,&RECORD);
             logger(fp,(char *)"Client to Server -> ",NULL,0,&RECORD);
             return 0;
         }
         if (cs_hrr!=cipher_suite)
-        {
+        { // Server cannot change cipher_suite at this stage
             logger(fp,(char *)"Server selected different cipher suite\n",NULL,0,NULL); 
             sendClientAlert(sock,ILLEGAL_PARAMETER,NULL,&RECORD); 
             logger(fp,(char *)"Client to Server -> ",NULL,0,&RECORD);
@@ -376,6 +379,7 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     logger(fp,(char *)"Server Hello= ",NULL,0,&SR); 
     logServerHello(fp,cipher_suite,kex,pskid,&SPK,&COOK);
 
+// Generate Shared secret SS from Client Secret Key and Server's Public Key
     GENERATE_SHARED_SECRET(kex,&CSK,&SPK,&SS);
     logger(fp,(char *)"Shared Secret= ",NULL,0,&SS);
 
@@ -395,9 +399,9 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
 
 // Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
-// on the "verifier". Note CA signature might use old methods, but server will use PSS padding for its signature (or ECC).
+// on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
 
-// get encrypted extensions
+// 1. get encrypted extensions
     OCT_clear(&SR);
     rtn=getServerEncryptedExtensions(sock,&SR,&K_recv,&tlshash,early_data_accepted);
     logServerResponse(fp,rtn,&SR);
@@ -410,7 +414,7 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
         return 0;
     logger(fp,(char *)"Encrypted Extensions Processed\n ",NULL,0,NULL);
 
-// get certificate chain
+// 2. get certificate chain
     rtn=getServerCertificateChain(sock,&SR,&K_recv,&tlshash,&CERTCHAIN);
     logServerResponse(fp,rtn,&SR);
     if (rtn<0)
@@ -421,7 +425,6 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     if (rtn==TIME_OUT || rtn==ALERT)
         return 0;
     logger(fp,(char *)"Certificate Chain Processed\n ",NULL,0,NULL);
-
     transcript_hash(&tlshash,&HH); // hash of clientHello+serverHello+encryptedExtensions+CertChain
     logger(fp,(char *)"Transcript Hash= ",NULL,0,&HH); 
 
@@ -436,7 +439,7 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
         return 0;
     }
 
-// get verifier
+// 3. get verifier signature
     int sigalg;
     rtn=getServerCertVerify(sock,&SR,&K_recv,&tlshash,&SCVSIG,sigalg);
     logServerResponse(fp,rtn,&SR);
@@ -449,7 +452,6 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
         return 0;
 
     transcript_hash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify
-
     logger(fp,(char *)"Transcript Hash= ",NULL,0,&FH);
     logger(fp,(char *)"Signature Algorithm= ",(char *)"%04x",sigalg,NULL);
     logger(fp,(char *)"Server Certificate Signature= ",NULL,0,&SCVSIG);
@@ -464,7 +466,7 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
         return 0;
     }
 
-// get Server Finished
+// 4. get Server Finished
     rtn=getServerFinished(sock,&SR,&K_recv,&tlshash,&FIN);
     logServerResponse(fp,rtn,&SR);
     if (rtn<0)
@@ -490,10 +492,10 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     }
 
     if (!ccs_sent)
-        sendCCCS(sock);  // send Client Cipher Change
+        sendCCCS(sock);  // send Client Cipher Change (if not already sent)
 
 // create client verify data
-// and send it to Server
+// .... and send it to Server
     VERIFY_DATA(sha,&CHF,&CTS,&TH);  
     logger(fp,(char *)"Client Verify Data= ",NULL,0,&CHF); 
     sendClientVerify(sock,&K_send,&tlshash,&CHF,&RECORD);   
@@ -504,16 +506,14 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     GET_APPLICATION_SECRETS(sha,&HS,&TH,&FH,&CTS,&STS,NULL,&RMS);
     GET_KEY_AND_IV(cipher_suite,&CTS,&K_send);
     GET_KEY_AND_IV(cipher_suite,&STS,&K_recv);
-
     logger(fp,(char *)"Client application traffic secret= ",NULL,0,&CTS);
     logger(fp,(char *)"Server application traffic secret= ",NULL,0,&STS);
 
-// Start the Application - send HTML GET command
 
+// Start the Application - send HTML GET command
     client_send(fp,sock,hostname,&K_send,false,&RECORD);
 
 // Process server responses
-
     rtn=processServerMessage(fp,sock,&SR,&K_recv,&STS,&TICK,&time_ticket_received); 
     logServerResponse(fp,rtn,&SR);
     if (rtn<0)
@@ -523,7 +523,7 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     }
 
     init_ticket_context(&T,time_ticket_received); // initialise and time-stamp a new ticket
-    parseTicket(&TICK,&T);  // extract into ticket structure
+    parseTicket(&TICK,&T);  // extract into ticket structure, and keep for later use
 
     if (resumption_required) return 2;
     return 1;
@@ -627,6 +627,7 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     unsign32 max_early_data=0;
     bool have_early_data=true;       // Hope to send client message as early data
 
+// Extract Ticket parameters
     lifetime=T.lifetime;
     age_obfuscator=T.age_obfuscator;
     max_early_data=T.max_early_data;
@@ -656,19 +657,19 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     logger(fp,(char *)"Binder Key= ",NULL,0,&BKR); 
     logger(fp,(char *)"Early Secret= ",NULL,0,&ES);
 
-// choice of up to 3 tickets
+// allow for up to 3 tickets... 
     char t1[TLS_MAX_TICKET_SIZE],t2[TLS_MAX_TICKET_SIZE],t3[TLS_MAX_TICKET_SIZE];
     octet PSKID[3]={
         {0,sizeof(t1),t1},{0,sizeof(t2),t2},{0,sizeof(t3),t3}
     };
-    OCT_copy(&PSKID[0],&ETICK); 
+    OCT_copy(&PSKID[0],&ETICK);   // .. but we only use one
 
     char b1[TLS_MAX_HASH+1],b2[TLS_MAX_HASH+1],b3[TLS_MAX_HASH+1];
     octet BINDERS[3]={
         {0,sizeof(b1),b1},{0,sizeof(b2),b2},{0,sizeof(b3),b3}
     };    
 
-// Generate key pair in favourite group - use same favourite group that worked before - should be no HRR
+// Generate key pair in favourite group - use same favourite group that worked before for this server - so should be no HRR
     GENERATE_KEY_PAIR(&RNG,favourite_group,&CSK,&CPK);
 
     logger(fp,(char *)"Private key= ",NULL,0,&CSK);  
@@ -691,18 +692,15 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     addPSKExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
     if (have_early_data)
-        addEarlyDataExt(&EXT);                                          // try sending client message as early data if allowed
+        addEarlyDataExt(&EXT);                                     // try sending client message as early data if allowed
 
-    unsign32 age[3];
+    unsign32 age[3];  // up to 3 tickets
     gettimeofday(&time_ticket_used, NULL);
-    age[0]= milliseconds(time_ticket_received,time_ticket_used);   // age of ticket in milliseconds - problem for mozilla.org ??
+    age[0]= milliseconds(time_ticket_received,time_ticket_used);   // age of ticket in milliseconds - problem for some sites which work for age[0]=0; ??
     logger(fp,(char *)"Ticket age= ",(char *)"%x",age[0],NULL);
     age[0]+=age_obfuscator;
     logger(fp,(char *)"obfuscated age = ",(char *)"%x",age[0],NULL);
     int extra=addPreSharedKeyExt(&EXT,1,age,PSKID,sha); 
-
-    if (have_early_data)
-        sendCCCS(sock);
 
 // create and send Client Hello Octet
     sendClientHello(sock,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&RNG,&CID,&EXT,extra,&RECORD);  
@@ -712,27 +710,28 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     unihash tlshash;
     Hash_Init(sha,&tlshash);
     running_hash(&CH,&tlshash);  
-    transcript_hash(&tlshash,&HH); // hash of truncated clientHello
+    transcript_hash(&tlshash,&HH); // hash of Truncated clientHello
 
     char bnd[TLS_MAX_HASH];
     octet BND={0,sizeof(bnd),bnd};
 
     VERIFY_DATA(sha,&BND,&BKR,&HH);
-
     logger(fp,(char *)"BND= ",NULL,0,&BND);
-
     OCT_copy(&BINDERS[0],&BND);
 
     char bl[3*TLS_MAX_HASH+3];
     octet BL={0,sizeof(bl),bl};
 
-    logger(fp,(char *)"Sending Binders\n",NULL,0,NULL);
-    sendBindersList(sock,&BL,1,BINDERS,&RECORD);
+    logger(fp,(char *)"Sending Binders\n",NULL,0,NULL);   // only sending one
+    sendBindersList(sock,&BL,1,BINDERS,&RECORD);          // the rest of clientHello
     logger(fp,(char *)"Client to Server -> ",NULL,0,&RECORD);
     running_hash(&BL,&tlshash);
     transcript_hash(&tlshash,&HH);  // hash of full clientHello
 
-    GET_LATER_SECRETS(sha,&ES,&HH,&CETS,NULL); // Get Client Early Traffic Secret
+    if (have_early_data)
+        sendCCCS(sock);
+
+    GET_LATER_SECRETS(sha,&ES,&HH,&CETS,NULL); // Get Client Early Traffic Secret from transcript hash and ES
     logger(fp,(char *)"Client Early Traffic Secret= ",NULL,0,&CETS); 
     GET_KEY_AND_IV(cipher_suite,&CETS,&K_send);  // Set Client K_send to early data keys 
 
@@ -742,8 +741,10 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
         logger(fp,(char *)"Sending some early data\n",NULL,0,NULL);
         client_send(fp,sock,hostname,&K_send,true,&RECORD);
     }
+
 // Process Server Hello
     rtn=getServerHello(sock,&SR,cipher_suite,kex,&CID,&COOK,&SPK,pskid);
+
     logServerResponse(fp,rtn,&SR);
     if (rtn<0)
     {
@@ -756,7 +757,7 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     logServerHello(fp,cipher_suite,kex,pskid,&SPK,&COOK);
 
     if (rtn==HANDSHAKE_RETRY)
-    {
+    { // should not happen
         logger(fp,(char *)"No change possible as result of HRR\n",NULL,0,NULL); 
         sendClientAlert(sock,UNEXPECTED_MESSAGE,&K_send,&RECORD);
         logger(fp,(char *)"Client to Server -> ",NULL,0,&RECORD);
@@ -765,7 +766,7 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     logger(fp,(char *)"serverHello= ",NULL,0,&SR); 
  
     if (pskid<0)
-    { // Ticket out of date??
+    { // Ticket rejected by Server as out of date??
         logger(fp,(char *)"Preshared key rejected by server\n",NULL,0,NULL);
         return 0;
     }
@@ -776,6 +777,7 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=48;
     if (sha==0) return 0;
 
+// Generate Shared secret SS from Client Secret Key and Server's Public Key
     GENERATE_SHARED_SECRET(kex,&CSK,&SPK,&SS);
     logger(fp,(char *)"Key Exchange= ",(char *)"%d",kex,NULL);
     logger(fp,(char *)"Shared Secret= ",NULL,0,&SS);
@@ -788,7 +790,7 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     logger(fp,(char *)"Client handshake traffic secret= ",NULL,0,&CTS);
     logger(fp,(char *)"Server handshake traffic secret= ",NULL,0,&STS);
 
-// get encrypted extensions
+// 1. get encrypted extensions
     OCT_clear(&SR);
     rtn=getServerEncryptedExtensions(sock,&SR,&K_recv,&tlshash,early_data_accepted);
     logServerResponse(fp,rtn,&SR);
@@ -807,6 +809,7 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     transcript_hash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtension
     logger(fp,(char *)"Transcript Hash= ",NULL,0,&FH); 
 
+// 2. get server finish
     rtn=getServerFinished(sock,&SR,&K_recv,&tlshash,&FIN);   // Finished
     logServerResponse(fp,rtn,&SR);
     if (rtn<0)
@@ -819,7 +822,7 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
 
     logger(fp,(char *)"SR.len= ",(char *)"%d",SR.len,NULL);
     
-// Now send End of Early Data, encrypted with 0-RTT keys
+// Now indicate End of Early Data, encrypted with 0-RTT keys
     transcript_hash(&tlshash,&HH); // hash of clientHello+serverHello+encryptedExtension+serverFinish
     if (early_data_accepted)
     {
@@ -850,7 +853,7 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     transcript_hash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtension+serverFinish+EndOfEarlyData+clientFinish
 
 // calculate traffic and application keys from handshake secret and transcript hashes
-    GET_APPLICATION_SECRETS(sha,&HS,&HH,NULL,&CTS,&STS,NULL,NULL);  // should really be TH
+    GET_APPLICATION_SECRETS(sha,&HS,&HH,NULL,&CTS,&STS,NULL,NULL);  
     GET_KEY_AND_IV(cipher_suite,&CTS,&K_send);
     GET_KEY_AND_IV(cipher_suite,&STS,&K_recv);
 
@@ -915,7 +918,7 @@ int main(int argc, char const *argv[])
     CREATE_CSPRNG(&RNG, &RAW);  // initialise strong RNG
 
     FILE *fp=fopen("logger.log","wt");
-    //FILE *fp=stdout;
+    //FILE *fp=stdout;                     // for verbose output
 
 // Make Socket connection
     argv++; argc--;

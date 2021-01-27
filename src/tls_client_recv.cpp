@@ -85,6 +85,9 @@ int getServerFragment(int sock,crypto *recv,octet *SR)
 
     pos=SR->len;               // current end of SR
     rtn=getOctet(sock,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
+
+// Need to check RH.val for correctness
+
     if (rtn<0)
         return TIME_OUT;
     if (RH.val[0]==ALERT)
@@ -104,6 +107,10 @@ int getServerFragment(int sock,crypto *recv,octet *SR)
         SCCS.len+=left;
         rtn=getOctet(sock,&RH,3); // get the next record
     }
+
+    if (RH.val[0]!=HSHAKE && RH.val[0]!=APPLICATION)
+        return BAD_RECORD;
+
     left=getInt16(sock);
     OCT_jint(&RH,left,2);
 
