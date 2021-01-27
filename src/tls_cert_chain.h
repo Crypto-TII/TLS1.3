@@ -1,4 +1,5 @@
-// TLS Server Certchain Code
+// TLS1.3 Server Certificate Chain Code
+
 #ifndef TLS_CERT_CHAIN_H
 #define TLS_CERT_CHAIN_H
 #include "tls1_3.h" 

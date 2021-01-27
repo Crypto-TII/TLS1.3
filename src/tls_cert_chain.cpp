@@ -1,9 +1,9 @@
-// TLS Server Certchain Code
+// TLS1.3 Server Certificate Chain Code
 #include "tls_cert_chain.h"
 #include "tls_client_recv.h"
 #include "tls_logger.h"
 
-// combine Common Name, Organisation Name and Unit Name
+// combine Common Name, Organisation Name and Unit Name to make unique determination
 static void FULL_NAME(octet *FN,octet *CERT,int ic)
 {
     int c,len;
@@ -19,9 +19,12 @@ static void FULL_NAME(octet *FN,octet *CERT,int ic)
 }
 
 // given root issuer and public key type of signature, search through root CAs and return root public key
+// This is a simple linear seacrch through CA certificates found in the ca-certificates.crt file (borrowed from Ubuntu)
+// This file could be in Read-Only-Memory
+
 bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 {
-    char sc[TLS_MAX_SIGNED_CERT_SIZE];  // maximum size for CA certs in bytes
+    char sc[TLS_MAX_SIGNED_CERT_SIZE];  // maximum size for CA certs in bytes - actually they are all quite small
     octet SC={0,sizeof(sc),sc};
     char c[TLS_MAX_CERT_SIZE];
     octet C={0,sizeof(c),c};
@@ -47,24 +50,17 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
                 b[i]=0;
             }
             OCT_frombase64(&SC,b);
-//printf("SC.len= %d %d\n",SC.len,i);
 
             int c = X509_extract_cert(&SC, &C);
 
             int ic = X509_find_issuer(&C);
             FULL_NAME(&OWNER,&C,ic);
-            //int alen,ac=X509_find_entity_property(&C, &X509_MN, ic, &alen);
-            //OCT_clear(&OWNER);
-            //OCT_jbytes(&OWNER,&C.val[ac],alen);
 
             if (OCT_comp(&OWNER,ISSUER))
             {
                 pktype pt = X509_extract_public_key(&C, PUBKEY);
-
                 if (st.type==pt.type && st.curve==pt.curve) 
-                {
-//printf("Owner=  "); OCT_output_string(&OWNER); printf("\n");
-//printf("Issuer= "); OCT_output_string(ISSUER); printf("\n");
+                { // found CA cert
                     file.close();   
                     return true;
                 }
@@ -72,19 +68,20 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
         }
         file.close();   
     }
-    return false;
+    return false;  // couldn't find it
 }
 
+// Extract public key from a signed certificate
 pktype GET_PUBLIC_KEY_FROM_SIGNED_CERT(octet *SCERT,octet *PUBLIC_KEY)
 {
     char cert[TLS_MAX_CERT_SIZE];
     octet CERT={0,sizeof(cert),cert};
-    X509_extract_cert(SCERT,&CERT);
-    pktype pk=X509_extract_public_key(&CERT, PUBLIC_KEY);
+    X509_extract_cert(SCERT,&CERT);  // first extract the Cert..
+    pktype pk=X509_extract_public_key(&CERT, PUBLIC_KEY);  //.. then pull out its public key
     return pk;
 }
 
-// extract Cert, Signature, Issuer and Subject from Signed Cert
+// extract Certificate, Signature, Full Issuer and Subject from Signed Cert
 pktype GET_CERT_DETAILS(octet *SCERT,octet *CERT,octet *SIG,octet *ISSUER,octet *SUBJECT)
 {
     int c,ic,len;
@@ -95,15 +92,9 @@ pktype GET_CERT_DETAILS(octet *SCERT,octet *CERT,octet *SIG,octet *ISSUER,octet 
     ic = X509_find_issuer(CERT);
     FULL_NAME(ISSUER,CERT,ic);
 
-//    c = X509_find_entity_property(CERT, &X509_MN, ic, &len);
-//    OCT_clear(ISSUER);
-//    OCT_jbytes(ISSUER,&CERT->val[c],len);
-
     ic = X509_find_subject(CERT);
     FULL_NAME(SUBJECT,CERT,ic);
-//    c = X509_find_entity_property(CERT, &X509_MN, ic, &len);
-//    OCT_clear(SUBJECT);
-//    OCT_jbytes(SUBJECT,&CERT->val[c],len);
+
     return sg;
 }
 
@@ -117,7 +108,7 @@ bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
     if (st.hash == 0)
     {
         logger(fp,(char *)"Hash Function not supported\n",NULL,0,NULL);
-        return 0;
+        return false;
     }
     if (st.type == 0)
     {
@@ -125,7 +116,7 @@ bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         return false;
     }
     if (st.type == X509_ECC)
-    {
+    { // its an ECC signature
         char r[TLS_MAX_ECC_FIELD];
         octet R={0,sizeof(r),r};
         char s[TLS_MAX_ECC_FIELD];
@@ -166,7 +157,7 @@ bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         }
     }
     if (st.type == X509_RSA)
-    {
+    { // its an RSA signature
         int res;
         logger(fp,(char *)"st.curve= ",(char *)"%d",st.curve,NULL);
         logger(fp,(char *)"SIG= ",NULL,0,SIG);
@@ -185,9 +176,6 @@ bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
             core::PKCS15(sha, CERT, &P1);
             RSA2048::RSA_ENCRYPT(&PK, SIG, &P2);
             res=OCT_comp(&P1, &P2);
-//printf("P1= "); OCT_output(&P1);
-//printf("P2= "); OCT_output(&P2);
-
         }
         if (st.curve==4096)
         {
@@ -215,6 +203,8 @@ bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 }
 
 //extract server public key, and check validity of certificate chain
+// This will need improving!
+// Assumes simple chain Server Cert->Intermediate Cert->CA cert
 bool CHECK_CERT_CHAIN(FILE *fp,octet *CERTCHAIN,octet *PUBKEY)
 {
     ret r;
@@ -253,7 +243,6 @@ bool CHECK_CERT_CHAIN(FILE *fp,octet *CERTCHAIN,octet *PUBKEY)
 
     r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false; // get length of next certificate
     r=parseOctet(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
-
 
     r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
     ptr+=len;   // skip certificate extensions
@@ -311,14 +300,15 @@ bool IS_SERVER_CERT_VERIFY(FILE *fp,int sigalg,octet *SCVSIG,octet *H,octet *CER
     octet S={0,sizeof(s),s};
 
 // TLS1.3 message that was signed
-    OCT_jbyte(&SCV,32,64);  // 64 spaces
+    OCT_jbyte(&SCV,32,64); // 64 spaces
     OCT_jstring(&SCV,(char *)"TLS 1.3, server CertificateVerify");  // 33 chars
-    OCT_jbyte(&SCV,0,1);  // add 0 character
-    OCT_joctet(&SCV,H);   // add Transcript Hash - could be MAX_HASH
+    OCT_jbyte(&SCV,0,1);   // add 0 character
+    OCT_joctet(&SCV,H);    // add Transcript Hash 
 
     int len=SCVSIG->len;
     int rlen,slen,Int,der,ptr=0;
 
+// probably need to support more cases
     switch (sigalg)
     {
     case RSA_PSS_RSAE_SHA256:
@@ -356,7 +346,7 @@ bool IS_SERVER_CERT_VERIFY(FILE *fp,int sigalg,octet *SCVSIG,octet *H,octet *CER
         rt=parseByte(SCVSIG,ptr); rlen=rt.val;
         if (rt.err) return false;
         if (rlen==0x21)
-        {
+        { // one too big
             rlen--;
             rt=parseByte(SCVSIG,ptr); lzero=rt.val;
             if (rt.err || lzero!=0) return false;
@@ -367,7 +357,7 @@ bool IS_SERVER_CERT_VERIFY(FILE *fp,int sigalg,octet *SCVSIG,octet *H,octet *CER
         if (rt.err || Int!=0x02) return false;
         rt=parseByte(SCVSIG,ptr); slen=rt.val;
         if (rt.err || slen==0x21)
-        {
+        { // one too big
             slen--;
             rt=parseByte(SCVSIG,ptr); lzero=rt.val;
             if (rt.err || lzero!=0) return false;
@@ -390,7 +380,7 @@ bool IS_SERVER_CERT_VERIFY(FILE *fp,int sigalg,octet *SCVSIG,octet *H,octet *CER
         if (rt.err || Int!=0x02) return false;
         rt=parseByte(SCVSIG,ptr); rlen=rt.val;
         if (rt.err || rlen==0x31)
-        { // there must be a leading zero
+        { // there must be a leading zero...
             rlen--;
             rt=parseByte(SCVSIG,ptr); lzero=rt.val;
             if (rt.err || lzero!=0) return false;
@@ -402,7 +392,7 @@ bool IS_SERVER_CERT_VERIFY(FILE *fp,int sigalg,octet *SCVSIG,octet *H,octet *CER
         rt=parseByte(SCVSIG,ptr); slen=rt.val;
         if (rt.err) return false;
         if (slen==0x31)
-        { // there must be a leading zero
+        { // there must be a leading zero..
             slen--;
             rt=parseByte(SCVSIG,ptr); lzero=rt.val;
             if (rt.err || lzero!=0) return false;

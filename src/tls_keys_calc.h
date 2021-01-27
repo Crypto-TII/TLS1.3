@@ -1,4 +1,4 @@
-// extract traffic, handshake and application keys from raw secrets
+// TLS1.3 crypto support functions
 #ifndef TLS_KEYS_CALC_H
 #define TLS_KEYS_CALC_H
 
@@ -10,10 +10,12 @@
 
 using namespace core;
 
+// hash functions
 extern void Hash_Init(int hlen,unihash *h);
 extern void Hash_Process(unihash *h,int b);
 extern void Hash_Output(unihash *h,char *d);
 
+// transcript hash support
 extern void running_hash(octet *O,unihash *h);
 extern void transcript_hash(unihash *h,octet *O);
 extern void running_syn_hash(octet *O,unihash *h);

@@ -1,3 +1,5 @@
+// main header file for constants and structures 
+
 #ifndef TLS1_3_H
 #define TLS1_3_H
 
@@ -5,12 +7,12 @@
 
 #define LOGGER   // define to output debug info to log file
 
-// Some maximum sizes
-// Handshake will fail if these sizes are exceeded
+// Some maximum sizes for stack allocated memory
+// Handshake will fail if these sizes are exceeded!
 #define TLS_MAX_HASH 64
 #define TLS_MAX_KEY 32
 #define TLS_MAX_SIGNED_CERT_SIZE 5000
-#define TLS_MAX_CERT_SIZE 4096
+#define TLS_MAX_CERT_SIZE 4096            // a big one!
 #define TLS_MAX_CERTCHAIN_SIZE 3*TLS_MAX_SIGNED_CERT_SIZE
 #define TLS_X509_MAX_FIELD 240
 #define TLS_MAX_SIGNED_CERT_B64 (1+(TLS_MAX_SIGNED_CERT_SIZE*4)/3)

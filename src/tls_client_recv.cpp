@@ -2,12 +2,9 @@
 // Process input received from Server
 //
 
-// Function return convention
-// return +m; // returns useful value
-// return 0; //  OK or non-fatal error
-// return -n; // fatal error cause - should generate an alert
-
 #include "tls_client_recv.h"
+
+// First some functions for parsing values out of an octet string
 
 // parse out an octet of length len from octet M into E
 // ptr is a moving pointer through the octet
@@ -70,6 +67,7 @@ ret parseByte(octet *M,int &ptr)
     return r;
 }
 
+// Basic function for reading in a record, which may be only a fragment of a larger message
 
 // get another fragment of server response
 // If its encrypted, decrypt and authenticate it
@@ -85,7 +83,7 @@ int getServerFragment(int sock,crypto *recv,octet *SR)
     char rtag[TLS_TAG_SIZE];
     octet RTAG={0,sizeof(rtag),rtag};
 
-    pos=SR->len;  // current end of SR
+    pos=SR->len;               // current end of SR
     rtn=getOctet(sock,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
     if (rtn<0)
         return TIME_OUT;
@@ -128,16 +126,15 @@ int getServerFragment(int sock,crypto *recv,octet *SR)
     GCM_add_header(&g,RH.val,RH.len);
     GCM_add_cipher(&g,&SR->val[pos],&SR->val[pos],left-16);
     GCM_finish(&g,TAG.val); TAG.len=16;
+// End of AES-GCM
 
-    increment_crypto_context(recv);
+    increment_crypto_context(recv); // update IV
 
     SR->len+=(left-16);    
-    getOctet(sock,&RTAG,16);    // read in correct TAG
+    getOctet(sock,&RTAG,16);        // read in correct TAG
 
-    if (!OCT_comp(&TAG,&RTAG))
+    if (!OCT_comp(&TAG,&RTAG))      // compare with calculated TAG
         return AUTHENTICATION_FAILURE;
-   
-//    printf("Server fragment authenticates %d\n",left-16);
 
 // get record ending - encodes real (disguised) record type
     int lb=0;
@@ -150,7 +147,6 @@ int getServerFragment(int sock,crypto *recv,octet *SR)
         SR->len--; // remove it
         pad++;
     }
- //   if (pad>0) printf("%d padding bytes removed \n",pad);
 
     if (lb==0x16)
         return HSHAKE;
@@ -162,9 +158,9 @@ int getServerFragment(int sock,crypto *recv,octet *SR)
 }
 
 // These functions parse out a data type from an octet
-// They may also have to pull in more bytes from the socket.
+// But they may also have to pull in more bytes from the socket to complete the type.
 
-// return Byte, or pull in and decrypt another fragment
+// return Byte, if necessary pulling in and decrypting another fragment
 ret parseByteorPull(int sock,octet *SR,int &ptr,crypto *recv)
 {
     ret r=parseByte(SR,ptr);
@@ -244,11 +240,19 @@ ret parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,crypto *recv)
     return r;
 }
 
-// Functions to process server response
-// now deals with any kind of fragmentation
-// build up server handshake response in SR, decrypting each fragment in-place
-// extract Certificate Chain, Server Certificate Signature and Server Verifier Data
-// return pointers to hashing check-points
+// Function return convention
+// return +m; // returns useful value
+// return 0; //  OK or non-fatal error
+// return -n; // fatal error cause - should generate an alert
+
+// Functions to process server responses
+// Deals with any kind of fragmentation
+// Build up server handshake response in SR, decrypting each fragment in-place
+// extract Encrypted Extensions, Certificate Chain, Server Certificate Signature and Server Verifier Data
+// update transcript hash
+
+// Bad actor Server could be throwing anything at us - so be careful
+
 int getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
 {
     ret r;
@@ -264,7 +268,7 @@ int getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_
     r=parseInt16orPull(sock,SR,ptr,recv); len=r.val; if (r.err) return r.err; // length of extensions
 
 // extension could include Servers preference for supported groups, which could be
-// taken into account by the client for later connections. Here we will ignore it.
+// taken into account by the client for later connections. Here we will ignore it. From RFC:
 // "Clients MUST NOT act upon any information found in "supported_groups" prior to successful completion of the handshake"
     while (len>0)
     {
@@ -273,18 +277,16 @@ int getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_
         switch (ext)
         {
         case EARLY_DATA :
-            {
-                r=parseInt16orPull(sock,SR,ptr,recv); 
-                len-=2;  // length is zero
-                early_data_accepted=true;
-                break;
-            }
-            default:
-                r=parseInt16orPull(sock,SR,ptr,recv); tlen=r.val;
-                len-=2;  // length of extension
-                len-=tlen; ptr+=tlen; // skip over it
-                unexp++;
-                break;
+            r=parseInt16orPull(sock,SR,ptr,recv); 
+            len-=2;  // length is zero
+            early_data_accepted=true;
+            break;
+        default:    // ignore all other extensions
+            r=parseInt16orPull(sock,SR,ptr,recv); tlen=r.val;
+            len-=2;  // length of extension
+            len-=tlen; ptr+=tlen; // skip over it
+            unexp++;
+            break;
         }
         if (r.err) return r.err;
     }
@@ -293,12 +295,13 @@ int getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,SR->val[i]);
    
-    OCT_shl(SR,ptr);  // rewind to start
+    OCT_shl(SR,ptr);  // Shift octet left - rewind to start 
 
     if (unexp>0) return STRANGE_EXTENSION;
     return unexp;
 }
 
+// Process certificate chain 
 int getServerCertificateChain(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *CERTCHAIN)
 {
     ret r;
@@ -308,14 +311,14 @@ int getServerCertificateChain(int sock,octet *SR,crypto *recv,unihash *trans_has
     r=parseInt24orPull(sock,SR,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
 
     if (nb!=CERTIFICATE)
-    {
+    { // message received out-of-order
         return WRONG_MESSAGE;
     }
     OCT_clear(CERTCHAIN);
     r=parseByteorPull(sock,SR,ptr,recv); nb=r.val; if (r.err) return r.err;
     if (nb!=0x00) return MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
-    r=parseInt24orPull(sock,SR,ptr,recv); len=r.val; if (r.err) return r.err;  // get length of certificate chain
-    r=parseOctetorPull(sock,CERTCHAIN,len,SR,ptr,recv); if (r.err) return r.err;
+    r=parseInt24orPull(sock,SR,ptr,recv); len=r.val; if (r.err) return r.err;    // get length of certificate chain
+    r=parseOctetorPull(sock,CERTCHAIN,len,SR,ptr,recv); if (r.err) return r.err; // get certificate chain
 
 // Transcript hash
     for (int i=0;i<ptr;i++)
@@ -326,6 +329,7 @@ int getServerCertificateChain(int sock,octet *SR,crypto *recv,unihash *trans_has
     return 0;
 }
 
+// Get Server proof that he owns the Certificate, by receiving its signature SCVSIG on transcript hash
 int getServerCertVerify(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *SCVSIG,int &sigalg)
 {
     ret r;
@@ -351,6 +355,7 @@ int getServerCertVerify(int sock,octet *SR,crypto *recv,unihash *trans_hash,octe
     return 0;
 }
 
+// Get handshake finish verifier data in HFIN
 int getServerFinished(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *HFIN)
 {
     ret r;
@@ -373,7 +378,8 @@ int getServerFinished(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet 
     return 0;
 }
 
-// pskid >=0 if PSK is accepted
+// Process initial serverHello - NOT encrypted
+// pskid >=0 if Pre-Shared-Key is accepted
 int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK,int &pskid)
 {
     ret r;
@@ -388,6 +394,7 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
     char hrr[32];
     octet HRR={0,sizeof(hrr),hrr};
 
+// need this to check for Handshake Retry Request    
     HASH256_init(&sh);
     for (i=0;i<strlen(helloretryrequest);i++)
         HASH256_process(&sh,(int)helloretryrequest[i]);
@@ -404,6 +411,7 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
     if (rtn==ALERT)
         return ALERT;
 
+// start parsing mandatory components
     int nb,ptr=0;
     r=parseByteorPull(sock,SH,ptr,NULL); nb=r.val; // should be Server Hello
     if (r.err || nb!=SERVER_HELLO)
@@ -411,7 +419,7 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
 
     r=parseInt24orPull(sock,SH,ptr,NULL); left=r.val; if (r.err) return r.err;   // If not enough, pull in another fragment
     r=parseInt16orPull(sock,SH,ptr,NULL); svr=r.val; if (r.err) return r.err;
-    left-=2; 
+    left-=2;                // whats left in message
 
     if (svr!=TLS1_2)  
         return NOT_TLS1_3;  // don't ask
@@ -420,7 +428,7 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
     left-=32;
 
     if (OCT_comp(&SRN,&HRR))
-        retry=true;
+        retry=true;        // "random" data was not random at all - indicating Handshae Retry Request
    
     r=parseByteorPull(sock,SH,ptr,NULL); silen=r.val; if (r.err) return r.err; 
     left-=1;
@@ -428,14 +436,14 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
     left-=silen;  
 
     if (!OCT_comp(CID,&SID))
-        return ID_MISMATCH;
+        return ID_MISMATCH;  // check identities match
 
     r=parseInt16orPull(sock,SH,ptr,NULL); cipher=r.val; if (r.err) return r.err;
     left-=2;
 
     r=parseByteorPull(sock,SH,ptr,NULL); cmp=r.val; if (r.err) return r.err;
-    left-=1; // Compression
-    if (cmp!=0x00)
+    left-=1; // Compression not used in TLS1.3
+    if (cmp!=0x00)         
         return NOT_TLS1_3;
 
     r=parseInt16orPull(sock,SH,ptr,NULL); extLen=r.val; if (r.err) return r.err;
@@ -443,6 +451,7 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
     if (left!=extLen)
         return BAD_HELLO;
 
+// process extensions
     while (extLen>0)
     {
         r=parseInt16orPull(sock,SH,ptr,NULL); ext=r.val; if (r.err) return r.err;
@@ -450,48 +459,40 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
         switch (ext)
         {
         case KEY_SHARE :
-            {
+            { // actually mandatory
                 r=parseInt16orPull(sock,SH,ptr,NULL); tmplen=r.val; if (r.err) break;
                 extLen-=2;
                 extLen-=tmplen;
                 r=parseInt16orPull(sock,SH,ptr,NULL); kex=r.val; if (r.err) break;
-         //       printf("Key Share = %04x\n",kex);
                 if (!retry)
                 { // its not a retry request
                     r=parseInt16orPull(sock,SH,ptr,NULL); pklen=r.val; if (r.err) break;   // FIX this first for HRR
-                    //printf("pklen = %d\n",pklen);
-                    //printf("SH= ");OCT_output(SH);
                     r=parseOctetorPull(sock,PK,pklen,SH,ptr,NULL); 
-             //       printf("Server Public Key= "); OCT_output(PK);
                 }
                 break;
             }
         case PRESHARED_KEY :
-            {
+            { // Indicate acceptance of pre-shared key
                 r=parseInt16orPull(sock,SH,ptr,NULL); tmplen=r.val; if (r.err) break;
                 extLen-=2;
                 extLen-=tmplen;
                 r=parseInt16orPull(sock,SH,ptr,NULL); pskid=r.val;
-        //        printf("PSK ID= %d\n",pskid);
                 break;
             }
         case COOKIE :
-            {
-         //       printf("Picked up a cookie\n");
+            { // Pick up a cookie
                 r=parseInt16orPull(sock,SH,ptr,NULL); tmplen=r.val; if (r.err) break;
                 extLen-=2;
                 extLen-=tmplen;
                 r=parseOctetorPull(sock,CK,tmplen,SH,ptr,NULL);
-         //       printf("Cookie= (Coffee I code fast?) "); OCT_output(CK);
                 break;
             }
         case TLS_VER :
-            {
+            { // report TLS version
                 r=parseInt16orPull(sock,SH,ptr,NULL); tmplen=r.val; if (r.err) break;
                 extLen-=2;
                 extLen-=tmplen;
                 r=parseInt16orPull(sock,SH,ptr,NULL); tls=r.val; // get TLS version
-               // printf("tls version= %04x %d\n",tls,r.err);
                 break;
             }
        default :
@@ -501,7 +502,7 @@ int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,
         if (r.err) return r.err;
     }
 
-    if (tls!=TLS1_3)
+    if (tls!=TLS1_3)       // error if its not TLS 1.3
         return NOT_TLS1_3;
 
     if (retry)

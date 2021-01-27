@@ -1,4 +1,4 @@
-// Process input received from Server
+// Process output sent to Server
 #ifndef TLS_CLIENT_SEND_H
 #define TLS_CLIENT_SEND_H
 

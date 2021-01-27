@@ -6,6 +6,9 @@
 // log debug string or info or Octet
 // string and O should not both be non-NULL
 // if O not null, then info indicates output as Hex or Ascii string
+
+// undefine LOGGER in tls1_3.h to save space
+
 void logger(FILE *fp,char *preamble,char *string,unsign32 info,octet *O)
 {
 #ifdef LOGGER
@@ -39,7 +42,7 @@ void logger(FILE *fp,char *preamble,char *string,unsign32 info,octet *O)
 #endif
 }
 
-
+// log server hello outputs
 void logServerHello(FILE *fp,int cipher_suite,int kex,int pskid,octet *PK,octet *CK)
 {
     logger(fp,(char *)"\nParsing serverHello\n",NULL,0,NULL);
@@ -55,7 +58,7 @@ void logServerHello(FILE *fp,int cipher_suite,int kex,int pskid,octet *PK,octet 
     logger(fp,(char *)"\n",NULL,0,NULL);
 }
 
-
+// log ticket details
 void logTicket(FILE *fp,int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octet *NONCE,octet *ETICK)
 {
     logger(fp,(char *)"\nParsing Ticket\n",NULL,0,NULL);
@@ -68,6 +71,7 @@ void logTicket(FILE *fp,int lifetime,unsign32 age_obfuscator,unsign32 max_early_
     logger(fp,(char *)"\n",NULL,0,NULL);
 }
 
+// log a certificate in base64
 void logCert(FILE *fp,octet *CERT)
 {
     char b[TLS_MAX_SIGNED_CERT_B64];
@@ -77,6 +81,7 @@ void logCert(FILE *fp,octet *CERT)
     logger(fp,(char *)"-----END CERTIFICATE----- \n",NULL,0,NULL);
 }
 
+// log certificate details
 void logCertDetails(FILE *fp,char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet *ISSUER,octet *SUBJECT)
 {
     logger(fp,txt,NULL,0,NULL);
@@ -119,7 +124,7 @@ void logCertDetails(FILE *fp,char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype
 void logServerResponse(FILE *fp,int rtn,octet *O)
 {
     if (rtn<0)
-    { // fatal errors - send server alert and close connection
+    { // fatal errors - after logging we will send a server alert and close connection
         switch (rtn)
         { 
         case NOT_TLS1_3:

@@ -1,4 +1,4 @@
-// Process input received from Server
+// Log protocol progress
 #ifndef TLS_LOGGER_H
 #define TLS_LOGGER_H
 

@@ -1,6 +1,9 @@
-// TLS1.3 crypto
+//
+// TLS1.3 crypto support functions
+//
 #include "tls_keys_calc.h"
 
+// Unified hashing. SHA2 type indicate by hlen. For SHA256 hlen=32 etc
 void Hash_Init(int hlen,unihash *h)
 {
     if (hlen==32) 
@@ -12,6 +15,7 @@ void Hash_Init(int hlen,unihash *h)
     h->hlen=hlen;
 }
 
+// Process a byte
 void Hash_Process(unihash *h,int b)
 {
     if (h->hlen==32)
@@ -22,6 +26,7 @@ void Hash_Process(unihash *h,int b)
         HASH512_process(&(h->sh64),b);
 }
 
+// output digest
 void Hash_Output(unihash *h,char *d)
 {
     if (h->hlen==32)
@@ -32,7 +37,7 @@ void Hash_Output(unihash *h,char *d)
         HASH384_continuing_hash(&(h->sh64),d);
 }
 
-// Add to transcript hash 
+// Add octet to transcript hash 
 void running_hash(octet *O,unihash *h)
 {
     for (int i=0;i<O->len;i++)
@@ -90,6 +95,7 @@ static void HKDF_Expand_Label(int hash,int hlen,octet *OKM,int olen,octet *PRK,o
     HKDF_Expand(hash,hlen,OKM,olen,PRK,&HL);
 }
 
+// Initialise crypto context (Key,IV, Record number)
 void init_crypto_context(crypto *C)
 {
     C->K={0,TLS_MAX_KEY,C->k};
@@ -97,15 +103,17 @@ void init_crypto_context(crypto *C)
     C->record=0;
 }
 
+// Fill a crypto context with new key/IV
 void create_crypto_context(crypto *C,octet *K,octet *IV)
-{ // initialise crypto structure
+{ 
     OCT_copy(&(C->K),K);
     OCT_copy(&(C->IV),IV);
     C->record=0;
 }
 
+//  increment record, and update IV
 void increment_crypto_context(crypto *C)
-{ //  increment record, and update IV
+{ 
     unsigned char b[4];  
     b[3] = (unsigned char)(C->record);
     b[2] = (unsigned char)(C->record >> 8);
@@ -132,7 +140,6 @@ void VERIFY_DATA(int sha,octet *CF,octet *CHTS,octet *H)
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"finished");
     HKDF_Expand_Label(MC_SHA2,sha,&FK,sha,CHTS,&INFO,NULL); 
-
     HMAC(MC_SHA2,sha,CF,sha,&FK,H);
 }
 
@@ -155,8 +162,8 @@ unsign32 UPDATE_KEYS(crypto *context,octet *TS)
     octet NTS={0,sizeof(nts),nts};
 
 // find cipher suite
-    sha=TS->len;
-    key=context->K.len;
+    sha=TS->len;        // depends on secret length
+    key=context->K.len; // depends on key length
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"traffic upd");
@@ -176,19 +183,19 @@ unsign32 UPDATE_KEYS(crypto *context,octet *TS)
     return 0;
 }
 
-// get Key and IV from Traffic secret
+// get Key and IV from a Traffic secret
 void GET_KEY_AND_IV(int cipher_suite,octet *TS,crypto *context)
 {
     int sha,key;
     if (cipher_suite==TLS_AES_128_GCM_SHA256)
     {
-        sha=32;
-        key=16;
+        sha=32;  // SHA256
+        key=16;  // AES128
     }
     if (cipher_suite==TLS_AES_256_GCM_SHA384)
     {
-        sha=48;
-        key=32;
+        sha=48; // SHA384
+        key=32; // AES256
     }
     char info[8];
     octet INFO = {0,sizeof(info),info};
@@ -204,7 +211,7 @@ void GET_KEY_AND_IV(int cipher_suite,octet *TS,crypto *context)
     context->record=0;
 }
 
-// recover PSK from Resumption Master Secret
+// recover Pre-Shared-Key from Resumption Master Secret
 void RECOVER_PSK(int sha,octet *RMS,octet *NONCE,octet *PSK)
 {
     char info[16];
@@ -216,21 +223,20 @@ void RECOVER_PSK(int sha,octet *RMS,octet *NONCE,octet *PSK)
 }
 
 // Key Schedule code
-
-// Get Early Secret and optional Binder Key (either External or Resumption)
+// Get Early Secret ES and optional Binder Key (either External or Resumption)
 void GET_EARLY_SECRET(int sha,octet *PSK,octet *ES,octet *BKE,octet *BKR)
 {
     char emh[TLS_MAX_HASH];
-    octet EMH = {0,sizeof(emh),emh};    // Empty Hash
+    octet EMH = {0,sizeof(emh),emh};  
     char zk[TLS_MAX_HASH];              
-    octet ZK = {0,sizeof(zk),zk};       // Zero Key
+    octet ZK = {0,sizeof(zk),zk}; 
     char info[16];
     octet INFO = {0,sizeof(info),info};
 
     OCT_jbyte(&ZK,0,sha);  // Zero key
 
     if (PSK==NULL)
-        OCT_copy(&EMH,&ZK);
+        OCT_copy(&EMH,&ZK);   // if no PSK available use ZK
     else
         OCT_copy(&EMH,PSK);
 
@@ -252,7 +258,7 @@ void GET_EARLY_SECRET(int sha,octet *PSK,octet *ES,octet *BKE,octet *BKR)
     }
 }
 
-// Get Later Secrets (Client Early Traffic Secret and Early Exporter Master Secret) - requires partial transcript hash H
+// Get Later Secrets (Client Early Traffic Secret CETS and Early Exporter Master Secret EEMS) - requires partial transcript hash H
 void GET_LATER_SECRETS(int sha,octet *ES,octet *H,octet *CETS,octet *EEMS)
 {
     char info[16];
@@ -272,6 +278,7 @@ void GET_LATER_SECRETS(int sha,octet *ES,octet *H,octet *CETS,octet *EEMS)
     }
 }
 
+// get Client and Server Handshake secrets for encrypting rest of handshake, from Shared secret SS and early secret ES
 void GET_HANDSHAKE_SECRETS(int sha,octet *SS,octet *ES,octet *H,octet *HS,octet *CHTS,octet *SHTS)
 {
     char ds[TLS_MAX_HASH];
@@ -281,7 +288,7 @@ void GET_HANDSHAKE_SECRETS(int sha,octet *SS,octet *ES,octet *H,octet *HS,octet 
     char info[16];
     octet INFO = {0,sizeof(info),info};
 
-    SPhash(MC_SHA2,sha,&EMH,NULL);  // hash of ""
+    SPhash(MC_SHA2,sha,&EMH,NULL);      // hash of ""
 
     OCT_clear(&INFO);
     OCT_jstring(&INFO,(char *)"derived");

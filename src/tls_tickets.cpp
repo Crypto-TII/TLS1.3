@@ -4,6 +4,7 @@
 
 #include "tls_tickets.h"
 
+// return ticket age in milliseconds
 int milliseconds(struct timeval start_time,struct timeval end_time)
 {
    long milli_time, seconds, useconds;
@@ -13,6 +14,7 @@ int milliseconds(struct timeval start_time,struct timeval end_time)
    return (int)milli_time;
 }
 
+// Initialise a ticket and record its date of birth
 void init_ticket_context(ticket *T,struct timeval &birthday)
 {
     T->NONCE={0,32,T->nonce};
@@ -23,7 +25,7 @@ void init_ticket_context(ticket *T,struct timeval &birthday)
     T->birth=birthday;
 }
 
-// Parse ticket data into ticket structure 
+// Parse ticket data into a ticket structure 
 int parseTicket(octet *TICK,ticket *T)  
 {
     ret r;
@@ -36,7 +38,7 @@ int parseTicket(octet *TICK,ticket *T)
     r=parseOctet(&T->NONCE,len,TICK,ptr);  if (r.err) return BAD_TICKET;
     r=parseInt16(TICK,ptr); len=r.val; if (r.err) return BAD_TICKET;
     r=parseOctet(&T->TICK,len,TICK,ptr);  if (r.err) return BAD_TICKET; // extract ticket
-    r=parseInt16(TICK,ptr); len=r.val; if (r.err) return BAD_TICKET;  // length of extensions
+    r=parseInt16(TICK,ptr); len=r.val; if (r.err) return BAD_TICKET;    // length of extensions
 
     T->max_early_data=0;
     while (len>0)
@@ -53,10 +55,10 @@ int parseTicket(octet *TICK,ticket *T)
                 len-=tmplen;
                 break;
             }
-       default :    
+       default :   // ignore other extensions  
             r=parseInt16(TICK,ptr); tmplen=r.val;
             len-=2;
-            len-=tmplen;
+            len-=tmplen; ptr+=tmplen;
             break;
         }
         if (r.err) return BAD_TICKET;

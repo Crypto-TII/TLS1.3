@@ -1,7 +1,6 @@
 
 // Set up and read/write sockets
 
-
 #include "tls_sockets.h"
 
 int setserversock(int port)
@@ -11,11 +10,11 @@ int setserversock(int port)
     int opt = 1; 
     int addrlen = sizeof(address); 
 
-    // Creating socket file descriptor 
+// Creating socket file descriptor 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) 
         return -1;  // socket failed
        
-    // Forcefully attaching socket to the port 
+// Forcefully attaching socket to the port 
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
                                                   &opt, sizeof(opt))) 
         return -2; // setsockopt failed
@@ -24,7 +23,7 @@ int setserversock(int port)
     address.sin_addr.s_addr = INADDR_ANY; 
     address.sin_port = htons( port ); 
        
-    // Forcefully attaching socket to the port 
+// Forcefully attaching socket to the port 
     if (bind(server_fd, (struct sockaddr *)&address,  
                                  sizeof(address))<0) 
         return -3;  // bind failed
@@ -39,6 +38,7 @@ int setserversock(int port)
     return new_socket;
 }
 
+// open socket
 int setclientsock(int port,char *ip)
 {
     int sock = 0, valread; 
@@ -49,10 +49,11 @@ int setclientsock(int port,char *ip)
     serv_addr.sin_family = AF_INET; 
     serv_addr.sin_port = htons(port); 
        
-    // Convert IPv4 and IPv6 addresses from text to binary form 
+// Convert IPv4 and IPv6 addresses from text to binary form 
     if(inet_pton(AF_INET, ip, &serv_addr.sin_addr)<=0)  
         return -2; 
-    
+   
+// Set time-out period    
     struct timeval timeout;
     timeout.tv_sec  = 5;  // after 5 seconds read() will timeout
     timeout.tv_usec = 0;
@@ -62,6 +63,16 @@ int setclientsock(int port,char *ip)
         return -3; 
     
     return sock;
+}
+
+// get IP address from Hostname
+int getIPaddress(char *ip,char *hostname)
+{
+	hostent * record = gethostbyname(hostname);
+	if(record == NULL) return 0;
+	in_addr * address = (in_addr * )record->h_addr;
+	strcpy(ip,inet_ntoa(* address));
+    return 1;
 }
 
 // Send Octet
@@ -81,6 +92,7 @@ void sendLen(int sock,int len)
     sendOctet(sock,&B);
 }
 
+// get expected bytes
 int getBytes(int sock,char *b,int expected)
 {
     int more,i=0,len=expected;
@@ -110,8 +122,7 @@ int getInt24(int sock)
     return 65536*(int)(unsigned char)b[0]+256*(int)(unsigned char)b[1]+(int)(unsigned char)b[2];
 }
 
-
-// Get byte from stream
+// Get one byte from stream
 int getByte(int sock)
 {
     char b[1];
@@ -126,11 +137,3 @@ int getOctet(int sock,octet *B,int expected)
     return getBytes(sock,B->val,expected);
 }
 
-int getIPaddress(char *ip,char *hostname)
-{
-	hostent * record = gethostbyname(hostname);
-	if(record == NULL) return 0;
-	in_addr * address = (in_addr * )record->h_addr;
-	strcpy(ip,inet_ntoa(* address));
-    return 1;
-}
