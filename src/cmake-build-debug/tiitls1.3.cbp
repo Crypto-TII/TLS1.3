@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="tiitls1.3"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/strip">
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 install/strip"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install">
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 install"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="list_install_components">
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 list_install_components"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="server">
+				<Option output="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/server" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/vendor/miracl/includes"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/11.0.3/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"/>
+					<Add directory="/System/Library/Frameworks"/>
+					<Add directory="/Library/Frameworks"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 server"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="server/fast">
+				<Option output="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/server" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/vendor/miracl/includes"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/11.0.3/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"/>
+					<Add directory="/System/Library/Frameworks"/>
+					<Add directory="/Library/Frameworks"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 server/fast"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/local">
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 install/local"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="client">
+				<Option output="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/client" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/vendor/miracl/includes"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/11.0.3/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"/>
+					<Add directory="/System/Library/Frameworks"/>
+					<Add directory="/Library/Frameworks"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 client"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="client/fast">
+				<Option output="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/client" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/vendor/miracl/includes"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/11.0.3/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"/>
+					<Add directory="/System/Library/Frameworks"/>
+					<Add directory="/Library/Frameworks"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 client/fast"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="prod_lib">
+				<Option output="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/prod_lib.objlib" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/vendor/miracl/includes"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/11.0.3/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"/>
+					<Add directory="/System/Library/Frameworks"/>
+					<Add directory="/Library/Frameworks"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 prod_lib"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="prod_lib/fast">
+				<Option output="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/prod_lib.objlib" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/vendor/miracl/includes"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/11.0.3/include"/>
+					<Add directory="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include"/>
+					<Add directory="/System/Library/Frameworks"/>
+					<Add directory="/Library/Frameworks"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 prod_lib/fast"/>
+					<CompileFile command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j16 -f &quot;/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/client.cpp">
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/tls_cert_chain.cpp.o">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/tls_client_recv.cpp.o">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/tls_client_send.cpp.o">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/tls_hash.cpp.o">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/tls_keys_calc.cpp.o">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/tls_parse_octet.cpp.o">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/tls_sockets.cpp.o">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/cmake-build-debug/CMakeFiles/prod_lib.dir/tls_tickets.cpp.o">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/server.cpp">
+			<Option target="server"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_cert_chain.cpp">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_cert_chain.h">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_client_recv.cpp">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_client_recv.h">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_client_send.cpp">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_client_send.h">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_hash.cpp">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_hash.h">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_keys_calc.cpp">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_keys_calc.h">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_parse_octet.cpp">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_parse_octet.h">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_sockets.cpp">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_sockets.h">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_tickets.cpp">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/tls_tickets.h">
+			<Option target="prod_lib"/>
+		</Unit>
+		<Unit filename="/Users/alvaro/Documents/project/tii/tls13/TLS1.3/src/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>
