@@ -2,6 +2,7 @@
 #include "tls_cert_chain.h"
 #include "tls_client_recv.h"
 #include "tls_logger.h"
+#include "tls_cacerts.h"
 
 // combine Common Name, Organisation Name and Unit Name to make unique determination
 static void FULL_NAME(octet *FN,octet *CERT,int ic)
@@ -16,6 +17,18 @@ static void FULL_NAME(octet *FN,octet *CERT,int ic)
     OCT_jbyte(FN,'/',1);
     c=X509_find_entity_property(CERT,&X509_UN,ic,&len);
     OCT_jbytes(FN,&CERT->val[c],len);
+}
+
+static bool readaline(char *line,const char *rom,int &ptr)
+{
+    int i=0;
+    if (rom[ptr]==0) return false;
+    while (rom[ptr]!='\n')
+    {
+        line[i++]=rom[ptr++];
+    }
+    ptr++; // jump over CR
+    return true;
 }
 
 // given root issuer and public key type of signature, search through root CAs and return root public key
@@ -33,20 +46,26 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
     char owner[TLS_X509_MAX_FIELD];
     octet OWNER={0,sizeof(owner),owner};
     char b[TLS_MAX_SIGNED_CERT_B64];  // maximum size for CA signed certs in base64
-    ifstream file("ca-certificates.crt");
+    char line[80]; int ptr=0;
+//    ifstream file("ca-certificates.crt");
 
-    if (file.is_open()) {
-        string line;
+//    if (file.is_open()) {
+//        string line;
         for (;;)
         {
             int i=0;
-            if (!getline(file, line)) break;
+            if (!readaline(line,cacerts,ptr)) break;
+        //    if (!getline(file, line)) break;
             for (;;)
             {
-                getline(file,line);
-                if (line.c_str()[0]=='-') break;
+                readaline(line,cacerts,ptr);
+                //getline(file,line);
+                if (line[0]=='-') break;
+                //if (line.c_str()[0]=='-') break;
                 for (int j=0;j<64;j++)
-                    b[i++]=line.c_str()[j];
+                    b[i++]=line[j];
+                    //b[i++]=line.c_str()[j];
+
                 b[i]=0;
             }
             OCT_frombase64(&SC,b);
@@ -61,13 +80,13 @@ bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
                 pktype pt = X509_extract_public_key(&C, PUBKEY);
                 if (st.type==pt.type && st.curve==pt.curve) 
                 { // found CA cert
-                    file.close();   
+ //                   file.close();   
                     return true;
                 }
             } 
         }
-        file.close();   
-    }
+//        file.close();   
+//    }
     return false;  // couldn't find it
 }
 

@@ -10,13 +10,13 @@ Then copy the contents of this archive to the same directory, in particular clie
 
 Build the client app by 
 
-	g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp core.a -o client
+	g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp tls_cacerts.cpp core.a -o client
 
 Then execute the client process as for example
 
 	./client swifttls.org
 
-The output should look something like
+The output should look something like (This detailed output by default now goes to logger.log)
 
 	Hostname= swifttls.org
 	ip= 109.74.204.5
@@ -188,11 +188,9 @@ The output should look something like
 	Got a ticket
 	Waiting for Server input
 	TIMEOUT
-
-(This detailed output by default now goes to logger.log)
  
 Try it out on your favourite websites. It will abort if TLS1.3 is not supported. 
-At this stage the tool is still quite fragile (only tested and debuggd aginst a dozen websites or so!), and would be expected to often fail.
+At this stage the tool is still quite fragile (only tested and debugged aginst a dozen websites or so!), and would be expected to often fail.
 
 Also try
 

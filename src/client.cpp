@@ -1,5 +1,5 @@
 // Client side C/C++ program to demonstrate TLS1.3 
-// g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp  tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp core.a -o client
+// g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp  tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp tls_cacerts.cpp core.a -o client
 
 #include <stdio.h> 
 #include <fstream>
