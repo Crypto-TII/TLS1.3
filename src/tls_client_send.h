@@ -16,6 +16,8 @@ extern void addServerNameExt(octet *EXT,char *servername);
 extern void addSupportedGroupsExt(octet *EXT,int nsg,int *supportedGroups);
 extern void addSigAlgsExt(octet *EXT,int nsa,int *sigAlgs);
 extern void addKeyShareExt(octet *EXT,int nalgs,int alg[],octet PK[]);
+extern void addMFLExt(octet *EXT,int mode);
+
 extern void sendBindersList(int sock,octet *B,int npsks,octet BNDS[]);
 extern void addPSKExt(octet *EXT,int mode);
 extern void addVersionExt(octet *EXT,int version);

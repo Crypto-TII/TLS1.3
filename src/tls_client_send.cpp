@@ -108,6 +108,14 @@ void addPSKExt(octet *EXT,int mode)
     OCT_jint(EXT,mode,1);
 }
 
+// indicate prefered maximum fragment length
+void addMFLExt(octet *EXT,int mode)
+{
+    OCT_jint(EXT,MAX_FRAG_LENGTH,2);
+    OCT_jint(EXT,1,2);
+    OCT_jint(EXT,mode,1);
+}
+
 // indicate TLS version support
 void addVersionExt(octet *EXT,int version)
 {
@@ -302,6 +310,8 @@ int alert_from_cause(int rtn)
         return ILLEGAL_PARAMETER;        
     case WRONG_MESSAGE:                 // Cause
         return UNEXPECTED_MESSAGE;      // Alert
+    case BAD_CERT_CHAIN:                 // Cause
+        return BAD_CERTIFICATE;      // Alert
     case MISSING_REQUEST_CONTEXT:
         return ILLEGAL_PARAMETER;
     case AUTHENTICATION_FAILURE:

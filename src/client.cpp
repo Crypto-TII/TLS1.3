@@ -213,10 +213,8 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     octet COOK={0,sizeof(cook),cook};   // Cookie
 
     char sr[TLS_MAX_SERVER_RESPONSE];
-    octet SR={0,sizeof(sr),sr};         // Server response - All server responses come via this octet
+    octet SR={0,sizeof(sr),sr};         // Server response - All server messages come via this octet   --- BIG
 
-    char certchain[TLS_MAX_CERTCHAIN_SIZE];           
-    octet CERTCHAIN={0,sizeof(certchain),certchain};  // Certificate chain
     char scvsig[TLS_MAX_SIGNATURE_SIZE];
     octet SCVSIG={0,sizeof(scvsig),scvsig};           // Server's digital signature on transcript
     char fin[TLS_MAX_HASH];
@@ -266,6 +264,7 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     addKeyShareExt(&EXT,1,kexGroups,MCPK);  // only sending one public key
     addPSKExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
+    addMFLExt(&EXT,4);   // ask for smaller max fragment length of 4096 - server may not agree - but no harm in asking
 
 // create and send Client Hello Octet
     sendClientHello(sock,TLS1_0,&CH,CPB.nsc,CPB.ciphers,&RNG,&CID,&EXT,0,&RECORD);   
@@ -337,9 +336,9 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
         OCT_copy(&MCPK[0],&CPK);   // Public Key Share in new group
         kexGroups[0]=favourite_group; 
         addKeyShareExt(&EXT,1,kexGroups,MCPK);
-
         addPSKExt(&EXT,pskMode);
         addVersionExt(&EXT,tlsVersion);
+        addMFLExt(&EXT,4);                      // ask for max fragment length of 4096
         if (COOK.len!=0)
             addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR
 
@@ -408,36 +407,28 @@ int TLS13_full(FILE *fp,int sock,char *hostname,csprng &RNG,int &favourite_group
     if (rtn<0)
     {
         sendClientAlert(sock,alert_from_cause(rtn),&K_send,&RECORD);
+        logger(fp,(char *)"Client to Server -> ",NULL,0,&RECORD);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
         return 0;
     logger(fp,(char *)"Encrypted Extensions Processed\n ",NULL,0,NULL);
 
-// 2. get certificate chain
-    rtn=getServerCertificateChain(sock,&SR,&K_recv,&tlshash,&CERTCHAIN);
+// 2. get certificate chain, check it, get Server public key
+    rtn=getCheckServerCertificateChain(fp,sock,&SR,&K_recv,&tlshash,&CAKEY);
     logServerResponse(fp,rtn,&SR);
     if (rtn<0)
     {
         sendClientAlert(sock,alert_from_cause(rtn),&K_send,&RECORD);
+        logger(fp,(char *)"Client to Server -> ",NULL,0,&RECORD);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
         return 0;
-    logger(fp,(char *)"Certificate Chain Processed\n ",NULL,0,NULL);
+    logger(fp,(char *)"Certificate Chain is valid\n",NULL,0,NULL);
+
     transcript_hash(&tlshash,&HH); // hash of clientHello+serverHello+encryptedExtensions+CertChain
     logger(fp,(char *)"Transcript Hash= ",NULL,0,&HH); 
-
-// check certificate chain, and extract Server Cert Public Key
-    if (CHECK_CERT_CHAIN(fp,&CERTCHAIN,&CAKEY))
-        logger(fp,(char *)"Certificate Chain is valid\n",NULL,0,NULL);
-    else
-    {
-        logger(fp,(char *)"Certificate is NOT valid\n",NULL,0,NULL);
-        sendClientAlert(sock,BAD_CERTIFICATE,&K_send,&RECORD);
-        logger(fp,(char *)"Client to Server -> ",NULL,0,&RECORD);
-        return 0;
-    }
 
 // 3. get verifier signature
     int sigalg;
@@ -691,6 +682,7 @@ int TLS13_resume(FILE *fp,int sock,char *hostname,csprng &RNG,int favourite_grou
     addKeyShareExt(&EXT,1,kexGroups,MCPK);  // only sending one public key
     addPSKExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
+    addMFLExt(&EXT,4);                      // ask for max fragment length of 4096
     if (have_early_data)
         addEarlyDataExt(&EXT);                                     // try sending client message as early data if allowed
 

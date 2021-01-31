@@ -72,6 +72,7 @@ void logTicket(FILE *fp,int lifetime,unsign32 age_obfuscator,unsign32 max_early_
 }
 
 // log a certificate in base64
+/*
 void logCert(FILE *fp,octet *CERT)
 {
     char b[TLS_MAX_SIGNED_CERT_B64];
@@ -80,6 +81,7 @@ void logCert(FILE *fp,octet *CERT)
     logger(fp,(char *)"",b,0,NULL);
     logger(fp,(char *)"-----END CERTIFICATE----- \n",NULL,0,NULL);
 }
+*/
 
 // log certificate details
 void logCertDetails(FILE *fp,char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet *ISSUER,octet *SUBJECT)
@@ -129,6 +131,9 @@ void logServerResponse(FILE *fp,int rtn,octet *O)
         { 
         case NOT_TLS1_3:
             logger(fp,(char *)"Not TLS1.3\n",NULL,0,NULL);
+            break;
+        case BAD_CERT_CHAIN:
+            logger(fp,(char *)"Bad Certificate Chain\n",NULL,0,NULL);
             break;
         case ID_MISMATCH:
             logger(fp,(char *)"Identity Mismatch\n",NULL,0,NULL);

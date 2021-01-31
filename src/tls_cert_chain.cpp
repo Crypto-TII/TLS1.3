@@ -35,78 +35,61 @@ static bool readaline(char *line,const char *rom,int &ptr)
 // This is a simple linear seacrch through CA certificates found in the ca-certificates.crt file (borrowed from Ubuntu)
 // This file could be in Read-Only-Memory
 
-bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
+static bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 {
-    char sc[TLS_MAX_SIGNED_CERT_SIZE];  // maximum size for CA certs in bytes - actually they are all quite small
-    octet SC={0,sizeof(sc),sc};
-    char c[TLS_MAX_CERT_SIZE];
-    octet C={0,sizeof(c),c};
     char ca[TLS_X509_MAX_FIELD];
     octet CA={0,sizeof(ca),ca};
     char owner[TLS_X509_MAX_FIELD];
     octet OWNER={0,sizeof(owner),owner};
-    char b[TLS_MAX_SIGNED_CERT_B64];  // maximum size for CA signed certs in base64
+    char sc[TLS_MAX_ROOT_CERT_SIZE];  // server certificate
+    octet SC={0,sizeof(sc),sc};
+    char b[TLS_MAX_ROOT_CERT_B64];  // maximum size for CA root signed certs in base64
     char line[80]; int ptr=0;
-//    ifstream file("ca-certificates.crt");
 
-//    if (file.is_open()) {
-//        string line;
+    for (;;)
+    {
+        int i=0;
+        if (!readaline(line,cacerts,ptr)) break;
         for (;;)
         {
-            int i=0;
-            if (!readaline(line,cacerts,ptr)) break;
-        //    if (!getline(file, line)) break;
-            for (;;)
-            {
-                readaline(line,cacerts,ptr);
-                //getline(file,line);
-                if (line[0]=='-') break;
-                //if (line.c_str()[0]=='-') break;
-                for (int j=0;j<64;j++)
-                    b[i++]=line[j];
-                    //b[i++]=line.c_str()[j];
-
-                b[i]=0;
-            }
-            OCT_frombase64(&SC,b);
-
-            int c = X509_extract_cert(&SC, &C);
-
-            int ic = X509_find_issuer(&C);
-            FULL_NAME(&OWNER,&C,ic);
-
-            if (OCT_comp(&OWNER,ISSUER))
-            {
-                pktype pt = X509_extract_public_key(&C, PUBKEY);
-                if (st.type==pt.type && st.curve==pt.curve) 
-                { // found CA cert
- //                   file.close();   
-                    return true;
-                }
-            } 
+            readaline(line,cacerts,ptr);
+            if (line[0]=='-') break;
+            for (int j=0;j<64;j++)
+                b[i++]=line[j];
+            b[i]=0;
         }
-//        file.close();   
-//    }
+        OCT_frombase64(&SC,b);
+        int c = X509_extract_cert(&SC, &SC);  // extract Cert from Signed Cert
+
+        int ic = X509_find_issuer(&SC);
+        FULL_NAME(&OWNER,&SC,ic);
+
+        if (OCT_comp(&OWNER,ISSUER))
+        {
+            pktype pt = X509_extract_public_key(&SC, PUBKEY);
+            if (st.type==pt.type && st.curve==pt.curve) 
+            { // found CA cert 
+                return true;
+            }
+        } 
+    }
     return false;  // couldn't find it
 }
 
-// Extract public key from a signed certificate
-pktype GET_PUBLIC_KEY_FROM_SIGNED_CERT(octet *SCERT,octet *PUBLIC_KEY)
+// Extract public key from a certificate
+static pktype GET_PUBLIC_KEY_FROM_CERT(octet *CERT,octet *PUBLIC_KEY)
 {
-    char cert[TLS_MAX_CERT_SIZE];
-    octet CERT={0,sizeof(cert),cert};
-    X509_extract_cert(SCERT,&CERT);  // first extract the Cert..
-    pktype pk=X509_extract_public_key(&CERT, PUBLIC_KEY);  //.. then pull out its public key
+    pktype pk=X509_extract_public_key(CERT, PUBLIC_KEY);  // pull out its public key
     return pk;
 }
 
-// extract Certificate, Signature, Full Issuer and Subject from Signed Cert
-pktype GET_CERT_DETAILS(octet *SCERT,octet *CERT,octet *SIG,octet *ISSUER,octet *SUBJECT)
+// strip signature off certificate. Return signature type
+static pktype STRIP_DOWN_CERT(octet *CERT,octet *SIG,octet *ISSUER,octet *SUBJECT)
 {
     int c,ic,len;
 
-    pktype sg=X509_extract_cert_sig(SCERT,SIG);
-    X509_extract_cert(SCERT,CERT);
+    pktype sg=X509_extract_cert_sig(CERT,SIG);
+    X509_extract_cert(CERT,CERT);
 
     ic = X509_find_issuer(CERT);
     FULL_NAME(ISSUER,CERT,ic);
@@ -118,7 +101,7 @@ pktype GET_CERT_DETAILS(octet *SCERT,octet *CERT,octet *SIG,octet *ISSUER,octet 
 }
 
 // Check signature on Certificate given signature type and public key
-bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
+static bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 {
     int sha=0;
     if (st.hash == X509_H256) sha = SHA256;
@@ -221,74 +204,97 @@ bool CHECK_CERT_SIG(FILE *fp,pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
     return false;
 }
 
-//extract server public key, and check validity of certificate chain
+// extract server public key, and check validity of certificate chain
 // This will need improving!
 // Assumes simple chain Server Cert->Intermediate Cert->CA cert
 bool CHECK_CERT_CHAIN(FILE *fp,octet *CERTCHAIN,octet *PUBKEY)
 {
     ret r;
     int len,c,ptr=0;
-    bool self_signed;
-    pktype st,ca,stn;
-    char sig[TLS_MAX_SIGNATURE_SIZE];  // signature on certificate
-    octet SIG={0,sizeof(sig),sig};
-    char scert[TLS_MAX_SIGNED_CERT_SIZE]; // signed certificate
-    octet SCERT={0,sizeof(scert),scert};
-    char cert[TLS_MAX_CERT_SIZE];  // certificate
-    octet CERT={0,sizeof(cert),cert};
-    char cakey[TLS_MAX_PUB_KEY_SIZE];  // Public Key from Cert
-    octet CAKEY = {0, sizeof(cakey), cakey};
+    pktype sst,ist,spt,ipt;
+    char ssig[TLS_MAX_SIGNATURE_SIZE];  // signature on server certificate
+    octet SSIG={0,sizeof(ssig),ssig};
+    char isig[TLS_MAX_SIGNATURE_SIZE];  // signature on intermediate certificate
+    octet ISIG={0,sizeof(isig),isig};
+
+// Clever re-use of memory - use pointers into cert chain rather than extracting certs
+    octet SCERT;  // server certificate
+    SCERT.len=0;
+    octet ICERT;  // signature on intermediate certificate
+    ICERT.len=0;
+
+    char ipk[TLS_MAX_PUB_KEY_SIZE];  // Public Key from Intermediate Cert
+    octet IPK = {0, sizeof(ipk), ipk};
+
+    char rpk[TLS_MAX_PUB_KEY_SIZE];  // Public Key Root Certificate
+    octet RPK = {0, sizeof(rpk), rpk};
+
     char issuer[TLS_X509_MAX_FIELD];  
     octet ISSUER={0,sizeof(issuer),issuer};
     char subject[TLS_X509_MAX_FIELD];
     octet SUBJECT={0,sizeof(subject),subject};
 
+// Extract and process Server Cert
     r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false;// get length of first (server) certificate
-    r=parseOctet(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
+    r=parseOctetptr(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
+
+//printf("Signed cert len= %d\n",SCERT.len);
 
     r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
     ptr+=len;   // skip certificate extensions
-    ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,PUBKEY);
 
-    st=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);   // get signature on Server Cert
+    sst=STRIP_DOWN_CERT(&SCERT,&SSIG,&ISSUER,&SUBJECT);    // extract signature
+    spt=GET_PUBLIC_KEY_FROM_CERT(&SCERT,PUBKEY);           // extract  public key
 
-    if (st.type==0)
+    if (sst.type==0)
     {
         logger(fp,(char *)"Unrecognised Signature Type\n",NULL,0,NULL);
         return false;
     }
+    logCertDetails(fp,(char *)"Server certificate",PUBKEY,spt,&SSIG,sst,&ISSUER,&SUBJECT);
 
-    logCertDetails(fp,(char *)"Server certificate",PUBKEY,ca,&SIG,st,&ISSUER,&SUBJECT);
+    if (OCT_comp(&ISSUER,&SUBJECT))
+    {
+        logger(fp,(char *)"Warning - Self signed Cert\n",NULL,0,NULL);
+        return true;   // not fatal for development purposes
+    }
 
+// Extract and process Intermediate Cert
     r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false; // get length of next certificate
-    r=parseOctet(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
+    r=parseOctetptr(&ICERT,len,CERTCHAIN,ptr); if (r.err) return false;
+
+//printf("Signed cert len= %d\n",ICERT.len);
 
     r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
     ptr+=len;   // skip certificate extensions
 
-    ca=GET_PUBLIC_KEY_FROM_SIGNED_CERT(&SCERT,&CAKEY);  // get public key from Intermediate Cert
+    ist=STRIP_DOWN_CERT(&ICERT,&ISIG,&ISSUER,&SUBJECT);
+    ipt=GET_PUBLIC_KEY_FROM_CERT(&ICERT,&IPK);
 
-    if (CHECK_CERT_SIG(fp,st,&CERT,&SIG,&CAKEY)) {
+    if (CHECK_CERT_SIG(fp,sst,&SCERT,&SSIG,&IPK)) {  // Check server cert signature with inter cert public key
         logger(fp,(char *)"Intermediate Certificate Chain sig is OK\n",NULL,0,NULL);
     } else {
         logger(fp,(char *)"Intermediate Certificate Chain sig is NOT OK\n",NULL,0,NULL);
         return false;
     }
+    logCertDetails(fp,(char *)"Intermediate Certificate",&IPK,ipt,&ISIG,ist,&ISSUER,&SUBJECT);
 
-    stn=GET_CERT_DETAILS(&SCERT,&CERT,&SIG,&ISSUER,&SUBJECT);
+    if (OCT_comp(&ISSUER,&SUBJECT))
+    {
+        logger(fp,(char *)"Warning - Self signed Cert\n",NULL,0,NULL);
+        return true;   // not fatal for development purposes
+    }
 
-    //logCert(fp,&SCERT);
-
-    logCertDetails(fp,(char *)"Intermediate Certificate",&CAKEY,ca,&SIG,stn,&ISSUER,&SUBJECT);
-
-    if (FIND_ROOT_CA(&ISSUER,stn,&CAKEY)) {
-        logger(fp,(char *)"\nPublic Key from root CA cert= ",NULL,0,&CAKEY);
+// Find Root of Trust
+// Find root certificate public key
+    if (FIND_ROOT_CA(&ISSUER,ist,&RPK)) { 
+        logger(fp,(char *)"\nPublic Key from root cert= ",NULL,0,&RPK);
     } else {
-        logger(fp,(char *)"Root CA not found\n",NULL,0,NULL);
+        logger(fp,(char *)"Root Certificate not found\n",NULL,0,NULL);
         return false;
     }
 
-    if (CHECK_CERT_SIG(fp,stn,&CERT,&SIG,&CAKEY)) {
+    if (CHECK_CERT_SIG(fp,ist,&ICERT,&ISIG,&RPK)) {  // Check inter cert signature with root cert public key
         logger(fp,(char *)"Root Certificate sig is OK!!!!\n",NULL,0,NULL);
     } else {
         logger(fp,(char *)"Root Certificate sig is NOT OK\n",NULL,0,NULL);

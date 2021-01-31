@@ -3,11 +3,12 @@
 //
 
 #include "tls_client_recv.h"
+#include "tls_cert_chain.h"
 
 // First some functions for parsing values out of an octet string
 
 // parse out an octet of length len from octet M into E
-// ptr is a moving pointer through the octet
+// ptr is a moving pointer through the octet M
 ret parseOctet(octet *E,int len,octet *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
@@ -15,6 +16,21 @@ ret parseOctet(octet *E,int len,octet *M,int &ptr)
     E->len=len;
     for (int i=0;i<len && i<E->max;i++ )
         E->val[i]=M->val[ptr++];
+    r.val=len; r.err=0;             // it looks OK
+    return r;
+}
+
+// parse out an octet of length len from octet M
+// ptr is a moving pointer through the octet M
+// but now E is just a pointer into M
+ret parseOctetptr(octet *E,int len,octet *M,int &ptr)
+{
+    ret r={0,BAD_RECORD};
+    if (ptr+len>M->len) return r;   // not enough in M - probably need to read in some more
+    E->len=len;
+    E->max=len;
+    E->val=&M->val[ptr];
+    ptr+=len;
     r.val=len; r.err=0;             // it looks OK
     return r;
 }
@@ -247,6 +263,22 @@ ret parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,crypto *recv)
     return r;
 }
 
+// return Octet O of length len, or pull in another fragment and try again
+ret parseOctetorPullptr(int sock,octet *O,int len,octet *SR,int &ptr,crypto *recv)
+{
+    ret r=parseOctetptr(O,len,SR,ptr);
+    while (r.err)
+    { // not enough bytes in SR - pull in another fragment
+        int rtn=getServerFragment(sock,recv,SR); 
+        if (rtn<0) {
+            r.err=rtn;
+            break;
+        }
+        r=parseOctetptr(O,len,SR,ptr);
+    }
+    return r;
+}
+
 // Function return convention
 // return +m; // returns useful value
 // return 0; //  OK or non-fatal error
@@ -263,7 +295,7 @@ ret parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,crypto *recv)
 int getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
 {
     ret r;
-    int nb,ext,len,tlen,ptr=0;
+    int nb,ext,len,tlen,mfl,ptr=0;
     int unexp=0;
 
     r=parseByteorPull(sock,SR,ptr,recv); nb=r.val; if (r.err) return r.err;
@@ -271,6 +303,9 @@ int getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_
     early_data_accepted=false;
     if (nb!=ENCRYPTED_EXTENSIONS)
         return WRONG_MESSAGE;
+
+//    char u[50];
+//    octet U={0,sizeof(u),u};
 
     r=parseInt16orPull(sock,SR,ptr,recv); len=r.val; if (r.err) return r.err; // length of extensions
 
@@ -284,13 +319,23 @@ int getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_
         switch (ext)
         {
         case EARLY_DATA :
-            r=parseInt16orPull(sock,SR,ptr,recv); 
+            r=parseInt16orPull(sock,SR,ptr,recv); tlen=r.val;  // if tlen != 0?
             len-=2;  // length is zero
             early_data_accepted=true;
+            if (tlen!=0) return UNRECOGNIZED_EXT;
+            break;
+        case MAX_FRAG_LENGTH :
+            r=parseInt16orPull(sock,SR,ptr,recv); tlen=r.val; if (r.err) return r.err;
+            len-=2;
+            r=parseByteorPull(sock,SR,ptr,recv); mfl=r.val;  // ideally this should the same as requested by client
+            len-=tlen;                                       // but server may have ignored this request... :(
+            if (tlen!=1) return UNRECOGNIZED_EXT;            // so we ignore this response  
             break;
         default:    // ignore all other extensions
             r=parseInt16orPull(sock,SR,ptr,recv); tlen=r.val;
             len-=2;  // length of extension
+//            r=parseOctetorPull(sock,&U,tlen,SR,ptr,recv);   // to look at extension
+//            printf("Unexpected Extension= "); OCT_output(&U);
             len-=tlen; ptr+=tlen; // skip over it
             unexp++;
             break;
@@ -308,11 +353,13 @@ int getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_
     return unexp;
 }
 
-// Process certificate chain 
-int getServerCertificateChain(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *CERTCHAIN)
+// Get certificate chain, and check its validity 
+int getCheckServerCertificateChain(FILE *fp,int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *PUBKEY)
 {
     ret r;
-    int nb,len,ptr=0;
+    int nb,len,rtn,ptr=0;
+    octet CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
+    CERTCHAIN.len=0;
 
     r=parseByteorPull(sock,SR,ptr,recv); nb=r.val;   if (r.err) return r.err;
     r=parseInt24orPull(sock,SR,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
@@ -321,19 +368,23 @@ int getServerCertificateChain(int sock,octet *SR,crypto *recv,unihash *trans_has
     { // message received out-of-order
         return WRONG_MESSAGE;
     }
-    OCT_clear(CERTCHAIN);
     r=parseByteorPull(sock,SR,ptr,recv); nb=r.val; if (r.err) return r.err;
     if (nb!=0x00) return MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
     r=parseInt24orPull(sock,SR,ptr,recv); len=r.val; if (r.err) return r.err;    // get length of certificate chain
-    r=parseOctetorPull(sock,CERTCHAIN,len,SR,ptr,recv); if (r.err) return r.err; // get certificate chain
+    r=parseOctetorPullptr(sock,&CERTCHAIN,len,SR,ptr,recv); if (r.err) return r.err; // get pointer to certificate chain
 
 // Transcript hash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,SR->val[i]);
 
+    if (CHECK_CERT_CHAIN(fp,&CERTCHAIN,PUBKEY))
+        rtn=0;
+    else
+        rtn=BAD_CERT_CHAIN;
+
     OCT_shl(SR,ptr);  // rewind to start
 
-    return 0;
+    return rtn;
 }
 
 // Get Server proof that he owns the Certificate, by receiving its signature SCVSIG on transcript hash
