@@ -5,19 +5,20 @@
 
 #include "core.h"
 
+#ifndef CORE_ARDUINO
 #define LOGGER   // define to output debug info to log file
+#endif
 
 // Some maximum sizes for stack allocated memory
 // Handshake will fail if these sizes are exceeded!
 #define TLS_MAX_HASH 64
 #define TLS_MAX_KEY 32
-#define TLS_X509_MAX_FIELD 240
+#define TLS_X509_MAX_FIELD 240           // Maximum X.509 field size
 #define TLS_MAX_ROOT_CERT_SIZE 2048      // I checked - current max for root CAs is 2016
 #define TLS_MAX_ROOT_CERT_B64 2800       // In base64 - current max for root CAs is 2688
-#define TLS_MAX_CLIENT_RECORD 2048
 #define TLS_MAX_TICKET_SIZE 512
 #define TLS_MAX_EXTENSIONS 1024
-#define TLS_MAX_SERVER_RESPONSE 8192 //16384 we will want to reduce this as much as possible! But must be large enough to take full certificate chain
+#define TLS_MAX_IO_SIZE 8192 //16384? We will want to reduce this as much as possible! But must be large enough to take full certificate chain
 
 #define TLS_MAX_SIGNATURE_SIZE 512
 #define TLS_MAX_PUB_KEY_SIZE 512

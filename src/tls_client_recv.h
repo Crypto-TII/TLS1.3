@@ -17,18 +17,18 @@ extern ret parseInt32(octet *M,int &ptr);
 extern ret parseByte(octet *M,int &ptr);
 extern ret parseOctetptr(octet *E,int len,octet *M,int &ptr);
 
-extern int getServerFragment(int sock,crypto *recv,octet *SR);
-extern ret parseByteorPull(int sock,octet *SR,int &ptr,crypto *recv);
-extern ret parseInt32orPull(int sock,octet *SR,int &ptr,crypto *recv);
-extern ret parseInt24orPull(int sock,octet *SR,int &ptr,crypto *recv);
-extern ret parseInt16orPull(int sock,octet *SR,int &ptr,crypto *recv);
-extern ret parseOctetorPull(int sock,octet *O,int len,octet *SR,int &ptr,crypto *recv);
-extern ret parseOctetorPullptr(int sock,octet *O,int len,octet *SR,int &ptr,crypto *recv);
+extern int getServerFragment(Socket &client,crypto *recv,octet *IO);
+extern ret parseByteorPull(Socket &client,octet *IO,int &ptr,crypto *recv);
+extern ret parseInt32orPull(Socket &client,octet *IO,int &ptr,crypto *recv);
+extern ret parseInt24orPull(Socket &client,octet *IO,int &ptr,crypto *recv);
+extern ret parseInt16orPull(Socket &client,octet *IO,int &ptr,crypto *recv);
+extern ret parseOctetorPull(Socket &client,octet *O,int len,octet *IO,int &ptr,crypto *recv);
+extern ret parseOctetorPullptr(Socket &client,octet *O,int len,octet *IO,int &ptr,crypto *recv);
 
-extern int getServerEncryptedExtensions(int sock,octet *SR,crypto *recv,unihash *trans_hash,bool &early_data_accepted);
-extern int getServerCertVerify(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *SCVSIG,int &sigalg);
-extern int getServerFinished(int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *HFIN);
-extern int getServerHello(int sock,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK,int &pskid);
-extern int getCheckServerCertificateChain(FILE *fp,int sock,octet *SR,crypto *recv,unihash *trans_hash,octet *PUBKEY);
+extern int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,bool &early_data_accepted);
+extern int getServerCertVerify(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *SCVSIG,int &sigalg);
+extern int getServerFinished(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *HFIN);
+extern int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK,int &pskid);
+extern int getCheckServerCertificateChain(FILE *fp,Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *PUBKEY);
 
 #endif

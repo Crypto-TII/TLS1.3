@@ -32,7 +32,7 @@ void logger(FILE *fp,char *preamble,char *string,unsign32 info,octet *O)
     } 
 
     if (string!=NULL)
-    {
+    { // if its bigger than 6 its not a format descriptor ???
         if (strlen(string)>6)
             fprintf(fp,"%s",string);
         else
