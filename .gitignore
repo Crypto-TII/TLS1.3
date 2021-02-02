@@ -1,0 +1,10 @@
+.DS_Store
+.idea/
+
+## CMake
+cmake-*/
+
+## Executables
+client
+server
+
