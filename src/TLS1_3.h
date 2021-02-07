@@ -5,19 +5,24 @@
 
 #include "core.h"
 
-#ifndef CORE_ARDUINO
-#define LOGGER   // define to output debug info to log file
-#endif
+#define IO_NONE 0     // Run silently
+#define IO_APPLICATION 1    // just print application traffic
+#define IO_PROTOCOL 2       // print protocol progress + application traffic
+#define IO_DEBUG 3    // print lots of debug information + protocol progress + application traffic
+
+// THIS IS AN IMPORTANT SETTING
+#define VERBOSITY IO_PROTOCOL   // Set to level of output information desired - see above
 
 // Some maximum sizes for stack allocated memory
 // Handshake will fail if these sizes are exceeded!
 #define TLS_MAX_HASH 64
 #define TLS_MAX_KEY 32
-#define TLS_X509_MAX_FIELD 240           // Maximum X.509 field size
+#define TLS_X509_MAX_FIELD 256           // Maximum X.509 field size
 #define TLS_MAX_ROOT_CERT_SIZE 2048      // I checked - current max for root CAs is 2016
 #define TLS_MAX_ROOT_CERT_B64 2800       // In base64 - current max for root CAs is 2688
 #define TLS_MAX_TICKET_SIZE 512
-#define TLS_MAX_EXTENSIONS 1024
+#define TLS_MAX_CLIENT_HELLO 256         // Max size (less extensions)
+#define TLS_MAX_EXTENSIONS 512
 #define TLS_MAX_IO_SIZE 8192 //16384? We will want to reduce this as much as possible! But must be large enough to take full certificate chain
 
 #define TLS_MAX_SIGNATURE_SIZE 512
@@ -26,7 +31,7 @@
 #define TLS_MAX_ECC_FIELD 66
 #define TLS_IV_SIZE 12
 #define TLS_TAG_SIZE 16
-#define TLS_MAX_COOKIE 100
+#define TLS_MAX_COOKIE 128
 
 #define TLS_MAX_SERVER_NAME 128
 #define TLS_MAX_SUPPORTED_GROUPS 5

@@ -6,7 +6,6 @@
 #include "tls_cert_chain.h"
 
 // First some functions for parsing values out of an octet string
-
 // parse out an octet of length len from octet M into E
 // ptr is a moving pointer through the octet M
 ret parseOctet(octet *E,int len,octet *M,int &ptr)
@@ -83,6 +82,7 @@ ret parseByte(octet *M,int &ptr)
     return r;
 }
 
+// ALL Server to Client input arrives via this function
 // Basic function for reading in a record, which may be only a fragment of a larger message
 
 // get another fragment of server response
@@ -164,18 +164,17 @@ int getServerFragment(Socket &client,crypto *recv,octet *IO)
     int pad=0;
     lb=IO->val[IO->len-1]; 
     IO->len--; // remove it
-    while (lb==0)
+    while (lb==0 && IO->len>0)
     { // could be zero padding
         lb=IO->val[IO->len-1];   // need to track back through zero padding for this....
         IO->len--; // remove it
         pad++;
     }
-
-    if (lb==0x16)
+    if (lb==HSHAKE)
         return HSHAKE;
-    if (lb==0x17)
+    if (lb==APPLICATION)
         return APPLICATION;
-    if (lb==0x15)
+    if (lb==ALERT)
         return ALERT;
     return BAD_RECORD;
 }
@@ -354,7 +353,7 @@ int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,unihash *
 }
 
 // Get certificate chain, and check its validity 
-int getCheckServerCertificateChain(FILE *fp,Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *PUBKEY)
+int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *PUBKEY)
 {
     ret r;
     int nb,len,rtn,ptr=0;
@@ -377,7 +376,7 @@ int getCheckServerCertificateChain(FILE *fp,Socket &client,octet *IO,crypto *rec
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
 
-    if (CHECK_CERT_CHAIN(fp,&CERTCHAIN,PUBKEY))
+    if (CHECK_CERT_CHAIN(&CERTCHAIN,PUBKEY))
         rtn=0;
     else
         rtn=BAD_CERT_CHAIN;
@@ -401,7 +400,7 @@ int getServerCertVerify(Socket &client,octet *IO,crypto *recv,unihash *trans_has
 
     OCT_clear(SCVSIG);
     r=parseInt16orPull(client,IO,ptr,recv); sigalg=r.val; if (r.err) return r.err; // may for example be 0804 - RSA-PSS-RSAE-SHA256
-    r=parseInt16orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;     // sig data follows
+    r=parseInt16orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;    // sig data follows
     r=parseOctetorPull(client,SCVSIG,len,IO,ptr,recv); if (r.err) return r.err;
    
 // Transcript hash

@@ -3,12 +3,13 @@
 
 #include "tls_sockets.h"
 
+#ifndef CORE_ARDUINO
 bool Socket::connect(char *host,int port) {
     char ip[40];
     sock=0;
     if (!getIPaddress(ip,host))
         return false;
-    sock=setclientsock(port,ip);
+    sock=setclientsock(port,ip,toms);
     if (sock<=0)
         return false;
     return true;
@@ -51,7 +52,7 @@ int setserversock(int port)
 */
 
 // open socket
-int setclientsock(int port,char *ip)
+int setclientsock(int port,char *ip,int toms)
 {
     int sock = 0, valread; 
     struct sockaddr_in serv_addr; 
@@ -67,8 +68,9 @@ int setclientsock(int port,char *ip)
    
 // Set time-out period    
     struct timeval timeout;
-    timeout.tv_sec  = 5;  // after 5 seconds read() will timeout
-    timeout.tv_usec = 0;
+
+    timeout.tv_sec  = toms/1000;  // after some seconds read() will timeout
+    timeout.tv_usec = (toms%1000)*1000;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
@@ -86,6 +88,8 @@ int getIPaddress(char *ip,char *hostname)
 	strcpy(ip,inet_ntoa(* address));
     return 1;
 }
+
+#endif
 
 // Send Octet
 void sendOctet(Socket &client,octet *B)

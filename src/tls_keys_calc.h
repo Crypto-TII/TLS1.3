@@ -18,7 +18,7 @@ extern void Hash_Output(unihash *h,char *d);
 // transcript hash support
 extern void running_hash(octet *O,unihash *h);
 extern void transcript_hash(unihash *h,octet *O);
-extern void running_syn_hash(octet *O,unihash *h);
+extern void running_syn_hash(octet *O,octet *E,unihash *h);
 
 extern void init_crypto_context(crypto *C);
 extern void create_crypto_context(crypto *C,octet *K,octet *IV);

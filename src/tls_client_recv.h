@@ -3,7 +3,6 @@
 #ifndef TLS_CLIENT_RECV_H
 #define TLS_CLIENT_RECV_H
 
-#include <string.h>
 #include "core.h"
 #include "tls1_3.h"
 #include "tls_sockets.h"
@@ -29,6 +28,6 @@ extern int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,un
 extern int getServerCertVerify(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *SCVSIG,int &sigalg);
 extern int getServerFinished(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *HFIN);
 extern int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK,int &pskid);
-extern int getCheckServerCertificateChain(FILE *fp,Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *PUBKEY);
+extern int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *PUBKEY);
 
 #endif

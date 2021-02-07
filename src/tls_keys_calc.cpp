@@ -51,7 +51,7 @@ void transcript_hash(unihash *h,octet *O)
 }
 
 // special case handling for first clientHello after retry request
-void running_syn_hash(octet *O,unihash *h)
+void running_syn_hash(octet *O,octet *E,unihash *h)
 {
     int sha=h->hlen;
     unihash rhash;
@@ -61,6 +61,7 @@ void running_syn_hash(octet *O,unihash *h)
     Hash_Init(sha,&rhash); 
  // RFC 8446 - "special synthetic message"
     running_hash(O,&rhash);
+    running_hash(E,&rhash);
     transcript_hash(&rhash,&HH);
     
     Hash_Process(h,MESSAGE_HASH);

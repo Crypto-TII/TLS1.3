@@ -8,9 +8,9 @@ This library does all the crypto, and can be regarded as a "placeholder" as we m
 
 Then copy the contents of this archive to the same directory, in particular client.cpp and tls*.*
 
-Build the client app by 
+Set the verbosoity of the output in tls1_3.h to IO_DEBUG. Build the client app by 
 
-	g++ -O2 client.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp tls_cacerts.cpp core.a -o client
+	g++ -O2 client.cpp tls_protocol.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp tls_cacerts.cpp core.a -o client
 
 Or by using CMake. If you follow this alternative, copy the header files into `vendor/miracl/includes`, and the `core.a` to `vendor/miracl/` 
 
@@ -18,7 +18,7 @@ Then execute the client process as for example
 
 	./client swifttls.org
 
-The output should look something like (This detailed output by default now goes to logger.log)
+The output should look something like
 
 	Hostname= swifttls.org
 	ip= 109.74.204.5
