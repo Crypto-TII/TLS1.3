@@ -1,6 +1,8 @@
+CC=$(CROSS)g++
+
 client:
 	mv TLS1_3.h tls1_3.h || true
-	g++ -O2 -Ivendor/miracl/includes client.cpp tls_protocol.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp tls_cacerts.cpp vendor/miracl/core.a -o client
+	$(CC) -O2 -Ivendor/miracl/includes client.cpp tls_protocol.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp tls_cacerts.cpp vendor/miracl/core.a utils.cpp -o client
 
 copy-dependencies:
 	cp ../../miracl-core/cpp/core.a ./vendor/miracl/
