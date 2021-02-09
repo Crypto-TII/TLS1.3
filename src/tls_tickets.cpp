@@ -17,8 +17,14 @@ int milliseconds(struct timeval start_time,struct timeval end_time)
 // Initialise a ticket and record its date of birth
 void init_ticket_context(ticket *T,struct timeval &birthday)
 {
-    T->NONCE={0,32,T->nonce};
-    T->TICK={0,TLS_MAX_TICKET_SIZE,T->tick};
+    T->NONCE.len = 0;
+    T->NONCE.max = 32;
+    T->NONCE.val = T->nonce;
+
+    T->TICK.len = 0;
+    T->TICK.max = TLS_MAX_TICKET_SIZE;
+    T->TICK.val = T->tick;
+
     T->lifetime=0;
     T->age_obfuscator=0;
     T->max_early_data=0;
