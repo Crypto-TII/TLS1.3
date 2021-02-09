@@ -3,6 +3,10 @@
 //
 #include "tls_logger.h"
 
+#ifdef CORE_ARDUINO
+#include <Arduino.h>
+#endif
+
 // all terminal output redirected here
 void myprintf(char *s)
 {

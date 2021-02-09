@@ -485,7 +485,7 @@ int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *CID,octe
     left-=32;
 
     if (OCT_comp(&SRN,&HRR))
-        retry=true;        // "random" data was not random at all - indicating Handshae Retry Request
+        retry=true;        // "random" data was not random at all - indicating Handshake Retry Request
    
     r=parseByteorPull(client,SH,ptr,NULL); silen=r.val; if (r.err) return r.err; 
     left-=1;

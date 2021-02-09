@@ -9,6 +9,8 @@
 #include <WiFi.h>
 #endif
 
+//#define ESP32
+
 // Process Server records received post-handshake
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
@@ -18,7 +20,7 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
     ret r;
     int nce,nb,len,te,type,nticks,kur,ptr=0;
     bool fin=false;
-    struct timeval time_ticket_received;
+    unsign32 time_ticket_received;
     octet TICK;  // Ticket raw data
     TICK.len=0;
 
@@ -45,9 +47,9 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
                 {
                 case TICKET :   // keep last ticket
                     logger(IO_PROTOCOL,(char *)"Got a ticket\n",NULL,0,NULL);
-                    r=parseOctetorPullptr(client,&TICK,len,IO,ptr,K_recv);               // just copy out pointer to this
+                    r=parseOctetorPullptr(client,&TICK,len,IO,ptr,K_recv);    // just copy out pointer to this
                     nticks++;
-                    gettimeofday(&time_ticket_received, NULL);
+                    time_ticket_received=(unsign32)millis();     // start a stop-watch
                     init_ticket_context(T,time_ticket_received); // initialise and time-stamp a new ticket
                     parseTicket(&TICK,T);  // extract into ticket structure, and keep for later use
                     if (ptr==IO->len) fin=true; // record finished
@@ -128,22 +130,37 @@ void client_send(Socket &client,octet *GET,crypto *K_send,octet *IO)
 
 capabilities CPB;
 csprng RNG;                // Crypto Strong RNG
+#ifdef ESP32
 unsigned long ran=esp_random();   // ESP32 true random number generator
+#else
+unsigned long ran=42L;
+#endif
 int port;
 
 #ifdef CORE_ARDUINO
 const char* ssid = "eir79562322-2.4G";
 const char* password =  "uzy987ru";
-char* hostname = "www.bbc.co.uk"
+char* hostname = "www.bbc.co.uk";
 void mydelay()
 {
-    delay(5000);
+    while (1) delay(1000);
 }
 #else
 char hostname[TLS_MAX_SERVER_NAME];
 void mydelay()
 {}
 #endif
+
+
+#ifdef ESP32
+#if CONFIG_FREERTOS_UNICORE
+#define ARDUINO_RUNNING_CORE 0
+#else
+#define ARDUINO_RUNNING_CORE 1
+#endif
+void myloop( void *pvParameters );
+#endif
+
 
 // This rather strange program structure is required by the Arduino development environment
 // A hidden main() functions calls setup() once, and then repeatedly calls loop()
@@ -205,11 +222,31 @@ void setup()
     CPB.sigAlgs[6]=RSA_PSS_RSAE_SHA512;
     CPB.sigAlgs[7]=RSA_PKCS1_SHA512;
     CPB.sigAlgs[8]=RSA_PKCS1_SHA1;
+
+#ifdef ESP32
+    xTaskCreatePinnedToCore(
+        myloop
+        ,  "client"   // A name just for humans
+        ,  28672  // 32K-4K This stack size can be checked & adjusted by reading the Stack Highwater
+        ,  NULL
+        ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+        ,  NULL 
+        ,  ARDUINO_RUNNING_CORE);
+#endif
+
 }
 
 // Try for a full handshake - disconnect - try to resume connection - repeat
+#ifdef ESP32
 void loop()
 {
+}
+
+void myloop(void *pvParameters) {
+    (void) pvParameters;
+#else
+void loop() {
+#endif
     int rtn,favourite_group;
     char rms[TLS_MAX_HASH];
     octet RMS = {0,sizeof(rms),rms};   // Resumption master secret
@@ -227,7 +264,6 @@ void loop()
     make_client_message(&GET,hostname);
 
     Socket client;
-    client.setTimeout(5000);
 
     if (!client.connect(hostname,port))
     {
@@ -257,7 +293,7 @@ void loop()
     if (rtn<0)
         sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
-    client.close();
+    client.stop();
     logger(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
 
 // reopen socket - attempt resumption
@@ -297,9 +333,13 @@ void loop()
     if (rtn<0)
         sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
-    client.close();  // After time out, exit and close session
+    client.stop();  // After time out, exit and close session
     logger(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
 
+#ifdef ESP32
+    Serial.print("Amount of unused stack memory ");
+      Serial.println(uxTaskGetStackHighWaterMark( NULL ));
+#endif
     mydelay();
 }
 

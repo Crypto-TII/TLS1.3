@@ -4,25 +4,32 @@
 
 #include "tls_tickets.h"
 
-// return ticket age in milliseconds
-int milliseconds(struct timeval start_time,struct timeval end_time)
+// read milliseconds from a stop-watch
+// (Arduino has a built in function with the same name)
+#ifndef CORE_ARDUINO
+#include <sys/time.h>
+
+unsigned long millis()
 {
-   long milli_time, seconds, useconds;
-   seconds = end_time.tv_sec - start_time.tv_sec; //seconds
-   useconds = end_time.tv_usec - start_time.tv_usec; //milliseconds
-   milli_time = ((seconds) * 1000 + useconds/1000.0);
-   return (int)milli_time;
+    unsigned long milli_time, seconds, useconds;
+    struct timeval stop_watch;
+    gettimeofday(&stop_watch, NULL);
+    seconds=stop_watch.tv_sec;
+    useconds=stop_watch.tv_usec;
+    milli_time=((seconds) * 1000 + useconds/1000);
+    return milli_time;
 }
+#endif
 
 // Initialise a ticket and record its date of birth
-void init_ticket_context(ticket *T,struct timeval &birthday)
+void init_ticket_context(ticket *T,unsign32 birthtime)
 {
     T->NONCE={0,32,T->nonce};
     T->TICK={0,TLS_MAX_TICKET_SIZE,T->tick};
     T->lifetime=0;
     T->age_obfuscator=0;
     T->max_early_data=0;
-    T->birth=birthday;
+    T->birth=birthtime;
 }
 
 // Parse ticket data into a ticket structure 

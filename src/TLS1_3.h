@@ -152,7 +152,7 @@ typedef struct
     int lifetime;
     unsign32 age_obfuscator;
     unsign32 max_early_data;
-    struct timeval birth;
+    unsign32 birth;
 } ticket;
 
 // crypto capabilities structure

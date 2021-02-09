@@ -112,6 +112,16 @@ void sendLen(Socket &client,int len)
 int getBytes(Socket &client,char *b,int expected)
 {
     int more,i=0,len=expected;
+
+#ifdef CORE_ARDUINO
+    unsigned long start=millis();
+    while (client.available()<expected)
+    { // time-out
+        if (millis()>start+5000)
+            return -1;
+    }
+    client.read((uint8_t *)b,expected);
+#else
     while(len>0)
     {
         more=client.read(&b[i],len);
@@ -119,6 +129,7 @@ int getBytes(Socket &client,char *b,int expected)
         i+=more;
         len-=more;
     }
+#endif
     return 0;
 }
 

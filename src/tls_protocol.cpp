@@ -384,7 +384,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 
     int tlsVersion=TLS1_3;
     int pskMode=PSKWECDHE;
-    struct timeval time_ticket_received,time_ticket_used;
+    unsign32 time_ticket_received,time_ticket_used;
     int lifetime=0;
     unsign32 age,age_obfuscator=0;
     unsign32 max_early_data=0;
@@ -437,8 +437,8 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     if (have_early_data)
         addEarlyDataExt(&EXT);                // try sending client message as early data if allowed
 
-    gettimeofday(&time_ticket_used, NULL);
-    age= milliseconds(time_ticket_received,time_ticket_used);    // age of ticket in milliseconds - problem for some sites which work for age=0 ??
+    time_ticket_used=(unsign32)millis();
+    age=time_ticket_received-time_ticket_used; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
     logger(IO_DEBUG,(char *)"Ticket age= ",(char *)"%x",age,NULL);
     age+=age_obfuscator;
     logger(IO_DEBUG,(char *)"obfuscated age = ",(char *)"%x",age,NULL);

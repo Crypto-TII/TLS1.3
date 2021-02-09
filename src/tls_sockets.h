@@ -4,11 +4,11 @@
 #define TLS_SOCKETS_H
 
 #include <string.h>
-#include <time.h>
 #include "core.h"
 #ifdef CORE_ARDUINO
 #include <WiFi.h>
 #else
+#include <time.h>
 #include <unistd.h> 
 #include <stdio.h> 
 #include <sys/socket.h> 
@@ -35,13 +35,13 @@ class Socket
     int sock;
     int toms;
 public:
-    Socket() {sock=0; toms=10000; }
+    Socket() {sock=0; toms=5000; }
 
     bool connect(char *host,int port);
     void setTimeout(int to) {toms=to;}
     int write(char *buf,int len) {return ::send(sock,buf,len,0);}
     int read(char *buf,int len) {return ::recv(sock,buf,len,0);}
-    void close() {::close(sock);}
+    void stop() {::close(sock);}
 
     ~Socket() {::close(sock);}
 };

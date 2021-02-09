@@ -32,8 +32,8 @@ static bool readaline(char *line,const char *rom,int &ptr)
 }
 
 // given root issuer and public key type of signature, search through root CAs and return root public key
-// This is a simple linear seacrch through CA certificates found in the ca-certificates.crt file (borrowed from Ubuntu)
-// This file could be in Read-Only-Memory
+// This is a simple linear search through CA certificates found in the ca-certificates.crt file (borrowed from Ubuntu)
+// This file should be in Read-Only-Memory
 
 static bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 {
@@ -131,9 +131,7 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         }
         logger(IO_DEBUG,(char *)"SIG= \n",NULL,0,&R);
         logger(IO_DEBUG,(char *)"",NULL,0,&S);
-
         logger(IO_DEBUG,(char *)"\nECC PUBLIC KEY= \n",NULL,0,PUBKEY);
-
         logger(IO_DEBUG,(char *)"Checking ECC Signature on Cert ",(char *)"%d",st.curve,NULL);
 
         if (st.curve==USE_NIST256)
