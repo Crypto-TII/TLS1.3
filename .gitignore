@@ -11,3 +11,6 @@ server
 ## Ignore lowercase (derived) tls1_3.h
 src/tls1_3.h
 
+## Virtual environment (python)
+venv/
+
