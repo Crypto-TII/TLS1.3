@@ -20,9 +20,7 @@ set(SRC
        tls_cert_chain.cpp
        tls_client_recv.cpp
        tls_client_send.cpp
-       tls_hash.cpp
        tls_keys_calc.cpp
-       tls_parse_octet.cpp
        tls_sockets.cpp
        tls_tickets.cpp
         )

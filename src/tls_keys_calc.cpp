@@ -99,8 +99,14 @@ static void HKDF_Expand_Label(int hash,int hlen,octet *OKM,int olen,octet *PRK,o
 // Initialise crypto context (Key,IV, Record number)
 void init_crypto_context(crypto *C)
 {
-    C->K={0,TLS_MAX_KEY,C->k};
-    C->IV={0,12,C->iv};
+    C->K.len = 0;
+    C->K.max = TLS_MAX_KEY;
+    C->K.val = C->k;
+
+    C->IV.len = 0;
+    C->IV.max = 12;
+    C->IV.val = C->iv;
+
     C->record=0;
 }
 

@@ -128,6 +128,12 @@ void client_send(Socket &client,octet *GET,crypto *K_send,octet *IO)
 
 // Some globals
 
+#ifndef CORE_ARDUINO
+unsigned long esp_random(){
+    return 1UL;
+}
+#endif
+
 capabilities CPB;
 csprng RNG;                // Crypto Strong RNG
 #ifdef ESP32
