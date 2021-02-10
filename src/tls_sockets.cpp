@@ -4,16 +4,6 @@
 #include "tls_sockets.h"
 
 #ifndef CORE_ARDUINO
-bool Socket::connect(char *host,int port) {
-    char ip[40];
-    sock=0;
-    if (!getIPaddress(ip,host))
-        return false;
-    sock=setclientsock(port,ip,toms);
-    if (sock<=0)
-        return false;
-    return true;
-}
 /*
 int setserversock(int port)
 {

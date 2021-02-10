@@ -9,6 +9,12 @@
 #include <WiFi.h>
 #endif
 
+enum SocketType{
+    SOCKET_TYPE_AF_UNIX,
+    SOCKET_TYPE_AF_INET
+};
+
+
 //#define ESP32
 
 // Process Server records received post-handshake
@@ -156,6 +162,7 @@ char hostname[TLS_MAX_SERVER_NAME];
 void mydelay()
 {}
 #endif
+SocketType socketType = SocketType::SOCKET_TYPE_AF_INET;
 
 
 #ifdef ESP32
@@ -269,9 +276,12 @@ void loop() {
     init_crypto_context(&K_recv);
     make_client_message(&GET,hostname);
 
-    Socket client;
+    Socket client = Socket::InetSocket(hostname, port);
+    if(socketType == SocketType::SOCKET_TYPE_AF_UNIX){
+        client = Socket::UnixSocket(hostname);
+    }
 
-    if (!client.connect(hostname,port))
+    if (!client.isConnected())
     {
         logger(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
         mydelay();
@@ -312,7 +322,7 @@ void loop() {
 
     logger(IO_PROTOCOL,(char *)"\nAttempting resumption\n",NULL,0,NULL);
 
-    if (!client.connect(hostname,port))
+    if (!client.isConnected())
     {
         logger(IO_PROTOCOL,(char *)"\nConnection Failed \n",NULL,0,NULL); 
         mydelay();
@@ -353,13 +363,22 @@ void loop() {
 int main(int argc, char const *argv[])
 {
     argv++; argc--;
-    if (argc!=1)
-    {
-        strcpy(hostname,"localhost");
-        port=4433;
+    socketType = SocketType::SOCKET_TYPE_AF_INET;
+    if (argc == 1) {
+        strcpy(hostname, argv[0]);
+        port = 443;
+    } else if (argc == 2) {
+        if(strncasecmp(argv[0], "AF_UNIX", strlen("AF_UNIX")) == 0){
+            logger(IO_APPLICATION, (char*) "AF_UNIX mode\n", NULL, 0, NULL);
+            socketType = SocketType::SOCKET_TYPE_AF_UNIX;
+            strcpy(hostname, argv[1]);
+        } else {
+            logger(IO_APPLICATION, (char*) "AF_UNIX mode requires: AF_UNIX $socketname", NULL, 0, NULL);
+            exit(EXIT_FAILURE);
+        }
     } else {
-        strcpy(hostname,argv[0]);
-        port=443;
+        strcpy(hostname, "localhost");
+        port = 4433;
     }
     time((time_t *)&ran);
     setup();
