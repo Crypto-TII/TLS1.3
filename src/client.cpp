@@ -276,10 +276,9 @@ void loop() {
     init_crypto_context(&K_recv);
     make_client_message(&GET,hostname);
 
-    Socket client = Socket::InetSocket(hostname, port);
-    if(socketType == SocketType::SOCKET_TYPE_AF_UNIX){
-        client = Socket::UnixSocket(hostname);
-    }
+    Socket client = (socketType == SocketType::SOCKET_TYPE_AF_UNIX) ?
+            Socket::UnixSocket(hostname) :
+            Socket::InetSocket(hostname, port);
 
     if (!client.isConnected())
     {
