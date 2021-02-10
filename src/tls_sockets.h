@@ -6,7 +6,11 @@
 #include <string.h>
 #include "core.h"
 #ifdef CORE_ARDUINO
+#ifdef ESP32
 #include <WiFi.h>
+#else
+#include <WiFiNINA.h>
+#endif
 #else
 #include <time.h>
 #include <unistd.h> 

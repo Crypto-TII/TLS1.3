@@ -57,8 +57,6 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     char cets[TLS_MAX_HASH];           
     octet CETS={0,sizeof(cets),cets};   // Early traffic secret
 
-    struct timeval time_ticket_received;
-
     int tlsVersion=TLS1_3;
     int pskMode=PSKWECDHE;
     favourite_group=CPB.supportedGroups[0]; // only sending one key share in favourite group
@@ -438,7 +436,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
         addEarlyDataExt(&EXT);                // try sending client message as early data if allowed
 
     time_ticket_used=(unsign32)millis();
-    age=time_ticket_received-time_ticket_used; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
+    age=time_ticket_used-time_ticket_received; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
     logger(IO_DEBUG,(char *)"Ticket age= ",(char *)"%x",age,NULL);
     age+=age_obfuscator;
     logger(IO_DEBUG,(char *)"obfuscated age = ",(char *)"%x",age,NULL);

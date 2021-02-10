@@ -10,7 +10,8 @@
 #define IO_PROTOCOL 2       // print protocol progress + application traffic
 #define IO_DEBUG 3    // print lots of debug information + protocol progress + application traffic
 
-// THIS IS AN IMPORTANT SETTING
+// THESE ARE IMPORTANT SETTINGS
+#define POPULAR_ROOT_CERTS      // Define this to limit root CAs to most popular only
 #define VERBOSITY IO_PROTOCOL   // Set to level of output information desired - see above
 
 // Some maximum sizes for stack allocated memory
@@ -23,7 +24,7 @@
 #define TLS_MAX_TICKET_SIZE 512
 #define TLS_MAX_CLIENT_HELLO 256         // Max size (less extensions)
 #define TLS_MAX_EXTENSIONS 512
-#define TLS_MAX_IO_SIZE 8192 //16384? We will want to reduce this as much as possible! But must be large enough to take full certificate chain
+#define TLS_MAX_IO_SIZE 6144 //4096 //8192// 6144 //16384? We will want to reduce this as much as possible! But must be large enough to take full certificate chain
 
 #define TLS_MAX_SIGNATURE_SIZE 512
 #define TLS_MAX_PUB_KEY_SIZE 512

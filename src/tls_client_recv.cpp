@@ -77,7 +77,11 @@ ret parseInt32(octet *M,int &ptr)
 ret parseByte(octet *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
-    if (ptr+1>M->len) return r;
+    if (ptr+1>M->len) 
+    {
+//        printf("ptr= %d M->len= %d\n",ptr,M->len);
+        return r;
+    }
     r.val=(unsigned int)(unsigned char)M->val[ptr++]; r.err=0;
     return r;
 }
@@ -129,7 +133,7 @@ int getServerFragment(Socket &client,crypto *recv,octet *IO)
 
     left=getInt16(client);
     OCT_jint(&RH,left,2);
-
+//printf("left= %d IO->max= %d\n",left,IO->max);
     if (left+pos>IO->max)
     { // this commonly happens with big records of application data from server
         return BAD_RECORD;   // record is too big - memory overflow
@@ -360,9 +364,12 @@ int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash
     octet CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
     CERTCHAIN.len=0;
 
-    r=parseByteorPull(client,IO,ptr,recv); nb=r.val;   if (r.err) return r.err;
+//printf("ptr= %d\n",ptr);
+    r=parseByteorPull(client,IO,ptr,recv); nb=r.val;   
+//printf("nb= %d\n",nb); if (r.err) return r.err;
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
 
+//printf("len= %d\n",len);
     if (nb!=CERTIFICATE)
     { // message received out-of-order
         return WRONG_MESSAGE;

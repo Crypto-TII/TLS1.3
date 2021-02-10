@@ -6,7 +6,11 @@
 #include "tls_protocol.h"
 
 #ifdef CORE_ARDUINO
+#ifdef ESP32
 #include <WiFi.h>
+#else
+#include <WiFiNINA.h>
+#endif
 #endif
 
 //#define ESP32
@@ -128,12 +132,6 @@ void client_send(Socket &client,octet *GET,crypto *K_send,octet *IO)
 
 // Some globals
 
-#ifndef CORE_ARDUINO
-unsigned long esp_random(){
-    return 1UL;
-}
-#endif
-
 capabilities CPB;
 csprng RNG;                // Crypto Strong RNG
 #ifdef ESP32
@@ -144,8 +142,8 @@ unsigned long ran=42L;
 int port;
 
 #ifdef CORE_ARDUINO
-const char* ssid = "eir79562322-2.4G";
-const char* password =  "uzy987ru";
+char* ssid = "eir79562322-2.4G";
+char* password =  "uzy987ru";
 char* hostname = "www.bbc.co.uk";
 void mydelay()
 {
@@ -233,7 +231,7 @@ void setup()
     xTaskCreatePinnedToCore(
         myloop
         ,  "client"   // A name just for humans
-        ,  28672  // 32K-4K This stack size can be checked & adjusted by reading the Stack Highwater
+        ,  26624  // 32K-6K This stack size can be checked & adjusted by reading the Stack Highwater
         ,  NULL
         ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
         ,  NULL 
