@@ -14,6 +14,9 @@ set(HDR
         tls_keys_calc.h
         tls_parse_octet.h
         tls_sockets.h
+        tls_logger.h
+        tls_protocol.h
+        tls_cacerts.h
         tls_tickets.h
         )
 set(SRC
@@ -22,6 +25,9 @@ set(SRC
        tls_client_send.cpp
        tls_keys_calc.cpp
        tls_sockets.cpp
+        tls_logger.cpp
+        tls_protocol.cpp
+        tls_cacerts.cpp
        tls_tickets.cpp
         )
 
