@@ -6,11 +6,7 @@
 #include <string.h>
 #include "core.h"
 #ifdef CORE_ARDUINO
-#ifdef ESP32
-#include <WiFi.h>
-#else
-#include <WiFiNINA.h>
-#endif
+#include "tls_wifi.h"
 #else
 #include <time.h>
 #include <unistd.h> 
@@ -25,15 +21,13 @@
 
 using namespace core;
 
-#ifdef CORE_ARDUINO
-typedef WiFiClient Socket;  
-#else
+#ifndef CORE_ARDUINO
 
 //extern int setserversock(int port);
 extern int setclientsock(int port, char *ip, int toms);
 extern int getIPaddress(char *ip,char *hostname);
 
-// Simple socket class
+// Simple socket class, mimics Arduino
 class Socket
 {
     int sock;

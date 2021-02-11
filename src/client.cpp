@@ -6,14 +6,8 @@
 #include "tls_protocol.h"
 
 #ifdef CORE_ARDUINO
-#ifdef ESP32
-#include <WiFi.h>
-#else
-#include <WiFiNINA.h>
+#include "tls_wifi.h"
 #endif
-#endif
-
-//#define ESP32
 
 // Process Server records received post-handshake
 // Should be mostly application data, but..
@@ -31,14 +25,18 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
     nticks=0; // number of tickets received
     while (1)
     {
-        logger(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Waiting for Server input \n",NULL,0,NULL);
+#endif
         OCT_clear(IO); ptr=0;
         type=getServerFragment(client,K_recv,IO);  // get first fragment to determine type
         if (type<0)
             return type;   // its an error
         if (type==TIME_OUT)
         {
-            logger(IO_PROTOCOL,(char *)"TIME_OUT\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+            logger((char *)"TIME_OUT\n",NULL,0,NULL);
+#endif
             break;
         }
         if (type==HSHAKE)
@@ -50,7 +48,9 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
                 switch (nb)
                 {
                 case TICKET :   // keep last ticket
-                    logger(IO_PROTOCOL,(char *)"Got a ticket\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+                    logger((char *)"Got a ticket\n",NULL,0,NULL);
+#endif
                     r=parseOctetorPullptr(client,&TICK,len,IO,ptr,K_recv);    // just copy out pointer to this
                     nticks++;
                     time_ticket_received=(unsign32)millis();     // start a stop-watch
@@ -62,27 +62,35 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
                case KEY_UPDATE :
                     if (len!=1)
                     {
-                        logger(IO_PROTOCOL,(char *)"Something wrong\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+                        logger((char *)"Something wrong\n",NULL,0,NULL);
+#endif
                         return 0;
                     }
                     r=parseByteorPull(client,IO,ptr,K_recv); kur=r.val; if (r.err) break;
                     if (kur==0)
                     {
                         UPDATE_KEYS(K_recv,STS);  // reset record number
-                        logger(IO_PROTOCOL,(char *)"KEYS UPDATED\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+                        logger((char *)"KEYS UPDATED\n",NULL,0,NULL);
+#endif
                     }
                     if (kur==1)
                     {
-                        logger(IO_PROTOCOL,(char *)"Key update notified - client should do the same (?) \n",NULL,0,NULL);
                         UPDATE_KEYS(K_recv,STS);
-                        logger(IO_PROTOCOL,(char *)"KEYS UPDATED\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+                        logger((char *)"Key update notified - client should do the same (?) \n",NULL,0,NULL);
+                        logger((char *)"KEYS UPDATED\n",NULL,0,NULL);
+#endif
                     }
                     if (ptr==IO->len) fin=true; // record finished
                     if (fin) break;
                     continue;
 
                 default:
-                    logger(IO_PROTOCOL,(char *)"Unsupported Handshake message type ",(char *)"%x",nb,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+                    logger((char *)"Unsupported Handshake message type ",(char *)"%x",nb,NULL);
+#endif
                     fin=true;
                     break;            
                 }
@@ -93,12 +101,16 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
         if (type==APPLICATION)
         {
             OCT_chop(IO,NULL,40);   // truncate it to 40 bytes
-            logger(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,IO);
+#if VERBOSITY >= IO_APPLICATION
+            logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,IO);
+#endif
             return 0;
         }
         if (type==ALERT)
         {
-            logger(IO_PROTOCOL,(char *)"Alert received from Server - type= ",NULL,0,IO);
+#if VERBOSITY >= IO_PROTOCOL
+            logger((char *)"Alert received from Server - type= ",NULL,0,IO);
+#endif
             return 0;
         }
     }
@@ -120,7 +132,9 @@ void make_client_message(octet *GET,char *hostname)
 // send a message post-handshake
 void client_send(Socket &client,octet *GET,crypto *K_send,octet *IO)
 {
-    logger(IO_APPLICATION,(char *)"Sending Application Message\n\n",GET->val,0,NULL);
+#if VERBOSITY >= IO_APPLICATION
+    logger((char *)"Sending Application Message\n\n",GET->val,0,NULL);
+#endif
     sendClientMessage(client,APPLICATION,TLS1_2,K_send,GET,NULL,IO);
 }
 
@@ -144,7 +158,7 @@ int port;
 #ifdef CORE_ARDUINO
 char* ssid = "eir79562322-2.4G";
 char* password =  "uzy987ru";
-char* hostname = "www.bbc.co.uk";
+char* hostname = "tls13.cloudfare.com";
 void mydelay()
 {
     while (1) delay(1000);
@@ -178,14 +192,14 @@ void setup()
     octet RAW = {0, sizeof(raw), raw}; // Some initial entropy
 
 #ifdef CORE_ARDUINO
-    Serial.begin(115200);
+    Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial.println("...");
+        Serial.print(".");
     }
-    Serial.print("WiFi connected with IP: ");
+    Serial.print("\nWiFi connected with IP: ");
     Serial.println(WiFi.localIP());
 #endif
 
@@ -199,8 +213,9 @@ void setup()
     CREATE_CSPRNG(&RNG, &RAW);  // initialise strong RNG
 
     port=443;
-    logger(IO_PROTOCOL,(char *)"Hostname= ",hostname,0,NULL);
-
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"Hostname= ",hostname,0,NULL);
+#endif
 // Client Capabilities to be advertised to Server
 // Supported Key Exchange Groups in order of preference
     CPB.nsg=3;
@@ -271,7 +286,9 @@ void loop() {
 
     if (!client.connect(hostname,port))
     {
-        logger(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Unable to access ",hostname,0,NULL);
+#endif
         mydelay();
  		return;
     }
@@ -280,11 +297,15 @@ void loop() {
     rtn=TLS13_full(client,hostname,RNG,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS);
     if (rtn)
     {
-        logger(IO_PROTOCOL,(char *)"Full Handshake succeeded\n",NULL,0,NULL);
-        if (rtn==2) logger(IO_PROTOCOL,(char *)"... after handshake resumption\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Full Handshake succeeded\n",NULL,0,NULL);
+        if (rtn==2) logger((char *)"... after handshake resumption\n",NULL,0,NULL);
+#endif
     }
     else {
-        logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
+#endif
         mydelay();
         return;
     }
@@ -298,21 +319,26 @@ void loop() {
         sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
     client.stop();
-    logger(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
-
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"Connection closed\n",NULL,0,NULL);
+#endif
 // reopen socket - attempt resumption
     if (T.lifetime==0)
     {
-        logger(IO_PROTOCOL,(char *)"No Ticket provided - unable to resume\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"No Ticket provided - unable to resume\n",NULL,0,NULL);
+#endif
         mydelay();
         return;
     }
-
-    logger(IO_PROTOCOL,(char *)"\nAttempting resumption\n",NULL,0,NULL);
-
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"\nAttempting resumption\n",NULL,0,NULL);
+#endif
     if (!client.connect(hostname,port))
     {
-        logger(IO_PROTOCOL,(char *)"\nConnection Failed \n",NULL,0,NULL); 
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"\nConnection Failed \n",NULL,0,NULL); 
+#endif
         mydelay();
         return;
     }
@@ -320,10 +346,14 @@ void loop() {
     rtn=TLS13_resume(client,hostname,RNG,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS,GET);
     if (rtn)
     {
-        logger(IO_PROTOCOL,(char *)"Resumption Handshake succeeded\n",NULL,0,NULL);
-        if (rtn==2) logger(IO_PROTOCOL,(char *)"Early data was accepted\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Resumption Handshake succeeded\n",NULL,0,NULL);
+        if (rtn==2) logger((char *)"Early data was accepted\n",NULL,0,NULL);
+#endif
     } else {
-        logger(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
+#endif
         mydelay();
         return;
     }
@@ -338,8 +368,9 @@ void loop() {
         sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
     client.stop();  // After time out, exit and close session
-    logger(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
-
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"Connection closed\n",NULL,0,NULL);
+#endif
 #ifdef ESP32
     Serial.print("Amount of unused stack memory ");
       Serial.println(uxTaskGetStackHighWaterMark( NULL ));

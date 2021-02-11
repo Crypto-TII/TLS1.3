@@ -109,12 +109,16 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
     if (st.hash == X509_H512) sha = SHA512;
     if (st.hash == 0)
     {
-        logger(IO_DEBUG,(char *)"Hash Function not supported\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Hash Function not supported\n",NULL,0,NULL);
+#endif
         return false;
     }
     if (st.type == 0)
     {
-        logger(IO_DEBUG,(char *)"Unable to check cert signature\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Unable to check cert signature\n",NULL,0,NULL);
+#endif
         return false;
     }
     if (st.type == X509_ECC)
@@ -129,19 +133,21 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
             OCT_jbyte(&R,SIG->val[i],1);
             OCT_jbyte(&S,SIG->val[i+siglen],1);
         }
-        logger(IO_DEBUG,(char *)"SIG= \n",NULL,0,&R);
-        logger(IO_DEBUG,(char *)"",NULL,0,&S);
-        logger(IO_DEBUG,(char *)"\nECC PUBLIC KEY= \n",NULL,0,PUBKEY);
-        logger(IO_DEBUG,(char *)"Checking ECC Signature on Cert ",(char *)"%d",st.curve,NULL);
-
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"SIG= \n",NULL,0,&R);
+        logger((char *)"",NULL,0,&S);
+        logger((char *)"\nECC PUBLIC KEY= \n",NULL,0,PUBKEY);
+        logger((char *)"Checking ECC Signature on Cert ",(char *)"%d",st.curve,NULL);
+#endif
         if (st.curve==USE_NIST256)
             res = NIST256::ECP_PUBLIC_KEY_VALIDATE(PUBKEY);
         if (st.curve==USE_NIST384)
             res = NIST384::ECP_PUBLIC_KEY_VALIDATE(PUBKEY);
+#if VERBOSITY >= IO_DEBUG
         if (res != 0)
-            logger(IO_DEBUG,(char *)"ECP Public Key is invalid!\n",NULL,0,NULL);
-        else logger(IO_DEBUG,(char *)"ECP Public Key is Valid\n",NULL,0,NULL);
-
+            logger((char *)"ECP Public Key is invalid!\n",NULL,0,NULL);
+        else logger((char *)"ECP Public Key is Valid\n",NULL,0,NULL);
+#endif
         if (st.curve==USE_NIST256)
             res=NIST256::ECP_VP_DSA(sha, PUBKEY, CERT, &R, &S);
         if (st.curve==USE_NIST384)
@@ -149,21 +155,26 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 
         if (res!=0)
         {
-            logger(IO_DEBUG,(char *)"***ECDSA Verification Failed\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+            logger((char *)"***ECDSA Verification Failed\n",NULL,0,NULL);
+#endif
             return false;
         } else {
-            logger(IO_DEBUG,(char *)"ECDSA Signature/Verification succeeded \n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+            logger((char *)"ECDSA Signature/Verification succeeded \n",NULL,0,NULL);
+#endif
             return true;
         }
     }
     if (st.type == X509_RSA)
     { // its an RSA signature
         int res;
-        logger(IO_DEBUG,(char *)"st.curve= ",(char *)"%d",st.curve,NULL);
-        logger(IO_DEBUG,(char *)"SIG= ",NULL,0,SIG);
-        logger(IO_DEBUG,(char *)"\nRSA PUBLIC KEY= ",NULL,0,PUBKEY);
-
-        logger(IO_DEBUG,(char *)"Checking RSA Signature on Cert \n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"st.curve= ",(char *)"%d",st.curve,NULL);
+        logger((char *)"SIG= ",NULL,0,SIG);
+        logger((char *)"\nRSA PUBLIC KEY= ",NULL,0,PUBKEY);
+        logger((char *)"Checking RSA Signature on Cert \n",NULL,0,NULL);
+#endif
         if (st.curve==2048)
         {
             char p1[RFS_RSA2048];
@@ -192,10 +203,14 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         } 
         if (res)
         {
-            logger(IO_DEBUG,(char *)"RSA Signature/Verification succeeded \n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+            logger((char *)"RSA Signature/Verification succeeded \n",NULL,0,NULL);
+#endif
             return true;
         } else {
-            logger(IO_DEBUG,(char *)"***RSA Verification Failed\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+            logger((char *)"***RSA Verification Failed\n",NULL,0,NULL);
+#endif
             return false;
         }
     }
@@ -246,14 +261,19 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
 
     if (sst.type==0)
     {
-        logger(IO_DEBUG,(char *)"Unrecognised Signature Type\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Unrecognised Signature Type\n",NULL,0,NULL);
+#endif
         return false;
     }
-    logCertDetails(IO_DEBUG,(char *)"Server certificate",PUBKEY,spt,&SSIG,sst,&ISSUER,&SUBJECT);
-
+#if VERBOSITY >= IO_DEBUG
+    logCertDetails((char *)"Server certificate",PUBKEY,spt,&SSIG,sst,&ISSUER,&SUBJECT);
+#endif
     if (OCT_comp(&ISSUER,&SUBJECT))
     {
-        logger(IO_DEBUG,(char *)"Warning - Self signed Cert\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Warning - Self signed Cert\n",NULL,0,NULL);
+#endif
         return true;   // not fatal for development purposes
     }
 
@@ -270,34 +290,58 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     ipt=GET_PUBLIC_KEY_FROM_CERT(&ICERT,&IPK);
 
     if (CHECK_CERT_SIG(sst,&SCERT,&SSIG,&IPK)) {  // Check server cert signature with inter cert public key
-        logger(IO_DEBUG,(char *)"Intermediate Certificate Chain sig is OK\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Intermediate Certificate Chain sig is OK\n",NULL,0,NULL);
+#endif
     } else {
-        logger(IO_DEBUG,(char *)"Intermediate Certificate Chain sig is NOT OK\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Intermediate Certificate Chain sig is NOT OK\n",NULL,0,NULL);
+#endif
         return false;
     }
-    logCertDetails(IO_DEBUG,(char *)"Intermediate Certificate",&IPK,ipt,&ISIG,ist,&ISSUER,&SUBJECT);
-
+#if VERBOSITY >= IO_DEBUG
+    logCertDetails((char *)"Intermediate Certificate",&IPK,ipt,&ISIG,ist,&ISSUER,&SUBJECT);
+#endif
     if (OCT_comp(&ISSUER,&SUBJECT))
     {
-        logger(IO_DEBUG,(char *)"Warning - Self signed Cert\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Warning - Self signed Cert\n",NULL,0,NULL);
+#endif
         return true;   // not fatal for development purposes
     }
+/*
+printf("Cert Chain ptr=%d length= %d\n",ptr,CERTCHAIN->len);
+r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false; // get length of next certificate
+r=parseOctetptr(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
+logCert(&SCERT);
+*/
 
 // Find Root of Trust
 // Find root certificate public key
-    if (FIND_ROOT_CA(&ISSUER,ist,&RPK)) { 
-        logger(IO_DEBUG,(char *)"\nPublic Key from root cert= ",NULL,0,&RPK);
+    if (FIND_ROOT_CA(&ISSUER,ist,&RPK)) {
+#if VERBOSITY >= IO_DEBUG        
+        logger((char *)"\nPublic Key from root cert= ",NULL,0,&RPK);
+#endif
     } else {
-        logger(IO_DEBUG,(char *)"Root Certificate not found\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Root Certificate not found\n",NULL,0,NULL);
+#endif
         return false;
     }
 
     if (CHECK_CERT_SIG(ist,&ICERT,&ISIG,&RPK)) {  // Check inter cert signature with root cert public key
-        logger(IO_DEBUG,(char *)"Root Certificate sig is OK!!!!\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Root Certificate sig is OK!!!!\n",NULL,0,NULL);
+#endif
     } else {
-        logger(IO_DEBUG,(char *)"Root Certificate sig is NOT OK\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Root Certificate sig is NOT OK\n",NULL,0,NULL);
+#endif
         return false;
     }
+
+
+
 
     return true;
 }
@@ -428,7 +472,9 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
         return true;
 
     default :
-        logger(IO_DEBUG,(char *)"WHOOPS - Unsupported signature type\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"WHOOPS - Unsupported signature type\n",NULL,0,NULL);
+#endif
         return false;
     }
     return false;
