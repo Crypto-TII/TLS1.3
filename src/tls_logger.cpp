@@ -22,6 +22,8 @@ void myprintf(char *s)
 // if O is not null, output octet in hex.
 // undefine LOGGER in tls1_3.h to save space
 
+#define VERBOSITY IO_DEBUG
+
 void logger(int level,char *preamble,char *string,unsign32 info,octet *O)
 {
 #if VERBOSITY>IO_NONE    

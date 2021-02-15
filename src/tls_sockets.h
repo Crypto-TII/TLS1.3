@@ -67,7 +67,6 @@ private:
 
 
     static Socket afunix_connect(const char *const socketPath) {
-        char ip[40];
         int toms = 10000;
         bool connected = true;
         int sock= afunix_setclientsock(socketPath);

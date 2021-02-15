@@ -207,7 +207,6 @@ void setup()
 
     CREATE_CSPRNG(&RNG, &RAW);  // initialise strong RNG
 
-    port=443;
     logger(IO_PROTOCOL,(char *)"Hostname= ",hostname,0,NULL);
 
 // Client Capabilities to be advertised to Server

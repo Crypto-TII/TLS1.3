@@ -94,6 +94,8 @@ static void HKDF_Expand_Label(int hash,int hlen,octet *OKM,int olen,octet *PRK,o
     octet HL={0,sizeof(hl),hl};
     hkdfLabel(&HL,olen,Label,CTX);
     HKDF_Expand(hash,hlen,OKM,olen,PRK,&HL);
+
+    // If you generate a certificate XXX , feed it to a server, it crashes.
 }
 
 // Initialise crypto context (Key,IV, Record number)

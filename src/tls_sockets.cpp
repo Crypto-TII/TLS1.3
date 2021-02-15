@@ -98,6 +98,11 @@ void sendLen(Socket &client,int len)
     sendOctet(client,&B);
 }
 
+//old_getBytes = xxx;
+//#define getBytes(client, b, expected) \
+//old_getBytes(client, b, expected); \
+
+
 // get expected bytes
 int getBytes(Socket &client,char *b,int expected)
 {
@@ -119,9 +124,22 @@ int getBytes(Socket &client,char *b,int expected)
         i+=more;
         len-=more;
     }
+
+//    if(logger_debug != NULL){
+
+//    printf("[");
+    for (int ii = 0; ii < i; ii++)
+    {
+        printf("%u,", (unsigned char)b[ii]);
+    }
+//    printf("]\n");
+    printf("\n");
+//    }
 #endif
     return 0;
 }
+//// SEPTI's idea
+//#ifdef compilation parameter
 
 // Get 16-bit Integer from stream
 int getInt16(Socket &client)
