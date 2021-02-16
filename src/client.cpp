@@ -218,7 +218,6 @@ void setup()
 
     CREATE_CSPRNG(&RNG, &RAW);  // initialise strong RNG
 
-    port=443;
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Hostname= ",hostname,0,NULL);
 #endif
