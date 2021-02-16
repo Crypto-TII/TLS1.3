@@ -4,16 +4,7 @@
 #include "tls_sockets.h"
 
 #ifndef CORE_ARDUINO
-bool Socket::connect(char *host,int port) {
-    char ip[40];
-    sock=0;
-    if (!getIPaddress(ip,host))
-        return false;
-    sock=setclientsock(port,ip,toms);
-    if (sock<=0)
-        return false;
-    return true;
-}
+
 /*
 int setserversock(int port)
 {
@@ -144,6 +135,17 @@ int getBytes(Socket &client,char *b,int expected)
         i+=more;
         len-=more;
     }
+#endif
+
+#if VERBOSITY >= IO_WIRE
+
+    for (int j = 0; j < i; j++)
+    {
+        printf("%u,", (unsigned char)b[j]);
+    }
+
+    printf("\n");
+
 #endif
     return 0;
 }

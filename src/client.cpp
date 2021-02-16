@@ -9,6 +9,11 @@
 #include "tls_wifi.h"
 #endif
 
+enum SocketType{
+    SOCKET_TYPE_AF_UNIX,
+    SOCKET_TYPE_AF_INET
+};
+
 // Process Server records received post-handshake
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
@@ -168,6 +173,7 @@ char hostname[TLS_MAX_SERVER_NAME];
 void mydelay()
 {}
 #endif
+SocketType socketType = SocketType::SOCKET_TYPE_AF_INET;
 
 
 #ifdef ESP32
@@ -282,7 +288,9 @@ void loop() {
     init_crypto_context(&K_recv);
     make_client_message(&GET,hostname);
 
-    Socket client;
+    Socket client = (socketType == SocketType::SOCKET_TYPE_AF_UNIX) ?
+                    Socket::UnixSocket():
+                    Socket::InetSocket();
 
     if (!client.connect(hostname,port))
     {
@@ -382,13 +390,50 @@ void loop() {
 int main(int argc, char const *argv[])
 {
     argv++; argc--;
-    if (argc!=1)
+    socketType = SocketType::SOCKET_TYPE_AF_INET;
+    if(argc==0)
     {
-        strcpy(hostname,"localhost");
-        port=4433;
+        strcpy(hostname, "localhost");
+        port = 4433;
+    } else if (argc == 1)
+    {
+        bool contains_colon = false;
+        
+        int i;
+        size_t argv0_len = strlen(argv[0]);
+        for(i =0; i < argv0_len; ++i)
+        {
+            if(argv[0][i] == ':')
+            {
+                contains_colon = true;
+                break;
+            }
+        }
+        
+        if(contains_colon)
+        {
+            strncpy(hostname, argv[0], i);
+            char port_part[5];
+            strncpy(port_part, argv[0]+sizeof(char)*(i+1), (argv0_len - i));
+            port = atoi(port_part);
+            printf("Host: %s, Port: %d", hostname, port);
+        } else {
+            strcpy(hostname, argv[0]);
+            port = 443;
+        }
+    } else if (argc == 2)
+    {
+        if(strncasecmp(argv[0], "AF_UNIX", strlen("AF_UNIX")) == 0){
+            logger((char*) "AF_UNIX mode\n", NULL, 0, NULL);
+            socketType = SocketType::SOCKET_TYPE_AF_UNIX;
+            strcpy(hostname, argv[1]);
+        } else {
+            logger((char*) "AF_UNIX mode requires: AF_UNIX $socketname", NULL, 0, NULL);
+            exit(EXIT_FAILURE);
+        }
     } else {
-        strcpy(hostname,argv[0]);
-        port=443;
+        logger((char*) "Did not understand your request. Cannot proceed with request.", NULL, 0, NULL);
+        exit(EXIT_FAILURE);
     }
     time((time_t *)&ran);
     setup();

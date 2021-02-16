@@ -9,6 +9,7 @@
 #define IO_APPLICATION 1    // just print application traffic
 #define IO_PROTOCOL 2       // print protocol progress + application traffic
 #define IO_DEBUG 3    // print lots of debug information + protocol progress + application traffic
+#define IO_WIRE 4    // print lots of debug information + protocol progress + application traffic + bytes on the wire
 
 // THESE ARE IMPORTANT SETTINGS
 #define POPULAR_ROOT_CERTS      // Define this to limit root CAs to most popular only

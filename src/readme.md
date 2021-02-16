@@ -197,7 +197,34 @@ At this stage the tool is still quite fragile (only tested and debugged aginst a
 Also try
 
 	./client tls13.1d.pw
+	
+### How to use it 
 
+#### Localhost 4433
+
+This is our own server, using TLSSwift (`localhost:4433`)
+
+```bash
+./client
+```
+
+#### Just Host
+
+```bash
+./client tls13.1d.pw
+```
+
+#### Host and port
+
+```bash
+./client localhost:1234
+```
+
+#### AF_UNIX Socket
+
+```bash
+./client af_unix /tmp/somesocket
+```
 Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
 
 See list.txt for some websites that work OK.
