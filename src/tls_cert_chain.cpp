@@ -31,6 +31,31 @@ static bool readaline(char *line,const char *rom,int &ptr)
     return true;
 }
 
+// Extract public key from a certificate
+static pktype GET_PUBLIC_KEY_FROM_CERT(octet *CERT,octet *PUBLIC_KEY)
+{
+    pktype pk=X509_extract_public_key(CERT, PUBLIC_KEY);  // pull out its public key
+    return pk;
+}
+
+static bool CHECK_HOSTNAME_IN_CERT(octet *CERT,char *hostname)
+{
+    int len;
+    int ic=X509_find_extensions(CERT);
+    int c=X509_find_extension(CERT,&X509_AN,ic,&len);
+    return (bool)X509_find_alt_name(CERT,c,hostname);
+}
+
+static bool CHECK_VALIDITY(octet *CERT)
+{
+    int len;
+    int ic = X509_find_validity(CERT);
+    int c = X509_find_expiry_date(CERT, ic);
+    int year=2000+(CERT->val[c]-'0')*10 +CERT->val[c+1]-'0';
+    if (year<THIS_YEAR) return false;
+    return true;
+}
+
 // given root issuer and public key type of signature, search through root CAs and return root public key
 // This is a simple linear search through CA certificates found in the ca-certificates.crt file (borrowed from Ubuntu)
 // This file should be in Read-Only-Memory
@@ -64,6 +89,11 @@ static bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
         int ic = X509_find_issuer(&SC);
         FULL_NAME(&OWNER,&SC,ic);
 
+        if (!CHECK_VALIDITY(&SC))
+        { // Its expired!
+            return false;
+        }
+
         if (OCT_comp(&OWNER,ISSUER))
         {
             pktype pt = X509_extract_public_key(&SC, PUBKEY);
@@ -74,13 +104,6 @@ static bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
         } 
     }
     return false;  // couldn't find it
-}
-
-// Extract public key from a certificate
-static pktype GET_PUBLIC_KEY_FROM_CERT(octet *CERT,octet *PUBLIC_KEY)
-{
-    pktype pk=X509_extract_public_key(CERT, PUBLIC_KEY);  // pull out its public key
-    return pk;
 }
 
 // strip signature off certificate. Return signature type
@@ -220,7 +243,9 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 // extract server public key, and check validity of certificate chain
 // This will need improving!
 // Assumes simple chain Server Cert->Intermediate Cert->CA cert
-bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
+// CA cert not read from chain (if its even there). 
+// Search for issuer of Intermediate Cert in cert store 
+bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
 {
     ret r;
     int len,c,ptr=0;
@@ -251,6 +276,9 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false;// get length of first (server) certificate
     r=parseOctetptr(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
 
+#if VERBOSITY >= IO_DEBUG
+    logCert(&SCERT);
+#endif
 //printf("Signed cert len= %d\n",SCERT.len);
 
     r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
@@ -258,6 +286,21 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
 
     sst=STRIP_DOWN_CERT(&SCERT,&SSIG,&ISSUER,&SUBJECT);    // extract signature
     spt=GET_PUBLIC_KEY_FROM_CERT(&SCERT,PUBKEY);           // extract  public key
+
+    if (!CHECK_HOSTNAME_IN_CERT(&SCERT,hostname))
+    { // Check that certificate covers the server URL
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Hostname not found in certificate\n",NULL,0,NULL);
+#endif
+        return false;
+    }
+    if (!CHECK_VALIDITY(&SCERT))
+    {
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Server Certificate has expired\n",NULL,0,NULL);
+#endif
+        return false;
+    }
 
     if (sst.type==0)
     {
@@ -271,7 +314,7 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
 #endif
     if (OCT_comp(&ISSUER,&SUBJECT))
     {
-#if VERBOSITY >= IO_DEBUG
+#if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Warning - Self signed Cert\n",NULL,0,NULL);
 #endif
         return true;   // not fatal for development purposes
@@ -289,6 +332,14 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
     ist=STRIP_DOWN_CERT(&ICERT,&ISIG,&ISSUER,&SUBJECT);
     ipt=GET_PUBLIC_KEY_FROM_CERT(&ICERT,&IPK);
 
+    if (!CHECK_VALIDITY(&ICERT))
+    {
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Intermediate Certificate has expired\n",NULL,0,NULL);
+#endif
+        return false;
+    }
+
     if (CHECK_CERT_SIG(sst,&SCERT,&SSIG,&IPK)) {  // Check server cert signature with inter cert public key
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Intermediate Certificate Chain sig is OK\n",NULL,0,NULL);
@@ -304,7 +355,7 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,octet *PUBKEY)
 #endif
     if (OCT_comp(&ISSUER,&SUBJECT))
     {
-#if VERBOSITY >= IO_DEBUG
+#if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Warning - Self signed Cert\n",NULL,0,NULL);
 #endif
         return true;   // not fatal for development purposes
@@ -339,10 +390,6 @@ logCert(&SCERT);
 #endif
         return false;
     }
-
-
-
-
     return true;
 }
 

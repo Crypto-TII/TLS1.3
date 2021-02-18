@@ -119,14 +119,6 @@ int getBytes(Socket &client,char *b,int expected)
         len-=n;
     }
 
-/*
-    unsigned long start=millis();
-    while (client.available()<expected)
-    { // time-out
-        if (millis()>start+5000)
-            return -1;
-    }
-    client.read((uint8_t *)b,expected); */
 #else
     while(len>0)
     {
@@ -139,12 +131,14 @@ int getBytes(Socket &client,char *b,int expected)
 
 #if VERBOSITY >= IO_WIRE
 
-    for (int j = 0; j < i; j++)
+    char w[4];
+    for (int j = 0; j < expected; j++)
     {
-        printf("%u,", (unsigned char)b[j]);
+        sprintf(w,"%02x,", (unsigned char)b[j]);
+        myprintf(w);
     }
 
-    printf("\n");
+    myprintf((char *)"\n");
 
 #endif
     return 0;

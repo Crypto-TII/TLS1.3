@@ -53,7 +53,6 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     octet FIN={0,sizeof(fin),fin};                    // Server's finish message
     char chf[TLS_MAX_HASH];                           
     octet CHF={0,sizeof(chf),chf};                    // client verify
-
     char cets[TLS_MAX_HASH];           
     octet CETS={0,sizeof(cets),cets};   // Early traffic secret
 
@@ -93,7 +92,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 // Process Server Hello response
     rtn=getServerHello(client,&IO,cipher_suite,kex,&CID,&COOK,&PK,pskid);
 #if VERBOSITY >= IO_DEBUG
-    logServerResponse(IO_DEBUG,rtn,&IO);
+    logServerResponse(rtn,&IO);
 #endif
     if (rtn<0)
     {  
@@ -253,7 +252,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     logger((char *)"Encrypted Extensions Processed\n ",NULL,0,NULL);
 #endif
 // 2. get certificate chain, check it, get Server public key
-    rtn=getCheckServerCertificateChain(client,&IO,&K_recv,&tlshash,&SS);
+    rtn=getCheckServerCertificateChain(client,&IO,&K_recv,&tlshash,hostname,&SS);
 #if VERBOSITY >= IO_DEBUG
     logServerResponse(rtn,&IO);
 #endif

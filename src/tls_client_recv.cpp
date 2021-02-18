@@ -357,7 +357,7 @@ int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,unihash *
 }
 
 // Get certificate chain, and check its validity 
-int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *PUBKEY)
+int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,char *hostname,octet *PUBKEY)
 {
     ret r;
     int nb,len,rtn,ptr=0;
@@ -383,7 +383,7 @@ int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
 
-    if (CHECK_CERT_CHAIN(&CERTCHAIN,PUBKEY))
+    if (CHECK_CERT_CHAIN(&CERTCHAIN,hostname,PUBKEY))
         rtn=0;
     else
         rtn=BAD_CERT_CHAIN;

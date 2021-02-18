@@ -84,7 +84,7 @@ void logTicket(int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octe
 
 void logCert(octet *CERT)
 {
-    char b[TLS_MAX_ROOT_CERT_B64];
+    char b[5000];
     logger((char *)"-----BEGIN CERTIFICATE----- \n",NULL,0,NULL);
     OCT_tobase64(b,CERT);
     logger((char *)"",b,0,NULL);
