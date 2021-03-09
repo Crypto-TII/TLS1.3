@@ -81,9 +81,10 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     addPSKExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
     addMFLExt(&EXT,4);   // ask for smaller max fragment length of 4096 - server may not agree - but no harm in asking
+    addPadding(&EXT,RAND_byte(&RNG)%16);  // add some random padding
 
 // create and send Client Hello Octet
-    sendClientHello(client,TLS1_0,&CH,CPB.nsc,CPB.ciphers,&RNG,&CID,&EXT,0,&IO);  
+    sendClientHello(client,&RNG,TLS1_0,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);  
 #if VERBOSITY >= IO_DEBUG     
     logger((char *)"Client to Server -> ",NULL,0,&IO); 
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
@@ -96,7 +97,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {  
-        sendClientAlert(client,alert_from_cause(rtn),NULL,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),NULL,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -114,7 +115,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     }
     if (sha==0)
     {
-        sendClientAlert(client,UNEXPECTED_MESSAGE,NULL,&IO);
+        sendClientAlert(client,&RNG,UNEXPECTED_MESSAGE,NULL,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Cipher_suite not valid ",(char *)"%x",cipher_suite,NULL);
         logger((char *)"Client to Server -> ",NULL,0,&IO);     
@@ -136,7 +137,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     {
         if (kex==favourite_group)
         { // its the same one I chose !?
-            sendClientAlert(client,ILLEGAL_PARAMETER,NULL,&IO);
+            sendClientAlert(client,&RNG,ILLEGAL_PARAMETER,NULL,&IO);
 #if VERBOSITY >= IO_DEBUG
             logger((char *)"No change as result of HRR\n",NULL,0,NULL); 
             logger((char *)"Client to Server -> ",NULL,0,&IO);     
@@ -163,20 +164,21 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
         addPSKExt(&EXT,pskMode);
         addVersionExt(&EXT,tlsVersion);
         addMFLExt(&EXT,4);                      // ask for max fragment length of 4096
+        addPadding(&EXT,RAND_byte(&RNG)%16);  // add some random padding
         if (COOK.len!=0)
             addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR
         sendCCCS(client);  // send Client Cipher Change
         ccs_sent=true;
 
 // create and send new Client Hello Octet
-        sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&RNG,&CID,&EXT,0,&IO);
+        sendClientHello(client,&RNG,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Client to Server -> ",NULL,0,&IO);
 #endif
         rtn=getServerHello(client,&IO,cs_hrr,kex,&CID,&COOK,&PK,pskid);
         if (rtn==HANDSHAKE_RETRY)
         { // only one retry allowed
-            sendClientAlert(client,UNEXPECTED_MESSAGE,NULL,&IO);
+            sendClientAlert(client,&RNG,UNEXPECTED_MESSAGE,NULL,&IO);
 #if VERBOSITY >= IO_DEBUG
             logger((char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
             logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -185,7 +187,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
         }
         if (cs_hrr!=cipher_suite)
         { // Server cannot change cipher_suite at this stage
-            sendClientAlert(client,ILLEGAL_PARAMETER,NULL,&IO); 
+            sendClientAlert(client,&RNG,ILLEGAL_PARAMETER,NULL,&IO); 
 #if VERBOSITY >= IO_DEBUG
             logger((char *)"Server selected different cipher suite\n",NULL,0,NULL); 
             logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -199,7 +201,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {  
-        sendClientAlert(client,alert_from_cause(rtn),NULL,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),NULL,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -240,7 +242,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Client to Server -> ",NULL,0,&IO);
 #endif
@@ -258,7 +260,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Client to Server -> ",NULL,0,&IO);
 #endif
@@ -280,7 +282,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -294,7 +296,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (!IS_SERVER_CERT_VERIFY(sigalg,&SCVSIG,&HH,&SS))
     {
-        sendClientAlert(client,DECRYPT_ERROR,&K_send,&IO);
+        sendClientAlert(client,&RNG,DECRYPT_ERROR,&K_send,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Server Cert Verification failed\n",NULL,0,NULL);
         logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -311,7 +313,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,alert_from_cause(rtn),&K_recv,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_recv,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -324,7 +326,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (!IS_VERIFY_DATA(sha,&FIN,&STS,&FH))
     {
-        sendClientAlert(client,DECRYPT_ERROR,&K_send,&IO);
+        sendClientAlert(client,&RNG,DECRYPT_ERROR,&K_send,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Server Data is NOT verified\n",NULL,0,NULL);
         logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -340,7 +342,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 // create client verify data
 // .... and send it to Server
     VERIFY_DATA(sha,&CHF,&CTS,&TH);  
-    sendClientVerify(client,&K_send,&tlshash,&CHF,&IO);  
+    sendClientVerify(client,&RNG,&K_send,&tlshash,&CHF,&IO);  
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client Verify Data= ",NULL,0,&CHF); 
     logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -479,6 +481,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     addPSKExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
     addMFLExt(&EXT,4);                        // ask for max fragment length of 4096
+    addPadding(&EXT,RAND_byte(&RNG)%16);      // add some random padding
     if (have_early_data)
         addEarlyDataExt(&EXT);                // try sending client message as early data if allowed
 
@@ -493,7 +496,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 #endif
     int extra=addPreSharedKeyExt(&EXT,age,&ETICK,sha);
 // create and send Client Hello Octet
-    sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&RNG,&CID,&EXT,extra,&IO);  
+    sendClientHello(client,&RNG,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,extra,&IO);  
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client to Server -> ",NULL,0,&IO);
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
@@ -505,7 +508,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     transcript_hash(&tlshash,&HH);            // hash of Truncated clientHello
 
     VERIFY_DATA(sha,&BND,&BKR,&HH);
-    sendBinder(client,&BL,&BND,&IO);
+    sendBinder(client,&RNG,&BL,&BND,&IO);
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"BND= ",NULL,0,&BND);
     logger((char *)"Sending Binders\n",NULL,0,NULL);   // only sending one
@@ -530,7 +533,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
         logger((char *)"Sending some early data\n",NULL,0,NULL);
         logger((char *)"Sending Application Message\n\n",EARLY.val,0,NULL);
 #endif
-        sendClientMessage(client,APPLICATION,TLS1_2,&K_send,&EARLY,NULL,&IO);
+        sendClientMessage(client,&RNG,APPLICATION,TLS1_2,&K_send,&EARLY,NULL,&IO);
     }
 
 // Process Server Hello
@@ -540,7 +543,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -550,7 +553,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 #endif
     if (rtn==HANDSHAKE_RETRY)
     { // should not happen
-        sendClientAlert(client,UNEXPECTED_MESSAGE,&K_send,&IO);
+        sendClientAlert(client,&RNG,UNEXPECTED_MESSAGE,&K_send,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"No change possible as result of HRR\n",NULL,0,NULL); 
         logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -597,7 +600,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -620,7 +623,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -632,7 +635,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     transcript_hash(&tlshash,&HH); // hash of clientHello+serverHello+encryptedExtension+serverFinish
     if (early_data_accepted)
     {
-        sendEndOfEarlyData(client,&K_send,&tlshash,&IO);     // Should only be sent if server has accepted Early data - see encrypted extensions!
+        sendEndOfEarlyData(client,&RNG,&K_send,&tlshash,&IO);     // Should only be sent if server has accepted Early data - see encrypted extensions!
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Send End of Early Data \n",NULL,0,NULL);
         logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -655,7 +658,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 
 // create client verify data and send it to Server
     VERIFY_DATA(sha,&CHF,&CTS,&TH);  
-    sendClientVerify(client,&K_send,&tlshash,&CHF,&IO);  
+    sendClientVerify(client,&RNG,&K_send,&tlshash,&CHF,&IO);  
 
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Server Data is verified\n",NULL,0,NULL);

@@ -84,6 +84,7 @@
 #define COOKIE 0x002c
 #define EARLY_DATA 0x002a
 #define MAX_FRAG_LENGTH 0x0001
+#define PADDING 0x0015
 
 // record types
 #define HSHAKE 0x16
@@ -178,6 +179,4 @@ typedef struct
 } unihash;
 
 #endif
-
-
 

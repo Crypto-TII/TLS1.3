@@ -95,6 +95,14 @@ void addMFLExt(octet *EXT,int mode)
     OCT_jint(EXT,mode,1);
 }
 
+// add n padding bytes
+void addPadding(octet *EXT,int n)
+{
+    OCT_jint(EXT,PADDING,2);
+    OCT_jint(EXT,n,2);
+    OCT_jbyte(EXT,0,n);
+}
+
 // indicate TLS version support
 void addVersionExt(octet *EXT,int version)
 {
@@ -145,11 +153,13 @@ int cipherSuites(octet *CS,int ncs,int *ciphers)
 
 // ALL Client to Server output goes via this function 
 // Send a client message CM (as a single record). AEAD encrypted if send!=NULL
-void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octet *CM,octet *EXT,octet *IO)
+void sendClientMessage(Socket &client,csprng *RNG,int rectype,int version,crypto *send,octet *CM,octet *EXT,octet *IO)
 {
     int reclen;
     char tag[TLS_TAG_SIZE];
     octet TAG={0,sizeof(tag),tag};
+
+    int rbytes=RAND_byte(RNG)%16; // random padding bytes
 
     OCT_clear(IO);
     reclen=CM->len;
@@ -164,12 +174,13 @@ void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octet
     } else { // encrypted, and sent as application record
         OCT_jbyte(IO,APPLICATION,1);
         OCT_jint(IO,TLS1_2,2);
-        reclen+=16+1; // 16 for the TAG, 1 for the record type
+        reclen+=16+1+rbytes; // 16 for the TAG, 1 for the record type, + some random padding
         OCT_jint(IO,reclen,2);
         OCT_joctet(IO,CM); 
         if (EXT!=NULL) OCT_joctet(IO,EXT);
         OCT_jbyte(IO,rectype,1); // append and encrypt actual record type
-// could add random padding after this
+// add some random padding after this...
+        OCT_jbyte(IO,0,rbytes);
 
 // AES-GCM
         gcm g;
@@ -186,7 +197,7 @@ void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octet
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
-void sendClientHello(Socket &client,int version,octet *CH,int nsc,int *ciphers,csprng *RNG,octet *CID,octet *EXTENSIONS,int extra,octet *IO)
+void sendClientHello(Socket &client,csprng *RNG,int version,octet *CH,int nsc,int *ciphers,octet *CID,octet *EXTENSIONS,int extra,octet *IO)
 {
     char rn[32];
     octet RN = {0, sizeof(rn), rn};
@@ -213,11 +224,11 @@ void sendClientHello(Socket &client,int version,octet *CH,int nsc,int *ciphers,c
     OCT_jint(CH,extlen,2);              // 2
 
 // transmit it
-    sendClientMessage(client,HSHAKE,version,NULL,CH,EXTENSIONS,IO);
+    sendClientMessage(client,RNG,HSHAKE,version,NULL,CH,EXTENSIONS,IO);
 }
 
 // Send "binder",
-void sendBinder(Socket &client,octet *B,octet *BND,octet *IO)
+void sendBinder(Socket &client,csprng *RNG,octet *B,octet *BND,octet *IO)
 {
     int tlen2=0;
     OCT_clear(B);
@@ -225,21 +236,21 @@ void sendBinder(Socket &client,octet *B,octet *BND,octet *IO)
     OCT_jint(B,tlen2,2);
     OCT_jint(B,BND->len,1);
     OCT_joctet(B,BND);
-    sendClientMessage(client,HSHAKE,TLS1_2,NULL,B,NULL,IO);
+    sendClientMessage(client,RNG,HSHAKE,TLS1_2,NULL,B,NULL,IO);
 }
 
 // send client alert - might be encrypted if send!=NULL
-void sendClientAlert(Socket &client,int type,crypto *send,octet *IO)
+void sendClientAlert(Socket &client,csprng *RNG,int type,crypto *send,octet *IO)
 {
     char pt[2];
     octet PT={0,sizeof(pt),pt};
     OCT_jbyte(&PT,0x02,1);  // alerts are always fatal
     OCT_jbyte(&PT,type,1);  // alert type
-    sendClientMessage(client,ALERT,TLS1_2,send,&PT,NULL,IO);
+    sendClientMessage(client,RNG,ALERT,TLS1_2,send,&PT,NULL,IO);
 }
 
 // Send final client handshake verification data
-void sendClientVerify(Socket &client,crypto *send,unihash *h,octet *CHF,octet *IO)
+void sendClientVerify(Socket &client,csprng *RNG,crypto *send,unihash *h,octet *CHF,octet *IO)
 {
     char pt[TLS_MAX_HASH+4];
     octet PT={0,sizeof(pt),pt};
@@ -248,18 +259,18 @@ void sendClientVerify(Socket &client,crypto *send,unihash *h,octet *CHF,octet *I
     OCT_jint(&PT,CHF->len,3); // .. and its length 
     OCT_joctet(&PT,CHF);
     running_hash(&PT,h);
-    sendClientMessage(client,HSHAKE,TLS1_2,send,&PT,NULL,IO);
+    sendClientMessage(client,RNG,HSHAKE,TLS1_2,send,&PT,NULL,IO);
 }
 
 // if early data was accepted, send this to indicate early data is finished
-void sendEndOfEarlyData(Socket &client,crypto *send,unihash *h,octet *IO)
+void sendEndOfEarlyData(Socket &client,csprng *RNG,crypto *send,unihash *h,octet *IO)
 {
     char ed[4];
     octet ED={0,sizeof(ed),ed};
     OCT_jbyte(&ED,END_OF_EARLY_DATA,1);
     OCT_jint(&ED,0,3);
     running_hash(&ED,h);
-    sendClientMessage(client,HSHAKE,TLS1_2,send,&ED,NULL,IO);
+    sendClientMessage(client,RNG,HSHAKE,TLS1_2,send,&ED,NULL,IO);
 }
 
 //

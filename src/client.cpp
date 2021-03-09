@@ -1,5 +1,7 @@
 // Client side C/C++ program to demonstrate TLS1.3 
-// g++ -O2 client.cpp tls_protocol.cpp tls_keys_calc.cpp tls_sockets.cpp tls_cert_chain.cpp  tls_client_recv.cpp tls_client_send.cpp tls_tickets.cpp tls_logger.cpp tls_cacerts.cpp core.a -o client
+// g++ -O2 -c tls*.cpp
+// ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o
+// g++ -O2 client.cpp tls.a core.a -o client
 
 #include "tls1_3.h" 
 #include "randapi.h"  
@@ -135,15 +137,15 @@ void make_client_message(octet *GET,char *hostname)
 }
 
 // send a message post-handshake
-void client_send(Socket &client,octet *GET,crypto *K_send,octet *IO)
+void client_send(Socket &client,csprng *RNG,octet *GET,crypto *K_send,octet *IO)
 {
 #if VERBOSITY >= IO_APPLICATION
     logger((char *)"Sending Application Message\n\n",GET->val,0,NULL);
 #endif
-    sendClientMessage(client,APPLICATION,TLS1_2,K_send,GET,NULL,IO);
+    sendClientMessage(client,RNG,APPLICATION,TLS1_2,K_send,GET,NULL,IO);
 }
 
-// Main program
+// Main Test Driver program
 // 1. Connect to Website
 // 2. Decide cryptographic capabilities
 // 3. Do a Full TLS1.3 handshake
@@ -162,7 +164,7 @@ int port;
 
 #ifdef CORE_ARDUINO
 char* ssid = "eir79562322-2.4G";
-char* password =  "uzy987ru";
+char* password =  "********";
 char* hostname = "tls13.cloudfare.com";
 void mydelay()
 {
@@ -318,12 +320,12 @@ void loop() {
     }
 
 // Send client message
-    client_send(client,&GET,&K_send,&IO);
+    client_send(client,&RNG,&GET,&K_send,&IO);
 
 // Process server responses
     rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
     if (rtn<0)
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
 
     client.stop();
 #if VERBOSITY >= IO_PROTOCOL
@@ -367,12 +369,12 @@ void loop() {
 
 // Send client message again - if it failed to go as early data
     if (rtn!=2)
-        client_send(client,&GET,&K_send,&IO);
+        client_send(client,&RNG,&GET,&K_send,&IO);
 
 // Process server responses
     rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
     if (rtn<0)
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
 
     client.stop();  // After time out, exit and close session
 #if VERBOSITY >= IO_PROTOCOL
@@ -420,8 +422,7 @@ int main(int argc, char const *argv[])
             strcpy(hostname, argv[0]);
             port = 443;
         }
-    } else if (argc == 2)
-    {
+    } else if (argc == 2) {
         if(strncasecmp(argv[0], "AF_UNIX", strlen("AF_UNIX")) == 0){
             logger((char*) "AF_UNIX mode\n", NULL, 0, NULL);
             socketType = SocketType::SOCKET_TYPE_AF_UNIX;
