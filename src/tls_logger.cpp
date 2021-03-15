@@ -95,7 +95,8 @@ void logCert(octet *CERT)
 // log certificate details
 void logCertDetails(char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet *ISSUER,octet *SUBJECT)
 {
-    logger((char *)"\nSignature is ",NULL,0,SIG); 
+    logger(txt,NULL,0,NULL);
+    logger((char *)"Signature is ",NULL,0,SIG); 
     if (sg.type==X509_ECC)
     {
         logger((char *)"ECC signature ",NULL,0,NULL);
@@ -162,7 +163,7 @@ void logServerResponse(int rtn,octet *O)
             logger((char *)"Authentication Failure\n",NULL,0,NULL);
             break;
         case BAD_RECORD:
-            logger((char *)"Malformed Record received\n",NULL,0,NULL);
+            logger((char *)"Malformed Record received (max size exceeded?)\n",NULL,0,NULL);
             break;
         case BAD_TICKET:
             logger((char *)"Malformed Ticket received\n",NULL,0,NULL);

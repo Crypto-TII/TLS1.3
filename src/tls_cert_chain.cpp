@@ -310,7 +310,7 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
         return false;
     }
 #if VERBOSITY >= IO_DEBUG
-    logCertDetails((char *)"Server certificate",PUBKEY,spt,&SSIG,sst,&ISSUER,&SUBJECT);
+    logCertDetails((char *)"Parsing Server certificate\n",PUBKEY,spt,&SSIG,sst,&ISSUER,&SUBJECT);
 #endif
     if (OCT_comp(&ISSUER,&SUBJECT))
     {
@@ -324,10 +324,21 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
     r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false; // get length of next certificate
     r=parseOctetptr(&ICERT,len,CERTCHAIN,ptr); if (r.err) return false;
 
+#if VERBOSITY >= IO_DEBUG
+    logCert(&ICERT);
+#endif
+
 //printf("Signed cert len= %d\n",ICERT.len);
 
     r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
     ptr+=len;   // skip certificate extensions
+
+#if VERBOSITY >= IO_PROTOCOL
+    if (ptr<CERTCHAIN->len)
+        logger((char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
+#endif
+
+//printf("CERTCHAIN->len= %d ptr= %d\n",CERTCHAIN->len,ptr);
 
     ist=STRIP_DOWN_CERT(&ICERT,&ISIG,&ISSUER,&SUBJECT);
     ipt=GET_PUBLIC_KEY_FROM_CERT(&ICERT,&IPK);
@@ -340,6 +351,9 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
         return false;
     }
 
+#if VERBOSITY >= IO_DEBUG
+    logCertDetails((char *)"Parsing Intermediate certificate\n",&IPK,ipt,&ISIG,ist,&ISSUER,&SUBJECT);
+#endif
     if (CHECK_CERT_SIG(sst,&SCERT,&SSIG,&IPK)) {  // Check server cert signature with inter cert public key
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Intermediate Certificate Chain sig is OK\n",NULL,0,NULL);
@@ -350,9 +364,7 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
 #endif
         return false;
     }
-#if VERBOSITY >= IO_DEBUG
-    logCertDetails((char *)"Intermediate Certificate",&IPK,ipt,&ISIG,ist,&ISSUER,&SUBJECT);
-#endif
+
     if (OCT_comp(&ISSUER,&SUBJECT))
     {
 #if VERBOSITY >= IO_PROTOCOL

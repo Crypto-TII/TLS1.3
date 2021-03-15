@@ -133,9 +133,9 @@ int getServerFragment(Socket &client,crypto *recv,octet *IO)
 
     left=getInt16(client);
     OCT_jint(&RH,left,2);
-//printf("left= %d IO->max= %d\n",left,IO->max);
     if (left+pos>IO->max)
     { // this commonly happens with big records of application data from server
+//        printf("This happened %d %d\n",left+pos,IO->max);
         return BAD_RECORD;   // record is too big - memory overflow
     }
     if (recv==NULL)
@@ -337,8 +337,8 @@ int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,unihash *
         default:    // ignore all other extensions
             r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val;
             len-=2;  // length of extension
-//            r=parseOctetorPull(client,&U,tlen,IO,ptr,recv);   // to look at extension
-//            printf("Unexpected Extension= "); OCT_output(&U);
+            //r=parseOctetorPull(client,&U,tlen,IO,ptr,recv);   // to look at extension
+            //printf("Unexpected Extension= "); OCT_output(&U);
             len-=tlen; ptr+=tlen; // skip over it
             unexp++;
             break;
@@ -364,16 +364,14 @@ int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash
     octet CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
     CERTCHAIN.len=0;
 
-//printf("ptr= %d\n",ptr);
     r=parseByteorPull(client,IO,ptr,recv); nb=r.val;   
-//printf("nb= %d\n",nb); if (r.err) return r.err;
-    r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
 
-//printf("len= %d\n",len);
     if (nb!=CERTIFICATE)
     { // message received out-of-order
         return WRONG_MESSAGE;
     }
+
+    r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
     r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
     if (nb!=0x00) return MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;    // get length of certificate chain
@@ -472,6 +470,8 @@ int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *CID,octe
     OCT_clear(SH);
     rtn=getServerFragment(client,NULL,SH);
 
+    if (rtn==TIME_OUT)
+        return TIME_OUT;
     if (rtn==ALERT)
         return ALERT;
 

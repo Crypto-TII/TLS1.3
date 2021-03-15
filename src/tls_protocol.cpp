@@ -97,11 +97,22 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {  
+#if VERBOSITY >= IO_PROTOCOL
+        if (rtn==NOT_TLS1_3)
+            logger((char *)"Server does not support TLS1.3\n",NULL,0,NULL);
+#endif
         sendClientAlert(client,&RNG,alert_from_cause(rtn),NULL,&IO);
         return 0;
     }
-    if (rtn==TIME_OUT || rtn==ALERT)
+
+    if (rtn==TIME_OUT) return 0;
+    if (rtn==ALERT)
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Alert received from Server - probably does not support TLS1.3\n",NULL,0,NULL);
+#endif
         return 0;
+    }
 
 // Find cipher-suite chosen by Server
     sha=0;
@@ -251,7 +262,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     if (rtn==TIME_OUT || rtn==ALERT)
         return 0;
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Encrypted Extensions Processed\n ",NULL,0,NULL);
+    logger((char *)"Encrypted Extensions Processed\n",NULL,0,NULL);
 #endif
 // 2. get certificate chain, check it, get Server public key
     rtn=getCheckServerCertificateChain(client,&IO,&K_recv,&tlshash,hostname,&SS);

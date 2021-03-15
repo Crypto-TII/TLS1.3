@@ -1,16 +1,27 @@
 
-			Allow early data
-www.bbc.co.uk			No
-www.protonmail.com		No
-www.miracl.com			No
-www.facebook.com		No
-tls13.ulfheim.net		No
-tls13.cloudfare.com		No
-www.google.com			No
-slack.com			No
-owasp.org			No
-mozilla.org			No
-swifttls.org			Yes
-tls13.1d.pw			No
-realpython.com                  Yes
-www.padok.fr                    Yes
+			Allow early data	Extra Certs in Chain
+www.bbc.co.uk			No			Yes
+www.protonmail.com		No			No
+www.miracl.com			No			No
+www.facebook.com		No			No
+tls13.ulfheim.net		No			No
+tls13.cloudfare.com		No			No
+www.google.com			No			No
+slack.com			No			No
+owasp.org			No			No
+mozilla.org			No			No
+swifttls.org			Yes			No
+tls13.1d.pw			No			Yes	
+realpython.com                  Yes			No
+www.padok.fr                    Yes			No
+
+www.fitbit.com			No			No
+www.st.com			No			No
+www.academia.edu		Terrible Cert Chain! X+X+W+Y+Z-> ca ? Yes
+www.rsaconference.com		No			No
+blog.knowbe4.com		Yes			No
+ec.europa.eu			No			No
+www.crowdsupply.com		No			No
+iscc2021.unipi.gr               Misconfigured cert chain ?
+www.kinvaraskincare.com		Yes			No	
+www.bundledocs.com		No			No
