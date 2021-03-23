@@ -17,7 +17,6 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 {
     int i,rtn,pskid;
     int cipher_suite,cs_hrr,kex,sha;
-    int kexGroups[TLS_MAX_KEY_SHARES];
     bool early_data_accepted,ccs_sent=false;
     bool resumption_required=false;
 
@@ -68,9 +67,6 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     logger((char *)"Private key= ",NULL,0,&CSK);
     logger((char *)"Client Public key= ",NULL,0,&PK);
 #endif
-
-// Choose public key group
-    kexGroups[0]=favourite_group;
 
 // Client Hello
 // First build our preferred mix of client Hello extensions, based on our capabililities
@@ -170,7 +166,6 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 // generate new key pair in new server selected group 
         favourite_group=kex;
         GENERATE_KEY_PAIR(&RNG,favourite_group,&CSK,&PK); 
-        kexGroups[0]=favourite_group; 
         addKeyShareExt(&EXT,favourite_group,&PK);  // Public Key Share in new group
         addPSKExt(&EXT,pskMode);
         addVersionExt(&EXT,tlsVersion);
@@ -387,9 +382,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,capabilities &CPB,octet &IO,octet &RMS,ticket &T,crypto &K_send,crypto &K_recv,octet &STS,octet &EARLY)
 {
     int sha,rtn,kex,cipher_suite,pskid;
-    int kexGroups[TLS_MAX_KEY_SHARES];
     bool early_data_accepted;
-    kexGroups[0]=favourite_group;
 
     char es[TLS_MAX_HASH];               // Early Secret
     octet ES = {0,sizeof(es),es};

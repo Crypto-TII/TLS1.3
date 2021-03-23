@@ -1,3 +1,9 @@
+/**
+ * @file tls_wifi.h
+ * @author Mike Scott
+ * @brief define Socket structure depending on processor context
+ *
+ */
 // Set up WiFi environment for Arduino boards
 
 #ifndef TLS_WIFI_H

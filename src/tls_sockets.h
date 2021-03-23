@@ -1,3 +1,10 @@
+/**
+ * @file tls_sockets.h
+ * @author Mike Scott
+ * @brief set up sockets for reading and writing
+ *
+ */
+
 // Set up and read/write sockets
 
 #ifndef TLS_SOCKETS_H
@@ -26,16 +33,31 @@ using namespace core;
 
 #ifndef CORE_ARDUINO
 
-//extern int setserversock(int port);
+/**	@brief create a client socket 
+ *
+	@param port the TCP/IP port on which to connect
+    @param ip the IP address with which to connect
+    @param toms the time-out period in milliseconds
+    @return the socket handle
+ */
 extern int setclientsock(int port, char *ip, int toms);
+
+/**	@brief get the IP address from a URL
+ *
+    @param ip the IP address
+    @param hostname the input Server name (URL)
+    @return 1 for success, 0 for failure
+ */
 extern int getIPaddress(char *ip,char *hostname);
 
 // Simple socket class, mimics Arduino
+/**
+ * @brief Socket instance */
 class Socket
 {
-    int sock;
-    int toms;
-    bool is_af_unix;
+    int sock;     /**< the socket handle */
+    int toms;     /**< the socket time-out in milliseconds */
+    bool is_af_unix;  /**< Is it an AF_UNIX socket? */
 
 private:
     Socket(bool is_af_unix) {
@@ -108,13 +130,57 @@ public:
 };
 #endif
 
-
+/**	@brief send an octet over a socket 
+ *
+	@param client the socket connection to the Server
+    @param B the octet to be transmitted
+ */
 extern void sendOctet(Socket &client,octet *B);
+
+/**	@brief send a 16-bit integer as an octet to Server
+ *
+	@param client the socket connection to the Server
+    @param len the 16-bit integer to be encoded as octet and transmitted
+ */
 extern void sendLen(Socket &client,int len);
+
+/**	@brief receive bytes over a socket sonnection
+ *
+	@param client the socket connection to the Server
+    @param b the received bytes
+    @param expected the number of bytes expected
+    @return -1 on failure, 0 on success
+ */
 extern int getBytes(Socket &client,char *b,int expected);
+
+/**	@brief receive 16-bit integer from a socket
+ *
+	@param client the socket connection to the Server
+    @return a 16-bit integer
+ */
 extern int getInt16(Socket &client);
+
+/**	@brief receive 24-bit integer from a socket
+ *
+	@param client the socket connection to the Server
+    @return a 24-bit integer
+ */
 extern int getInt24(Socket &client);
+
+/**	@brief receive a single byte from a socket
+ *
+	@param client the socket connection to the Server
+    @return a byte
+ */
 extern int getByte(Socket &client);
+
+/**	@brief receive an octet from a socket
+ *
+	@param client the socket connection to the Server
+    @param B the output octet
+    @param expected the number of bytes expected
+    @return -1 on failure, 0 on success
+ */
 extern int getOctet(Socket &client,octet *B,int expected);
 
 #endif

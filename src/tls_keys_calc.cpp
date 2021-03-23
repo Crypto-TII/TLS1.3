@@ -160,7 +160,7 @@ bool IS_VERIFY_DATA(int sha,octet *SF,octet *SHTS,octet *H)
 }
 
 // update Traffic secret and associated traffic key and IV
-unsign32 UPDATE_KEYS(crypto *context,octet *TS)
+void UPDATE_KEYS(crypto *context,octet *TS)
 {
     int sha,key;
     char info[16];
@@ -187,7 +187,6 @@ unsign32 UPDATE_KEYS(crypto *context,octet *TS)
     HKDF_Expand_Label(MC_SHA2,sha,&(context->IV),12,TS,&INFO,NULL);
 // reset record number
     context->record=0;
-    return 0;
 }
 
 // get Key and IV from a Traffic secret

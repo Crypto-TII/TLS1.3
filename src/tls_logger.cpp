@@ -57,7 +57,7 @@ void logServerHello(int cipher_suite,int kex,int pskid,octet *PK,octet *CK)
     logger((char *)"\nParsing serverHello\n",NULL,0,NULL);
     logger((char *)"cipher suite= ",(char *)"%x",cipher_suite,NULL);
     logger((char *)"Key exchange algorithm= ",(char *)"%x",kex,NULL);
-    if (pskid>0) logger((char *)"PSK Identity= ",(char *)"%d",pskid,NULL);
+    if (pskid>=0) logger((char *)"PSK Identity= ",(char *)"%d",pskid,NULL);
     if (PK->len>0) {
         logger((char *)"Server Public Key= ",NULL,0,PK);//OCT_output(PK);
     }

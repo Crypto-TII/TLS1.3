@@ -1,3 +1,9 @@
+/**
+ * @file tls_tickets.h
+ * @author Mike Scott
+ * @brief TLS 1.3 process resumption tickets
+ *
+ */
 // Process Resumption Tickets
 
 #ifndef TLS_TICKETS_H
@@ -8,8 +14,25 @@
 
 using namespace core;
 
+/**	@brief read milliseconds from a stop-watch 
+ *
+	@return milliseconds read from stop-watch
+ */
 extern unsigned long millis();
-extern int parseTicket(octet *TICK,ticket *T); 
+
+/**	@brief parse a received ticket octet into a ticket structure 
+ *
+	@param TICK the input ticket octet
+    @param T the output ticket structure
+    @return bad ticket error, or 0 if ticket is good
+ */
+extern int parseTicket(octet *TICK,ticket *T);
+
+/**	@brief initialize a ticket structure, include time of creation
+ *
+    @param T the ticket structure
+    @param birthtime the time when the ticket was born
+ */
 extern void init_ticket_context(ticket *T,unsign32 birthtime);
 
 #endif

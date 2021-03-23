@@ -8,7 +8,7 @@ This library does all the crypto, and can be regarded as a "placeholder" as we m
 
 Then copy the contents of this archive to the same directory, in particular client.cpp and tls*.*
 
-Set the verbosoity of the output in tls1_3.h to IO_DEBUG. Build the tls library and the client app by 
+Set the verbosity of the output in tls1_3.h to IO_DEBUG. Build the tls library and the client app by 
 
 	g++ -O2 -c tls*.cpp
 	ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o
@@ -195,11 +195,16 @@ The output should look something like
  
 Try it out on your favourite websites. It will abort if TLS1.3 is not supported. 
 At this stage the tool is still quite fragile (only tested and debugged aginst a dozen websites or so!), and would be expected to often fail.
+In a small number of cases it will fail due to receiving a malformed certificate chain from the Server.
 
 Also try
 
 	./client tls13.1d.pw
 	
+Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
+
+See list.txt for some websites that work OK.
+
 ### How to use it 
 
 #### Localhost 4433
@@ -227,6 +232,4 @@ This is our own server, using TLSSwift (`localhost:4433`)
 ```bash
 ./client af_unix /tmp/somesocket
 ```
-Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
 
-See list.txt for some websites that work OK.
