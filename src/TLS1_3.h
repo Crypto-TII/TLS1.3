@@ -18,7 +18,7 @@
 
 // THESE ARE IMPORTANT SETTINGS 
 #define POPULAR_ROOT_CERTS      /**< Define this to limit root CAs to most popular only */
-#define VERBOSITY IO_PROTOCOL   /**< Set to level of output information desired - see above */
+#define VERBOSITY IO_DEBUG   /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021          /**< Set to this year - crudely used to deprecate old certificates */
 
 // Some maximum sizes for stack allocated memory. Handshake will fail if these sizes are exceeded! 

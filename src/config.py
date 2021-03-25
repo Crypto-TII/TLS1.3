@@ -653,7 +653,6 @@ print("25. Million Dollar Curve")
 print("26. TWEEDLEDUM")
 print("27. TWEEDLEDEE\n")
 
-
 print("Pairing-Friendly Elliptic Curves")
 print("28. BN254")
 print("29. BN254CX")
@@ -951,7 +950,7 @@ if not nhs_selected :
 #    os.system("mkdir examples")
 #    os.system("mkdir examples"+slashtext+"testnhs")
 #    os.system(copytext+" testnhs.ino "+"examples"+slashtext+"testnhs"+slashtext+"testnhs.ino")
-#os.system(deltext+" testnhs.ino")
+os.system(deltext+" testnhs.ino")
 
 #if curve_selected :
 #    os.system("mkdir examples")
@@ -959,8 +958,8 @@ if not nhs_selected :
 #    os.system(copytext+" testecc.ino "+"examples"+slashtext+"testecc"+slashtext+"testecc.ino")
 #    os.system("mkdir examples"+slashtext+"timeecc")
 #    os.system(copytext+" timeecc.ino "+"examples"+slashtext+"timeecc"+slashtext+"timeecc.ino")
-#os.system(deltext+" testecc.ino")
-#os.system(deltext+" timeecc.ino")
+os.system(deltext+" testecc.ino")
+os.system(deltext+" timeecc.ino")
 
 #if not rsa_selected :
 #    os.system(deltext+" X509.cpp")
@@ -969,7 +968,7 @@ if not nhs_selected :
 #    os.system("mkdir examples")
 #    os.system("mkdir examples"+slashtext+"testrsa")
 #    os.system(copytext+" testrsa.ino "+"examples"+slashtext+"testrsa"+slashtext+"testrsa.ino")
-#os.system(deltext+" testrsa.ino")
+os.system(deltext+" testrsa.ino")
 
 
 #if pfcurve_selected :
@@ -980,8 +979,8 @@ if not nhs_selected :
 #    os.system(copytext+" timepbc.ino "+"examples"+slashtext+"timepbc"+slashtext+"timepbc.ino")
 #    os.system(deltext+ " ecdh*.* ")
 os.system(deltext+ " hpke*.* ")
-#os.system(deltext+" testbls.ino")
-#os.system(deltext+" timepbc.ino")
+os.system(deltext+" testbls.ino")
+os.system(deltext+" timepbc.ino")
 
 os.system(deltext+ " share*.* ")
 
@@ -1129,6 +1128,7 @@ if not selected(selection,39,ptr) :
     os.system(deltext+" rom_curve_BLS48286.cpp")
 
     os.system(deltext+" testbls.cpp")
+    os.system(deltext+" testbls.rs")
     os.system(deltext+" testecc.cpp")
     os.system(deltext+" testmpin.cpp")
     os.system(deltext+" testhpke.cpp")
@@ -1136,5 +1136,6 @@ if not selected(selection,39,ptr) :
     os.system(deltext+" testnhs.cpp")
     os.system(deltext+" testx509.cpp")
 
+    os.system(deltext+" *.md")
     os.system(deltext+" config*.py")
     os.system(deltext+" benchtest_all.cpp")

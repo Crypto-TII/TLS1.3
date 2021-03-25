@@ -160,7 +160,7 @@ unsigned long ran=esp_random();   // ESP32 true random number generator
 #else
 unsigned long ran=42L;
 #endif
-int port;
+int port=443;
 
 #ifdef CORE_ARDUINO
 char* ssid = "eir79562322-2.4G";
@@ -172,10 +172,11 @@ void mydelay()
 }
 #else
 char hostname[TLS_MAX_SERVER_NAME];
+SocketType socketType = SocketType::SOCKET_TYPE_AF_INET;
 void mydelay()
 {}
 #endif
-SocketType socketType = SocketType::SOCKET_TYPE_AF_INET;
+
 
 
 #ifdef ESP32
@@ -289,9 +290,13 @@ void loop() {
     init_crypto_context(&K_recv);
     make_client_message(&GET,hostname);
 
+#ifndef CORE_ARDUINO
     Socket client = (socketType == SocketType::SOCKET_TYPE_AF_UNIX) ?
                     Socket::UnixSocket():
                     Socket::InetSocket();
+#else
+    Socket client;
+#endif
 
     if (!client.connect(hostname,port))
     {

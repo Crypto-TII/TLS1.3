@@ -4,6 +4,7 @@
 
 #include "tls_client_recv.h"
 #include "tls_cert_chain.h"
+#include "tls_logger.h"
 
 // First some functions for parsing values out of an octet string
 // parse out an octet of length len from octet M into E
@@ -371,7 +372,12 @@ int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash
         return WRONG_MESSAGE;
     }
 
-    r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
+    r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length   
+    
+#if VERBOSITY >= IO_DEBUG
+    logger((char *)"Certificate Chain Length= ",(char *)"%d",len,NULL);
+#endif
+
     r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
     if (nb!=0x00) return MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;    // get length of certificate chain
@@ -400,6 +406,10 @@ int getServerCertVerify(Socket &client,octet *IO,crypto *recv,unihash *trans_has
     r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err; // message length    
 
+#if VERBOSITY >= IO_DEBUG
+    logger((char *)"Server Certify Length= ",(char *)"%d",len,NULL);
+#endif
+
     if (nb!=CERT_VERIFY)
         return WRONG_MESSAGE;
 
@@ -425,6 +435,10 @@ int getServerFinished(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,
 
     r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
+
+#if VERBOSITY >= IO_DEBUG
+    logger((char *)"Server Finish Length= ",(char *)"%d",len,NULL);
+#endif
 
     if (nb!=FINISHED)
         return WRONG_MESSAGE;

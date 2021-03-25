@@ -233,3 +233,19 @@ This is our own server, using TLSSwift (`localhost:4433`)
 ./client af_unix /tmp/somesocket
 ```
 
+
+### Building the client application on an Arduino nano33iot board (256KROM, 32kRAM)
+
+1.	Create working directory directory
+2.	Copy in all from the cpp directory of https://github.com/miracl/core
+3.	Copy in all from the arduino directory of https://github.com/miracl/core
+4.	(If ever asked to overwrite a file, go ahead and overwrite it)
+5.	Copy in the files config.py, client.cpp and tls*.* from this directory to the working directory
+6.	Edit the file core.h to define CORE_ARDUINO
+7.	Edit the file client.cpp to use your wifi SSID and password (near line 165)
+7.	Run py config.py, and select options 2,3,8,40 and 42
+8.	Drop the working directory into where the Arduino IDE expects it. 
+9.	(In the IDE select File->Preferences and find the Sketchbook location - its the library directory off that.)
+10.	Edit 
+
+
