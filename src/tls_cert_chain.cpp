@@ -284,9 +284,9 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
     r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false;// get length of first (server) certificate
     r=parseOctetptr(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
 
-#if VERBOSITY >= IO_DEBUG
-    logCert(&SCERT);
-#endif
+//#if VERBOSITY >= IO_DEBUG
+//    logCert(&SCERT);
+//#endif
 //printf("Signed cert len= %d\n",SCERT.len);
 
     r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
@@ -332,9 +332,9 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
     r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false; // get length of next certificate
     r=parseOctetptr(&ICERT,len,CERTCHAIN,ptr); if (r.err) return false;
 
-#if VERBOSITY >= IO_DEBUG
-    logCert(&ICERT);
-#endif
+//#if VERBOSITY >= IO_DEBUG
+//    logCert(&ICERT);
+//#endif
 
 //printf("Signed cert len= %d\n",ICERT.len);
 
