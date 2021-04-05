@@ -393,21 +393,17 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     if (!ccs_sent)
         sendCCCS(client);  // send Client Cipher Change (if not already sent)
 
-
     transcript_hash(&tlshash,&HH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify+serverFinish
+
+
 // Now its the clients turn to respond
 // optional send Certificate & Certificate Verify!
-
     if (gotacertrequest)
     {
         int kind=GET_CLIENT_KEY_AND_CERTCHAIN(nccsalgs,csigAlgs,&CLIENT_KEY,&CLIENT_CERTCHAIN);
-//        printf("kind= %x\n",kind);
-        //printf("Client key =  "); OCT_output(&CLIENT_KEY);
-        //printf("Client cert = "); OCT_output(&CLIENT_CERTCHAIN);
         sendClientCertificateChain(client,&RNG,&K_send,&tlshash,&CLIENT_CERTCHAIN,&IO);
         transcript_hash(&tlshash,&TH);
         CREATE_CLIENT_CERT_VERIFIER(kind,&RNG,&TH,&CLIENT_KEY,&CCVSIG);      
-//printf("Client Verify signature =  %d ",CCVSIG.len); OCT_output(&CCVSIG);
         sendClientCertVerify(client,&RNG,&K_send,&tlshash,kind,&CCVSIG,&IO);
     }
 
@@ -500,7 +496,6 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     octet NONCE={0,sizeof(nonce),nonce}; // ticket nonce
     char etick[TLS_MAX_TICKET_SIZE];
     octet ETICK={0,sizeof(etick),etick}; // ticket
-
 
 // NOTE: MAX_TICKET_SIZE and MAX_EXTENSIONS must be increased to support much larger tickets issued when client certificate authentication required
 

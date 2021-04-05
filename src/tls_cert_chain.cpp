@@ -287,7 +287,6 @@ int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octet *PRIVKEY,octet
         OCT_frombase64(&SC,b);
 
 // add to Certificate Chain
-
         OCT_jint(CERTCHAIN,SC.len,3);
         OCT_joctet(CERTCHAIN,&SC);
         OCT_jint(CERTCHAIN,0,2);  // add no certificate extensions
@@ -537,9 +536,7 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,csprng *RNG,octet *H,octet *KEY,octe
             octet ENC={0,sizeof(enc),enc};
             RSA2048::RSA_PRIVATE_KEY_FROM_OPENSSL(&P,&Q,&DP,&DQ,&C,&SK);
             core::PSS_ENCODE(sha, &CCV, RNG, &ENC);
-//printf("ENC =  %d ",ENC.len); OCT_output(&ENC);
             RSA2048::RSA_DECRYPT(&SK,&ENC,CCVSIG);
-//printf("CCVSIG =  %d ",CCVSIG->len); OCT_output(CCVSIG);
         }
 
         if (len==0x100)
@@ -554,12 +551,95 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,csprng *RNG,octet *H,octet *KEY,octe
     }
     break;
     case ECDSA_SECP256R1_SHA256:
-    { // TBD
+    { 
+        bool cinc=false;
+        bool dinc=false;
+        int clen=32;      // curve field/group length
+        char c[32];
+        octet C={0,sizeof(c),c};
+        char d[32];
+        octet D={0,sizeof(c),c};
+
+        sha=32; 
+        NIST256::ECP_SP_DSA(sha,RNG, NULL, KEY, &CCV, &C, &D); // C and D are signature on CCV using private key KEY
+        if (C.val[0]&0x80) cinc=true;
+        if (D.val[0]&0x80) dinc=true;
+
+        len=2*clen+4;
+        if (cinc) len++;    // -ve values need leading zero inserted
+        if (dinc) len++;
+ 
+        OCT_clear(CCVSIG);
+        OCT_jbyte(CCVSIG,0x30,1);  // ASN.1 SEQ
+        OCT_jbyte(CCVSIG,len,1);
+// C
+        OCT_jbyte(CCVSIG,0x02,1);  // ASN.1 INT type
+        if (cinc)
+        {
+            OCT_jbyte(CCVSIG,clen+1,1);
+            OCT_jbyte(CCVSIG,0,1);
+        } else {
+            OCT_jbyte(CCVSIG,clen,1);
+        }
+        OCT_joctet(CCVSIG,&C);
+// D
+        OCT_jbyte(CCVSIG,0x02,1);  // ASN.1 INT type
+        if (dinc)
+        {
+            OCT_jbyte(CCVSIG,clen+1,1);
+            OCT_jbyte(CCVSIG,0,1);
+        } else {
+            OCT_jbyte(CCVSIG,clen,1);
+        }
+        OCT_joctet(CCVSIG,&D);
+
     }
+    break;
     case ECDSA_SECP384R1_SHA384:
-    { // TBD
+    { 
+        bool cinc=false;
+        bool dinc=false;
+        int clen=48;
+        char c[48];
+        octet C={0,sizeof(c),c};
+        char d[48];
+        octet D={0,sizeof(c),c};
+
+        sha=48; 
+        NIST384::ECP_SP_DSA(sha,RNG, NULL, KEY, &CCV, &C, &D); // C and D are signature on CCV using private key KEY
+        if (C.val[0]&0x80) cinc=true;
+        if (D.val[0]&0x80) dinc=true;
+
+        len=2*clen+4;
+        if (cinc) len++;
+        if (dinc) len++;
+ 
+        OCT_clear(CCVSIG);
+        OCT_jbyte(CCVSIG,0x30,1);  // ASN.1 SEQ
+        OCT_jbyte(CCVSIG,len,1);
+// C
+        OCT_jbyte(CCVSIG,0x02,1);  // ASN.1 INT type
+        if (cinc)
+        {
+            OCT_jbyte(CCVSIG,clen+1,1);
+            OCT_jbyte(CCVSIG,0,1);
+        } else {
+            OCT_jbyte(CCVSIG,clen,1);
+        }
+        OCT_joctet(CCVSIG,&C);
+// D
+        OCT_jbyte(CCVSIG,0x02,1);  // ASN.1 INT type
+        if (dinc)
+        {
+            OCT_jbyte(CCVSIG,clen+1,1);
+            OCT_jbyte(CCVSIG,0,1);
+        } else {
+            OCT_jbyte(CCVSIG,clen,1);
+        }
+        OCT_joctet(CCVSIG,&D);
+
     }
-        break;     
+    break;     
     }
     return;
 }
@@ -627,6 +707,7 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
         rt=parseByte(SCVSIG,ptr); slen=rt.val;
         if (rt.err || slen+2!=len) return false;
 
+// get R
         rt=parseByte(SCVSIG,ptr); Int=rt.val;
         if (rt.err || Int!=0x02) return false;
         rt=parseByte(SCVSIG,ptr); rlen=rt.val;
@@ -639,6 +720,7 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
         }
         rt=parseOctet(&R,0x20,SCVSIG,ptr); if (rt.err) return false;
 
+// get S
         rt=parseByte(SCVSIG,ptr); Int=rt.val;
         if (rt.err || Int!=0x02) return false;
         rt=parseByte(SCVSIG,ptr); slen=rt.val;

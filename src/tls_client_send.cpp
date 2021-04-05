@@ -293,7 +293,7 @@ void sendClientCertVerify(Socket &client, csprng *RNG,crypto *send, unihash *h, 
 /* Send Client Certificate */
 void sendClientCertificateChain(Socket &client,csprng *RNG,crypto *send, unihash *h,octet *CERTCHAIN,octet *IO)
 {
-    char pt[12];
+    char pt[10];
     octet PT{0,sizeof(pt),pt};
 
     OCT_jbyte(&PT,CERTIFICATE,1);
@@ -301,18 +301,14 @@ void sendClientCertificateChain(Socket &client,csprng *RNG,crypto *send, unihash
         OCT_jint(&PT,4,3);
         OCT_jbyte(&PT,0,1); // cert context
         OCT_jint(&PT,0,3);  // zero length
-//printf("PT= "); OCT_output(&PT); printf("\n");
         running_hash(&PT,h);
     } else {
         OCT_jint(&PT,4+CERTCHAIN->len,3);
         OCT_jbyte(&PT,0,1); // cert context
         OCT_jint(&PT,CERTCHAIN->len,3);  // length of certificate chain
-//printf("PT= "); OCT_output(&PT); printf("\n");
-//printf("CERTCHAIN= "); OCT_output(CERTCHAIN); printf("\n");
         running_hash(&PT,h);
         running_hash(CERTCHAIN,h);
     }
-//    printf("CERT->len= %x\n",CERTCHAIN->len);
     sendClientMessage(client,RNG,HSHAKE,TLS1_2,send,&PT,CERTCHAIN,IO);
 } 
 
@@ -344,8 +340,8 @@ int alert_from_cause(int rtn)
         return ILLEGAL_PARAMETER;        
     case WRONG_MESSAGE:                 // Cause
         return UNEXPECTED_MESSAGE;      // Alert
-    case BAD_CERT_CHAIN:                 // Cause
-        return BAD_CERTIFICATE;      // Alert
+    case BAD_CERT_CHAIN:                // Cause
+        return BAD_CERTIFICATE;         // Alert
     case MISSING_REQUEST_CONTEXT:
         return ILLEGAL_PARAMETER;
     case AUTHENTICATION_FAILURE:
