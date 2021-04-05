@@ -20,6 +20,7 @@
 #define POPULAR_ROOT_CERTS      /**< Define this to limit root CAs to most popular only */
 #define VERBOSITY IO_PROTOCOL   /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021          /**< Set to this year - crudely used to deprecate old certificates */
+#define HAVE_A_CLIENT_CERT      /**< Indicate willingness to authenticate with a cert plus signing key */
 
 // Some maximum sizes for stack allocated memory. Handshake will fail if these sizes are exceeded! 
 

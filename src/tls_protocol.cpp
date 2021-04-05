@@ -57,14 +57,14 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     octet CHF={0,sizeof(chf),chf};                    // client verify
     char cets[TLS_MAX_HASH];           
     octet CETS={0,sizeof(cets),cets};   // Early traffic secret
-
+#ifdef HAVE_A_CLIENT_CERT
     char client_key[TLS_MAX_MYCERT_SIZE];           
     octet CLIENT_KEY={0,sizeof(client_key),client_key};   // Early traffic secret
     char client_cert[TLS_MAX_MYCERT_SIZE];           
     octet CLIENT_CERTCHAIN={0,sizeof(client_cert),client_cert};   // Early traffic secret
     char ccvsig[TLS_MAX_SIGNATURE_SIZE];
     octet CCVSIG={0,sizeof(ccvsig),ccvsig};           // Client's digital signature on transcript
-
+#endif
     int tlsVersion=TLS1_3;
     int pskMode=PSKWECDHE;
     favourite_group=CPB.supportedGroups[0]; // only sending one key share in favourite group
@@ -397,17 +397,27 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 
 
 // Now its the clients turn to respond
-// optional send Certificate & Certificate Verify!
+// Send Certificate & Certificate Verify (if I have one).
     if (gotacertrequest)
     {
+#ifdef HAVE_A_CLIENT_CERT
         int kind=GET_CLIENT_KEY_AND_CERTCHAIN(nccsalgs,csigAlgs,&CLIENT_KEY,&CLIENT_CERTCHAIN);
-        sendClientCertificateChain(client,&RNG,&K_send,&tlshash,&CLIENT_CERTCHAIN,&IO);
-        transcript_hash(&tlshash,&TH);
-        CREATE_CLIENT_CERT_VERIFIER(kind,&RNG,&TH,&CLIENT_KEY,&CCVSIG);      
-        sendClientCertVerify(client,&RNG,&K_send,&tlshash,kind,&CCVSIG,&IO);
+        if (kind!=0)
+        { // I can do that kind of signature
+            sendClientCertificateChain(client,&RNG,&K_send,&tlshash,&CLIENT_CERTCHAIN,&IO);
+            transcript_hash(&tlshash,&TH);
+            CREATE_CLIENT_CERT_VERIFIER(kind,&RNG,&TH,&CLIENT_KEY,&CCVSIG);      
+            sendClientCertVerify(client,&RNG,&K_send,&tlshash,kind,&CCVSIG,&IO);
+        } else { // I can't - send a null cert
+            sendClientCertificateChain(client,&RNG,&K_send,&tlshash,NULL,&IO);
+        }
+#else
+        sendClientCertificateChain(client,&RNG,&K_send,&tlshash,NULL,&IO);
+#endif
+        transcript_hash(&tlshash,&TH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify+serverFinish+clientCertChain+clientCertVerify
+    } else {
+        OCT_copy(&TH,&HH);
     }
-
-    transcript_hash(&tlshash,&TH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify+serverFinish(+clientCertChain+clientCertVerify)
 
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Transcript Hash= ",NULL,0,&TH);

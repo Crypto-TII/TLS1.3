@@ -592,7 +592,6 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,csprng *RNG,octet *H,octet *KEY,octe
             OCT_jbyte(CCVSIG,clen,1);
         }
         OCT_joctet(CCVSIG,&D);
-
     }
     break;
     case ECDSA_SECP384R1_SHA384:
@@ -637,7 +636,6 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,csprng *RNG,octet *H,octet *KEY,octe
             OCT_jbyte(CCVSIG,clen,1);
         }
         OCT_joctet(CCVSIG,&D);
-
     }
     break;     
     }
