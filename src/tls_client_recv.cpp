@@ -296,20 +296,31 @@ ret parseOctetorPullptr(Socket &client,octet *O,int len,octet *IO,int &ptr,crypt
 
 // Bad actor Server could be throwing anything at us - so be careful
 
+// Extract first byte to determine message type
+int getWhatsNext(Socket &client,octet *IO,crypto *recv,unihash *trans_hash)
+{
+    int nb,ptr=0;
+    ret r;
+    r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
+
+    Hash_Process(trans_hash,IO->val[0]);
+    OCT_shl(IO,ptr); 
+    return nb;
+}
+
 int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
 {
     ret r;
     int nb,ext,len,tlen,mfl,ptr=0;
     int unexp=0;
 
-    r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
+    nb=getWhatsNext(client,IO,recv,trans_hash); 
+    if (nb<0) return nb;
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
+
     early_data_accepted=false;
     if (nb!=ENCRYPTED_EXTENSIONS)
         return WRONG_MESSAGE;
-
-//    char u[50];
-//    octet U={0,sizeof(u),u};
 
     r=parseInt16orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err; // length of extensions
 
@@ -357,6 +368,62 @@ int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,unihash *
     return unexp;
 }
 
+int getCertificateRequest(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,int &nalgs,int *sigalgs)
+{
+    ret r;
+    int i,nb,ext,len,tlen,rtn,ptr=0;
+    int unexp=0;
+
+    r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length 
+    r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
+    if (nb!=0x00) return MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
+    r=parseInt16orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err; // length of extensions
+
+    nalgs=0;
+// extension must include signature algorithms
+    while (len>0)
+    {
+        r=parseInt16orPull(client,IO,ptr,recv); ext=r.val; if (r.err) return r.err;
+        len-=2;
+        switch (ext)
+        {
+        case SIG_ALGS :
+            r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val;  
+            len-=2;  
+            r=parseInt16orPull(client,IO,ptr,recv); nalgs=r.val/2; 
+            len-=2;
+            for (i=0;i<nalgs;i++)
+            {
+                r=parseInt16orPull(client,IO,ptr,recv);
+                if (i<TLS_MAX_SUPPORTED_SIGS) sigalgs[i]=r.val;
+                len-=2;
+            }
+            if (tlen!=2+2*nalgs) return UNRECOGNIZED_EXT;  
+            if (nalgs>TLS_MAX_SUPPORTED_SIGS) nalgs=TLS_MAX_SUPPORTED_SIGS;
+            break;
+        default:    // ignore all other extensions
+            r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val;
+            len-=2;  // length of extension
+            //r=parseOctetorPull(client,&U,tlen,IO,ptr,recv);   // to look at extension
+            //printf("Unexpected Extension= "); OCT_output(&U);
+            len-=tlen; ptr+=tlen; // skip over it
+            unexp++;
+            break;
+        }
+        if (r.err) return r.err;
+    }
+
+// Transcript hash
+    for (int i=0;i<ptr;i++)
+        Hash_Process(trans_hash,IO->val[i]);
+   
+    OCT_shl(IO,ptr);  // Shift octet left - rewind to start 
+
+    if (nalgs==0) return UNRECOGNIZED_EXT; // must specify at least one signature algorithm
+    if (unexp>0) return STRANGE_EXTENSION;
+    return unexp;
+}
+
 // Get certificate chain, and check its validity 
 int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,char *hostname,octet *PUBKEY)
 {
@@ -364,13 +431,6 @@ int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash
     int nb,len,rtn,ptr=0;
     octet CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
     CERTCHAIN.len=0;
-
-    r=parseByteorPull(client,IO,ptr,recv); nb=r.val;   
-
-    if (nb!=CERTIFICATE)
-    { // message received out-of-order
-        return WRONG_MESSAGE;
-    }
 
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length   
     
@@ -403,15 +463,12 @@ int getServerCertVerify(Socket &client,octet *IO,crypto *recv,unihash *trans_has
     ret r;
     int nb,len,ptr=0;
 
-    r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err; // message length    
 
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Server Certify Length= ",(char *)"%d",len,NULL);
 #endif
 
-    if (nb!=CERT_VERIFY)
-        return WRONG_MESSAGE;
 
     OCT_clear(SCVSIG);
     r=parseInt16orPull(client,IO,ptr,recv); sigalg=r.val; if (r.err) return r.err; // may for example be 0804 - RSA-PSS-RSAE-SHA256
@@ -433,15 +490,14 @@ int getServerFinished(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,
     ret r;
     int nb,len,ptr=0;
 
-    r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
+    nb=getWhatsNext(client,IO,recv,trans_hash); 
+    if (nb<0) return nb;
+
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
 
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Server Finish Length= ",(char *)"%d",len,NULL);
 #endif
-
-    if (nb!=FINISHED)
-        return WRONG_MESSAGE;
 
     OCT_clear(HFIN);
     r=parseOctetorPull(client,HFIN,len,IO,ptr,recv); if (r.err) return r.err;

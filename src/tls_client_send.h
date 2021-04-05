@@ -48,13 +48,22 @@ extern void addServerNameExt(octet *EXT,char *servername);
 extern void addSupportedGroupsExt(octet *EXT,int nsg,int *supportedGroups);
 
 
-/**	@brief Add Supported Signature algorithms to under-construction Extensions Octet
+/**	@brief Add Supported TLS1.3 Signature algorithms to under-construction Extensions Octet
  *
 	@param EXT the extensions octet which is being built
     @param nsa Number of supported signature algorithms
     @param sigAlgs an array of supported signature algorithms
  */    
 extern void addSigAlgsExt(octet *EXT,int nsa,int *sigAlgs);
+
+/**	@brief Add Supported X.509 Certificate Signature algorithms to under-construction Extensions Octet
+ *
+	@param EXT the extensions octet which is being built
+    @param nsac Number of supported signature algorithms
+    @param sigAlgsCert an array of supported signature algorithms
+ */    
+extern void addSigAlgsCertExt(octet *EXT,int nsac,int *sigAlgsCert);
+
 
 /**	@brief Add Key Share extension to under-construction Extensions Octet
  *
@@ -187,7 +196,31 @@ extern void sendClientAlert(Socket &client,csprng *RNG,int type,crypto *send,oct
     @param CHF the client verify data HMAC
     @param IO the workspace octet in which to construct the overall message
  */
-extern void sendClientVerify(Socket &client,csprng *RNG,crypto *send,unihash *h,octet *CHF,octet *IO);
+extern void sendClientFinish(Socket &client,csprng *RNG,crypto *send,unihash *h,octet *CHF,octet *IO);
+
+/**	@brief Prepare and send client certificate message to the Server
+ *
+	@param client the socket connection to the Server
+    @param RNG a random number generator
+    @param send the cryptographic key under which the certificate message is encrypted
+    @param h the current transcript hash up to this point
+    @param CERTCHAIN the client certificate chain
+    @param IO the workspace octet in which to construct the overall message
+ */
+extern void sendClientCertificateChain(Socket &client,csprng *RNG,crypto *send, unihash *h,octet *CERTCHAIN,octet *IO);
+
+/**	@brief Send client Certificate Verify message to the Server
+ *
+	@param client the socket connection to the Server
+    @param RNG a random number generator
+    @param send the cryptographic key under which the certificate message is encrypted
+    @param h the current transcript hash up to this point
+    @param sigAlg the client's digital signature algorithm
+    @param CCVSIG the client's signature
+    @param IO the workspace octet in which to construct the overall message
+ */
+extern void sendClientCertVerify(Socket &client, csprng *RNG,crypto *send, unihash *h, int sigAlg, octet *CCVSIG,octet *IO);
+
 
 /**	@brief Indicate End of Early Data in message to the Server
  *

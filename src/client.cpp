@@ -23,7 +23,7 @@ enum SocketType{
 int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,ticket *T)
 {
     ret r;
-    int nce,nb,len,te,type,nticks,kur,ptr=0;
+    int nce,nb,len,te,type,nticks,kur,rtn,ptr=0;
     bool fin=false;
     unsign32 time_ticket_received;
     octet TICK;  // Ticket raw data
@@ -58,14 +58,19 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
 #if VERBOSITY >= IO_PROTOCOL
                     logger((char *)"Got a ticket\n",NULL,0,NULL);
 #endif
+
+//printf("Ticket length= %d %d\n",ptr,len);
+
                     r=parseOctetorPullptr(client,&TICK,len,IO,ptr,K_recv);    // just copy out pointer to this
                     nticks++;
                     time_ticket_received=(unsign32)millis();     // start a stop-watch
                     init_ticket_context(T,time_ticket_received); // initialise and time-stamp a new ticket
-                    parseTicket(&TICK,T);  // extract into ticket structure, and keep for later use
+                    rtn=parseTicket(&TICK,T);  // extract into ticket structure, and keep for later use
+//printf("Error return= %d\n",rtn);
                     if (ptr==IO->len) fin=true; // record finished
                     if (fin) break;
                     continue;
+
                case KEY_UPDATE :
                     if (len!=1)
                     {
@@ -238,17 +243,19 @@ void setup()
   //  ciphers[2]=TLS_CHACHA20_POLY1305_SHA256;  // not supported
 
 // Extensions
-// Supported Cert signing Algorithms - could add more
-    CPB.nsa=8;
+// Supported TLS1.3 signing Algorithms - could add more
+    CPB.nsa=3;
     CPB.sigAlgs[0]=ECDSA_SECP256R1_SHA256;
     CPB.sigAlgs[1]=RSA_PSS_RSAE_SHA256;
-    CPB.sigAlgs[2]=RSA_PKCS1_SHA256;
-    CPB.sigAlgs[3]=ECDSA_SECP384R1_SHA384;
-    CPB.sigAlgs[4]=RSA_PSS_RSAE_SHA384;
-    CPB.sigAlgs[5]=RSA_PKCS1_SHA384;
-    CPB.sigAlgs[6]=RSA_PSS_RSAE_SHA512;
-    CPB.sigAlgs[7]=RSA_PKCS1_SHA512;
-    CPB.sigAlgs[8]=RSA_PKCS1_SHA1;
+    CPB.sigAlgs[2]=ECDSA_SECP384R1_SHA384;
+
+// Supported Certificate signing Algorithms - could add more
+    CPB.nsac=5;
+    CPB.sigAlgsCert[0]=ECDSA_SECP256R1_SHA256;
+    CPB.sigAlgsCert[1]=RSA_PKCS1_SHA256;
+    CPB.sigAlgsCert[2]=ECDSA_SECP384R1_SHA384;
+    CPB.sigAlgsCert[3]=RSA_PKCS1_SHA384;
+    CPB.sigAlgsCert[4]=RSA_PKCS1_SHA512;
 
 #ifdef ESP32
     xTaskCreatePinnedToCore(

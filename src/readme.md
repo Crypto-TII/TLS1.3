@@ -5,6 +5,7 @@ This C++ version is really just C plus namespaces plus pass-by-reference. These 
 First inside a working directory build the C++ version of MIRACL core (https://github.com/miracl/core), selecting support for C25519, NIST256, NIST384, RSA2048 and RSA4096.
 
 This library does all the crypto, and can be regarded as a "placeholder" as we may in the future replace its functionality from other sources.
+Make sure to always use the latest version of this library - as the requirements of this project unfold, some minor updates will be required.
 
 Then copy the contents of this archive to the same directory, in particular client.cpp and tls*.*
 
@@ -204,6 +205,18 @@ Also try
 Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
 
 See list.txt for some websites that work OK.
+
+
+Another way to test less popular options is to set up a local openssl server. First generate a self-signed server certificate, then for example
+
+	openssl s_server -tls1_3 -key key.pem -cert cert.pem -accept 4433 -www
+
+acts as a normal Website, while
+
+	openssl s_server -tls1_3 -verify 0 -key key.pem -cert cert.pem -accept 4433 -www
+
+looks for client side certificate authentication - and the server makes a certificate request to the client. We can't control the openssl
+debug output, but its better than nothing!
 
 ### How to use it 
 

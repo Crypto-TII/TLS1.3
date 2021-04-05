@@ -39,4 +39,24 @@ extern bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY);
  */
 extern bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK);
 
+/**	@brief Get Client private key and Certificate chain from .pem files
+ *
+    @param nccsalgs the number of acceptable signature algorithms
+    @param csigAlgs acceptable signature algorithms
+    @param PRIVKEY the Client's private  key
+    @param CERTCHAIN the Client's certificate chain
+	@return type of private key, ECC or RSA
+ */
+extern int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octet *PRIVKEY,octet *CERTCHAIN);
+
+/**	@brief Create Cert Verify message, as a digital signature on some TLS1.3 specific message+transcript hash
+ *
+    @param sigAlg the signature algorithm
+    @param RNG a random number generator
+    @param H a transcript hash to be signed
+    @param KEY the Client's private key
+    @param CCVSIG the output digital signature
+ */
+extern void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,csprng *RNG,octet *H,octet *KEY,octet *CCVSIG);
+
 #endif

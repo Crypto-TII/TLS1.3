@@ -141,6 +141,16 @@ extern ret parseOctetorPull(Socket &client,octet *O,int len,octet *IO,int &ptr,c
  */
 extern ret parseOctetorPullptr(Socket &client,octet *O,int len,octet *IO,int &ptr,crypto *recv);
 
+/**	@brief Identify type of message
+ *
+	@param client the socket connection to the Server
+    @param IO an Octet to accept input
+    @param recv the cryptographic key under which communications are encrypted
+    @param trans_hash the current and updated transcript hash
+	@return negative error, zero for OK, or positive for message type
+ */
+extern int getWhatsNext(Socket &client,octet *IO,crypto *recv,unihash *trans_hash);
+
 /**	@brief Receive and parse Server Encrypted Extensions
  *
 	@param client the socket connection to the Server
@@ -200,5 +210,17 @@ extern int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *C
 	@return negative error, zero for OK, or positive for informative response
  */
 extern int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,char *hostname,octet *PUBKEY);
+
+/**	@brief process a Certificate Request
+ *
+	@param client the socket connection to the Server
+    @param IO an Octet to accept server supplied certificate request
+    @param recv the cryptographic key under which the server response is encrypted
+    @param trans_hash the current and updated transcript hash
+    @param nalgs the number of acceptable signature algorithms
+    @param an array of nalgs signature algorithms
+	@return negative error, zero for OK, or positive for informative response
+ */
+extern int getCertificateRequest(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,int &nalgs,int *sigalgs);
 
 #endif

@@ -19,16 +19,17 @@ static void FULL_NAME(octet *FN,octet *CERT,int ic)
     OCT_jbytes(FN,&CERT->val[c],len);
 }
 
-static bool readaline(char *line,const char *rom,int &ptr)
+static int readaline(char *line,const char *rom,int &ptr)
 {
     int i=0;
-    if (rom[ptr]==0) return false;
+    if (rom[ptr]==0) return 0;
     while (rom[ptr]!='\n')
     {
         line[i++]=rom[ptr++];
     }
     ptr++; // jump over CR
-    return true;
+    line[i]=0;
+    return i;
 }
 
 // Extract public key from a certificate
@@ -73,13 +74,13 @@ static bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 
     for (;;)
     {
-        int i=0;
+        int len,i=0;
         if (!readaline(line,cacerts,ptr)) break;
         for (;;)
         {
-            readaline(line,cacerts,ptr);
+            len=readaline(line,cacerts,ptr);
             if (line[0]=='-') break;
-            for (int j=0;j<64;j++)
+            for (int j=0;j<len;j++)
                 b[i++]=line[j];
             b[i]=0;
         }
@@ -198,7 +199,7 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         }
     }
     if (st.type == X509_RSA)
-    { // its an RSA signature
+    { // its an RSA signature - assuming PKCS1.5 encoding
         int res;
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"st.curve= ",(char *)"%d",st.curve,NULL);
@@ -215,9 +216,14 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
             RSA2048::rsa_public_key PK;
             PK.e = 65537; // assuming this!
             RSA2048::RSA_fromOctet(PK.n, PUBKEY);
-            core::PKCS15(sha, CERT, &P1);
             RSA2048::RSA_ENCRYPT(&PK, SIG, &P2);
+            core::PKCS15(sha, CERT, &P1);
             res=OCT_comp(&P1, &P2);
+            if (!res)
+            { // check alternate PKCS1.5 encoding
+                core::PKCS15b(sha, CERT, &P1);
+                res=OCT_comp(&P1, &P2);
+            }
         }
         if (st.curve==4096)
         {
@@ -228,9 +234,14 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
             RSA4096::rsa_public_key PK;
             PK.e = 65537; // assuming this!
             RSA4096::RSA_fromOctet(PK.n, PUBKEY);
-            core::PKCS15(sha, CERT, &P1);
             RSA4096::RSA_ENCRYPT(&PK, SIG, &P2);
+            core::PKCS15(sha, CERT, &P1);
             res=OCT_comp(&P1, &P2);
+            if (!res)
+            { // check alternate PKCS1.5 encoding
+                core::PKCS15b(sha, CERT, &P1);
+                res=OCT_comp(&P1, &P2);
+            }
         } 
         if (res)
         {
@@ -246,6 +257,75 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         }
     }
     return false;
+}
+
+// Read in client private key from .pem file
+// Read in certificate, and make a certificate chain
+int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octet *PRIVKEY,octet *CERTCHAIN)
+{
+    int i,kind,ptr,len;
+    char sc[TLS_MAX_MYCERT_SIZE];  // X.509 .pem file (is it a cert or a cert chain??)
+    octet SC={0,sizeof(sc),sc};
+    char b[TLS_MAX_MYCERT_B64];    // maximum size key/cert
+    char line[80]; 
+    
+    OCT_clear(CERTCHAIN);
+// should be a chain of certificates, one after the other. May just be one self-signed
+    ptr=0;
+    for (;;)
+    {
+        i=0;
+        if (!readaline(line,mycert,ptr)) break;
+        for (;;)
+        {
+            len=readaline(line,mycert,ptr);
+            if (line[0]=='-') break;
+            for (int j=0;j<len;j++)
+                b[i++]=line[j];
+            b[i]=0;
+        }
+        OCT_frombase64(&SC,b);
+
+// add to Certificate Chain
+
+        OCT_jint(CERTCHAIN,SC.len,3);
+        OCT_joctet(CERTCHAIN,&SC);
+        OCT_jint(CERTCHAIN,0,2);  // add no certificate extensions
+    }
+
+    ptr=0; i=0;
+    readaline(line,myprivate,ptr);
+    for (;;)
+    {
+        len=readaline(line,myprivate,ptr);
+        if (line[0]=='-') break;
+        for (int j=0;j<len;j++)
+            b[i++]=line[j];
+        b[i]=0;
+    }
+    OCT_frombase64(&SC,b);
+
+    pktype pk= X509_extract_private_key(&SC, PRIVKEY); // returns signature type
+
+// figure out kind of signature client can apply - should be tested against client capabilities
+// Not that no hash type is specified - its just a private key, no algorithm specified
+    kind=0;
+    if (pk.type==X509_ECC)
+    {
+        if (pk.curve==USE_NIST256) kind=ECDSA_SECP256R1_SHA256;  // as long as this is a client capability
+        if (pk.curve==USE_NIST384) kind=ECDSA_SECP384R1_SHA384;  // as long as this is a client capability
+    }
+    if (pk.type==X509_RSA)
+    {
+        kind=RSA_PSS_RSAE_SHA256;  // as long as this is a capability
+    }
+
+    for (i=0;i<nccsalgs;i++)
+    {
+        if (kind==csigAlgs[i]) break;
+    }
+
+    return kind;
 }
 
 // extract server public key, and check validity of certificate chain
@@ -300,7 +380,7 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Hostname not found in certificate\n",NULL,0,NULL);
 #endif
-        return false;
+        if (strcmp(hostname,"localhost")!=0) return false;
     }
     if (!CHECK_VALIDITY(&SCERT))
     {
@@ -412,6 +492,78 @@ logCert(&SCERT);
     }
     return true;
 }
+
+// Create Client Cert Verify message, a digital signature using KEY on some TLS1.3 specific message+transcript hash
+void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,csprng *RNG,octet *H,octet *KEY,octet *CCVSIG)
+{
+    int sha,len;
+    char ccv[100+TLS_MAX_HASH];
+    octet CCV={0,sizeof(ccv),ccv};
+// create TLS1.3 message to be signed
+    OCT_jbyte(&CCV,32,64); // 64 spaces
+    OCT_jstring(&CCV,(char *)"TLS 1.3, client CertificateVerify");  // 33 chars
+    OCT_jbyte(&CCV,0,1);   // add 0 character
+    OCT_joctet(&CCV,H);    // add Transcript Hash 
+
+    switch (sigAlg)
+    {
+    case RSA_PSS_RSAE_SHA256:
+    {
+        sha=32; // SHA256
+        len=KEY->len/5;   // length of p and q
+        char p[256];
+        octet P={len,sizeof(p),p};
+        char q[256];
+        octet Q={len,sizeof(q),q};
+        char dp[256];
+        octet DP={len,sizeof(dp),dp};
+        char dq[256];
+        octet DQ={len,sizeof(dq),dq};
+        char c[256];
+        octet C={len,sizeof(c),c}; 
+
+        for (int i=0;i<128;i++)
+        {
+            p[i]=KEY->val[i];
+            q[i]=KEY->val[i+len];
+            dp[i]=KEY->val[i+2*len];
+            dq[i]=KEY->val[i+3*len];
+            c[i]=KEY->val[i+4*len];
+        }
+        if (len==0x80)
+        { // 2048 bit RSA
+            RSA2048::rsa_private_key SK;
+            char enc[256];
+            octet ENC={0,sizeof(enc),enc};
+            RSA2048::RSA_PRIVATE_KEY_FROM_OPENSSL(&P,&Q,&DP,&DQ,&C,&SK);
+            core::PSS_ENCODE(sha, &CCV, RNG, &ENC);
+//printf("ENC =  %d ",ENC.len); OCT_output(&ENC);
+            RSA2048::RSA_DECRYPT(&SK,&ENC,CCVSIG);
+//printf("CCVSIG =  %d ",CCVSIG->len); OCT_output(CCVSIG);
+        }
+
+        if (len==0x100)
+        { // 4096 bit RSA
+            RSA4096::rsa_private_key SK;
+            char enc[512];
+            octet ENC={0,sizeof(enc),enc};
+            RSA4096::RSA_PRIVATE_KEY_FROM_OPENSSL(&P,&Q,&DP,&DQ,&C,&SK);
+            core::PSS_ENCODE(sha, &CCV, RNG, &ENC);
+            RSA4096::RSA_DECRYPT(&SK,&ENC,CCVSIG);
+        }
+    }
+    break;
+    case ECDSA_SECP256R1_SHA256:
+    { // TBD
+    }
+    case ECDSA_SECP384R1_SHA384:
+    { // TBD
+    }
+        break;     
+    }
+    return;
+}
+
 
 // check that SCVSIG is digital signature (using sigalg algorithm) of some TLS1.3 specific message+transcript hash, as verified by Server Certificate public key CERTPK
 // Only supports MUST supported algorithms.

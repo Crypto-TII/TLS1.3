@@ -28,9 +28,11 @@
 #define TLS_X509_MAX_FIELD 256          /**< Maximum X.509 field size */
 #define TLS_MAX_ROOT_CERT_SIZE 2048     /**< I checked - current max for root CAs is 2016 */
 #define TLS_MAX_ROOT_CERT_B64 2800      /**< In base64 - current max for root CAs is 2688 */
-#define TLS_MAX_TICKET_SIZE 512         /**< maximum resumption ticket size */
+#define TLS_MAX_MYCERT_SIZE 2048        /**< Max client private key/cert */
+#define TLS_MAX_MYCERT_B64 2800         /**< In base64 - Max client private key/cert */
+#define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
 #define TLS_MAX_CLIENT_HELLO 256        /**< Max client hello size (less extensions) */
-#define TLS_MAX_EXTENSIONS 512          /**< Max extensions size */
+#define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
 #define TLS_MAX_IO_SIZE 8192            /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
 
 #define TLS_MAX_SIGNATURE_SIZE 512      /**< Max digital signature size in bytes  */
@@ -43,7 +45,7 @@
 
 #define TLS_MAX_SERVER_NAME 128         /**< Max server name size in bytes */
 #define TLS_MAX_SUPPORTED_GROUPS 5      /**< Max number of supported crypto groups */
-#define TLS_MAX_SUPPORTED_SIGS 12       /**< Max number of supported signature schemes */    
+#define TLS_MAX_SUPPORTED_SIGS 16       /**< Max number of supported signature schemes */    
 #define TLS_MAX_PSK_MODES 2             /**< Max preshared key modes */
 #define TLS_MAX_CIPHER_SUITES 5         /**< Max number of supported cipher suites */
 
@@ -57,7 +59,7 @@
 #define SECP256R1 0x0017                /**< NIST SECP256R1 elliptic curve key exchange */
 #define SECP384R1 0x0018                /**< NIST SECP384R1 elliptic curve key exchange */
 
-// Supported signature algorithms for Certs that we can handle 
+// Supported signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 
 #define RSA_PSS_RSAE_SHA256 0x0804      /**< Supported RSA Signature algorithm */ 
 #define RSA_PKCS1_SHA256 0x0401         /**< Supported RSA Signature algorithm */
@@ -81,6 +83,7 @@
 #define SERVER_NAME 0x0000              /**< Server Name extension */
 #define SUPPORTED_GROUPS 0x000a         /**< Supported Group extension */
 #define SIG_ALGS 0x000d                 /**< Signature algorithms extension */
+#define SIG_ALGS_CERT 0x0032            /**< Signatre algorithms Certificate extension */
 #define KEY_SHARE 0x0033                /**< Key Share extension */
 #define PSK_MODE 0x002d                 /**< Preshared key mode extension */
 #define PRESHARED_KEY 0x0029            /**< Preshared key extension */
@@ -104,6 +107,7 @@
 #define CLIENT_HELLO 0x01               /**< Client Hello message */ 
 #define SERVER_HELLO 0x02               /**< Server Hello message */ 
 #define CERTIFICATE 0x0b                /**< Certificate message */ 
+#define CERT_REQUEST 0x0d               /**< Certificate Request */
 #define CERT_VERIFY 0x0f                /**< Certificate Verify message */ 
 #define FINISHED 0x14                   /**< Handshae Finished message */
 #define ENCRYPTED_EXTENSIONS 0x08       /**< Encrypted Extensions message */ 
@@ -175,7 +179,9 @@ typedef struct
     int nsc;                            /**< Number of supported cipher suites */
     int ciphers[TLS_MAX_CIPHER_SUITES]; /**< Supported cipher suites */
     int nsa;                            /**< Number of supported signature algorithms */
-    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];    /**< Supported signature algorithms */
+    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];    /**< Supported signature algorithms for TLS1.3*/
+    int nsac;
+    int sigAlgsCert[TLS_MAX_SUPPORTED_SIGS]; /**< Supported signature algorithms for Certicates */
 } capabilities;
 
 /**

@@ -2,6 +2,7 @@
 // Process output sent to Server
 //
 #include "tls_client_send.h"
+#include "tls_logger.h"
 
 // send Change Cipher Suite - helps get past middleboxes
 void sendCCCS(Socket &client)
@@ -46,6 +47,15 @@ void addSigAlgsExt(octet *EXT,int nsa,int *sigAlgs)
         OCT_jint(EXT,sigAlgs[i],2);
 }
 
+// Build Signature algorithms Cert Extension
+void addSigAlgsCertExt(octet *EXT,int nsac,int *sigAlgsCert)
+{
+    OCT_jint(EXT,SIG_ALGS_CERT,2);  // This extension is SIGNATURE_ALGORITHMS_CERT (0x32)
+    OCT_jint(EXT,2*nsac+2,2);   // Total length
+    OCT_jint(EXT,2*nsac,2);     // Number of entries
+    for (int i=0;i<nsac;i++)   // One entry per supported signature algorithm
+        OCT_jint(EXT,sigAlgsCert[i],2);
+}
 
 // Add Pre-Shared-Key ...
 // ..but omit binding
@@ -152,7 +162,7 @@ int cipherSuites(octet *CS,int ncs,int *ciphers)
 }
 
 // ALL Client to Server output goes via this function 
-// Send a client message CM (as a single record). AEAD encrypted if send!=NULL
+// Send a client message CM|EXT (as a single record). AEAD encrypted if send!=NULL
 void sendClientMessage(Socket &client,csprng *RNG,int rectype,int version,crypto *send,octet *CM,octet *EXT,octet *IO)
 {
     int reclen;
@@ -247,20 +257,64 @@ void sendClientAlert(Socket &client,csprng *RNG,int type,crypto *send,octet *IO)
     OCT_jbyte(&PT,0x02,1);  // alerts are always fatal
     OCT_jbyte(&PT,type,1);  // alert type
     sendClientMessage(client,RNG,ALERT,TLS1_2,send,&PT,NULL,IO);
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Client to Server -> ",NULL,0,IO);
+#endif
 }
 
 // Send final client handshake verification data
-void sendClientVerify(Socket &client,csprng *RNG,crypto *send,unihash *h,octet *CHF,octet *IO)
+void sendClientFinish(Socket &client,csprng *RNG,crypto *send,unihash *h,octet *CHF,octet *IO)
 {
-    char pt[TLS_MAX_HASH+4];
+    char pt[4];
     octet PT={0,sizeof(pt),pt};
 
     OCT_jbyte(&PT,FINISHED,1);  // indicates handshake message "client finished" 
     OCT_jint(&PT,CHF->len,3); // .. and its length 
-    OCT_joctet(&PT,CHF);
+
     running_hash(&PT,h);
-    sendClientMessage(client,RNG,HSHAKE,TLS1_2,send,&PT,NULL,IO);
+    running_hash(CHF,h);
+    sendClientMessage(client,RNG,HSHAKE,TLS1_2,send,&PT,CHF,IO);
 }
+
+/* Send Client Cert Verify */
+void sendClientCertVerify(Socket &client, csprng *RNG,crypto *send, unihash *h, int sigAlg, octet *CCVSIG,octet *IO)
+{
+    char pt[10];
+    octet PT{0,sizeof(pt),pt};
+    OCT_jbyte(&PT,CERT_VERIFY,1);
+    OCT_jint(&PT,4+CCVSIG->len,3);
+    OCT_jint(&PT,sigAlg,2);
+    OCT_jint(&PT,CCVSIG->len,2);
+    running_hash(&PT,h);
+    running_hash(CCVSIG,h);
+    sendClientMessage(client,RNG,HSHAKE,TLS1_2,send,&PT,CCVSIG,IO);
+}
+
+/* Send Client Certificate */
+void sendClientCertificateChain(Socket &client,csprng *RNG,crypto *send, unihash *h,octet *CERTCHAIN,octet *IO)
+{
+    char pt[12];
+    octet PT{0,sizeof(pt),pt};
+
+    OCT_jbyte(&PT,CERTIFICATE,1);
+    if (CERTCHAIN==NULL) {  // no acceptable certificate available
+        OCT_jint(&PT,4,3);
+        OCT_jbyte(&PT,0,1); // cert context
+        OCT_jint(&PT,0,3);  // zero length
+//printf("PT= "); OCT_output(&PT); printf("\n");
+        running_hash(&PT,h);
+    } else {
+        OCT_jint(&PT,4+CERTCHAIN->len,3);
+        OCT_jbyte(&PT,0,1); // cert context
+        OCT_jint(&PT,CERTCHAIN->len,3);  // length of certificate chain
+//printf("PT= "); OCT_output(&PT); printf("\n");
+//printf("CERTCHAIN= "); OCT_output(CERTCHAIN); printf("\n");
+        running_hash(&PT,h);
+        running_hash(CERTCHAIN,h);
+    }
+//    printf("CERT->len= %x\n",CERTCHAIN->len);
+    sendClientMessage(client,RNG,HSHAKE,TLS1_2,send,&PT,CERTCHAIN,IO);
+} 
 
 // if early data was accepted, send this to indicate early data is finished
 void sendEndOfEarlyData(Socket &client,csprng *RNG,crypto *send,unihash *h,octet *IO)
