@@ -3,40 +3,6 @@
 //
 #include "tls_keys_calc.h"
 
-// Unified hashing. SHA2 type indicate by hlen. For SHA256 hlen=32 etc
-void Hash_Init(int hlen,unihash *h)
-{
-    if (hlen==32) 
-        HASH256_init(&(h->sh32));
-    if (hlen==48)
-        HASH384_init(&(h->sh64));
-    if (hlen==64)
-        HASH512_init(&(h->sh64));
-    h->hlen=hlen;
-}
-
-// Process a byte
-void Hash_Process(unihash *h,int b)
-{
-    if (h->hlen==32)
-        HASH256_process(&(h->sh32),b);
-    if (h->hlen==48)
-        HASH384_process(&(h->sh64),b);
-    if (h->hlen==64)
-        HASH512_process(&(h->sh64),b);
-}
-
-// output digest
-void Hash_Output(unihash *h,char *d)
-{
-    if (h->hlen==32)
-        HASH256_continuing_hash(&(h->sh32),d);
-    if (h->hlen==48)
-        HASH384_continuing_hash(&(h->sh64),d);
-    if (h->hlen==64)
-        HASH384_continuing_hash(&(h->sh64),d);
-}
-
 // Add octet to transcript hash 
 void running_hash(octet *O,unihash *h)
 {
@@ -353,49 +319,5 @@ void GET_APPLICATION_SECRETS(int sha,octet *HS,octet *SFH,octet *CFH,octet *CTS,
         OCT_clear(&INFO);
         OCT_jstring(&INFO,(char *)"res master");
         HKDF_Expand_Label(MC_SHA2,sha,RMS,sha,&MS,&INFO,CFH);
-    }
-}
-
-// generate a public/private key pair in an approved group for a key exchange
-void GENERATE_KEY_PAIR(csprng *RNG,int group,octet *SK,octet *PK)
-{
-    int sklen=32;
-    if (group==SECP384R1)
-        sklen=48;
-// Random secret key
-    OCT_rand(SK,RNG,32);
-    if (group==X25519)
-    {
-// RFC 7748
-        OCT_reverse(SK);
-        SK->val[32-1]&=248;  
-        SK->val[0]&=127;
-        SK->val[0]|=64;
-        C25519::ECP_KEY_PAIR_GENERATE(NULL, SK, PK);
-        OCT_reverse(PK);
-    }
-    if (group==SECP256R1)
-    {
-        NIST256::ECP_KEY_PAIR_GENERATE(NULL, SK, PK);
-    }
-    if (group==SECP384R1)
-    {
-        NIST384::ECP_KEY_PAIR_GENERATE(NULL, SK, PK);
-    }
-}
-
-// generate shared secret SS from secret key SK and public hey PK
-void GENERATE_SHARED_SECRET(int group,octet *SK,octet *PK,octet *SS)
-{
-    if (group==X25519) { // RFC 7748
-        OCT_reverse(PK);
-        C25519::ECP_SVDP_DH(SK, PK, SS,0);
-        OCT_reverse(SS);
-    }
-    if (group==SECP256R1) {
-        NIST256::ECP_SVDP_DH(SK, PK, SS,0);
-    }
-    if (group==SECP384R1) {
-        NIST384::ECP_SVDP_DH(SK, PK, SS,0);
     }
 }

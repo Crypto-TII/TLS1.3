@@ -9,36 +9,8 @@
 #ifndef TLS_KEYS_CALC_H
 #define TLS_KEYS_CALC_H
 
-#include "core.h"
 #include "tls1_3.h"
-#include "ecdh_NIST256.h"  
-#include "ecdh_NIST384.h"
-#include "ecdh_C25519.h"
-
-using namespace core;
-
-// hash functions
-
-/**	@brief Initiate Hashing context
- *
-	@param hlen length in bytes of SHA2 hashing output
-    @param h a hashing context
- */
-extern void Hash_Init(int hlen,unihash *h);
-
-/**	@brief Hash process a byte
- *
-    @param h a hashing context
-    @param b the byte to be included in hash
- */
-extern void Hash_Process(unihash *h,int b);
-
-/**	@brief Hash output
- *
-    @param h a hashing context
-    @param d the current output digest of an ongoing hashing operation
- */
-extern void Hash_Output(unihash *h,char *d);
+#include "tls_crypto_api.h"
 
 // transcript hash support
 
@@ -172,23 +144,5 @@ extern bool IS_VERIFY_DATA(int sha,octet *SF,octet *STS,octet *H);
     @param H the input partial transcript hash
  */
 extern void VERIFY_DATA(int sha,octet *SF,octet *CTS,octet *H);
-
-/**	@brief generate a public/private key pair in an approved group for a key exchange
- *
-    @param RNG a random number generator
-    @param group the cryptographic group used to generate the key pair
-    @param SK the output Private Key
-    @param PK the output Public Key
- */
-extern void GENERATE_KEY_PAIR(csprng *RNG,int group,octet *SK,octet *PK);
-
-/**	@brief generate a Diffie-Hellman shared secret
- *
-    @param group the cryptographic group used to generate the shared secret
-    @param SK the input client private key
-    @param PK the input server public Key
-    @param SS the output shared secret
- */
-extern void GENERATE_SHARED_SECRET(int group,octet *SK,octet *PK,octet *SS);
 
 #endif

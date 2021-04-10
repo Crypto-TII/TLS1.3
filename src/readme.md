@@ -1,6 +1,9 @@
 # Description
 
+UPDATE: The Crypto support functions are now all concentrated in the tls_crypto_api.cpp/h files. This will make it easier to use alternate crypto providers.
+
 This C++ version is really just C plus namespaces plus pass-by-reference. These the only features of C++ that are used. The Rust version will come later.
+Documentation can be found in the doxygen generated file refman.pdf
 
 First inside a working directory build the C++ version of MIRACL core (https://github.com/miracl/core), selecting support for C25519, NIST256, NIST384, RSA2048 and RSA4096.
 
@@ -12,7 +15,7 @@ Then copy the contents of this archive to the same directory, in particular clie
 Set the verbosity of the output in tls1_3.h to IO_DEBUG. Build the tls library and the client app by 
 
 	g++ -O2 -c tls*.cpp
-	ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o
+	ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_crypto_api.o
 	g++ -O2 client.cpp tls.a core.a -o client
 
 Or by using CMake. If you follow this alternative, copy the header files into `vendor/miracl/includes`, and the `core.a` to `vendor/miracl/` 

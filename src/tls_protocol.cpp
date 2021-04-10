@@ -85,7 +85,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     addSigAlgsExt(&EXT,CPB.nsa,CPB.sigAlgs);
     addSigAlgsCertExt(&EXT,CPB.nsac,CPB.sigAlgsCert);
     addKeyShareExt(&EXT,favourite_group,&PK); // only sending one public key
-    addPSKExt(&EXT,pskMode);
+    addPSKModesExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
     addMFLExt(&EXT,4);   // ask for smaller max fragment length of 4096 - server may not agree - but no harm in asking
     addPadding(&EXT,RAND_byte(&RNG)%16);  // add some random padding
@@ -179,7 +179,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
         favourite_group=kex;
         GENERATE_KEY_PAIR(&RNG,favourite_group,&CSK,&PK); 
         addKeyShareExt(&EXT,favourite_group,&PK);  // Public Key Share in new group
-        addPSKExt(&EXT,pskMode);
+        addPSKModesExt(&EXT,pskMode);
         addVersionExt(&EXT,tlsVersion);
         addMFLExt(&EXT,4);                      // ask for max fragment length of 4096
         addPadding(&EXT,RAND_byte(&RNG)%16);  // add some random padding
@@ -397,18 +397,18 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 
 
 // Now its the clients turn to respond
-// Send Certificate & Certificate Verify (if I have one).
+// Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
     if (gotacertrequest)
     {
 #ifdef HAVE_A_CLIENT_CERT
         int kind=GET_CLIENT_KEY_AND_CERTCHAIN(nccsalgs,csigAlgs,&CLIENT_KEY,&CLIENT_CERTCHAIN);
         if (kind!=0)
-        { // I can do that kind of signature
+        { // Yes, I can do that kind of signature
             sendClientCertificateChain(client,&RNG,&K_send,&tlshash,&CLIENT_CERTCHAIN,&IO);
             transcript_hash(&tlshash,&TH);
             CREATE_CLIENT_CERT_VERIFIER(kind,&RNG,&TH,&CLIENT_KEY,&CCVSIG);      
             sendClientCertVerify(client,&RNG,&K_send,&tlshash,kind,&CCVSIG,&IO);
-        } else { // I can't - send a null cert
+        } else { // No, I can't - send a null cert
             sendClientCertificateChain(client,&RNG,&K_send,&tlshash,NULL,&IO);
         }
 #else
@@ -507,7 +507,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     char etick[TLS_MAX_TICKET_SIZE];
     octet ETICK={0,sizeof(etick),etick}; // ticket
 
-// NOTE: MAX_TICKET_SIZE and MAX_EXTENSIONS must be increased to support much larger tickets issued when client certificate authentication required
+// NOTE: MAX_TICKET_SIZE and MAX_EXTENSIONS are increased to support much larger tickets issued when client certificate authentication required
 
     int tlsVersion=TLS1_3;
     int pskMode=PSKWECDHE;
@@ -563,7 +563,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     addSigAlgsExt(&EXT,CPB.nsa,CPB.sigAlgs);
     addSigAlgsCertExt(&EXT,CPB.nsac,CPB.sigAlgsCert);
     addKeyShareExt(&EXT,favourite_group,&PK); // only sending one public key 
-    addPSKExt(&EXT,pskMode);
+    addPSKModesExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
     addMFLExt(&EXT,4);                        // ask for max fragment length of 4096
     addPadding(&EXT,RAND_byte(&RNG)%16);      // add some random padding

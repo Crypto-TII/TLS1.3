@@ -1,27 +1,27 @@
 
-			Allow early data	Extra Certs in Chain
-www.bbc.co.uk			No			Yes
-www.protonmail.com		No			No
-www.miracl.com			No			No
-www.facebook.com		No			No
-tls13.ulfheim.net		No			No
-tls13.cloudfare.com		No			No
-www.google.com			No			No
-slack.com			No			No
-owasp.org			No			No
-mozilla.org			No			No
-swifttls.org			Yes			No
-tls13.1d.pw			No			Yes	
-realpython.com                  Yes			No
-www.padok.fr                    Yes			No
+			Allow early data	Extra Certs in Chain	Resumes
+www.bbc.co.uk			No			Yes		  Yes		
+www.protonmail.com		No			No		  Yes 	
+www.miracl.com			No			No                Yes
+www.facebook.com		No			No		  Yes
+tls13.ulfheim.net		No			No		  Yes
+tls13.cloudfare.com		No			No		  Yes
+www.google.com			No			No		  Yes	
+slack.com			No			No                Yes
+owasp.org			No			No                Yes
+mozilla.org			No			No		  Sometimes
+swifttls.org			Yes			No		  Yes
+tls13.1d.pw			No			Yes		  No
+realpython.com                  Yes			No		  Yes
+www.padok.fr                    Yes			No		  Yes
 
-www.fitbit.com			No			No
-www.st.com			No			No
-www.academia.edu		Terrible Cert Chain! X+X+W+Y+Z-> ca ? Yes
-www.rsaconference.com		No			No
-blog.knowbe4.com		Yes			No
-ec.europa.eu			No			No
-www.crowdsupply.com		No			No
-iscc2021.unipi.gr               Misconfigured cert chain ?
-www.kinvaraskincare.com		Yes			No	
-www.bundledocs.com		No			No
+www.fitbit.com			No			No		  No
+www.st.com			No			No		  Yes
+www.academia.edu		Terrible Cert Chain! X+X+W+Y+Z-> ca ? Yes No
+www.rsaconference.com		Yes			No		  Yes
+blog.knowbe4.com		Yes			No		  Yes
+ec.europa.eu			No			No		  No	  
+www.crowdsupply.com		No			No		  Yes	
+iscc2021.unipi.gr               Misconfigured cert chain ?		  No
+www.kinvaraskincare.com		Yes			No		  Yes
+www.bundledocs.com		No			No		  No (same failure as for mozilla.org?)

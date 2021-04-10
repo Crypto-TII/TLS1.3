@@ -9,7 +9,7 @@
 #ifndef TLS_CLIENT_RECV_H
 #define TLS_CLIENT_RECV_H
 
-#include "core.h"
+#include "tls_crypto_api.h"
 #include "tls1_3.h"
 #include "tls_sockets.h"
 #include "tls_keys_calc.h"
@@ -218,7 +218,7 @@ extern int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,
     @param recv the cryptographic key under which the server response is encrypted
     @param trans_hash the current and updated transcript hash
     @param nalgs the number of acceptable signature algorithms
-    @param an array of nalgs signature algorithms
+    @param sigalgs an array of nalgs signature algorithms
 	@return negative error, zero for OK, or positive for informative response
  */
 extern int getCertificateRequest(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,int &nalgs,int *sigalgs);

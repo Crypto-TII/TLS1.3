@@ -9,7 +9,7 @@
 #ifndef TLS_CLIENT_SEND_H
 #define TLS_CLIENT_SEND_H
 
-#include "core.h"
+#include "tls_crypto_api.h"
 #include "tls1_3.h"
 #include "tls_sockets.h"
 #include "tls_keys_calc.h"
@@ -85,7 +85,7 @@ extern void addMFLExt(octet *EXT,int mode);
 	@param EXT the extensions octet which is being built
     @param mode the proposed preshared key mode 
  */  
-extern void addPSKExt(octet *EXT,int mode);
+extern void addPSKModesExt(octet *EXT,int mode);
 
 /**	@brief Add Version extension to under-construction Extensions Octet
  *

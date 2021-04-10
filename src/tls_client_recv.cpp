@@ -136,7 +136,6 @@ int getServerFragment(Socket &client,crypto *recv,octet *IO)
     OCT_jint(&RH,left,2);
     if (left+pos>IO->max)
     { // this commonly happens with big records of application data from server
-//        printf("This happened %d %d\n",left+pos,IO->max);
         return BAD_RECORD;   // record is too big - memory overflow
     }
     if (recv==NULL)
@@ -148,13 +147,7 @@ int getServerFragment(Socket &client,crypto *recv,octet *IO)
 
     getBytes(client,&IO->val[pos],left-16);  // read in record body
 
-//AES-GCM decrypt body - depends on cipher suite, which is determined by length of key
-    gcm g;
-    GCM_init(&g,recv->K.len,recv->K.val,12,recv->IV.val);  // Decrypt with Server Key and IV
-    GCM_add_header(&g,RH.val,RH.len);
-    GCM_add_cipher(&g,&IO->val[pos],&IO->val[pos],left-16);
-    GCM_finish(&g,TAG.val); TAG.len=16;
-// End of AES-GCM
+    AES_GCM_DECRYPT(recv,RH.len,RH.val,left-16,&IO->val[pos],&TAG);
 
     increment_crypto_context(recv); // update IV
 
@@ -468,7 +461,6 @@ int getServerCertVerify(Socket &client,octet *IO,crypto *recv,unihash *trans_has
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Server Certify Length= ",(char *)"%d",len,NULL);
 #endif
-
 
     OCT_clear(SCVSIG);
     r=parseInt16orPull(client,IO,ptr,recv); sigalg=r.val; if (r.err) return r.err; // may for example be 0804 - RSA-PSS-RSAE-SHA256

@@ -17,8 +17,8 @@
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application traffic + bytes on the wire */
 
 // THESE ARE IMPORTANT SETTINGS 
-#define POPULAR_ROOT_CERTS      /**< Define this to limit root CAs to most popular only */
-#define VERBOSITY IO_PROTOCOL   /**< Set to level of output information desired - see above */
+//#define POPULAR_ROOT_CERTS      /**< Define this to limit root CAs to most popular only */
+#define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021          /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT      /**< Indicate willingness to authenticate with a cert plus signing key */
 
@@ -26,15 +26,15 @@
 
 #define TLS_MAX_HASH 64         /**< Maximum hash output length in bytes */
 #define TLS_MAX_KEY 32          /**< Maximum key length in bytes */
-#define TLS_X509_MAX_FIELD 256          /**< Maximum X.509 field size */
-#define TLS_MAX_ROOT_CERT_SIZE 2048     /**< I checked - current max for root CAs is 2016 */
-#define TLS_MAX_ROOT_CERT_B64 2800      /**< In base64 - current max for root CAs is 2688 */
-#define TLS_MAX_MYCERT_SIZE 2048        /**< Max client private key/cert */
-#define TLS_MAX_MYCERT_B64 2800         /**< In base64 - Max client private key/cert */
+#define TLS_X509_MAX_FIELD 256           /**< Maximum X.509 field size */
+#define TLS_MAX_ROOT_CERT_SIZE 2048      /**< I checked - current max for root CAs is 2016 */
+#define TLS_MAX_ROOT_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
+#define TLS_MAX_MYCERT_SIZE 2048         /**< Max client private key/cert */
+#define TLS_MAX_MYCERT_B64 2800          /**< In base64 - Max client private key/cert */
 #define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
-#define TLS_MAX_CLIENT_HELLO 256        /**< Max client hello size (less extensions) */
+#define TLS_MAX_CLIENT_HELLO 256         /**< Max client hello size (less extensions) */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
-#define TLS_MAX_IO_SIZE 8192            /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+#define TLS_MAX_IO_SIZE 8192             /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
 
 #define TLS_MAX_SIGNATURE_SIZE 512      /**< Max digital signature size in bytes  */
 #define TLS_MAX_PUB_KEY_SIZE 512        /**< Max public key size in bytes */
@@ -179,20 +179,11 @@ typedef struct
     int supportedGroups[TLS_MAX_SUPPORTED_GROUPS];  /**< Supported groups */
     int nsc;                            /**< Number of supported cipher suites */
     int ciphers[TLS_MAX_CIPHER_SUITES]; /**< Supported cipher suites */
-    int nsa;                            /**< Number of supported signature algorithms */
-    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];    /**< Supported signature algorithms for TLS1.3*/
-    int nsac;
+    int nsa;                            /**< Number of supported signature algorithms for TLS 1.3 */
+    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];    /**< Supported signature algorithms for TLS1.3 */
+    int nsac;                               /**< Number of supported signature algorithms for Certificates */
     int sigAlgsCert[TLS_MAX_SUPPORTED_SIGS]; /**< Supported signature algorithms for Certicates */
 } capabilities;
-
-/**
- * @brief Universal Hash structure */
-typedef struct 
-{
-    hash256 sh32;       /**< A SHA256 instance */ 
-    hash512 sh64;       /**< A SHA384/512 instance */
-    int hlen;           /**< The length of the SHA output in bytes (32/48/64) */
-} unihash;
 
 #endif
 

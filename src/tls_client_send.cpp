@@ -89,7 +89,7 @@ void addKeyShareExt(octet *EXT,int alg,octet *PK)
 }
 
 // indicate supported PSK mode
-void addPSKExt(octet *EXT,int mode)
+void addPSKModesExt(octet *EXT,int mode)
 {
     OCT_jint(EXT,PSK_MODE,2);
     OCT_jint(EXT,2,2);
@@ -192,14 +192,8 @@ void sendClientMessage(Socket &client,csprng *RNG,int rectype,int version,crypto
 // add some random padding after this...
         OCT_jbyte(IO,0,rbytes);
 
-// AES-GCM
-        gcm g;
-        GCM_init(&g,send->K.len,send->K.val,12,send->IV.val);  // Encrypt with Client Application Key and IV
-        GCM_add_header(&g,IO->val,5);
-        GCM_add_plain(&g,&IO->val[5],&IO->val[5],reclen-16);
-//create and append TAG
-        GCM_finish(&g,TAG.val); TAG.len=16;
-// End AES-GCM
+        AES_GCM_ENCRYPT(send,5,&IO->val[0],reclen-16,&IO->val[5],&TAG);
+
         increment_crypto_context(send);  // increment IV
         OCT_joctet(IO,&TAG);
     }

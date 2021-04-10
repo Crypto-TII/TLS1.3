@@ -92,7 +92,7 @@ static bool FIND_ROOT_CA(octet* ISSUER,pktype st,octet *PUBKEY)
 
         if (!CHECK_VALIDITY(&SC))
         { // Its expired!
-            return false;
+            continue;
         }
 
         if (OCT_comp(&OWNER,ISSUER))
@@ -136,6 +136,7 @@ static pktype STRIP_DOWN_CERT(octet *CERT,octet *SIG,octet *ISSUER,octet *SUBJEC
 static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
 {
     int sha=0;
+    bool res=false;
     if (st.hash == X509_H256) sha = SHA256;
     if (st.hash == X509_H384) sha = SHA384;
     if (st.hash == X509_H512) sha = SHA512;
@@ -159,89 +160,48 @@ static bool CHECK_CERT_SIG(pktype st,octet *CERT,octet *SIG, octet *PUBKEY)
         octet R={0,sizeof(r),r};
         char s[TLS_MAX_ECC_FIELD];
         octet S={0,sizeof(s),s};
-        int res,siglen=SIG->len/2;
+        int siglen=SIG->len/2;
         for (int i=0;i<siglen;i++)
         {
             OCT_jbyte(&R,SIG->val[i],1);
             OCT_jbyte(&S,SIG->val[i+siglen],1);
         }
 #if VERBOSITY >= IO_DEBUG
-        logger((char *)"SIG= \n",NULL,0,&R);
-        logger((char *)"",NULL,0,&S);
+        logger((char *)"SIG R= \n",NULL,0,&R);
+        logger((char *)"SIG S= \n",NULL,0,&S);
         logger((char *)"\nECC PUBLIC KEY= \n",NULL,0,PUBKEY);
         logger((char *)"Checking ECC Signature on Cert ",(char *)"%d",st.curve,NULL);
 #endif
         if (st.curve==USE_NIST256)
-            res = NIST256::ECP_PUBLIC_KEY_VALIDATE(PUBKEY);
+            res=SECP256R1_ECDSA_VERIFY(sha,CERT,&R,&S,PUBKEY);
         if (st.curve==USE_NIST384)
-            res = NIST384::ECP_PUBLIC_KEY_VALIDATE(PUBKEY);
-#if VERBOSITY >= IO_DEBUG
-        if (res != 0)
-            logger((char *)"ECP Public Key is invalid!\n",NULL,0,NULL);
-        else logger((char *)"ECP Public Key is Valid\n",NULL,0,NULL);
-#endif
-        if (st.curve==USE_NIST256)
-            res=NIST256::ECP_VP_DSA(sha, PUBKEY, CERT, &R, &S);
-        if (st.curve==USE_NIST384)
-            res=NIST384::ECP_VP_DSA(sha, PUBKEY, CERT, &R, &S);
+            res=SECP384R1_ECDSA_VERIFY(sha,CERT,&R,&S,PUBKEY);        
 
-        if (res!=0)
+        if (res)
         {
-#if VERBOSITY >= IO_DEBUG
-            logger((char *)"***ECDSA Verification Failed\n",NULL,0,NULL);
-#endif
-            return false;
-        } else {
 #if VERBOSITY >= IO_DEBUG
             logger((char *)"ECDSA Signature/Verification succeeded \n",NULL,0,NULL);
 #endif
             return true;
+        } else {
+#if VERBOSITY >= IO_DEBUG
+            logger((char *)"***ECDSA Verification Failed\n",NULL,0,NULL);
+#endif
+            return false;
         }
     }
     if (st.type == X509_RSA)
     { // its an RSA signature - assuming PKCS1.5 encoding
-        int res;
 #if VERBOSITY >= IO_DEBUG
-        logger((char *)"st.curve= ",(char *)"%d",st.curve,NULL);
-        logger((char *)"SIG= ",NULL,0,SIG);
-        logger((char *)"\nRSA PUBLIC KEY= ",NULL,0,PUBKEY);
         logger((char *)"Checking RSA Signature on Cert \n",NULL,0,NULL);
 #endif
         if (st.curve==2048)
         {
-            char p1[RFS_RSA2048];
-            octet P1={0,sizeof(p1),p1};
-            char p2[RFS_RSA2048];
-            octet P2={0,sizeof(p2),p2};
-            RSA2048::rsa_public_key PK;
-            PK.e = 65537; // assuming this!
-            RSA2048::RSA_fromOctet(PK.n, PUBKEY);
-            RSA2048::RSA_ENCRYPT(&PK, SIG, &P2);
-            core::PKCS15(sha, CERT, &P1);
-            res=OCT_comp(&P1, &P2);
-            if (!res)
-            { // check alternate PKCS1.5 encoding
-                core::PKCS15b(sha, CERT, &P1);
-                res=OCT_comp(&P1, &P2);
-            }
+            res=RSA_2048_PKCS15_VERIFY(sha,CERT,SIG,PUBKEY);
         }
         if (st.curve==4096)
         {
-            char p1[RFS_RSA4096];
-            octet P1={0,sizeof(p1),p1};
-            char p2[RFS_RSA4096];
-            octet P2={0,sizeof(p2),p2};
-            RSA4096::rsa_public_key PK;
-            PK.e = 65537; // assuming this!
-            RSA4096::RSA_fromOctet(PK.n, PUBKEY);
-            RSA4096::RSA_ENCRYPT(&PK, SIG, &P2);
-            core::PKCS15(sha, CERT, &P1);
-            res=OCT_comp(&P1, &P2);
-            if (!res)
-            { // check alternate PKCS1.5 encoding
-                core::PKCS15b(sha, CERT, &P1);
-                res=OCT_comp(&P1, &P2);
-            }
+            res=RSA_4096_PKCS15_VERIFY(sha,CERT,SIG,PUBKEY);
         } 
         if (res)
         {
@@ -363,11 +323,6 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
     r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false;// get length of first (server) certificate
     r=parseOctetptr(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
 
-//#if VERBOSITY >= IO_DEBUG
-//    logCert(&SCERT);
-//#endif
-//printf("Signed cert len= %d\n",SCERT.len);
-
     r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
     ptr+=len;   // skip certificate extensions
 
@@ -411,12 +366,6 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
     r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false; // get length of next certificate
     r=parseOctetptr(&ICERT,len,CERTCHAIN,ptr); if (r.err) return false;
 
-//#if VERBOSITY >= IO_DEBUG
-//    logCert(&ICERT);
-//#endif
-
-//printf("Signed cert len= %d\n",ICERT.len);
-
     r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return false;
     ptr+=len;   // skip certificate extensions
 
@@ -424,8 +373,6 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
     if (ptr<CERTCHAIN->len)
         logger((char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
 #endif
-
-//printf("CERTCHAIN->len= %d ptr= %d\n",CERTCHAIN->len,ptr);
 
     ist=STRIP_DOWN_CERT(&ICERT,&ISIG,&ISSUER,&SUBJECT);
     ipt=GET_PUBLIC_KEY_FROM_CERT(&ICERT,&IPK);
@@ -459,12 +406,6 @@ bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY)
 #endif
         return true;   // not fatal for development purposes
     }
-/*
-printf("Cert Chain ptr=%d length= %d\n",ptr,CERTCHAIN->len);
-r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return false; // get length of next certificate
-r=parseOctetptr(&SCERT,len,CERTCHAIN,ptr); if (r.err) return false;
-logCert(&SCERT);
-*/
 
 // Find Root of Trust
 // Find root certificate public key
@@ -510,58 +451,42 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,csprng *RNG,octet *H,octet *KEY,octe
     {
         sha=32; // SHA256
         len=KEY->len/5;   // length of p and q
-        char p[256];
-        octet P={len,sizeof(p),p};
-        char q[256];
-        octet Q={len,sizeof(q),q};
-        char dp[256];
-        octet DP={len,sizeof(dp),dp};
-        char dq[256];
-        octet DQ={len,sizeof(dq),dq};
-        char c[256];
-        octet C={len,sizeof(c),c}; 
 
-        for (int i=0;i<128;i++)
-        {
-            p[i]=KEY->val[i];
-            q[i]=KEY->val[i+len];
-            dp[i]=KEY->val[i+2*len];
-            dq[i]=KEY->val[i+3*len];
-            c[i]=KEY->val[i+4*len];
-        }
         if (len==0x80)
         { // 2048 bit RSA
-            RSA2048::rsa_private_key SK;
-            char enc[256];
-            octet ENC={0,sizeof(enc),enc};
-            RSA2048::RSA_PRIVATE_KEY_FROM_OPENSSL(&P,&Q,&DP,&DQ,&C,&SK);
-            core::PSS_ENCODE(sha, &CCV, RNG, &ENC);
-            RSA2048::RSA_DECRYPT(&SK,&ENC,CCVSIG);
+            RSA_2048_PSS_RSAE_SIGN(sha,RNG,KEY,&CCV,CCVSIG);
         }
 
         if (len==0x100)
         { // 4096 bit RSA
-            RSA4096::rsa_private_key SK;
-            char enc[512];
-            octet ENC={0,sizeof(enc),enc};
-            RSA4096::RSA_PRIVATE_KEY_FROM_OPENSSL(&P,&Q,&DP,&DQ,&C,&SK);
-            core::PSS_ENCODE(sha, &CCV, RNG, &ENC);
-            RSA4096::RSA_DECRYPT(&SK,&ENC,CCVSIG);
+            RSA_4096_PSS_RSAE_SIGN(sha,RNG,KEY,&CCV,CCVSIG);
         }
     }
     break;
     case ECDSA_SECP256R1_SHA256:
+    case ECDSA_SECP384R1_SHA384:
     { 
         bool cinc=false;
         bool dinc=false;
-        int clen=32;      // curve field/group length
-        char c[32];
+        int clen;      // curve field/group length
+        char c[TLS_MAX_ECC_FIELD];
         octet C={0,sizeof(c),c};
-        char d[32];
+        char d[TLS_MAX_ECC_FIELD];
         octet D={0,sizeof(c),c};
 
-        sha=32; 
-        NIST256::ECP_SP_DSA(sha,RNG, NULL, KEY, &CCV, &C, &D); // C and D are signature on CCV using private key KEY
+        if (sigAlg==ECDSA_SECP256R1_SHA256)
+        {
+            clen=32;
+            sha=32; 
+            SECP256R1_ECDSA_SIGN(sha,RNG,KEY,&CCV,&C,&D);
+        }
+        if (sigAlg==ECDSA_SECP384R1_SHA384)
+        {
+            clen=48;
+            sha=48;
+            SECP384R1_ECDSA_SIGN(sha,RNG,KEY,&CCV,&C,&D);
+        }
+        
         if (C.val[0]&0x80) cinc=true;
         if (D.val[0]&0x80) dinc=true;
 
@@ -594,54 +519,9 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,csprng *RNG,octet *H,octet *KEY,octe
         OCT_joctet(CCVSIG,&D);
     }
     break;
-    case ECDSA_SECP384R1_SHA384:
-    { 
-        bool cinc=false;
-        bool dinc=false;
-        int clen=48;
-        char c[48];
-        octet C={0,sizeof(c),c};
-        char d[48];
-        octet D={0,sizeof(c),c};
-
-        sha=48; 
-        NIST384::ECP_SP_DSA(sha,RNG, NULL, KEY, &CCV, &C, &D); // C and D are signature on CCV using private key KEY
-        if (C.val[0]&0x80) cinc=true;
-        if (D.val[0]&0x80) dinc=true;
-
-        len=2*clen+4;
-        if (cinc) len++;
-        if (dinc) len++;
- 
-        OCT_clear(CCVSIG);
-        OCT_jbyte(CCVSIG,0x30,1);  // ASN.1 SEQ
-        OCT_jbyte(CCVSIG,len,1);
-// C
-        OCT_jbyte(CCVSIG,0x02,1);  // ASN.1 INT type
-        if (cinc)
-        {
-            OCT_jbyte(CCVSIG,clen+1,1);
-            OCT_jbyte(CCVSIG,0,1);
-        } else {
-            OCT_jbyte(CCVSIG,clen,1);
-        }
-        OCT_joctet(CCVSIG,&C);
-// D
-        OCT_jbyte(CCVSIG,0x02,1);  // ASN.1 INT type
-        if (dinc)
-        {
-            OCT_jbyte(CCVSIG,clen+1,1);
-            OCT_jbyte(CCVSIG,0,1);
-        } else {
-            OCT_jbyte(CCVSIG,clen,1);
-        }
-        OCT_joctet(CCVSIG,&D);
-    }
-    break;     
     }
     return;
 }
-
 
 // check that SCVSIG is digital signature (using sigalg algorithm) of some TLS1.3 specific message+transcript hash, as verified by Server Certificate public key CERTPK
 // Only supports MUST supported algorithms.
@@ -678,23 +558,13 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
     case RSA_PSS_RSAE_SHA256:
         sha=32; // SHA256
 
-        if (len=0x100)
+        if (len==0x100)
         { // 2048 bit RSA
-            RSA2048::rsa_public_key PK;
-            PK.e = 65537;
-            RSA2048::RSA_fromOctet(PK.n, CERTPK);
-            RSA2048::RSA_ENCRYPT(&PK, SCVSIG, &P);
-            if (core::PSS_VERIFY(sha,&SCV,&P)) 
-                return true;
+            return RSA_2048_PSS_RSAE_VERIFY(sha,&SCV,SCVSIG,CERTPK);
         }
-        if (len=0x200)
+        if (len==0x200)
         { // 4096 bit RSA
-            RSA4096::rsa_public_key PK;
-            PK.e = 65537;
-            RSA4096::RSA_fromOctet(PK.n, CERTPK);
-            RSA4096::RSA_ENCRYPT(&PK, SCVSIG, &P);
-            if (core::PSS_VERIFY(sha,&SCV,&P)) 
-                return true;
+            return RSA_4096_PSS_RSAE_VERIFY(sha,&SCV,SCVSIG,CERTPK);
         }
         return false;
     case ECDSA_SECP256R1_SHA256:  // DER encoded !!
@@ -732,8 +602,8 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
 
         if (rlen<0x20 || slen<0x20) return false;
 
-        if (NIST256::ECP_VP_DSA(sha, CERTPK, &SCV, &R, &S) == 0)
-            return true;
+        return SECP256R1_ECDSA_VERIFY(sha,&SCV,&R,&S,CERTPK);
+
     case ECDSA_SECP384R1_SHA384:
         sha=0x30;
         ptr=0;
@@ -767,8 +637,7 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK)
 
         if (rlen<0x30 || slen<0x30) return false;
 
-        if (NIST384::ECP_VP_DSA(sha, CERTPK, &SCV, &R, &S) == 0)
-        return true;
+        return SECP384R1_ECDSA_VERIFY(sha,&SCV,&R,&S,CERTPK);
 
     default :
 #if VERBOSITY >= IO_DEBUG
