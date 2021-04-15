@@ -6,7 +6,7 @@
 
 // read milliseconds from a stop-watch
 // (Arduino has a built in function with the same name)
-#ifndef CORE_ARDUINO
+#ifndef TLS_ARDUINO
 #include <sys/time.h>
 
 unsigned long millis()
@@ -39,7 +39,7 @@ void init_ticket_context(ticket *T,unsign32 birthtime)
 }
 
 // Parse ticket data into a ticket structure 
-int parseTicket(octet *TICK,ticket *T)  
+int parseTicket(octad *TICK,ticket *T)  
 {
     ret r;
     int ext,len,tmplen,ptr=0;
@@ -48,9 +48,9 @@ int parseTicket(octet *TICK,ticket *T)
     r=parseInt32(TICK,ptr);  if (r.err) return BAD_TICKET; T->age_obfuscator=r.val;
     r=parseByte(TICK,ptr); len=r.val;  if (r.err) return BAD_TICKET;
 
-    r=parseOctet(&T->NONCE,len,TICK,ptr);  if (r.err) return BAD_TICKET;
+    r=parseoctad(&T->NONCE,len,TICK,ptr);  if (r.err) return BAD_TICKET;
     r=parseInt16(TICK,ptr); len=r.val; if (r.err) return BAD_TICKET;
-    r=parseOctet(&T->TICK,len,TICK,ptr);  if (r.err) return BAD_TICKET; // extract ticket
+    r=parseoctad(&T->TICK,len,TICK,ptr);  if (r.err) return BAD_TICKET; // extract ticket
     r=parseInt16(TICK,ptr); len=r.val; if (r.err) return BAD_TICKET;    // length of extensions
 
     T->max_early_data=0;

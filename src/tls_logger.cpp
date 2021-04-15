@@ -3,26 +3,28 @@
 //
 #include "tls_logger.h"
 
-#ifdef CORE_ARDUINO
+#ifdef TLS_ARDUINO
 #include <Arduino.h>
+#else
+#include <stdio.h>
 #endif
 
 // all terminal output redirected here
 void myprintf(char *s)
 {
-#ifdef CORE_ARDUINO
+#ifdef TLS_ARDUINO
     Serial.print(s);
 #else
     printf("%s",s);
 #endif
 }
 
-// log debug string and info or Octet
+// log debug string and info or octad
 // if string is not NULL, output info, with format in string
-// if O is not null, output octet in hex.
+// if O is not null, output octad in hex.
 // undefine LOGGER in tls1_3.h to save space
 
-void logger(char *preamble,char *string,unsign32 info,octet *O)
+void logger(char *preamble,char *string,unsign32 info,octad *O)
 {
 #if VERBOSITY>IO_NONE    
 
@@ -30,7 +32,11 @@ void logger(char *preamble,char *string,unsign32 info,octet *O)
 
     if (O!=NULL)
     {
-        OCT_output(O);
+        char buff[128];
+        bool res=OCT_output_hex(O,120,buff);
+        myprintf(buff);
+        if (!res) myprintf((char *)" (truncated)");
+        myprintf((char *)"\n");
         return;
     }    
 
@@ -52,7 +58,7 @@ void logger(char *preamble,char *string,unsign32 info,octet *O)
 }
 
 // log server hello outputs
-void logServerHello(int cipher_suite,int kex,int pskid,octet *PK,octet *CK)
+void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK)
 {
     logger((char *)"\nParsing serverHello\n",NULL,0,NULL);
     logger((char *)"cipher suite= ",(char *)"%x",cipher_suite,NULL);
@@ -68,7 +74,7 @@ void logServerHello(int cipher_suite,int kex,int pskid,octet *PK,octet *CK)
 }
 
 // log ticket details
-void logTicket(int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octet *NONCE,octet *ETICK)
+void logTicket(int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octad *NONCE,octad *ETICK)
 {
     logger((char *)"\nParsing Ticket\n",NULL,0,NULL);
     unsign32 minutes=lifetime/60;
@@ -82,18 +88,18 @@ void logTicket(int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octe
 
 // log a certificate in base64
 
-void logCert(octet *CERT)
+void logCert(octad *CERT)
 {
-    char b[5000];
+    char b[5004];
     logger((char *)"-----BEGIN CERTIFICATE----- \n",NULL,0,NULL);
-    OCT_tobase64(b,CERT);
+    OCT_output_base64(CERT,5000,b);
     logger((char *)"",b,0,NULL);
     logger((char *)"-----END CERTIFICATE----- \n",NULL,0,NULL);
 }
 
 
 // log certificate details
-void logCertDetails(char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet *ISSUER,octet *SUBJECT)
+void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT)
 {
     logger(txt,NULL,0,NULL);
     logger((char *)"Signature is ",NULL,0,SIG); 
@@ -132,7 +138,7 @@ void logCertDetails(char *txt,octet *PUBKEY,pktype pk,octet *SIG,pktype sg,octet
 }
 
 // process server function return
-void logServerResponse(int rtn,octet *O)
+void logServerResponse(int rtn,octad *O)
 {
     if (rtn<0)
     { // fatal errors - after logging we will send a server alert and close connection

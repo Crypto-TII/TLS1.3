@@ -1,13 +1,13 @@
 // Client side C/C++ program to demonstrate TLS1.3 
 // g++ -O2 -c tls*.cpp
-// ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_crypto_api.o
+// ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_crypto_api.o tls_octads.o tls_x509.o
 // g++ -O2 client.cpp tls.a core.a -o client
 
-#include "tls1_3.h" 
-#include "randapi.h"  
+#include "tls1_3.h"  
+#include "tls_crypto_api.h"
 #include "tls_protocol.h"
 
-#ifdef CORE_ARDUINO
+#ifdef TLS_ARDUINO
 #include "tls_wifi.h"
 #endif
 
@@ -20,13 +20,13 @@ enum SocketType{
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
 // Extract a ticket. K_recv might be updated.
-int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,ticket *T)
+int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,ticket *T)
 {
     ret r;
     int nce,nb,len,te,type,nticks,kur,rtn,ptr=0;
     bool fin=false;
     unsign32 time_ticket_received;
-    octet TICK;  // Ticket raw data
+    octad TICK;  // Ticket raw data
     TICK.len=0;
 
     nticks=0; // number of tickets received
@@ -35,7 +35,7 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Waiting for Server input \n",NULL,0,NULL);
 #endif
-        OCT_clear(IO); ptr=0;
+        OCT_kill(IO); ptr=0;
         type=getServerFragment(client,K_recv,IO);  // get first fragment to determine type
         if (type<0)
             return type;   // its an error
@@ -61,7 +61,7 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
 
 //printf("Ticket length= %d %d\n",ptr,len);
 
-                    r=parseOctetorPullptr(client,&TICK,len,IO,ptr,K_recv);    // just copy out pointer to this
+                    r=parseoctadorPullptr(client,&TICK,len,IO,ptr,K_recv);    // just copy out pointer to this
                     nticks++;
                     time_ticket_received=(unsign32)millis();     // start a stop-watch
                     init_ticket_context(T,time_ticket_received); // initialise and time-stamp a new ticket
@@ -112,7 +112,7 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
         }
         if (type==APPLICATION)
         {
-            OCT_chop(IO,NULL,40);   // truncate it to 40 bytes
+            OCT_truncate(IO,40); // truncate it to 40 bytes
 #if VERBOSITY >= IO_APPLICATION
             logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,IO);
 #endif
@@ -130,24 +130,24 @@ int processServerMessage(Socket &client,octet *IO,crypto *K_recv,octet *STS,tick
 }
 
 // Construct an HTML GET command
-void make_client_message(octet *GET,char *hostname)
+void make_client_message(octad *GET,char *hostname)
 {
-    OCT_clear(GET);
-    OCT_jstring(GET,(char *)"GET / HTTP/1.1"); // standard HTTP GET command  
-    OCT_jbyte(GET,0x0d,1); OCT_jbyte(GET,0x0a,1);      
-    OCT_jstring(GET,(char *)"Host: ");  
-    OCT_jstring(GET,hostname); //OCT_jstring(&PT,(char *)":443");
-    OCT_jbyte(GET,0x0d,1); OCT_jbyte(GET,0x0a,1);        // CRLF
-    OCT_jbyte(GET,0x0d,1); OCT_jbyte(GET,0x0a,1);        // empty line CRLF    
+    OCT_kill(GET);
+    OCT_append_string(GET,(char *)"GET / HTTP/1.1"); // standard HTTP GET command  
+    OCT_append_byte(GET,0x0d,1); OCT_append_byte(GET,0x0a,1);      
+    OCT_append_string(GET,(char *)"Host: ");  
+    OCT_append_string(GET,hostname); //OCT_append_string(&PT,(char *)":443");
+    OCT_append_byte(GET,0x0d,1); OCT_append_byte(GET,0x0a,1);        // CRLF
+    OCT_append_byte(GET,0x0d,1); OCT_append_byte(GET,0x0a,1);        // empty line CRLF    
 }
 
 // send a message post-handshake
-void client_send(Socket &client,csprng *RNG,octet *GET,crypto *K_send,octet *IO)
+void client_send(Socket &client,octad *GET,crypto *K_send,octad *IO)
 {
 #if VERBOSITY >= IO_APPLICATION
     logger((char *)"Sending Application Message\n\n",GET->val,0,NULL);
 #endif
-    sendClientMessage(client,RNG,APPLICATION,TLS1_2,K_send,GET,NULL,IO);
+    sendClientMessage(client,APPLICATION,TLS1_2,K_send,GET,NULL,IO);
 }
 
 // Main Test Driver program
@@ -159,7 +159,7 @@ void client_send(Socket &client,csprng *RNG,octet *GET,crypto *K_send,octet *IO)
 // Some globals
 
 capabilities CPB;
-csprng RNG;                // Crypto Strong RNG
+
 #ifdef ESP32
 unsigned long ran=esp_random();   // ESP32 true random number generator
 #else
@@ -167,7 +167,7 @@ unsigned long ran=42L;
 #endif
 int port=443;
 
-#ifdef CORE_ARDUINO
+#ifdef TLS_ARDUINO
 char* ssid = "eir79562322-2.4G";
 char* password =  "********";
 char* hostname = "tls13.cloudfare.com";
@@ -203,9 +203,8 @@ void myloop( void *pvParameters );
 void setup()
 {
     char raw[100];
-    octet RAW = {0, sizeof(raw), raw}; // Some initial entropy
 
-#ifdef CORE_ARDUINO
+#ifdef TLS_ARDUINO
     Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
     WiFi.begin(ssid, password);
@@ -216,15 +215,14 @@ void setup()
     Serial.print("\nWiFi connected with IP: ");
     Serial.println(WiFi.localIP());
 #endif
+             
+    raw[0] = ran;  // fake random seed source
+    raw[1] = ran >> 8;
+    raw[2] = ran >> 16;
+    raw[3] = ran >> 24;
+    for (int i = 4; i < 100; i++) raw[i] = i;
 
-    RAW.len = 100;              // fake random seed source
-    RAW.val[0] = ran;
-    RAW.val[1] = ran >> 8;
-    RAW.val[2] = ran >> 16;
-    RAW.val[3] = ran >> 24;
-    for (int i = 4; i < 100; i++) RAW.val[i] = i;
-
-    CREATE_CSPRNG(&RNG, &RAW);  // initialise strong RNG
+    TLS_SEED_RNG(100,raw); // initialise strong RNG
 
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Hostname= ",hostname,0,NULL);
@@ -283,13 +281,13 @@ void loop() {
 #endif
     int rtn,favourite_group;
     char rms[TLS_MAX_HASH];
-    octet RMS = {0,sizeof(rms),rms};   // Resumption master secret
+    octad RMS = {0,sizeof(rms),rms};   // Resumption master secret
     char sts[TLS_MAX_HASH];
-    octet STS = {0,sizeof(sts),sts};   // server traffic secret
+    octad STS = {0,sizeof(sts),sts};   // server traffic secret
     char io[TLS_MAX_IO_SIZE];
-    octet IO={0,sizeof(io),io};        // main IO buffer - all messages come and go via this octet   --- BIG
+    octad IO={0,sizeof(io),io};        // main IO buffer - all messages come and go via this octad   --- BIG
     char get[256];
-    octet GET={0,sizeof(get),get};     // initial message
+    octad GET={0,sizeof(get),get};     // initial message
     ticket T;
     crypto K_send, K_recv;             // crypto contexts, sending and receiving
 
@@ -297,7 +295,7 @@ void loop() {
     init_crypto_context(&K_recv);
     make_client_message(&GET,hostname);
 
-#ifndef CORE_ARDUINO
+#ifndef TLS_ARDUINO
     Socket client = (socketType == SocketType::SOCKET_TYPE_AF_UNIX) ?
                     Socket::UnixSocket():
                     Socket::InetSocket();
@@ -315,7 +313,7 @@ void loop() {
     }
 
 // Do full TLS 1.3 handshake
-    rtn=TLS13_full(client,hostname,RNG,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS);
+    rtn=TLS13_full(client,hostname,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS);
     if (rtn)
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -332,12 +330,12 @@ void loop() {
     }
 
 // Send client message
-    client_send(client,&RNG,&GET,&K_send,&IO);
+    client_send(client,&GET,&K_send,&IO);
 
 // Process server responses
     rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
     if (rtn<0)
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
     client.stop();
 #if VERBOSITY >= IO_PROTOCOL
@@ -364,7 +362,7 @@ void loop() {
         return;
     }
 // Resume connection. Try and send early data in GET
-    rtn=TLS13_resume(client,hostname,RNG,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS,GET);
+    rtn=TLS13_resume(client,hostname,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS,GET);
     if (rtn)
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -381,12 +379,12 @@ void loop() {
 
 // Send client message again - if it failed to go as early data
     if (rtn!=2)
-        client_send(client,&RNG,&GET,&K_send,&IO);
+        client_send(client,&GET,&K_send,&IO);
 
 // Process server responses
     rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
     if (rtn<0)
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
     client.stop();  // After time out, exit and close session
 #if VERBOSITY >= IO_PROTOCOL
@@ -399,7 +397,7 @@ void loop() {
     mydelay();
 }
 
-#ifndef CORE_ARDUINO
+#ifndef TLS_ARDUINO
 int main(int argc, char const *argv[])
 {
     argv++; argc--;

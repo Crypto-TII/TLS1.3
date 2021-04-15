@@ -6,10 +6,10 @@
 #include "tls_cert_chain.h"
 #include "tls_logger.h"
 
-// First some functions for parsing values out of an octet string
-// parse out an octet of length len from octet M into E
-// ptr is a moving pointer through the octet M
-ret parseOctet(octet *E,int len,octet *M,int &ptr)
+// First some functions for parsing values out of an octad string
+// parse out an octad of length len from octad M into E
+// ptr is a moving pointer through the octad M
+ret parseoctad(octad *E,int len,octad *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
     if (ptr+len>M->len) return r;   // not enough in M - probably need to read in some more
@@ -20,10 +20,10 @@ ret parseOctet(octet *E,int len,octet *M,int &ptr)
     return r;
 }
 
-// parse out an octet of length len from octet M
-// ptr is a moving pointer through the octet M
+// parse out an octad of length len from octad M
+// ptr is a moving pointer through the octad M
 // but now E is just a pointer into M
-ret parseOctetptr(octet *E,int len,octet *M,int &ptr)
+ret parseoctadptr(octad *E,int len,octad *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
     if (ptr+len>M->len) return r;   // not enough in M - probably need to read in some more
@@ -35,8 +35,8 @@ ret parseOctetptr(octet *E,int len,octet *M,int &ptr)
     return r;
 }
 
-// parse out a 16-bit integer from octet M
-ret parseInt16(octet *M,int &ptr)
+// parse out a 16-bit integer from octad M
+ret parseInt16(octad *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
     int b0,b1;
@@ -47,8 +47,8 @@ ret parseInt16(octet *M,int &ptr)
     return r;
 }
 
-// parse out a 24-bit integer from octet M
-ret parseInt24(octet *M,int &ptr)
+// parse out a 24-bit integer from octad M
+ret parseInt24(octad *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
     int b0,b1,b2;
@@ -60,8 +60,8 @@ ret parseInt24(octet *M,int &ptr)
     return r;
 }
 
-// parse out an unsigned 32-bit integer from octet M
-ret parseInt32(octet *M,int &ptr)
+// parse out an unsigned 32-bit integer from octad M
+ret parseInt32(octad *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
     unsigned int b0,b1,b2,b3;
@@ -74,8 +74,8 @@ ret parseInt32(octet *M,int &ptr)
     return r;
 }
 
-// parse out a byte from octet M
-ret parseByte(octet *M,int &ptr)
+// parse out a byte from octad M
+ret parseByte(octad *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
     if (ptr+1>M->len) 
@@ -93,16 +93,16 @@ ret parseByte(octet *M,int &ptr)
 // get another fragment of server response
 // If its encrypted, decrypt and authenticate it
 // append it to the end of IO
-int getServerFragment(Socket &client,crypto *recv,octet *IO)
+int getServerFragment(Socket &client,crypto *recv,octad *IO)
 {
     int i,rtn,left,pos;
     char rh[5];
-    octet RH={0,sizeof(rh),rh};
+    octad RH={0,sizeof(rh),rh};
 
     char tag[TLS_TAG_SIZE];
-    octet TAG={0,sizeof(tag),tag};
+    octad TAG={0,sizeof(tag),tag};
     char rtag[TLS_TAG_SIZE];
-    octet RTAG={0,sizeof(rtag),rtag};
+    octad RTAG={0,sizeof(rtag),rtag};
 
     pos=IO->len;               // current end of IO
     rtn=getOctet(client,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
@@ -120,10 +120,10 @@ int getServerFragment(Socket &client,crypto *recv,octet *IO)
     if (RH.val[0]==CHANGE_CIPHER)
     { // read it, and ignore it
         char sccs[10];
-        octet SCCS={0,sizeof(sccs),sccs};
+        octad SCCS={0,sizeof(sccs),sccs};
         left=getInt16(client);
-        OCT_joctet(&SCCS,&RH);
-        OCT_jint(&SCCS,left,2);
+        OCT_append_octad(&SCCS,&RH);
+        OCT_append_int(&SCCS,left,2);
         getBytes(client,&SCCS.val[5],left);
         SCCS.len+=left;
         rtn=getOctet(client,&RH,3); // get the next record
@@ -133,7 +133,7 @@ int getServerFragment(Socket &client,crypto *recv,octet *IO)
         return BAD_RECORD;
 
     left=getInt16(client);
-    OCT_jint(&RH,left,2);
+    OCT_append_int(&RH,left,2);
     if (left+pos>IO->max)
     { // this commonly happens with big records of application data from server
         return BAD_RECORD;   // record is too big - memory overflow
@@ -154,7 +154,7 @@ int getServerFragment(Socket &client,crypto *recv,octet *IO)
     IO->len+=(left-16);    
     getOctet(client,&RTAG,16);        // read in correct TAG
 
-    if (!OCT_comp(&TAG,&RTAG))      // compare with calculated TAG
+    if (!OCT_compare(&TAG,&RTAG))      // compare with calculated TAG
         return AUTHENTICATION_FAILURE;
 
 // get record ending - encodes real (disguised) record type
@@ -177,11 +177,11 @@ int getServerFragment(Socket &client,crypto *recv,octet *IO)
     return BAD_RECORD;
 }
 
-// These functions parse out a data type from an octet
+// These functions parse out a data type from an octad
 // But they may also have to pull in more bytes from the socket to complete the type.
 
 // return Byte, if necessary pulling in and decrypting another fragment
-ret parseByteorPull(Socket &client,octet *IO,int &ptr,crypto *recv)
+ret parseByteorPull(Socket &client,octad *IO,int &ptr,crypto *recv)
 {
     ret r=parseByte(IO,ptr);
     while (r.err)
@@ -197,7 +197,7 @@ ret parseByteorPull(Socket &client,octet *IO,int &ptr,crypto *recv)
 }
 
 // return 32-bit Int, or pull in another fragment and try again
-ret parseInt32orPull(Socket &client,octet *IO,int &ptr,crypto *recv)
+ret parseInt32orPull(Socket &client,octad *IO,int &ptr,crypto *recv)
 {
     ret r=parseInt32(IO,ptr);
     while (r.err)
@@ -213,7 +213,7 @@ ret parseInt32orPull(Socket &client,octet *IO,int &ptr,crypto *recv)
 }
 
 // return 24-bit Int, or pull in another fragment and try again
-ret parseInt24orPull(Socket &client,octet *IO,int &ptr,crypto *recv)
+ret parseInt24orPull(Socket &client,octad *IO,int &ptr,crypto *recv)
 {
     ret r=parseInt24(IO,ptr);
     while (r.err)
@@ -229,7 +229,7 @@ ret parseInt24orPull(Socket &client,octet *IO,int &ptr,crypto *recv)
 }
 
 // return 16-bit Int, or pull in another fragment and try again
-ret parseInt16orPull(Socket &client,octet *IO,int &ptr,crypto *recv)
+ret parseInt16orPull(Socket &client,octad *IO,int &ptr,crypto *recv)
 {
     ret r=parseInt16(IO,ptr);
     while (r.err)
@@ -244,10 +244,10 @@ ret parseInt16orPull(Socket &client,octet *IO,int &ptr,crypto *recv)
     return r;
 }
 
-// return Octet O of length len, or pull in another fragment and try again
-ret parseOctetorPull(Socket &client,octet *O,int len,octet *IO,int &ptr,crypto *recv)
+// return octad O of length len, or pull in another fragment and try again
+ret parseoctadorPull(Socket &client,octad *O,int len,octad *IO,int &ptr,crypto *recv)
 {
-    ret r=parseOctet(O,len,IO,ptr);
+    ret r=parseoctad(O,len,IO,ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
         int rtn=getServerFragment(client,recv,IO); 
@@ -255,15 +255,15 @@ ret parseOctetorPull(Socket &client,octet *O,int len,octet *IO,int &ptr,crypto *
             r.err=rtn;
             break;
         }
-        r=parseOctet(O,len,IO,ptr);
+        r=parseoctad(O,len,IO,ptr);
     }
     return r;
 }
 
-// return Octet O of length len, or pull in another fragment and try again
-ret parseOctetorPullptr(Socket &client,octet *O,int len,octet *IO,int &ptr,crypto *recv)
+// return octad O of length len, or pull in another fragment and try again
+ret parseoctadorPullptr(Socket &client,octad *O,int len,octad *IO,int &ptr,crypto *recv)
 {
-    ret r=parseOctetptr(O,len,IO,ptr);
+    ret r=parseoctadptr(O,len,IO,ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
         int rtn=getServerFragment(client,recv,IO); 
@@ -271,7 +271,7 @@ ret parseOctetorPullptr(Socket &client,octet *O,int len,octet *IO,int &ptr,crypt
             r.err=rtn;
             break;
         }
-        r=parseOctetptr(O,len,IO,ptr);
+        r=parseoctadptr(O,len,IO,ptr);
     }
     return r;
 }
@@ -290,23 +290,22 @@ ret parseOctetorPullptr(Socket &client,octet *O,int len,octet *IO,int &ptr,crypt
 // Bad actor Server could be throwing anything at us - so be careful
 
 // Extract first byte to determine message type
-int getWhatsNext(Socket &client,octet *IO,crypto *recv,unihash *trans_hash)
+int getWhatsNext(Socket &client,octad *IO,crypto *recv,unihash *trans_hash)
 {
     int nb,ptr=0;
     ret r;
     r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
 
     Hash_Process(trans_hash,IO->val[0]);
-    OCT_shl(IO,ptr); 
+    OCT_shift_left(IO,ptr); 
     return nb;
 }
 
-int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
+int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
 {
     ret r;
     int nb,ext,len,tlen,mfl,ptr=0;
     int unexp=0;
-
     nb=getWhatsNext(client,IO,recv,trans_hash); 
     if (nb<0) return nb;
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
@@ -342,7 +341,7 @@ int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,unihash *
         default:    // ignore all other extensions
             r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val;
             len-=2;  // length of extension
-            //r=parseOctetorPull(client,&U,tlen,IO,ptr,recv);   // to look at extension
+            //r=parseoctadorPull(client,&U,tlen,IO,ptr,recv);   // to look at extension
             //printf("Unexpected Extension= "); OCT_output(&U);
             len-=tlen; ptr+=tlen; // skip over it
             unexp++;
@@ -355,13 +354,13 @@ int getServerEncryptedExtensions(Socket &client,octet *IO,crypto *recv,unihash *
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
    
-    OCT_shl(IO,ptr);  // Shift octet left - rewind to start 
+    OCT_shift_left(IO,ptr);  // Shift octad left - rewind to start 
 
     if (unexp>0) return STRANGE_EXTENSION;
     return unexp;
 }
 
-int getCertificateRequest(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,int &nalgs,int *sigalgs)
+int getCertificateRequest(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,int &nalgs,int *sigalgs)
 {
     ret r;
     int i,nb,ext,len,tlen,rtn,ptr=0;
@@ -397,7 +396,7 @@ int getCertificateRequest(Socket &client,octet *IO,crypto *recv,unihash *trans_h
         default:    // ignore all other extensions
             r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val;
             len-=2;  // length of extension
-            //r=parseOctetorPull(client,&U,tlen,IO,ptr,recv);   // to look at extension
+            //r=parseoctadorPull(client,&U,tlen,IO,ptr,recv);   // to look at extension
             //printf("Unexpected Extension= "); OCT_output(&U);
             len-=tlen; ptr+=tlen; // skip over it
             unexp++;
@@ -410,7 +409,7 @@ int getCertificateRequest(Socket &client,octet *IO,crypto *recv,unihash *trans_h
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
    
-    OCT_shl(IO,ptr);  // Shift octet left - rewind to start 
+    OCT_shift_left(IO,ptr);  // Shift octad left - rewind to start 
 
     if (nalgs==0) return UNRECOGNIZED_EXT; // must specify at least one signature algorithm
     if (unexp>0) return STRANGE_EXTENSION;
@@ -418,11 +417,11 @@ int getCertificateRequest(Socket &client,octet *IO,crypto *recv,unihash *trans_h
 }
 
 // Get certificate chain, and check its validity 
-int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,char *hostname,octet *PUBKEY)
+int getCheckServerCertificateChain(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,char *hostname,octad *PUBKEY)
 {
     ret r;
     int nb,len,rtn,ptr=0;
-    octet CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
+    octad CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
     CERTCHAIN.len=0;
 
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length   
@@ -434,7 +433,7 @@ int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash
     r=parseByteorPull(client,IO,ptr,recv); nb=r.val; if (r.err) return r.err;
     if (nb!=0x00) return MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;    // get length of certificate chain
-    r=parseOctetorPullptr(client,&CERTCHAIN,len,IO,ptr,recv); if (r.err) return r.err; // get pointer to certificate chain
+    r=parseoctadorPullptr(client,&CERTCHAIN,len,IO,ptr,recv); if (r.err) return r.err; // get pointer to certificate chain
 
 // Transcript hash
     for (int i=0;i<ptr;i++)
@@ -445,13 +444,13 @@ int getCheckServerCertificateChain(Socket &client,octet *IO,crypto *recv,unihash
     else
         rtn=BAD_CERT_CHAIN;
 
-    OCT_shl(IO,ptr);  // rewind to start
+    OCT_shift_left(IO,ptr);  // rewind to start
 
     return rtn;
 }
 
 // Get Server proof that he owns the Certificate, by receiving its signature SCVSIG on transcript hash
-int getServerCertVerify(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *SCVSIG,int &sigalg)
+int getServerCertVerify(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,octad *SCVSIG,int &sigalg)
 {
     ret r;
     int nb,len,ptr=0;
@@ -462,22 +461,22 @@ int getServerCertVerify(Socket &client,octet *IO,crypto *recv,unihash *trans_has
     logger((char *)"Server Certify Length= ",(char *)"%d",len,NULL);
 #endif
 
-    OCT_clear(SCVSIG);
+    OCT_kill(SCVSIG);
     r=parseInt16orPull(client,IO,ptr,recv); sigalg=r.val; if (r.err) return r.err; // may for example be 0804 - RSA-PSS-RSAE-SHA256
     r=parseInt16orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;    // sig data follows
-    r=parseOctetorPull(client,SCVSIG,len,IO,ptr,recv); if (r.err) return r.err;
+    r=parseoctadorPull(client,SCVSIG,len,IO,ptr,recv); if (r.err) return r.err;
    
 // Transcript hash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
 
-    OCT_shl(IO,ptr);  // rewind to start
+    OCT_shift_left(IO,ptr);  // rewind to start
 
     return 0;
 }
 
 // Get handshake finish verifier data in HFIN
-int getServerFinished(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,octet *HFIN)
+int getServerFinished(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,octad *HFIN)
 {
     ret r;
     int nb,len,ptr=0;
@@ -491,32 +490,32 @@ int getServerFinished(Socket &client,octet *IO,crypto *recv,unihash *trans_hash,
     logger((char *)"Server Finish Length= ",(char *)"%d",len,NULL);
 #endif
 
-    OCT_clear(HFIN);
-    r=parseOctetorPull(client,HFIN,len,IO,ptr,recv); if (r.err) return r.err;
+    OCT_kill(HFIN);
+    r=parseoctadorPull(client,HFIN,len,IO,ptr,recv); if (r.err) return r.err;
 
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
    
-    OCT_shl(IO,ptr);  // rewind to start
+    OCT_shift_left(IO,ptr);  // rewind to start
 
     return 0;
 }
 
 // Process initial serverHello - NOT encrypted
 // pskid >=0 if Pre-Shared-Key is accepted
-int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *CID,octet *CK,octet *PK,int &pskid)
+int getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *CID,octad *CK,octad *PK,int &pskid)
 {
     ret r;
     int i,tls,svr,left,rtn,silen,cmp,extLen,ext,tmplen,pklen;
     bool retry=false;
     char sid[32];
-    octet SID = {0, sizeof(sid), sid};
+    octad SID = {0, sizeof(sid), sid};
     char srn[32];
-    octet SRN={0,sizeof(srn),srn};    
+    octad SRN={0,sizeof(srn),srn};    
     hash256 sh;
     char *helloretryrequest=(char *)"HelloRetryRequest";
     char hrr[32];
-    octet HRR={0,sizeof(hrr),hrr};
+    octad HRR={0,sizeof(hrr),hrr};
 
 // need this to check for Handshake Retry Request    
     HASH256_init(&sh);
@@ -527,9 +526,9 @@ int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *CID,octe
     kex=cipher=-1;
     pskid=-1;
 
-    OCT_clear(CK); OCT_clear(PK);
+    OCT_kill(CK); OCT_kill(PK);
 // get first fragment - not encrypted
-    OCT_clear(SH);
+    OCT_kill(SH);
     rtn=getServerFragment(client,NULL,SH);
 
     if (rtn==TIME_OUT)
@@ -550,18 +549,18 @@ int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *CID,octe
     if (svr!=TLS1_2)  
         return NOT_TLS1_3;  // don't ask
    
-    r= parseOctetorPull(client,&SRN,32,SH,ptr,NULL); if (r.err) return r.err;
+    r= parseoctadorPull(client,&SRN,32,SH,ptr,NULL); if (r.err) return r.err;
     left-=32;
 
-    if (OCT_comp(&SRN,&HRR))
+    if (OCT_compare(&SRN,&HRR))
         retry=true;        // "random" data was not random at all - indicating Handshake Retry Request
    
     r=parseByteorPull(client,SH,ptr,NULL); silen=r.val; if (r.err) return r.err; 
     left-=1;
-    r=parseOctetorPull(client,&SID,silen,SH,ptr,NULL); if (r.err) return r.err;
+    r=parseoctadorPull(client,&SID,silen,SH,ptr,NULL); if (r.err) return r.err;
     left-=silen;  
 
-    if (!OCT_comp(CID,&SID))
+    if (!OCT_compare(CID,&SID))
         return ID_MISMATCH;  // check identities match
 
     r=parseInt16orPull(client,SH,ptr,NULL); cipher=r.val; if (r.err) return r.err;
@@ -593,7 +592,7 @@ int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *CID,octe
                 if (!retry)
                 { // its not a retry request
                     r=parseInt16orPull(client,SH,ptr,NULL); pklen=r.val; if (r.err) break;   // FIX this first for HRR
-                    r=parseOctetorPull(client,PK,pklen,SH,ptr,NULL); 
+                    r=parseoctadorPull(client,PK,pklen,SH,ptr,NULL); 
                 }
                 break;
             }
@@ -610,7 +609,7 @@ int getServerHello(Socket &client,octet* SH,int &cipher,int &kex,octet *CID,octe
                 r=parseInt16orPull(client,SH,ptr,NULL); tmplen=r.val; if (r.err) break;
                 extLen-=2;
                 extLen-=tmplen;
-                r=parseOctetorPull(client,CK,tmplen,SH,ptr,NULL);
+                r=parseoctadorPull(client,CK,tmplen,SH,ptr,NULL);
                 break;
             }
         case TLS_VER :

@@ -83,7 +83,7 @@ int getIPaddress(char *ip,char *hostname)
 #endif
 
 // Send Octet
-void sendOctet(Socket &client,octet *B)
+void sendOctet(Socket &client,octad *B)
 {
     client.write(B->val,B->len);
 }
@@ -92,7 +92,7 @@ void sendOctet(Socket &client,octet *B)
 void sendLen(Socket &client,int len)
 {
     char buff[2];
-    octet B={0, sizeof(buff), buff};
+    octad B={0, sizeof(buff), buff};
     B.len=2;
     B.val[0]=len&0xff;
     B.val[1]=len/256;
@@ -169,7 +169,7 @@ int getByte(Socket &client)
 }
 
 // Get expected number of bytes into an octet
-int getOctet(Socket &client,octet *B,int expected)
+int getOctet(Socket &client,octad *B,int expected)
 {
     B->len=expected;
     return getBytes(client,B->val,expected);

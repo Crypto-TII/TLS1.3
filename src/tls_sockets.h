@@ -11,7 +11,6 @@
 #define TLS_SOCKETS_H
 
 #include <string.h>
-#include "core.h"
 #include "tls_logger.h"
 
 #ifdef CORE_ARDUINO
@@ -28,8 +27,6 @@
 #include <netinet/in.h>
 #include <sys/un.h>
 #endif
-
-using namespace core;
 
 #ifndef CORE_ARDUINO
 
@@ -135,7 +132,7 @@ public:
 	@param client the socket connection to the Server
     @param B the octet to be transmitted
  */
-extern void sendOctet(Socket &client,octet *B);
+extern void sendOctet(Socket &client,octad *B);
 
 /**	@brief send a 16-bit integer as an octet to Server
  *
@@ -181,6 +178,6 @@ extern int getByte(Socket &client);
     @param expected the number of bytes expected
     @return -1 on failure, 0 on success
  */
-extern int getOctet(Socket &client,octet *B,int expected);
+extern int getOctet(Socket &client,octad *B,int expected);
 
 #endif

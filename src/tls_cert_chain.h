@@ -10,10 +10,12 @@
 #ifndef TLS_CERT_CHAIN_H
 #define TLS_CERT_CHAIN_H
 #include "tls1_3.h" 
-#include "core.h"
-#include "x509.h"
+#include "tls_x509.h"
+#include "tls_crypto_api.h"
+#include "tls_client_recv.h"
+#include "tls_logger.h"
+#include "tls_cacerts.h"
 
-//using namespace core;
 using namespace std;
 
 /**	@brief Check Certificate Chain
@@ -23,7 +25,7 @@ using namespace std;
     @param PUBKEY the Server's public key extracted from the Certificate chain 
 	@return true if certificate chain is OK, else returns false
  */
-extern bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY);  
+extern bool CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY);  
 
 /**	@brief verify Server's signature on protocol transcript
  *
@@ -33,7 +35,7 @@ extern bool CHECK_CERT_CHAIN(octet *CERTCHAIN,char *hostname,octet *PUBKEY);
     @param CERTPK the Server's public key
 	@return true if signature is verified, else returns false
  */
-extern bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTPK);
+extern bool IS_SERVER_CERT_VERIFY(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK);
 
 /**	@brief Get Client private key and Certificate chain from .pem files
  *
@@ -43,16 +45,15 @@ extern bool IS_SERVER_CERT_VERIFY(int sigalg,octet *SCVSIG,octet *H,octet *CERTP
     @param CERTCHAIN the Client's certificate chain
 	@return type of private key, ECC or RSA
  */
-extern int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octet *PRIVKEY,octet *CERTCHAIN);
+extern int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN);
 
 /**	@brief Create Cert Verify message, as a digital signature on some TLS1.3 specific message+transcript hash
  *
     @param sigAlg the signature algorithm
-    @param RNG a random number generator
     @param H a transcript hash to be signed
     @param KEY the Client's private key
     @param CCVSIG the output digital signature
  */
-extern void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,csprng *RNG,octet *H,octet *KEY,octet *CCVSIG);
+extern void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,octad *H,octad *KEY,octad *CCVSIG);
 
 #endif

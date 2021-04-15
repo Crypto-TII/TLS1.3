@@ -8,7 +8,16 @@
 #ifndef TLS1_3_H
 #define TLS1_3_H
 
-#include "core.h"
+#include <stdint.h>
+#include "tls_octads.h"
+
+using byte = uint8_t;			/**< 8-bit unsigned integer */
+using sign8 = int8_t;			/**< 8-bit signed integer */
+using sign16 = int16_t;			/**< 16-bit signed integer */
+using sign32 = int32_t;			/**< 32-bit signed integer */
+using sign64 = int64_t;			/**< 64-bit signed integer */
+using unsign32 = uint32_t;		/**< 32-bit unsigned integer */
+using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 
 #define IO_NONE 0           /**< Run silently */
 #define IO_APPLICATION 1    /**< just print application traffic */
@@ -16,8 +25,10 @@
 #define IO_DEBUG 3          /**< print lots of debug information + protocol progress + application traffic */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application traffic + bytes on the wire */
 
-// THESE ARE IMPORTANT SETTINGS 
+// THESE ARE IMPORTANT SETTINGS
+
 //#define POPULAR_ROOT_CERTS      /**< Define this to limit root CAs to most popular only */
+//#define TLS_ARDUINO             /**< Define for Arduino-based implementation */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021          /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT      /**< Indicate willingness to authenticate with a cert plus signing key */
@@ -136,8 +147,6 @@
 #define BAD_CERTIFICATE 0x2A            /**< Bad certificate alert from Server */
 #define UNSUPPORTED_EXTENSION 0x6E      /**< Unsupported extension alert from Server */
 
-using namespace core;
-
 /**
  * @brief function return structure */
 typedef struct 
@@ -152,8 +161,8 @@ typedef struct
 {
     char k[TLS_MAX_KEY];    /**< AEAD cryptographic Key bytes */
     char iv[12];            /**< AEAD cryptographic IV bytes */
-    octet K;                /**< Key as octet */
-    octet IV;               /**< IV as octet */
+    octad K;                /**< Key as octad */
+    octad IV;               /**< IV as octad */
     unsign32 record;        /**< current record number - to be incremented */
 } crypto;
 
@@ -163,8 +172,8 @@ typedef struct
 {
     char tick[TLS_MAX_TICKET_SIZE];     /**< Ticket bytes */
     char nonce[32];                     /**< 32-byte nonce */
-    octet TICK;                         /**< Ticket as octet */
-    octet NONCE;                        /**< Nonce as octet */
+    octad TICK;                         /**< Ticket as octad */
+    octad NONCE;                        /**< Nonce as octad */
     int lifetime;                       /**< ticket lifetime */
     unsign32 age_obfuscator;            /**< ticket age obfuscator */
     unsign32 max_early_data;            /**< Maximum early data allowed for this ticket */

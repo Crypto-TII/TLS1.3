@@ -12,21 +12,19 @@
 #include "tls1_3.h" 
 #include "tls_client_recv.h"
 
-using namespace core;
-
 /**	@brief read milliseconds from a stop-watch 
  *
 	@return milliseconds read from stop-watch
  */
 extern unsigned long millis();
 
-/**	@brief parse a received ticket octet into a ticket structure 
+/**	@brief parse a received ticket octad into a ticket structure 
  *
-	@param TICK the input ticket octet
+	@param TICK the input ticket octad
     @param T the output ticket structure
     @return bad ticket error, or 0 if ticket is good
  */
-extern int parseTicket(octet *TICK,ticket *T);
+extern int parseTicket(octad *TICK,ticket *T);
 
 /**	@brief initialize a ticket structure, include time of creation
  *

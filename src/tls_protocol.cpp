@@ -5,7 +5,6 @@
 // TLS1.3 full handshake
 // client - socket connection
 // hostname - website for connection
-// RNG - Random Number generator
 // favourite group - may be changed on handshake retry
 // Capabilities - the supported crypto primitives
 // RMS - returned Resumption Master secret
@@ -13,7 +12,7 @@
 // K_send - Sending Key
 // K_recv - Receiving Key
 // STS - Server traffic secret
-int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,capabilities &CPB,octet &IO,octet &RMS,ticket &T,crypto &K_send,crypto &K_recv,octet &STS)
+int TLS13_full(Socket &client,char *hostname,int &favourite_group,capabilities &CPB,octad &IO,octad &RMS,ticket &T,crypto &K_send,crypto &K_recv,octad &STS)
 {
     int i,rtn,pskid;
     int cipher_suite,cs_hrr,kex,sha;
@@ -24,46 +23,46 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     int csigAlgs[TLS_MAX_SUPPORTED_SIGS]; // acceptable client cert signature types
 
     char csk[TLS_MAX_SECRET_KEY_SIZE];   // clients key exchange secret key
-    octet CSK = {0, sizeof(csk), csk};
+    octad CSK = {0, sizeof(csk), csk};
     char pk[TLS_MAX_PUB_KEY_SIZE];       // Server & Client Public Key (shared memory)
-    octet PK = {0, sizeof(pk), pk};
+    octad PK = {0, sizeof(pk), pk};
     char ss[TLS_MAX_PUB_KEY_SIZE];
-    octet SS = {0, sizeof(ss), ss};      // Shared Secret and Server's Cert Public Key (shared memory)
+    octad SS = {0, sizeof(ss), ss};      // Shared Secret and Server's Cert Public Key (shared memory)
     char ch[TLS_MAX_CLIENT_HELLO];       // Client Hello
-    octet CH = {0, sizeof(ch), ch};
+    octad CH = {0, sizeof(ch), ch};
     char ext[TLS_MAX_EXTENSIONS];
-    octet EXT={0,sizeof(ext),ext};       // Extensions                  
+    octad EXT={0,sizeof(ext),ext};       // Extensions                  
     char es[TLS_MAX_HASH];               // Early Secret
-    octet ES = {0,sizeof(es),es};
+    octad ES = {0,sizeof(es),es};
     char hs[TLS_MAX_HASH];               // Handshake Secret
-    octet HS = {0,sizeof(hs),hs};
+    octad HS = {0,sizeof(hs),hs};
     char hh[TLS_MAX_HASH];               
-    octet HH={0,sizeof(hh),hh};          // Transcript hashes
+    octad HH={0,sizeof(hh),hh};          // Transcript hashes
     char fh[TLS_MAX_HASH];
-    octet FH={0,sizeof(fh),fh};       
+    octad FH={0,sizeof(fh),fh};       
     char th[TLS_MAX_HASH];
-    octet TH={0,sizeof(th),th};  
+    octad TH={0,sizeof(th),th};  
     char cts[TLS_MAX_HASH];
-    octet CTS = {0,sizeof(cts),cts};     // client traffic secret
+    octad CTS = {0,sizeof(cts),cts};     // client traffic secret
     char cid[32];                       
-    octet CID={0,sizeof(cid),cid};       // Client session ID
+    octad CID={0,sizeof(cid),cid};       // Client session ID
     char cook[TLS_MAX_COOKIE];
-    octet COOK={0,sizeof(cook),cook};    // Cookie
+    octad COOK={0,sizeof(cook),cook};    // Cookie
     char scvsig[TLS_MAX_SIGNATURE_SIZE];
-    octet SCVSIG={0,sizeof(scvsig),scvsig};           // Server's digital signature on transcript
+    octad SCVSIG={0,sizeof(scvsig),scvsig};           // Server's digital signature on transcript
     char fin[TLS_MAX_HASH];
-    octet FIN={0,sizeof(fin),fin};                    // Server's finish message
+    octad FIN={0,sizeof(fin),fin};                    // Server's finish message
     char chf[TLS_MAX_HASH];                           
-    octet CHF={0,sizeof(chf),chf};                    // client verify
+    octad CHF={0,sizeof(chf),chf};                    // client verify
     char cets[TLS_MAX_HASH];           
-    octet CETS={0,sizeof(cets),cets};   // Early traffic secret
+    octad CETS={0,sizeof(cets),cets};   // Early traffic secret
 #ifdef HAVE_A_CLIENT_CERT
     char client_key[TLS_MAX_MYCERT_SIZE];           
-    octet CLIENT_KEY={0,sizeof(client_key),client_key};   // Early traffic secret
+    octad CLIENT_KEY={0,sizeof(client_key),client_key};   // Early traffic secret
     char client_cert[TLS_MAX_MYCERT_SIZE];           
-    octet CLIENT_CERTCHAIN={0,sizeof(client_cert),client_cert};   // Early traffic secret
+    octad CLIENT_CERTCHAIN={0,sizeof(client_cert),client_cert};   // Early traffic secret
     char ccvsig[TLS_MAX_SIGNATURE_SIZE];
-    octet CCVSIG={0,sizeof(ccvsig),ccvsig};           // Client's digital signature on transcript
+    octad CCVSIG={0,sizeof(ccvsig),ccvsig};           // Client's digital signature on transcript
 #endif
     int tlsVersion=TLS1_3;
     int pskMode=PSKWECDHE;
@@ -71,7 +70,8 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 //
 // Generate key pair in favourite group
 //
-    GENERATE_KEY_PAIR(&RNG,favourite_group,&CSK,&PK);
+
+    GENERATE_KEY_PAIR(favourite_group,&CSK,&PK);
 
 #if VERBOSITY >= IO_DEBUG    
     logger((char *)"Private key= ",NULL,0,&CSK);
@@ -88,10 +88,10 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     addPSKModesExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
     addMFLExt(&EXT,4);   // ask for smaller max fragment length of 4096 - server may not agree - but no harm in asking
-    addPadding(&EXT,RAND_byte(&RNG)%16);  // add some random padding
+    addPadding(&EXT,TLS_RANDOM_BYTE()%16);  // add some random padding
 
-// create and send Client Hello Octet
-    sendClientHello(client,&RNG,TLS1_0,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);  
+// create and send Client Hello octad
+    sendClientHello(client,TLS1_0,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);  
 #if VERBOSITY >= IO_DEBUG     
     logger((char *)"Client to Server -> ",NULL,0,&IO); 
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
@@ -108,7 +108,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
         if (rtn==NOT_TLS1_3)
             logger((char *)"Server does not support TLS1.3\n",NULL,0,NULL);
 #endif
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),NULL,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),NULL,&IO);
         return 0;
     }
 
@@ -133,7 +133,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     }
     if (sha==0)
     {
-        sendClientAlert(client,&RNG,UNEXPECTED_MESSAGE,NULL,&IO);
+        sendClientAlert(client,UNEXPECTED_MESSAGE,NULL,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Cipher_suite not valid ",(char *)"%x",cipher_suite,NULL);
         logger((char *)"Client to Server -> ",NULL,0,&IO);     
@@ -155,7 +155,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     {
         if (kex==favourite_group)
         { // its the same one I chose !?
-            sendClientAlert(client,&RNG,ILLEGAL_PARAMETER,NULL,&IO);
+            sendClientAlert(client,ILLEGAL_PARAMETER,NULL,&IO);
 #if VERBOSITY >= IO_DEBUG
             logger((char *)"No change as result of HRR\n",NULL,0,NULL); 
             logger((char *)"Client to Server -> ",NULL,0,&IO);     
@@ -170,33 +170,33 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 
 // Fix clientHello by supplying public key of Server's preferred key exchange algorithm
 // build new client Hello extensions
-        OCT_clear(&EXT);
+        OCT_kill(&EXT);
         addServerNameExt(&EXT,hostname);
         addSupportedGroupsExt(&EXT,CPB.nsg,CPB.supportedGroups);
         addSigAlgsExt(&EXT,CPB.nsa,CPB.sigAlgs);
         addSigAlgsCertExt(&EXT,CPB.nsac,CPB.sigAlgsCert);
 // generate new key pair in new server selected group 
         favourite_group=kex;
-        GENERATE_KEY_PAIR(&RNG,favourite_group,&CSK,&PK); 
+        GENERATE_KEY_PAIR(favourite_group,&CSK,&PK); 
         addKeyShareExt(&EXT,favourite_group,&PK);  // Public Key Share in new group
         addPSKModesExt(&EXT,pskMode);
         addVersionExt(&EXT,tlsVersion);
         addMFLExt(&EXT,4);                      // ask for max fragment length of 4096
-        addPadding(&EXT,RAND_byte(&RNG)%16);  // add some random padding
+        addPadding(&EXT,TLS_RANDOM_BYTE()%16);  // add some random padding
         if (COOK.len!=0)
             addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR
         sendCCCS(client);  // send Client Cipher Change
         ccs_sent=true;
 
-// create and send new Client Hello Octet
-        sendClientHello(client,&RNG,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);
+// create and send new Client Hello octad
+        sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Client to Server -> ",NULL,0,&IO);
 #endif
         rtn=getServerHello(client,&IO,cs_hrr,kex,&CID,&COOK,&PK,pskid);
         if (rtn==HANDSHAKE_RETRY)
         { // only one retry allowed
-            sendClientAlert(client,&RNG,UNEXPECTED_MESSAGE,NULL,&IO);
+            sendClientAlert(client,UNEXPECTED_MESSAGE,NULL,&IO);
 #if VERBOSITY >= IO_DEBUG
             logger((char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
             logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -205,7 +205,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
         }
         if (cs_hrr!=cipher_suite)
         { // Server cannot change cipher_suite at this stage
-            sendClientAlert(client,&RNG,ILLEGAL_PARAMETER,NULL,&IO); 
+            sendClientAlert(client,ILLEGAL_PARAMETER,NULL,&IO); 
 #if VERBOSITY >= IO_DEBUG
             logger((char *)"Server selected different cipher suite\n",NULL,0,NULL); 
             logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -219,7 +219,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {  
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),NULL,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),NULL,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -253,12 +253,12 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 // on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
 
 // 1. get encrypted extensions
-    OCT_clear(&IO);
+    OCT_kill(&IO);
 
     rtn=getServerEncryptedExtensions(client,&IO,&K_recv,&tlshash,early_data_accepted);
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
 #if VERBOSITY >= IO_DEBUG
@@ -266,7 +266,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -278,7 +278,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     rtn=getWhatsNext(client,&IO,&K_recv,&tlshash);  // get message type
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==CERT_REQUEST)
@@ -286,22 +286,22 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
         gotacertrequest=true;
         rtn=getCertificateRequest(client,&IO,&K_recv,&tlshash,nccsalgs,csigAlgs);
 #if VERBOSITY >= IO_DEBUG
-    logServerResponse(rtn,&IO);
+        logServerResponse(rtn,&IO);
 #endif
         if (rtn<0)
         {
-            sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+            sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
             return 0;
         }
 
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"Certificate Request received\n",NULL,0,NULL);
+        logger((char *)"Certificate Request received\n",NULL,0,NULL);
 #endif
         rtn=getWhatsNext(client,&IO,&K_recv,&tlshash);  // get message type
     }
     if (rtn!=CERTIFICATE)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(WRONG_MESSAGE),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(WRONG_MESSAGE),&K_send,&IO);
         return 0;
     }
     rtn=getCheckServerCertificateChain(client,&IO,&K_recv,&tlshash,hostname,&SS);
@@ -311,7 +311,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -328,12 +328,12 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
     rtn=getWhatsNext(client,&IO,&K_recv,&tlshash);  // get message type
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn!=CERT_VERIFY)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(WRONG_MESSAGE),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(WRONG_MESSAGE),&K_send,&IO);
         return 0;
     }
     rtn=getServerCertVerify(client,&IO,&K_recv,&tlshash,&SCVSIG,sigalg);
@@ -342,7 +342,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -356,7 +356,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (!IS_SERVER_CERT_VERIFY(sigalg,&SCVSIG,&HH,&SS))
     {
-        sendClientAlert(client,&RNG,DECRYPT_ERROR,&K_send,&IO);
+        sendClientAlert(client,DECRYPT_ERROR,&K_send,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Server Cert Verification failed\n",NULL,0,NULL);
 #endif
@@ -372,7 +372,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_recv,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_recv,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -381,7 +381,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 
     if (!IS_VERIFY_DATA(sha,&FIN,&STS,&FH))
     {
-        sendClientAlert(client,&RNG,DECRYPT_ERROR,&K_send,&IO);
+        sendClientAlert(client,DECRYPT_ERROR,&K_send,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Server Data is NOT verified\n",NULL,0,NULL);
 #endif
@@ -404,15 +404,18 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
         int kind=GET_CLIENT_KEY_AND_CERTCHAIN(nccsalgs,csigAlgs,&CLIENT_KEY,&CLIENT_CERTCHAIN);
         if (kind!=0)
         { // Yes, I can do that kind of signature
-            sendClientCertificateChain(client,&RNG,&K_send,&tlshash,&CLIENT_CERTCHAIN,&IO);
+#if VERBOSITY >= IO_PROTOCOL
+            logger((char *)"Client is authenticating\n",NULL,0,NULL);
+#endif
+            sendClientCertificateChain(client,&K_send,&tlshash,&CLIENT_CERTCHAIN,&IO);
             transcript_hash(&tlshash,&TH);
-            CREATE_CLIENT_CERT_VERIFIER(kind,&RNG,&TH,&CLIENT_KEY,&CCVSIG);      
-            sendClientCertVerify(client,&RNG,&K_send,&tlshash,kind,&CCVSIG,&IO);
+            CREATE_CLIENT_CERT_VERIFIER(kind,&TH,&CLIENT_KEY,&CCVSIG);      
+            sendClientCertVerify(client,&K_send,&tlshash,kind,&CCVSIG,&IO);
         } else { // No, I can't - send a null cert
-            sendClientCertificateChain(client,&RNG,&K_send,&tlshash,NULL,&IO);
+            sendClientCertificateChain(client,&K_send,&tlshash,NULL,&IO);
         }
 #else
-        sendClientCertificateChain(client,&RNG,&K_send,&tlshash,NULL,&IO);
+        sendClientCertificateChain(client,&K_send,&tlshash,NULL,&IO);
 #endif
         transcript_hash(&tlshash,&TH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify+serverFinish+clientCertChain+clientCertVerify
     } else {
@@ -426,7 +429,7 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 // create client verify data
 // .... and send it to Server
     VERIFY_DATA(sha,&CHF,&CTS,&TH);  
-    sendClientFinish(client,&RNG,&K_send,&tlshash,&CHF,&IO);  
+    sendClientFinish(client,&K_send,&tlshash,&CHF,&IO);  
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client Verify Data= ",NULL,0,&CHF); 
     logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -448,7 +451,6 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 // TLS1.3 resumption handshake
 // client - socket connection
 // hostname - website for reconnection
-// RNG - Random Number generator
 // favourite group - as selected on previous connection
 // Capabilities - the supported crypto primitives
 // RMS - Resumption Master secret from previous session
@@ -457,55 +459,55 @@ int TLS13_full(Socket &client,char *hostname,csprng &RNG,int &favourite_group,ca
 // K_recv - Receiving Key
 // STS - Server traffic secret
 // EARLY - First message from Client to Server (should ideally be sent as early data!)
-int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,capabilities &CPB,octet &IO,octet &RMS,ticket &T,crypto &K_send,crypto &K_recv,octet &STS,octet &EARLY)
+int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities &CPB,octad &IO,octad &RMS,ticket &T,crypto &K_send,crypto &K_recv,octad &STS,octad &EARLY)
 {
     int sha,rtn,kex,cipher_suite,pskid;
     bool early_data_accepted;
 
     char es[TLS_MAX_HASH];               // Early Secret
-    octet ES = {0,sizeof(es),es};
+    octad ES = {0,sizeof(es),es};
     char hs[TLS_MAX_HASH];               // Handshake Secret
-    octet HS = {0,sizeof(hs),hs};
+    octad HS = {0,sizeof(hs),hs};
     char ss[TLS_MAX_PUB_KEY_SIZE];
-    octet SS = {0, sizeof(ss), ss};      // Shared Secret
+    octad SS = {0, sizeof(ss), ss};      // Shared Secret
     char csk[TLS_MAX_SECRET_KEY_SIZE];   
-    octet CSK = {0, sizeof(csk), csk};   // clients key exchange secret key
+    octad CSK = {0, sizeof(csk), csk};   // clients key exchange secret key
     char pk[TLS_MAX_PUB_KEY_SIZE];
-    octet PK = {0, sizeof(pk), pk};   // Servers key exchange Public Key
+    octad PK = {0, sizeof(pk), pk};   // Servers key exchange Public Key
     char ch[TLS_MAX_CLIENT_HELLO];    // Client Hello
-    octet CH = {0, sizeof(ch), ch};
+    octad CH = {0, sizeof(ch), ch};
     char ext[TLS_MAX_EXTENSIONS];
-    octet EXT={0,sizeof(ext),ext};       // Extensions  
+    octad EXT={0,sizeof(ext),ext};       // Extensions  
     char hh[TLS_MAX_HASH];               
-    octet HH={0,sizeof(hh),hh};          // Transcript hashes
+    octad HH={0,sizeof(hh),hh};          // Transcript hashes
     char fh[TLS_MAX_HASH];
-    octet FH={0,sizeof(fh),fh};       
+    octad FH={0,sizeof(fh),fh};       
     char th[TLS_MAX_HASH];
-    octet TH={0,sizeof(th),th};  
+    octad TH={0,sizeof(th),th};  
     char cts[TLS_MAX_HASH];
-    octet CTS = {0,sizeof(cts),cts};    // client traffic secret
+    octad CTS = {0,sizeof(cts),cts};    // client traffic secret
     char fin[TLS_MAX_HASH];
-    octet FIN={0,sizeof(fin),fin};                    // Server's finish message
+    octad FIN={0,sizeof(fin),fin};                    // Server's finish message
     char chf[TLS_MAX_HASH];                           
-    octet CHF={0,sizeof(chf),chf};                    // client verify
+    octad CHF={0,sizeof(chf),chf};                    // client verify
     char cets[TLS_MAX_HASH];           
-    octet CETS={0,sizeof(cets),cets};   // Early traffic secret
+    octad CETS={0,sizeof(cets),cets};   // Early traffic secret
     char cid[32];                       
-    octet CID={0,sizeof(cid),cid};      // Client session ID
+    octad CID={0,sizeof(cid),cid};      // Client session ID
     char cook[TLS_MAX_COOKIE];
-    octet COOK={0,sizeof(cook),cook};   // Cookie
+    octad COOK={0,sizeof(cook),cook};   // Cookie
     char bnd[TLS_MAX_HASH];
-    octet BND={0,sizeof(bnd),bnd};
+    octad BND={0,sizeof(bnd),bnd};
     char bl[TLS_MAX_HASH+3];
-    octet BL={0,sizeof(bl),bl};
+    octad BL={0,sizeof(bl),bl};
     char psk[TLS_MAX_HASH];
-    octet PSK={0,sizeof(psk),psk};     // Pre-shared key
+    octad PSK={0,sizeof(psk),psk};     // Pre-shared key
     char bkr[TLS_MAX_HASH];
-    octet BKR={0,sizeof(bkr),bkr};     // Binder secret
+    octad BKR={0,sizeof(bkr),bkr};     // Binder secret
     char nonce[32];
-    octet NONCE={0,sizeof(nonce),nonce}; // ticket nonce
+    octad NONCE={0,sizeof(nonce),nonce}; // ticket nonce
     char etick[TLS_MAX_TICKET_SIZE];
-    octet ETICK={0,sizeof(etick),etick}; // ticket
+    octad ETICK={0,sizeof(etick),etick}; // ticket
 
 // NOTE: MAX_TICKET_SIZE and MAX_EXTENSIONS are increased to support much larger tickets issued when client certificate authentication required
 
@@ -550,14 +552,14 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     logger((char *)"Early Secret= ",NULL,0,&ES);
 #endif
 // Generate key pair in favourite group - use same favourite group that worked before for this server - so should be no HRR
-    GENERATE_KEY_PAIR(&RNG,favourite_group,&CSK,&PK);
+    GENERATE_KEY_PAIR(favourite_group,&CSK,&PK);
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Private key= ",NULL,0,&CSK);  
     logger((char *)"Client Public key= ",NULL,0,&PK);  
 #endif
 // Client Hello
 // First build client Hello extensions
-    OCT_clear(&EXT);
+    OCT_kill(&EXT);
     addServerNameExt(&EXT,hostname);
     addSupportedGroupsExt(&EXT,CPB.nsg,CPB.supportedGroups);
     addSigAlgsExt(&EXT,CPB.nsa,CPB.sigAlgs);
@@ -566,7 +568,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     addPSKModesExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
     addMFLExt(&EXT,4);                        // ask for max fragment length of 4096
-    addPadding(&EXT,RAND_byte(&RNG)%16);      // add some random padding
+    addPadding(&EXT,TLS_RANDOM_BYTE()%16);      // add some random padding
     if (have_early_data)
         addEarlyDataExt(&EXT);                // try sending client message as early data if allowed
 
@@ -580,8 +582,8 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     logger((char *)"obfuscated age = ",(char *)"%x",age,NULL);
 #endif
     int extra=addPreSharedKeyExt(&EXT,age,&ETICK,sha);
-// create and send Client Hello Octet
-    sendClientHello(client,&RNG,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,extra,&IO);  
+// create and send Client Hello octad
+    sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,extra,&IO);  
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client to Server -> ",NULL,0,&IO);
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
@@ -593,7 +595,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     transcript_hash(&tlshash,&HH);            // hash of Truncated clientHello
 
     VERIFY_DATA(sha,&BND,&BKR,&HH);
-    sendBinder(client,&RNG,&BL,&BND,&IO);
+    sendBinder(client,&BL,&BND,&IO);
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"BND= ",NULL,0,&BND);
     logger((char *)"Sending Binders\n",NULL,0,NULL);   // only sending one
@@ -618,7 +620,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
         logger((char *)"Sending some early data\n",NULL,0,NULL);
         logger((char *)"Sending Application Message\n\n",EARLY.val,0,NULL);
 #endif
-        sendClientMessage(client,&RNG,APPLICATION,TLS1_2,&K_send,&EARLY,NULL,&IO);
+        sendClientMessage(client,APPLICATION,TLS1_2,&K_send,&EARLY,NULL,&IO);
     }
 
 // Process Server Hello
@@ -628,7 +630,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -638,7 +640,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 #endif
     if (rtn==HANDSHAKE_RETRY)
     { // should not happen
-        sendClientAlert(client,&RNG,UNEXPECTED_MESSAGE,&K_send,&IO);
+        sendClientAlert(client,UNEXPECTED_MESSAGE,&K_send,&IO);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"No change possible as result of HRR\n",NULL,0,NULL); 
 #endif
@@ -677,12 +679,12 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     logger((char *)"Server handshake traffic secret= ",NULL,0,&STS);
 #endif
 // 1. get encrypted extensions
-    OCT_clear(&IO);
+    OCT_kill(&IO);
 
     rtn=getServerEncryptedExtensions(client,&IO,&K_recv,&tlshash,early_data_accepted);
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
 #if VERBOSITY >= IO_DEBUG
@@ -690,7 +692,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -713,7 +715,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 #endif
     if (rtn<0)
     {
-        sendClientAlert(client,&RNG,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
         return 0;
     }
     if (rtn==TIME_OUT || rtn==ALERT)
@@ -723,7 +725,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
     transcript_hash(&tlshash,&HH); // hash of clientHello+serverHello+encryptedExtension+serverFinish
     if (early_data_accepted)
     {
-        sendEndOfEarlyData(client,&RNG,&K_send,&tlshash,&IO);     // Should only be sent if server has accepted Early data - see encrypted extensions!
+        sendEndOfEarlyData(client,&K_send,&tlshash,&IO);     // Should only be sent if server has accepted Early data - see encrypted extensions!
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Send End of Early Data \n",NULL,0,NULL);
         logger((char *)"Client to Server -> ",NULL,0,&IO);
@@ -746,7 +748,7 @@ int TLS13_resume(Socket &client,char *hostname,csprng &RNG,int favourite_group,c
 
 // create client verify data and send it to Server
     VERIFY_DATA(sha,&CHF,&CTS,&TH);  
-    sendClientFinish(client,&RNG,&K_send,&tlshash,&CHF,&IO);  
+    sendClientFinish(client,&K_send,&tlshash,&CHF,&IO);  
 
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Server Data is verified\n",NULL,0,NULL);
