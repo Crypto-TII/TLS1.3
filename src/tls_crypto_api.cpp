@@ -3,6 +3,9 @@
 //
 
 #include "tls_crypto_api.h"
+
+// Pull in MIRACL core code
+
 #include "ecdh_NIST256.h"  
 #include "ecdh_NIST384.h"
 #include "ecdh_C25519.h"
@@ -39,7 +42,7 @@ int TLS_RANDOM_BYTE()
 }
 
 // Fill an octad with random values
-void TLS_RANDOM_octad(int len,octad *R)
+void TLS_RANDOM_OCTAD(int len,octad *R)
 {
     for (int i=0;i<len;i++)
         R->val[i]=TLS_RANDOM_BYTE();
@@ -78,7 +81,7 @@ void TLS_HKDF_Expand_Label(int sha,octad *OKM,int olen,octad *PRK,octad *Label,o
     PRK->len=MC_PRK.len;
 }
 
-// Extract secret from raw input
+// HKDF - Extract secret from raw input
 void TLS_HKDF_Extract(int sha,octad *PRK,octad *SALT,octad *IKM)
 {
     octet MC_PRK=octad_to_octet(PRK);   // Make it MIRACL core compatible
@@ -181,7 +184,7 @@ void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK)
     if (group==SECP384R1)
         sklen=48;
 // Random secret key
-    TLS_RANDOM_octad(32,SK);
+    TLS_RANDOM_OCTAD(32,SK);
 
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);

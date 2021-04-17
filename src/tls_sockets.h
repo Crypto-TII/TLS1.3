@@ -13,7 +13,7 @@
 #include <string.h>
 #include "tls_logger.h"
 
-#ifdef CORE_ARDUINO
+#ifdef TLS_ARDUINO
 #include "tls_wifi.h"
 #else
 #include <time.h>
@@ -28,7 +28,7 @@
 #include <sys/un.h>
 #endif
 
-#ifndef CORE_ARDUINO
+#ifndef TLS_ARDUINO
 
 /**	@brief create a client socket 
  *
@@ -132,7 +132,7 @@ public:
 	@param client the socket connection to the Server
     @param B the octet to be transmitted
  */
-extern void sendOctet(Socket &client,octad *B);
+extern void sendOctad(Socket &client,octad *B);
 
 /**	@brief send a 16-bit integer as an octet to Server
  *
@@ -178,6 +178,6 @@ extern int getByte(Socket &client);
     @param expected the number of bytes expected
     @return -1 on failure, 0 on success
  */
-extern int getOctet(Socket &client,octad *B,int expected);
+extern int getOctad(Socket &client,octad *B,int expected);
 
 #endif

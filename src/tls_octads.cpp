@@ -1,5 +1,6 @@
 //
 // Safe octad handling in C
+// octad buffers don't overflow - they truncate
 //
 
 #include "tls_octads.h"

@@ -3,7 +3,6 @@
 // ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_crypto_api.o tls_octads.o tls_x509.o
 // g++ -O2 client.cpp tls.a core.a -o client
 
-#include "tls1_3.h"  
 #include "tls_crypto_api.h"
 #include "tls_protocol.h"
 
@@ -182,8 +181,6 @@ void mydelay()
 {}
 #endif
 
-
-
 #ifdef ESP32
 #if CONFIG_FREERTOS_UNICORE
 #define ARDUINO_RUNNING_CORE 0
@@ -192,7 +189,6 @@ void mydelay()
 #endif
 void myloop( void *pvParameters );
 #endif
-
 
 // This rather strange program structure is required by the Arduino development environment
 // A hidden main() functions calls setup() once, and then repeatedly calls loop()

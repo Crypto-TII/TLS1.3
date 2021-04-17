@@ -983,6 +983,7 @@ os.system(deltext+" testbls.ino")
 os.system(deltext+" timepbc.ino")
 
 os.system(deltext+ " share*.* ")
+os.system(deltext+ " x509.* ")
 
 os.system("mkdir examples")
 os.system("mkdir examples"+slashtext+"client")

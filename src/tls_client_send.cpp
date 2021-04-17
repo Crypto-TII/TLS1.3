@@ -10,10 +10,10 @@ void sendCCCS(Socket &client)
     char cccs[10];
     octad CCCS={0,sizeof(cccs),cccs};
     OCT_from_hex(&CCCS,(char *)"140303000101");
-    sendOctet(client,&CCCS);
+    sendOctad(client,&CCCS);
 }
 
-// Functions to create clientHello Extensions based on our preferences/capabilities
+// Functions to build clientHello Extensions based on our preferences/capabilities
 
 // Build Servername Extension
 void addServerNameExt(octad *EXT,char *servername)
@@ -140,14 +140,14 @@ void addEarlyDataExt(octad *EXT)
 // Create 32-byte random octad
 int clientRandom(octad *RN)
 {
-    TLS_RANDOM_octad(32,RN);
+    TLS_RANDOM_OCTAD(32,RN);
     return 32;
 }
 
 // Create random 32-byte session ID (not used in TLS1.3)
 int sessionID(octad *SI)
 {
-    TLS_RANDOM_octad(32,SI);
+    TLS_RANDOM_OCTAD(32,SI);
     return 1+SI->len;  // return its overall length (extra byte required)
 }
 
@@ -181,7 +181,7 @@ void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octad
         OCT_append_int(IO,reclen,2);
         OCT_append_octad(IO,CM); // CM->len
         if (EXT!=NULL) OCT_append_octad(IO,EXT);
-    } else { // encrypted, and sent as application record
+    } else { // encrypted, and sent disguised as application record
         OCT_append_byte(IO,APPLICATION,1);
         OCT_append_int(IO,TLS1_2,2);
         reclen+=16+1+rbytes; // 16 for the TAG, 1 for the record type, + some random padding
@@ -197,7 +197,7 @@ void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octad
         increment_crypto_context(send);  // increment IV
         OCT_append_octad(IO,&TAG);
     }
-    sendOctet(client,IO);     // transmit it
+    sendOctad(client,IO);     // transmit it
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
@@ -284,7 +284,7 @@ void sendClientCertVerify(Socket &client,crypto *send, unihash *h, int sigAlg, o
     sendClientMessage(client,HSHAKE,TLS1_2,send,&PT,CCVSIG,IO);
 }
 
-/* Send Client Certificate */
+// Send Client Certificate 
 void sendClientCertificateChain(Socket &client,crypto *send, unihash *h,octad *CERTCHAIN,octad *IO)
 {
     char pt[10];

@@ -27,8 +27,8 @@
 
 #define USE_NIST256 0    /**< For the NIST 256-bit standard curve - WEIERSTRASS only */
 #define USE_C25519 1     /**< Bernstein's Modulus 2^255-19 - EDWARDS or MONTGOMERY only */
-#define USE_BRAINPOOL 2  /**< For Brainpool 256-bit curve - WEIERSTRASS only */
-#define USE_ANSSI 3      /**< For French 256-bit standard curve - WEIERSTRASS only */
+//#define USE_BRAINPOOL 2  /**< For Brainpool 256-bit curve - WEIERSTRASS only */
+//#define USE_ANSSI 3      /**< For French 256-bit standard curve - WEIERSTRASS only */
 #define USE_NIST384 10   /**< For the NIST 384-bit standard curve - WEIERSTRASS only */
 #define USE_NIST521 12   /**< For the NIST 521-bit standard curve - WEIERSTRASS only */
 

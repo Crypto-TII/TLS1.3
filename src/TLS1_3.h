@@ -30,8 +30,8 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 //#define POPULAR_ROOT_CERTS      /**< Define this to limit root CAs to most popular only */
 //#define TLS_ARDUINO             /**< Define for Arduino-based implementation */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
-#define THIS_YEAR 2021          /**< Set to this year - crudely used to deprecate old certificates */
-#define HAVE_A_CLIENT_CERT      /**< Indicate willingness to authenticate with a cert plus signing key */
+#define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
+#define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 
 // Some maximum sizes for stack allocated memory. Handshake will fail if these sizes are exceeded! 
 
@@ -80,7 +80,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define RSA_PKCS1_SHA384 0x0501         /**< Supported RSA Signature algorithm */
 #define RSA_PSS_RSAE_SHA512 0x0806      /**< Supported RSA Signature algorithm */
 #define RSA_PKCS1_SHA512 0x0601         /**< Supported RSA Signature algorithm */
-#define RSA_PKCS1_SHA1 0x0201           /**< Supported (but deprecated!) RSA Signature algorithm */
+//#define RSA_PKCS1_SHA1 0x0201           /**< Supported (but deprecated!) RSA Signature algorithm */
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */
@@ -95,7 +95,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define SERVER_NAME 0x0000              /**< Server Name extension */
 #define SUPPORTED_GROUPS 0x000a         /**< Supported Group extension */
 #define SIG_ALGS 0x000d                 /**< Signature algorithms extension */
-#define SIG_ALGS_CERT 0x0032            /**< Signatre algorithms Certificate extension */
+#define SIG_ALGS_CERT 0x0032            /**< Signature algorithms Certificate extension */
 #define KEY_SHARE 0x0033                /**< Key Share extension */
 #define PSK_MODE 0x002d                 /**< Preshared key mode extension */
 #define PRESHARED_KEY 0x0029            /**< Preshared key extension */

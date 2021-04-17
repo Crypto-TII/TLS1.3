@@ -1,7 +1,7 @@
 /**
  * @file tls_crypto_api.h
  * @author Mike Scott
- * @brief Cryptographic support functions for TLS
+ * @brief Cryptographic support functions for TLS using MIRACL core
  *
  */
 // Process input received from Server
@@ -19,8 +19,8 @@ using namespace core;
  * @brief Universal Hash structure */
 typedef struct 
 {
-    hash256 sh32;       /**< A SHA256 instance */ 
-    hash512 sh64;       /**< A SHA384/512 instance */
+    hash256 sh32;       /**< A SHA256 instance (MIRACL core) */ 
+    hash512 sh64;       /**< A SHA384/512 instance (MIRACL core) */
     int hlen;           /**< The length of the SHA output in bytes (32/48/64) */
 } unihash;
 
@@ -43,7 +43,7 @@ extern int TLS_RANDOM_BYTE();
     @param len number of random bytes
     @param R octad to be filled with random bytes
 */
-extern void TLS_RANDOM_octad(int len, octad *R);
+extern void TLS_RANDOM_OCTAD(int len, octad *R);
 
 /**	@brief HKDF Extract function
  *

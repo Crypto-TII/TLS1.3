@@ -59,6 +59,8 @@ const char *mycert=(char *)
 "wPM17xpdd/yeQkV8kJMhmYfgkgCQvCFLiMX+\n"
 "-----END CERTIFICATE-----\n";
 
+// Root Certificate Store begins here
+
 const char *cacerts=(char *)
 "-----BEGIN CERTIFICATE-----\n"                                       //   OU = GlobalSign ECC Root CA - R5 O  = GlobalSign CN = GlobalSign
 "MIICHjCCAaSgAwIBAgIRYFlJ4CYuu1X5CneKcflK2GwwCgYIKoZIzj0EAwMwUDEk\n"

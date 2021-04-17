@@ -1,5 +1,5 @@
 //
-// TLS1.3 crypto support functions
+// TLS1.3 crypto support functions (hashing and AEAD encryption)
 //
 #include "tls_keys_calc.h"
 
@@ -89,7 +89,6 @@ void VERIFY_DATA(int sha,octad *CF,octad *CHTS,octad *H)
     OCT_append_string(&INFO,(char *)"finished");
     TLS_HKDF_Expand_Label(sha,&FK,sha,CHTS,&INFO,NULL); 
     TLS_HMAC(sha,CF,&FK,H);
-//    HMAC(MC_SHA2,sha,CF,sha,&FK,H);
 }
 
 // check verification data

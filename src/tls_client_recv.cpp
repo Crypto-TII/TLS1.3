@@ -105,7 +105,7 @@ int getServerFragment(Socket &client,crypto *recv,octad *IO)
     octad RTAG={0,sizeof(rtag),rtag};
 
     pos=IO->len;               // current end of IO
-    rtn=getOctet(client,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
+    rtn=getOctad(client,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
 
 // Need to check RH.val for correctness
 
@@ -114,7 +114,7 @@ int getServerFragment(Socket &client,crypto *recv,octad *IO)
     if (RH.val[0]==ALERT)
     {
         left=getInt16(client);
-        getOctet(client,IO,left);
+        getOctad(client,IO,left);
         return ALERT;
     }
     if (RH.val[0]==CHANGE_CIPHER)
@@ -126,7 +126,7 @@ int getServerFragment(Socket &client,crypto *recv,octad *IO)
         OCT_append_int(&SCCS,left,2);
         getBytes(client,&SCCS.val[5],left);
         SCCS.len+=left;
-        rtn=getOctet(client,&RH,3); // get the next record
+        rtn=getOctad(client,&RH,3); // get the next record
     }
 
     if (RH.val[0]!=HSHAKE && RH.val[0]!=APPLICATION)
@@ -152,7 +152,7 @@ int getServerFragment(Socket &client,crypto *recv,octad *IO)
     increment_crypto_context(recv); // update IV
 
     IO->len+=(left-16);    
-    getOctet(client,&RTAG,16);        // read in correct TAG
+    getOctad(client,&RTAG,16);        // read in correct TAG
 
     if (!OCT_compare(&TAG,&RTAG))      // compare with calculated TAG
         return AUTHENTICATION_FAILURE;
@@ -301,6 +301,7 @@ int getWhatsNext(Socket &client,octad *IO,crypto *recv,unihash *trans_hash)
     return nb;
 }
 
+// Get encrypted extensions
 int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
 {
     ret r;
@@ -350,7 +351,7 @@ int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *
         if (r.err) return r.err;
     }
 
-// Transcript hash
+// Update Transcript hash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
    
@@ -360,6 +361,7 @@ int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *
     return unexp;
 }
 
+// Receive a Certificate request
 int getCertificateRequest(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,int &nalgs,int *sigalgs)
 {
     ret r;
@@ -405,7 +407,7 @@ int getCertificateRequest(Socket &client,octad *IO,crypto *recv,unihash *trans_h
         if (r.err) return r.err;
     }
 
-// Transcript hash
+// Update Transcript hash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
    
@@ -435,7 +437,7 @@ int getCheckServerCertificateChain(Socket &client,octad *IO,crypto *recv,unihash
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;    // get length of certificate chain
     r=parseoctadorPullptr(client,&CERTCHAIN,len,IO,ptr,recv); if (r.err) return r.err; // get pointer to certificate chain
 
-// Transcript hash
+// Update Transcript hash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
 
@@ -457,16 +459,12 @@ int getServerCertVerify(Socket &client,octad *IO,crypto *recv,unihash *trans_has
 
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err; // message length    
 
-#if VERBOSITY >= IO_DEBUG
-    logger((char *)"Server Certify Length= ",(char *)"%d",len,NULL);
-#endif
-
     OCT_kill(SCVSIG);
     r=parseInt16orPull(client,IO,ptr,recv); sigalg=r.val; if (r.err) return r.err; // may for example be 0804 - RSA-PSS-RSAE-SHA256
     r=parseInt16orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;    // sig data follows
     r=parseoctadorPull(client,SCVSIG,len,IO,ptr,recv); if (r.err) return r.err;
    
-// Transcript hash
+// Update Transcript hash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
 
@@ -486,13 +484,10 @@ int getServerFinished(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,
 
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
 
-#if VERBOSITY >= IO_DEBUG
-    logger((char *)"Server Finish Length= ",(char *)"%d",len,NULL);
-#endif
-
     OCT_kill(HFIN);
     r=parseoctadorPull(client,HFIN,len,IO,ptr,recv); if (r.err) return r.err;
 
+// Update Transcript hash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
    
@@ -553,7 +548,7 @@ int getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *CID,octa
     left-=32;
 
     if (OCT_compare(&SRN,&HRR))
-        retry=true;        // "random" data was not random at all - indicating Handshake Retry Request
+        retry=true;        // "random" data was not random at all - indicating Handshake Retry Request!
    
     r=parseByteorPull(client,SH,ptr,NULL); silen=r.val; if (r.err) return r.err; 
     left-=1;

@@ -9,7 +9,9 @@
 #ifndef TLS_WIFI_H
 #define TLS_WIFI_H
 
-#ifdef CORE_ARDUINO
+#include "tls1_3.h"
+
+#ifdef TLS_ARDUINO
 
 #ifdef FISHINO_PIRANHA
 // Fishino Piranha board

@@ -116,16 +116,16 @@ static pktype STRIP_DOWN_CERT(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJEC
     ic = X509_find_issuer(CERT);
     FULL_NAME(ISSUER,CERT,ic);
 
-#if VERBOSITY >= IO_DEBUG
-    logger((char *)"Full Issuer Name Length= ",(char *)"%d",ISSUER->len,NULL);
-#endif
+//#if VERBOSITY >= IO_DEBUG
+//    logger((char *)"Full Issuer Name Length= ",(char *)"%d",ISSUER->len,NULL);
+//#endif
 
     ic = X509_find_subject(CERT);
     FULL_NAME(SUBJECT,CERT,ic);
 
-#if VERBOSITY >= IO_DEBUG
-    logger((char *)"Full Subject Name Length= ",(char *)"%d",SUBJECT->len,NULL);
-#endif
+//#if VERBOSITY >= IO_DEBUG
+//    logger((char *)"Full Subject Name Length= ",(char *)"%d",SUBJECT->len,NULL);
+//#endif
 
     return sg;
 }

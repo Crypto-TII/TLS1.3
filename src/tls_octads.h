@@ -1,12 +1,14 @@
 /**
  * @file tls_octads.h
  * @author Mike Scott
- * @brief octad handling routines
+ * @brief octad handling routines - octads don't overflow, they truncate
  *
  */ 
 
 #ifndef TLS_OCTADS_H
 #define TLS_OCTADS_H
+
+// An octad - "a group or set of eight" - Oxford dictionary
 
 #include <stddef.h>
 

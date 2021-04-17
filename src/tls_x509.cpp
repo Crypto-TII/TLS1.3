@@ -178,7 +178,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
     ret.hash = 0;
     j=0;
 
-    len = getalen(SEQ, c->val, j); // Check for expected SEQ clause, and get length
+    len = getalen(SEQ, c->val, j);  // Check for expected SEQ clause, and get length
     if (len < 0) return ret;        // if not a SEQ clause, there is a problem, exit
     j += skip(len);                 // skip over length to clause contents. Add len to skip clause
 
@@ -727,6 +727,7 @@ int X509_find_subject(octad *c)
     return j;
 }
 
+// Test for a self-signed certificate
 int X509_self_signed(octad *c)
 {
     int i,m;
