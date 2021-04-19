@@ -99,6 +99,21 @@ void sendLen(Socket &client,int len)
     sendOctad(client,&B);
 }
 
+
+#ifdef TLS_ARDUINO
+
+// clear out the socket RX buffer
+void clearsoc(Socket &client,octad *IO)
+{
+    int n=client.available();
+    client.read((uint8_t *)IO->val,n);
+    OCT_kill(IO);
+}
+
+#endif
+
+
+
 // get expected bytes
 int getBytes(Socket &client,char *b,int expected)
 {

@@ -125,6 +125,15 @@ public:
 
     ~Socket() {::close(sock);}
 };
+#else
+
+/**	@brief clear out the socket RX buffer 
+ *
+	@param client the socket connection to the Server
+    @param IO an octet to receive the data
+ */
+extern void clearsoc(Socket &client,octad *IO);
+
 #endif
 
 /**	@brief send an octet over a socket 

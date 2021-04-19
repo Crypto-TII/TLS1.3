@@ -251,6 +251,9 @@ void sendClientAlert(Socket &client,int type,crypto *send,octad *IO)
     OCT_append_byte(&PT,0x02,1);  // alerts are always fatal
     OCT_append_byte(&PT,type,1);  // alert type
     sendClientMessage(client,ALERT,TLS1_2,send,&PT,NULL,IO);
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Failure - Alert sent to Server ",(char *)"%d",type,NULL);
+#endif
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Client to Server -> ",NULL,0,IO);
 #endif

@@ -169,7 +169,7 @@ int port=443;
 #ifdef TLS_ARDUINO
 char* ssid = "eir79562322-2.4G";
 char* password =  "********";
-char* hostname = "tls13.cloudfare.com";
+char* hostname = "www.bbc.co.uk";
 void mydelay()
 {
     while (1) delay(1000);
@@ -357,6 +357,12 @@ void loop() {
         mydelay();
         return;
     }
+
+#ifdef TLS_ARDUINO
+// clear out the socket RX buffer
+    clearsoc(client,&IO);
+#endif
+
 // Resume connection. Try and send early data in GET
     rtn=TLS13_resume(client,hostname,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS,GET);
     if (rtn)
@@ -390,7 +396,11 @@ void loop() {
     Serial.print("Amount of unused stack memory ");
       Serial.println(uxTaskGetStackHighWaterMark( NULL ));
 #endif
-    mydelay();
+
+#ifdef TLS_ARDUINO
+    delay(5000);
+#endif
+
 }
 
 #ifndef TLS_ARDUINO
