@@ -42,10 +42,17 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define TLS_MAX_ROOT_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
 #define TLS_MAX_MYCERT_SIZE 2048         /**< Max client private key/cert */
 #define TLS_MAX_MYCERT_B64 2800          /**< In base64 - Max client private key/cert */
-#define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
 #define TLS_MAX_CLIENT_HELLO 256         /**< Max client hello size (less extensions) */
+
+#ifdef TLS_ARDUINO
+#define TLS_MAX_TICKET_SIZE 512         /**< maximum resumption ticket size */
+#define TLS_MAX_EXTENSIONS 512          /**< Max extensions size */
+#define TLS_MAX_IO_SIZE 4096             /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+#else
+#define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
 #define TLS_MAX_IO_SIZE 8192             /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+#endif
 
 #define TLS_MAX_SIGNATURE_SIZE 512      /**< Max digital signature size in bytes  */
 #define TLS_MAX_PUB_KEY_SIZE 512        /**< Max public key size in bytes */

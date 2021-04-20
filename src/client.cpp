@@ -167,9 +167,9 @@ unsigned long ran=42L;
 int port=443;
 
 #ifdef TLS_ARDUINO
-char* ssid = "eir79562322-2.4G";
-char* password =  "********";
-char* hostname = "www.bbc.co.uk";
+char* ssid = "TP-LINK_5B40F0";
+char* password =  "31146678";
+char* hostname = "swifttls.org";
 void mydelay()
 {
     while (1) delay(1000);
@@ -255,7 +255,7 @@ void setup()
     xTaskCreatePinnedToCore(
         myloop
         ,  "client"   // A name just for humans
-        ,  26624  // 32K-6K This stack size can be checked & adjusted by reading the Stack Highwater
+        ,  32768  // 32K-6K This stack size can be checked & adjusted by reading the Stack Highwater
         ,  NULL
         ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
         ,  NULL 
@@ -272,6 +272,8 @@ void loop()
 
 void myloop(void *pvParameters) {
     (void) pvParameters;
+    while (1)
+    {
 #else
 void loop() {
 #endif
@@ -394,13 +396,14 @@ void loop() {
 #endif
 #ifdef ESP32
     Serial.print("Amount of unused stack memory ");
-      Serial.println(uxTaskGetStackHighWaterMark( NULL ));
+    Serial.println(uxTaskGetStackHighWaterMark( NULL ));
+    delay(5000);
+}
 #endif
 
 #ifdef TLS_ARDUINO
     delay(5000);
 #endif
-
 }
 
 #ifndef TLS_ARDUINO
