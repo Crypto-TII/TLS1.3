@@ -43,6 +43,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define TLS_MAX_MYCERT_SIZE 2048         /**< Max client private key/cert */
 #define TLS_MAX_MYCERT_B64 2800          /**< In base64 - Max client private key/cert */
 #define TLS_MAX_CLIENT_HELLO 256         /**< Max client hello size (less extensions) */
+#define TLS_MAX_EXT_LABEL 256            /**< Max external psk label size */
 
 #ifdef TLS_ARDUINO
 #define TLS_MAX_TICKET_SIZE 512         /**< maximum resumption ticket size */
@@ -178,13 +179,14 @@ typedef struct
 typedef struct 
 {
     char tick[TLS_MAX_TICKET_SIZE];     /**< Ticket bytes */
-    char nonce[32];                     /**< 32-byte nonce */
-    octad TICK;                         /**< Ticket as octad */
-    octad NONCE;                        /**< Nonce as octad */
+    char nonce[TLS_MAX_KEY];                     /**< 32-byte nonce */
+    octad TICK;                         /**< Ticket or external PSK as octad */
+    octad NONCE;                        /**< Nonce or external PSK label as octad */
     int lifetime;                       /**< ticket lifetime */
-    unsign32 age_obfuscator;            /**< ticket age obfuscator */
+    unsign32 age_obfuscator;            /**< ticket age obfuscator - 0 for external PSK */
     unsign32 max_early_data;            /**< Maximum early data allowed for this ticket */
-    unsign32 birth;                     /**< Birth time of this ticket */    
+    unsign32 birth;                     /**< Birth time of this ticket */  
+    int cipher_suite;                   /**< Cipher suite used */
 } ticket;
 
 /**

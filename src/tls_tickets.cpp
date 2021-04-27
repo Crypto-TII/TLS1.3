@@ -1,5 +1,5 @@
 // 
-// Process Resumption Tickets
+// Process Resumption Tickets and external PSKs
 //
 
 #include "tls_tickets.h"
@@ -21,11 +21,11 @@ unsigned long millis()
 }
 #endif
 
-// Initialise a ticket and record its date of birth
-void init_ticket_context(ticket *T,unsign32 birthtime)
+// Initialise a ticket and record its date of birth. Also record the cipher-suite in use at the time of creation
+void init_ticket_context(ticket *T,int cipher_suite,unsign32 birthtime)
 {
     T->NONCE.len = 0;
-    T->NONCE.max = 32;
+    T->NONCE.max = TLS_MAX_KEY;
     T->NONCE.val = T->nonce;
 
     T->TICK.len = 0;
@@ -36,6 +36,7 @@ void init_ticket_context(ticket *T,unsign32 birthtime)
     T->age_obfuscator=0;
     T->max_early_data=0;
     T->birth=birthtime;
+    T->cipher_suite=cipher_suite;   // cipher suite in use at time of creation
 }
 
 // Parse ticket data into a ticket structure 

@@ -28,8 +28,9 @@
     @param K_send a crypto context for encrypting application traffic to the server
     @param K_recv a crypto context for decrypting application traffic from the server
     @param STS server application traffic secret - may be updated
+    @param cipher_suite the cipher_suite used for the handshake
  */
-extern int TLS13_full(Socket &client,char *hostname,int &favourite_group,capabilities &CPB,octad &IO,octad &RMS,ticket &T,crypto &K_send,crypto &K_recv,octad &STS);
+extern int TLS13_full(Socket &client,char *hostname,int &favourite_group,capabilities &CPB,octad &IO,octad &RMS,ticket &T,crypto &K_send,crypto &K_recv,octad &STS,int &cipher_suite);
 
 /**	@brief TLS 1.3 resumption handshake
  *

@@ -12,10 +12,10 @@
 // K_send - Sending Key
 // K_recv - Receiving Key
 // STS - Server traffic secret
-int TLS13_full(Socket &client,char *hostname,int &favourite_group,capabilities &CPB,octad &IO,octad &RMS,ticket &T,crypto &K_send,crypto &K_recv,octad &STS)
+int TLS13_full(Socket &client,char *hostname,int &favourite_group,capabilities &CPB,octad &IO,octad &RMS,ticket &T,crypto &K_send,crypto &K_recv,octad &STS,int &cipher_suite)
 {
     int i,rtn,pskid;
-    int cipher_suite,cs_hrr,kex,sha;
+    int cs_hrr,kex,sha;
     bool early_data_accepted,ccs_sent=false;
     bool resumption_required=false;
     bool gotacertrequest=false;
@@ -518,6 +518,7 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
     unsign32 age,age_obfuscator=0;
     unsign32 max_early_data=0;
     bool have_early_data=true;       // Hope to send client message as early data
+    bool external_psk=false;
 
 // Extract Ticket parameters
     lifetime=T.lifetime;
@@ -526,6 +527,7 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
     OCT_copy(&ETICK,&T.TICK);
     OCT_copy(&NONCE,&T.NONCE);
     time_ticket_received=T.birth;
+    cipher_suite=T.cipher_suite;
 
     if (lifetime<0) 
     {
@@ -537,15 +539,27 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
 #if VERBOSITY >= IO_DEBUG
     logTicket(lifetime,age_obfuscator,max_early_data,&NONCE,&ETICK);
 #endif
+
     if (max_early_data==0)
         have_early_data=false;      // early data not allowed!
 
 // recover PSK from Resumption Master Secret and Nonce
 
-    sha=RMS.len;   // assume this was hash used to create PSK
+    sha=32; // SHA256 default;
+    if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=32;
+    if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=48;
 
-    RECOVER_PSK(sha,&RMS,&NONCE,&PSK);  // recover PSK from resumption master secret and ticket nonce
-    GET_EARLY_SECRET(sha,&PSK,&ES,NULL,&BKR);   // compute early secret and Binder Key from PSK
+    if (time_ticket_received==0 && age_obfuscator==0)
+    { // its an external PSK
+        favourite_group=CPB.supportedGroups[0];    // I guess we should allow for a resumption if this does not work!
+        external_psk=true;
+        OCT_copy(&PSK,&NONCE);   // get external PSK
+        GET_EARLY_SECRET(sha,&PSK,&ES,&BKR,NULL);
+    } else {
+        external_psk=false;
+        RECOVER_PSK(sha,&RMS,&NONCE,&PSK);  // recover PSK from resumption master secret and ticket nonce
+        GET_EARLY_SECRET(sha,&PSK,&ES,NULL,&BKR);   // compute early secret and Binder Key from PSK
+    }
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"PSK= ",NULL,0,&PSK); 
     logger((char *)"Binder Key= ",NULL,0,&BKR); 
@@ -560,27 +574,37 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
 // Client Hello
 // First build client Hello extensions
     OCT_kill(&EXT);
+
     addServerNameExt(&EXT,hostname);
     addSupportedGroupsExt(&EXT,CPB.nsg,CPB.supportedGroups);
-    addSigAlgsExt(&EXT,CPB.nsa,CPB.sigAlgs);
-    addSigAlgsCertExt(&EXT,CPB.nsac,CPB.sigAlgsCert);
+// Not needed for resumption ?
+//    addSigAlgsExt(&EXT,CPB.nsa,CPB.sigAlgs);
+//    addSigAlgsCertExt(&EXT,CPB.nsac,CPB.sigAlgsCert);
+
     addKeyShareExt(&EXT,favourite_group,&PK); // only sending one public key 
     addPSKModesExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
-    addMFLExt(&EXT,4);                        // ask for max fragment length of 4096
+    if (!external_psk)
+        addMFLExt(&EXT,4);                        // ask for max fragment length of 4096 - for some reason openssl does not accept this for PSK
+
     addPadding(&EXT,TLS_RANDOM_BYTE()%16);      // add some random padding
     if (have_early_data)
         addEarlyDataExt(&EXT);                // try sending client message as early data if allowed
 
-    time_ticket_used=(unsign32)millis();
-    age=time_ticket_used-time_ticket_received; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
+    if (external_psk)
+    {
+        age=0;
+    } else {
+        time_ticket_used=(unsign32)millis();
+        age=time_ticket_used-time_ticket_received; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Ticket age= ",(char *)"%x",age,NULL);
+        logger((char *)"Ticket age= ",(char *)"%x",age,NULL);
 #endif
-    age+=age_obfuscator;
+        age+=age_obfuscator;
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"obfuscated age = ",(char *)"%x",age,NULL);
+        logger((char *)"obfuscated age = ",(char *)"%x",age,NULL);
 #endif
+    }
     int extra=addPreSharedKeyExt(&EXT,age,&ETICK,sha);
 // create and send Client Hello octad
     sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,extra,&IO);  
@@ -611,6 +635,7 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client Early Traffic Secret= ",NULL,0,&CETS); 
 #endif
+
     GET_KEY_AND_IV(cipher_suite,&CETS,&K_send);  // Set Client K_send to early data keys 
 
 // if its allowed, send client message as (encrypted) early data

@@ -29,8 +29,9 @@ extern int parseTicket(octad *TICK,ticket *T);
 /**	@brief initialize a ticket structure, include time of creation
  *
     @param T the ticket structure
+    @param cipher_suite the cipher suite currently in use
     @param birthtime the time when the ticket was born
  */
-extern void init_ticket_context(ticket *T,unsign32 birthtime);
+extern void init_ticket_context(ticket *T,int cipher_suite,unsign32 birthtime);
 
 #endif

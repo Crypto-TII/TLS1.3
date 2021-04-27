@@ -19,7 +19,7 @@ enum SocketType{
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
 // Extract a ticket. K_recv might be updated.
-int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,ticket *T)
+int processServerMessage(Socket &client,int cipher_suite,octad *IO,crypto *K_recv,octad *STS,ticket *T)
 {
     ret r;
     int nce,nb,len,te,type,nticks,kur,rtn,ptr=0;
@@ -63,7 +63,7 @@ int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,tick
                     r=parseoctadorPullptr(client,&TICK,len,IO,ptr,K_recv);    // just copy out pointer to this
                     nticks++;
                     time_ticket_received=(unsign32)millis();     // start a stop-watch
-                    init_ticket_context(T,time_ticket_received); // initialise and time-stamp a new ticket
+                    init_ticket_context(T,cipher_suite,time_ticket_received); // initialise and time-stamp a new ticket. Store reminder of cipher suite in use.
                     rtn=parseTicket(&TICK,T);  // extract into ticket structure, and keep for later use
 //printf("Error return= %d\n",rtn);
                     if (ptr==IO->len) fin=true; // record finished
@@ -158,6 +158,7 @@ void client_send(Socket &client,octad *GET,crypto *K_send,octad *IO)
 // Some globals
 
 capabilities CPB;
+bool PSKMODE=false;
 
 #ifdef ESP32
 unsigned long ran=esp_random();   // ESP32 true random number generator
@@ -277,7 +278,7 @@ void myloop(void *pvParameters) {
 #else
 void loop() {
 #endif
-    int rtn,favourite_group;
+    int rtn,favourite_group,cipher_suite;
     char rms[TLS_MAX_HASH];
     octad RMS = {0,sizeof(rms),rms};   // Resumption master secret
     char sts[TLS_MAX_HASH];
@@ -310,8 +311,13 @@ void loop() {
  		return;
     }
 
-// Do full TLS 1.3 handshake
-    rtn=TLS13_full(client,hostname,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS);
+
+if (!PSKMODE) // Have a preshared Key
+{
+    
+
+// Do full TLS 1.3 handshake unless PSK available
+    rtn=TLS13_full(client,hostname,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS,cipher_suite);
     if (rtn)
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -331,7 +337,7 @@ void loop() {
     client_send(client,&GET,&K_send,&IO);
 
 // Process server responses
-    rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
+    rtn=processServerMessage(client,cipher_suite,&IO,&K_recv,&STS,&T); 
     if (rtn<0)
         sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
@@ -339,6 +345,8 @@ void loop() {
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Connection closed\n",NULL,0,NULL);
 #endif
+
+
 // reopen socket - attempt resumption
     if (T.lifetime==0)
     {
@@ -359,6 +367,33 @@ void loop() {
         mydelay();
         return;
     }
+
+} else {
+// we have a pre-shared key..!
+// Test with openssl s_server -tls1_3 -verify 0 -cipher PSK-AES128-GCM-SHA256 -psk_identity 42 -psk 0102030405060708090a0b0c0d0e0f10 -nocert -accept 4433 -www  
+
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"\nAttempting connection with PSK\n",NULL,0,NULL);
+#endif
+
+    char psk[TLS_MAX_KEY];
+    octad PSK = {0,sizeof(psk),psk};    // Pre-Shared Key   
+    char psk_label[32];
+    octad PSK_LABEL={0,sizeof(psk_label),psk_label};
+
+    PSK.len=16;
+    for (int i=0;i<16;i++)
+        PSK.val[i]=i+1;                // Fake a 128-bit pre-shared key
+    PSK_LABEL.len=2;
+    PSK_LABEL.val[0]='4';                    // Fake a pre-shared key label
+    PSK_LABEL.val[1]='2'; 
+
+    init_ticket_context(&T,TLS_AES_128_GCM_SHA256,0);  // Create a special Ticket for PSK
+    OCT_copy(&T.TICK,&PSK_LABEL);
+    OCT_copy(&T.NONCE,&PSK);
+    T.max_early_data=1024;
+
+}
 
 #ifdef TLS_ARDUINO
 // clear out the socket RX buffer
@@ -386,7 +421,7 @@ void loop() {
         client_send(client,&GET,&K_send,&IO);
 
 // Process server responses
-    rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
+    rtn=processServerMessage(client,T.cipher_suite,&IO,&K_recv,&STS,&T); 
     if (rtn<0)
         sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
@@ -411,8 +446,17 @@ int main(int argc, char const *argv[])
 {
     argv++; argc--;
     socketType = SocketType::SOCKET_TYPE_AF_INET;
+
+    if (argc==1 && strcmp(argv[0],"psk")==0)
+    {
+        printf("PSK mode selected\n");
+        argc=0;
+        PSKMODE=true;
+    }
+
     if(argc==0)
     {
+// test against openssl s_server -tls1_3 -verify 0 -key key.pem -cert cert.pem -accept 4433 -www
         strcpy(hostname, "localhost");
         port = 4433;
     } else if (argc == 1)
