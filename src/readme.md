@@ -162,6 +162,7 @@ Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, 
 
 See list.txt for some websites that work OK.
 
+## Client side Authentication
 
 Another way to test less popular options is to set up a local openssl server. First generate a self-signed server certificate, then for example
 
@@ -173,6 +174,17 @@ acts as a normal Website, while
 
 looks for client side certificate authentication - and the server makes a certificate request to the client. We can't control the openssl
 debug output, but its better than nothing!
+
+## Testing Pre-shared keys
+
+Again we will use OpenSSL to mimic a TLS1.3 server
+
+	openssl s_server -tls1_3 -cipher PSK-AES128-GCM-SHA256 -psk_identity 42 -psk 0102030405060708090a0b0c0d0e0f10 -nocert -accept 4433 -www
+
+and connect via
+
+	./client psk
+
 
 ### How to use it 
 

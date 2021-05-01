@@ -574,10 +574,9 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
     OCT_kill(&EXT);
 
     addServerNameExt(&EXT,hostname);
-    int groups[1];
-    groups[0]=favourite_group;                   // Only allow one group?
+    int groups[1]; groups[0]=favourite_group;    // Only allow one group
     addSupportedGroupsExt(&EXT,1,groups);   
-//    addSupportedGroupsExt(&EXT,CPB.nsg,CPB.supportedGroups);                
+                
 // Signature algorithms not needed for resumption, so smaller clientHello
     addKeyShareExt(&EXT,favourite_group,&PK); // only sending one public key 
     addPSKModesExt(&EXT,pskMode);
@@ -605,11 +604,10 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
     }
     int extra=addPreSharedKeyExt(&EXT,age,&ETICK,sha);
 
-    int ciphers[1];
-    ciphers[0]=cipher_suite;                            // Only allow one cipher suite?
+    int ciphers[1]; ciphers[0]=cipher_suite;     // Only allow one cipher suite
 // create and send Client Hello octad
     sendClientHello(client,TLS1_2,&CH,1,ciphers,&CID,&EXT,extra,&IO);  
-//    sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,extra,&IO); 
+
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client to Server -> ",NULL,0,&IO);
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
