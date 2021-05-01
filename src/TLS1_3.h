@@ -33,6 +33,16 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 
+// Hash Types
+
+#define TLS_SHA256 32           /**< SHA256 hash length in bytes */
+#define TLS_SHA384 48           /**< SHA384 hash length in bytes */
+#define TLS_SHA512 64           /**< SHA512 hash length in bytes */
+
+// Encryption
+#define TLS_AES_128 16          /**< AES128 block length in bytes */
+#define TLS_AES_256 32          /**< AES256 block length in bytes */
+
 // Some maximum sizes for stack allocated memory. Handshake will fail if these sizes are exceeded! 
 
 #define TLS_MAX_HASH 64         /**< Maximum hash output length in bytes */
@@ -179,7 +189,7 @@ typedef struct
 typedef struct 
 {
     char tick[TLS_MAX_TICKET_SIZE];     /**< Ticket bytes */
-    char nonce[TLS_MAX_KEY];                     /**< 32-byte nonce */
+    char nonce[TLS_MAX_KEY];            /**< 32-byte nonce */
     octad TICK;                         /**< Ticket or external PSK as octad */
     octad NONCE;                        /**< Nonce or external PSK label as octad */
     int lifetime;                       /**< ticket lifetime */
@@ -187,6 +197,7 @@ typedef struct
     unsign32 max_early_data;            /**< Maximum early data allowed for this ticket */
     unsign32 birth;                     /**< Birth time of this ticket */  
     int cipher_suite;                   /**< Cipher suite used */
+    int favourite_group;                /**< the server's favourite group */
 } ticket;
 
 /**

@@ -126,11 +126,11 @@ void TLS_HASH(int sha,octad *H,octad *M)
 // Unified hashing. SHA2 type indicate by hlen. For SHA256 hlen=32 etc
 void Hash_Init(int hlen,unihash *h)
 {
-    if (hlen==32) 
+    if (hlen==TLS_SHA256) 
         HASH256_init(&(h->sh32));
-    if (hlen==48)
+    if (hlen==TLS_SHA384)
         HASH384_init(&(h->sh64));
-    if (hlen==64)
+    if (hlen==TLS_SHA512)
         HASH512_init(&(h->sh64));
     h->hlen=hlen;
 }
@@ -138,22 +138,22 @@ void Hash_Init(int hlen,unihash *h)
 // Process a byte
 void Hash_Process(unihash *h,int b)
 {
-    if (h->hlen==32)
+    if (h->hlen==TLS_SHA256)
         HASH256_process(&(h->sh32),b);
-    if (h->hlen==48)
+    if (h->hlen==TLS_SHA384)
         HASH384_process(&(h->sh64),b);
-    if (h->hlen==64)
+    if (h->hlen==TLS_SHA512)
         HASH512_process(&(h->sh64),b);
 }
 
 // output digest
 void Hash_Output(unihash *h,char *d)
 {
-    if (h->hlen==32)
+    if (h->hlen==TLS_SHA256)
         HASH256_continuing_hash(&(h->sh32),d);
-    if (h->hlen==48)
+    if (h->hlen==TLS_SHA384)
         HASH384_continuing_hash(&(h->sh64),d);
-    if (h->hlen==64)
+    if (h->hlen==TLS_SHA512)
         HASH384_continuing_hash(&(h->sh64),d);
 }
 
@@ -180,9 +180,6 @@ void AES_GCM_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad 
 // generate a public/private key pair in an approved group for a key exchange
 void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK)
 {
-    int sklen=32;
-    if (group==SECP384R1)
-        sklen=48;
 // Random secret key
     TLS_RANDOM_OCTAD(32,SK);
 

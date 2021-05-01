@@ -447,7 +447,7 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     {
     case RSA_PSS_RSAE_SHA256:
     {
-        sha=32; // SHA256
+        sha=TLS_SHA256; // SHA256
         len=KEY->len/5;   // length of p and q
 
         if (len==0x80)
@@ -475,13 +475,13 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
         if (sigAlg==ECDSA_SECP256R1_SHA256)
         {
             clen=32;
-            sha=32; 
+            sha=TLS_SHA256; 
             SECP256R1_ECDSA_SIGN(sha,KEY,&CCV,&C,&D);
         }
         if (sigAlg==ECDSA_SECP384R1_SHA384)
         {
             clen=48;
-            sha=48;
+            sha=TLS_SHA384;
             SECP384R1_ECDSA_SIGN(sha,KEY,&CCV,&C,&D);
         }
         
@@ -554,7 +554,7 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK)
     switch (sigalg)
     {
     case RSA_PSS_RSAE_SHA256:
-        sha=32; // SHA256
+        sha=TLS_SHA256; // SHA256
 
         if (len==0x100)
         { // 2048 bit RSA

@@ -5,14 +5,14 @@
 // TLS1.3 full handshake
 // client - socket connection
 // hostname - website for connection
-// favourite group - may be changed on handshake retry
 // Capabilities - the supported crypto primitives
 // RMS - returned Resumption Master secret
-// T - returned resumption ticket
 // K_send - Sending Key
 // K_recv - Receiving Key
 // STS - Server traffic secret
-int TLS13_full(Socket &client,char *hostname,int &favourite_group,capabilities &CPB,octad &IO,octad &RMS,ticket &T,crypto &K_send,crypto &K_recv,octad &STS,int &cipher_suite)
+// cipher_suite - agreed cipher suite 
+// favourite group - may be changed on handshake retry
+int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send,crypto &K_recv,octad &STS,capabilities &CPB,int &cipher_suite,int &favourite_group)
 {
     int i,rtn,pskid;
     int cs_hrr,kex,sha;
@@ -66,11 +66,10 @@ int TLS13_full(Socket &client,char *hostname,int &favourite_group,capabilities &
 #endif
     int tlsVersion=TLS1_3;
     int pskMode=PSKWECDHE;
-    favourite_group=CPB.supportedGroups[0]; // only sending one key share in favourite group
+    favourite_group=CPB.supportedGroups[0]; // only sending one key share in our favourite group
 //
 // Generate key pair in favourite group
 //
-
     GENERATE_KEY_PAIR(favourite_group,&CSK,&PK);
 
 #if VERBOSITY >= IO_DEBUG    
@@ -127,8 +126,8 @@ int TLS13_full(Socket &client,char *hostname,int &favourite_group,capabilities &
     {
         if (cipher_suite==CPB.ciphers[i])
         {
-            sha=32; // length of SHA256 hash
-            if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=48; // length of SHA384
+            sha=TLS_SHA256; // length of SHA256 hash
+            if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=TLS_SHA384; // length of SHA384
         }
     }
     if (sha==0)
@@ -451,17 +450,15 @@ int TLS13_full(Socket &client,char *hostname,int &favourite_group,capabilities &
 // TLS1.3 resumption handshake
 // client - socket connection
 // hostname - website for reconnection
-// favourite group - as selected on previous connection
-// Capabilities - the supported crypto primitives
 // RMS - Resumption Master secret from previous session
-// T - Resumption ticket
 // K_send - Sending Key
 // K_recv - Receiving Key
 // STS - Server traffic secret
+// T - Resumption ticket
 // EARLY - First message from Client to Server (should ideally be sent as early data!)
-int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities &CPB,octad &IO,octad &RMS,ticket &T,crypto &K_send,crypto &K_recv,octad &STS,octad &EARLY)
+int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send,crypto &K_recv,octad &STS,ticket &T,octad &EARLY)
 {
-    int sha,rtn,kex,cipher_suite,pskid;
+    int sha,rtn,kex,cipher_suite,pskid,favourite_group;
     bool early_data_accepted;
 
     char es[TLS_MAX_HASH];               // Early Secret
@@ -502,8 +499,8 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
     octad BL={0,sizeof(bl),bl};
     char psk[TLS_MAX_HASH];
     octad PSK={0,sizeof(psk),psk};     // Pre-shared key
-    char bkr[TLS_MAX_HASH];
-    octad BKR={0,sizeof(bkr),bkr};     // Binder secret
+    char bk[TLS_MAX_HASH];
+    octad BK={0,sizeof(bk),bk};     // Binder key
     char nonce[32];
     octad NONCE={0,sizeof(nonce),nonce}; // ticket nonce
     char etick[TLS_MAX_TICKET_SIZE];
@@ -528,6 +525,7 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
     OCT_copy(&NONCE,&T.NONCE);
     time_ticket_received=T.birth;
     cipher_suite=T.cipher_suite;
+    favourite_group=T.favourite_group;
 
     if (lifetime<0) 
     {
@@ -543,26 +541,25 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
     if (max_early_data==0)
         have_early_data=false;      // early data not allowed!
 
-// recover PSK from Resumption Master Secret and Nonce
+// recover PSK from Resumption Master Secret and Nonce, or directly as external PSK
 
-    sha=32; // SHA256 default;
-    if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=32;
-    if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=48;
+    sha=TLS_SHA256; // SHA256 default;
+    if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=TLS_SHA256;
+    if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=TLS_SHA384;
 
     if (time_ticket_received==0 && age_obfuscator==0)
     { // its an external PSK
-        favourite_group=CPB.supportedGroups[0];    // I guess we should allow for a resumption if this does not work!
         external_psk=true;
-        OCT_copy(&PSK,&NONCE);   // get external PSK
-        GET_EARLY_SECRET(sha,&PSK,&ES,&BKR,NULL);
+        OCT_copy(&PSK,&NONCE);   // get external PSK - we put it in the ticket nonce!
+        GET_EARLY_SECRET(sha,&PSK,&ES,&BK,NULL);
     } else {
         external_psk=false;
-        RECOVER_PSK(sha,&RMS,&NONCE,&PSK);  // recover PSK from resumption master secret and ticket nonce
-        GET_EARLY_SECRET(sha,&PSK,&ES,NULL,&BKR);   // compute early secret and Binder Key from PSK
+        RECOVER_PSK(sha,&RMS,&NONCE,&PSK);          // recover PSK from resumption master secret and ticket nonce
+        GET_EARLY_SECRET(sha,&PSK,&ES,NULL,&BK);   // compute early secret and Binder Key from PSK
     }
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"PSK= ",NULL,0,&PSK); 
-    logger((char *)"Binder Key= ",NULL,0,&BKR); 
+    logger((char *)"Binder Key= ",NULL,0,&BK); 
     logger((char *)"Early Secret= ",NULL,0,&ES);
 #endif
 // Generate key pair in favourite group - use same favourite group that worked before for this server - so should be no HRR
@@ -571,28 +568,29 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
     logger((char *)"Private key= ",NULL,0,&CSK);  
     logger((char *)"Client Public key= ",NULL,0,&PK);  
 #endif
+
 // Client Hello
 // First build client Hello extensions
     OCT_kill(&EXT);
 
     addServerNameExt(&EXT,hostname);
-    addSupportedGroupsExt(&EXT,CPB.nsg,CPB.supportedGroups);
-// Not needed for resumption ?
-//    addSigAlgsExt(&EXT,CPB.nsa,CPB.sigAlgs);
-//    addSigAlgsCertExt(&EXT,CPB.nsac,CPB.sigAlgsCert);
-
+    int groups[1];
+    groups[0]=favourite_group;                   // Only allow one group?
+    addSupportedGroupsExt(&EXT,1,groups);   
+//    addSupportedGroupsExt(&EXT,CPB.nsg,CPB.supportedGroups);                
+// Signature algorithms not needed for resumption, so smaller clientHello
     addKeyShareExt(&EXT,favourite_group,&PK); // only sending one public key 
     addPSKModesExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
     if (!external_psk)
-        addMFLExt(&EXT,4);                        // ask for max fragment length of 4096 - for some reason openssl does not accept this for PSK
+        addMFLExt(&EXT,4);                      // ask for max fragment length of 4096 - for some reason openssl does not accept this for PSK
 
     addPadding(&EXT,TLS_RANDOM_BYTE()%16);      // add some random padding
     if (have_early_data)
-        addEarlyDataExt(&EXT);                // try sending client message as early data if allowed
+        addEarlyDataExt(&EXT);                  // try sending client message as early data if allowed
 
     if (external_psk)
-    {
+    { // Its an external pre-shared key
         age=0;
     } else {
         time_ticket_used=(unsign32)millis();
@@ -606,19 +604,23 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
 #endif
     }
     int extra=addPreSharedKeyExt(&EXT,age,&ETICK,sha);
+
+    int ciphers[1];
+    ciphers[0]=cipher_suite;                            // Only allow one cipher suite?
 // create and send Client Hello octad
-    sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,extra,&IO);  
+    sendClientHello(client,TLS1_2,&CH,1,ciphers,&CID,&EXT,extra,&IO);  
+//    sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,extra,&IO); 
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client to Server -> ",NULL,0,&IO);
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
 #endif
     unihash tlshash;
-    Hash_Init(sha,&tlshash);
+    Hash_Init(sha,&tlshash);        // but which hash function to use - serverHello might change it!
     running_hash(&CH,&tlshash); 
     running_hash(&EXT,&tlshash);
     transcript_hash(&tlshash,&HH);            // hash of Truncated clientHello
 
-    VERIFY_DATA(sha,&BND,&BKR,&HH);
+    VERIFY_DATA(sha,&BND,&BK,&HH);
     sendBinder(client,&BL,&BND,&IO);
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"BND= ",NULL,0,&BND);
@@ -684,8 +686,8 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
 
 // Check which cipher-suite chosen by Server
     sha=0;
-    if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=32;
-    if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=48;
+    if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=TLS_SHA256;
+    if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=TLS_SHA384;
     if (sha==0) return 0;
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
@@ -704,7 +706,7 @@ int TLS13_resume(Socket &client,char *hostname,int favourite_group,capabilities 
     logger((char *)"Server handshake traffic secret= ",NULL,0,&STS);
 #endif
 // 1. get encrypted extensions
-    OCT_kill(&IO);
+    OCT_kill(&IO);              // clear IO buffer
 
     rtn=getServerEncryptedExtensions(client,&IO,&K_recv,&tlshash,early_data_accepted);
     if (rtn<0)

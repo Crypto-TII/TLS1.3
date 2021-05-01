@@ -21,8 +21,8 @@ unsigned long millis()
 }
 #endif
 
-// Initialise a ticket and record its date of birth. Also record the cipher-suite in use at the time of creation
-void init_ticket_context(ticket *T,int cipher_suite,unsign32 birthtime)
+// Initialise a ticket. Also record the cipher-suite in use, and servers favourite key exchange group
+void init_ticket_context(ticket *T,int cipher_suite,int favourite_group)
 {
     T->NONCE.len = 0;
     T->NONCE.max = TLS_MAX_KEY;
@@ -35,12 +35,13 @@ void init_ticket_context(ticket *T,int cipher_suite,unsign32 birthtime)
     T->lifetime=0;
     T->age_obfuscator=0;
     T->max_early_data=0;
-    T->birth=birthtime;
+    T->birth=0;
     T->cipher_suite=cipher_suite;   // cipher suite in use at time of creation
+    T->favourite_group=favourite_group;
 }
 
-// Parse ticket data into a ticket structure 
-int parseTicket(octad *TICK,ticket *T)  
+// Parse ticket data and birth time into a ticket structure 
+int parseTicket(octad *TICK,unsign32 birth,ticket *T)  
 {
     ret r;
     int ext,len,tmplen,ptr=0;
@@ -54,6 +55,7 @@ int parseTicket(octad *TICK,ticket *T)
     r=parseoctad(&T->TICK,len,TICK,ptr);  if (r.err) return BAD_TICKET; // extract ticket
     r=parseInt16(TICK,ptr); len=r.val; if (r.err) return BAD_TICKET;    // length of extensions
 
+    T->birth=birth;
     T->max_early_data=0;
     while (len>0)
     {

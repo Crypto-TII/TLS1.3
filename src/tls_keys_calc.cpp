@@ -136,13 +136,13 @@ void GET_KEY_AND_IV(int cipher_suite,octad *TS,crypto *context)
     int sha,key;
     if (cipher_suite==TLS_AES_128_GCM_SHA256)
     {
-        sha=32;  // SHA256
-        key=16;  // AES128
+        sha=TLS_SHA256;  // SHA256
+        key=TLS_AES_128;  // AES128
     }
     if (cipher_suite==TLS_AES_256_GCM_SHA384)
     {
-        sha=48; // SHA384
-        key=32; // AES256
+        sha=TLS_SHA384; // SHA384
+        key=TLS_AES_256; // AES256
     }
     char info[8];
     octad INFO = {0,sizeof(info),info};

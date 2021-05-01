@@ -19,7 +19,7 @@ enum SocketType{
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
 // Extract a ticket. K_recv might be updated.
-int processServerMessage(Socket &client,int cipher_suite,octad *IO,crypto *K_recv,octad *STS,ticket *T)
+int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,ticket *T)
 {
     ret r;
     int nce,nb,len,te,type,nticks,kur,rtn,ptr=0;
@@ -62,9 +62,7 @@ int processServerMessage(Socket &client,int cipher_suite,octad *IO,crypto *K_rec
 
                     r=parseoctadorPullptr(client,&TICK,len,IO,ptr,K_recv);    // just copy out pointer to this
                     nticks++;
-                    time_ticket_received=(unsign32)millis();     // start a stop-watch
-                    init_ticket_context(T,cipher_suite,time_ticket_received); // initialise and time-stamp a new ticket. Store reminder of cipher suite in use.
-                    rtn=parseTicket(&TICK,T);  // extract into ticket structure, and keep for later use
+                    rtn=parseTicket(&TICK,(unsign32)millis(),T);       // extract into ticket structure T, and keep for later use
 //printf("Error return= %d\n",rtn);
                     if (ptr==IO->len) fin=true; // record finished
                     if (fin) break;
@@ -312,12 +310,12 @@ void loop() {
     }
 
 
-if (!PSKMODE) // Have a preshared Key
+if (!PSKMODE) // Don't have a preshared Key
 {
     
 
 // Do full TLS 1.3 handshake unless PSK available
-    rtn=TLS13_full(client,hostname,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS,cipher_suite);
+    rtn=TLS13_full(client,hostname,IO,RMS,K_send,K_recv,STS,CPB,cipher_suite,favourite_group);
     if (rtn)
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -336,8 +334,10 @@ if (!PSKMODE) // Have a preshared Key
 // Send client message
     client_send(client,&GET,&K_send,&IO);
 
+// Initialise a ticket structure, and remember which cipher suite and which key exchange group was agreed.
+    init_ticket_context(&T,cipher_suite,favourite_group);
 // Process server responses
-    rtn=processServerMessage(client,cipher_suite,&IO,&K_recv,&STS,&T); 
+    rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
     if (rtn<0)
         sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
@@ -370,7 +370,7 @@ if (!PSKMODE) // Have a preshared Key
 
 } else {
 // we have a pre-shared key..!
-// Test with openssl s_server -tls1_3 -verify 0 -cipher PSK-AES128-GCM-SHA256 -psk_identity 42 -psk 0102030405060708090a0b0c0d0e0f10 -nocert -accept 4433 -www  
+// Test with openssl s_server -tls1_3 -verify 0 -cipher PSK-AES128-GCM-SHA256 -psk_identity 42 -psk 0102030405060708090a0b0c0d0e0f10 -nocert -max_send_frag 4096 -accept 4433 -www  
 
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"\nAttempting connection with PSK\n",NULL,0,NULL);
@@ -385,14 +385,13 @@ if (!PSKMODE) // Have a preshared Key
     for (int i=0;i<16;i++)
         PSK.val[i]=i+1;                // Fake a 128-bit pre-shared key
     PSK_LABEL.len=2;
-    PSK_LABEL.val[0]='4';                    // Fake a pre-shared key label
+    PSK_LABEL.val[0]='4';              // Fake a pre-shared key label
     PSK_LABEL.val[1]='2'; 
 
-    init_ticket_context(&T,TLS_AES_128_GCM_SHA256,0);  // Create a special Ticket for PSK
+    init_ticket_context(&T,TLS_AES_128_GCM_SHA256,CPB.supportedGroups[0]);  // Create a special Ticket for PSK
     OCT_copy(&T.TICK,&PSK_LABEL);
     OCT_copy(&T.NONCE,&PSK);
     T.max_early_data=1024;
-
 }
 
 #ifdef TLS_ARDUINO
@@ -401,7 +400,7 @@ if (!PSKMODE) // Have a preshared Key
 #endif
 
 // Resume connection. Try and send early data in GET
-    rtn=TLS13_resume(client,hostname,favourite_group,CPB,IO,RMS,T,K_send,K_recv,STS,GET);
+    rtn=TLS13_resume(client,hostname,IO,RMS,K_send,K_recv,STS,T,GET);
     if (rtn)
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -421,7 +420,7 @@ if (!PSKMODE) // Have a preshared Key
         client_send(client,&GET,&K_send,&IO);
 
 // Process server responses
-    rtn=processServerMessage(client,T.cipher_suite,&IO,&K_recv,&STS,&T); 
+    rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
     if (rtn<0)
         sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
