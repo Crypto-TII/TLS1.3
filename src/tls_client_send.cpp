@@ -193,7 +193,7 @@ void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octad
 // add some random padding after this...
         OCT_append_byte(IO,0,rbytes);
 
-        AES_GCM_ENCRYPT(send,5,&IO->val[0],reclen-16,&IO->val[5],&TAG);
+        AEAD_ENCRYPT(send,5,&IO->val[0],reclen-16,&IO->val[5],&TAG);
 
         increment_crypto_context(send);  // increment IV
         OCT_append_octad(IO,&TAG);

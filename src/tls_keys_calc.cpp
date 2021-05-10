@@ -48,6 +48,7 @@ void init_crypto_context(crypto *C)
     C->IV.max = 12;
     C->IV.val = C->iv;
 
+    C->suite=TLS_AES_128_GCM_SHA256; // default
     C->record=0;
 }
 
@@ -130,7 +131,7 @@ void UPDATE_KEYS(crypto *context,octad *TS)
     context->record=0;
 }
 
-// get Key and IV from a Traffic secret
+// Build a crypto context from an input raw Secret and an agreed cipher_suite 
 void GET_KEY_AND_IV(int cipher_suite,octad *TS,crypto *context)
 {
     int sha,key;
@@ -144,6 +145,11 @@ void GET_KEY_AND_IV(int cipher_suite,octad *TS,crypto *context)
         sha=TLS_SHA384; // SHA384
         key=TLS_AES_256; // AES256
     }
+    if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256)
+    {
+        sha=TLS_SHA256; // SHA384
+        key=TLS_CHA_256; // IETF CHACHA20
+    }
     char info[8];
     octad INFO = {0,sizeof(info),info};
 
@@ -155,6 +161,7 @@ void GET_KEY_AND_IV(int cipher_suite,octad *TS,crypto *context)
     OCT_append_string(&INFO,(char *)"iv");
     TLS_HKDF_Expand_Label(sha,&(context->IV),12,TS,&INFO,NULL);
 
+    context->suite=cipher_suite;
     context->record=0;
 }
 

@@ -101,8 +101,6 @@ int getServerFragment(Socket &client,crypto *recv,octad *IO)
 
     char tag[TLS_TAG_SIZE];
     octad TAG={0,sizeof(tag),tag};
-    char rtag[TLS_TAG_SIZE];
-    octad RTAG={0,sizeof(rtag),rtag};
 
     pos=IO->len;               // current end of IO
     rtn=getOctad(client,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
@@ -147,15 +145,13 @@ int getServerFragment(Socket &client,crypto *recv,octad *IO)
 
     getBytes(client,&IO->val[pos],left-16);  // read in record body
 
-    AES_GCM_DECRYPT(recv,RH.len,RH.val,left-16,&IO->val[pos],&TAG);
-
-    increment_crypto_context(recv); // update IV
-
     IO->len+=(left-16);    
-    getOctad(client,&RTAG,16);        // read in correct TAG
+    getOctad(client,&TAG,16);        // read in correct TAG
 
-    if (!OCT_compare(&TAG,&RTAG))      // compare with calculated TAG
-        return AUTHENTICATION_FAILURE;
+    rtn=AEAD_DECRYPT(recv,RH.len,RH.val,left-16,&IO->val[pos],&TAG);
+    increment_crypto_context(recv); // update IV
+    if (rtn<0)
+       return AUTHENTICATION_FAILURE;     // tag is wrong   
 
 // get record ending - encodes real (disguised) record type
     int lb=0;

@@ -198,7 +198,6 @@ void myloop( void *pvParameters );
 void setup()
 {
     char raw[100];
-
 #ifdef TLS_ARDUINO
     Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
@@ -211,14 +210,6 @@ void setup()
     Serial.println(WiFi.localIP());
 #endif
              
-    raw[0] = ran;  // fake random seed source
-    raw[1] = ran >> 8;
-    raw[2] = ran >> 16;
-    raw[3] = ran >> 24;
-    for (int i = 4; i < 100; i++) raw[i] = i;
-
-    TLS_SEED_RNG(100,raw); // initialise strong RNG
-
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Hostname= ",hostname,0,NULL);
 #endif
@@ -233,7 +224,22 @@ void setup()
     CPB.nsc=2;     
     CPB.ciphers[0]=TLS_AES_128_GCM_SHA256;
     CPB.ciphers[1]=TLS_AES_256_GCM_SHA384;
-  //  ciphers[2]=TLS_CHACHA20_POLY1305_SHA256;  // not supported
+    CPB.ciphers[2]=TLS_CHACHA20_POLY1305_SHA256;  // maybe not supported
+
+#ifdef USE_LIB_SODIUM
+    CPB.nsc=3;  
+    CPB.ciphers[2]=TLS_AES_128_GCM_SHA256;
+    CPB.ciphers[0]=TLS_CHACHA20_POLY1305_SHA256; // make CHACHA our favourite
+    for (int i=0;i<100;i++)
+        raw[i]=(char)(randombytes_random()%256); // use libsodium rng to seed miracl core generator
+#else
+    raw[0] = ran;  // fake random seed source
+    raw[1] = ran >> 8;
+    raw[2] = ran >> 16;
+    raw[3] = ran >> 24;
+    for (int i = 4; i < 100; i++) raw[i] = i;  // should be from output of true random number generator
+#endif
+    TLS_SEED_RNG(100,raw); // initialise strong RNG for miracl core
 
 // Extensions
 // Supported TLS1.3 signing Algorithms - could add more
@@ -445,6 +451,13 @@ int main(int argc, char const *argv[])
 {
     argv++; argc--;
     socketType = SocketType::SOCKET_TYPE_AF_INET;
+
+#ifdef USE_SODIUM_LIB
+    if (sodium_init() < 0) {
+        printf("Libsodium failed to start\n");
+        exit(0);
+    }
+#endif
 
     if (argc==1 && strcmp(argv[0],"psk")==0)
     {

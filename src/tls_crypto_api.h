@@ -13,6 +13,13 @@
 #include "core.h"
 #include "tls1_3.h"
 
+#ifdef USE_LIB_SODIUM
+extern "C" 
+{
+    #include <sodium.h>
+}
+#endif
+
 using namespace core;
 
 /**
@@ -105,7 +112,7 @@ extern void Hash_Process(unihash *h,int b);
  */
 extern void Hash_Output(unihash *h,char *d);
 
-/**	@brief AES_GCM encryption 
+/**	@brief AEAD encryption 
  *
 	@param send the AES key and IV
     @param hdrlen the length of the header
@@ -114,18 +121,19 @@ extern void Hash_Output(unihash *h,char *d);
     @param pt the input plaintext and output ciphertext
     @param TAG the output authentication tag
  */
-extern void AES_GCM_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG);
+extern void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG);
 
-/**	@brief AES_GCM decryption 
+/**	@brief AEAD decryption 
  *
 	@param recv the AES key and IV
     @param hdrlen the length of the header
     @param hdr the header bytes
     @param ctlen the ciphertext length
     @param ct the input ciphertext and output plaintext
-    @param TAG the output authentication tag
+    @param TAG the expected authentication tag
+    @return -1 if tag is wrong, else 0
  */
-extern void AES_GCM_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG);
+extern int AEAD_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG);
 
 /**	@brief generate a public/private key pair in an approved group for a key exchange
  *

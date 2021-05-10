@@ -437,6 +437,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 
 // calculate traffic and application keys from handshake secret and transcript hashes
     GET_APPLICATION_SECRETS(sha,&HS,&HH,&FH,&CTS,&STS,NULL,&RMS);
+
     GET_KEY_AND_IV(cipher_suite,&CTS,&K_send);
     GET_KEY_AND_IV(cipher_suite,&STS,&K_recv);
 #if VERBOSITY >= IO_DEBUG
@@ -546,6 +547,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
     sha=TLS_SHA256; // SHA256 default;
     if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=TLS_SHA256;
     if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=TLS_SHA384;
+    if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256) sha=TLS_SHA256;
 
     if (time_ticket_received==0 && age_obfuscator==0)
     { // its an external PSK
@@ -686,6 +688,8 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
     sha=0;
     if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=TLS_SHA256;
     if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=TLS_SHA384;
+    if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256) sha=TLS_SHA256;
+
     if (sha==0) return 0;
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key

@@ -26,7 +26,8 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application traffic + bytes on the wire */
 
 // THESE ARE IMPORTANT SETTINGS
-
+#define USE_MIRACL_CORE         /**< Always define for fall-back crypto */
+//#define USE_LIB_SODIUM          /**< Define this if using LIBSODIUM */
 //#define POPULAR_ROOT_CERTS      /**< Define this to limit root CAs to most popular only */
 //#define TLS_ARDUINO             /**< Define for Arduino-based implementation */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
@@ -40,8 +41,9 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define TLS_SHA512 64           /**< SHA512 hash length in bytes */
 
 // Encryption
-#define TLS_AES_128 16          /**< AES128 block length in bytes */
-#define TLS_AES_256 32          /**< AES256 block length in bytes */
+#define TLS_AES_128 16          /**< AES128 key length in bytes */
+#define TLS_AES_256 32          /**< AES256 key length in bytes */
+#define TLS_CHA_256 32          /**< IETF CHACHA20 key length in bytes */
 
 // Some maximum sizes for stack allocated memory. Handshake will fail if these sizes are exceeded! 
 
@@ -182,6 +184,7 @@ typedef struct
     octad K;                /**< Key as octad */
     octad IV;               /**< IV as octad */
     unsign32 record;        /**< current record number - to be incremented */
+    int suite;              /**< Cipher Suite */
 } crypto;
 
 /**

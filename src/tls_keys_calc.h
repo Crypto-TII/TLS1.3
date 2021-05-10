@@ -57,7 +57,7 @@ extern void create_crypto_context(crypto *C,octad *K,octad *IV);
  */
 extern void increment_crypto_context(crypto *C);
 
-/**	@brief Build a crypto context from an input raw Secret
+/**	@brief Build a crypto context from an input raw Secret and an agreed cipher_suite 
  *
     @param cipher_suite the chosen cipher suite
     @param TS the input raw secret
