@@ -25,14 +25,16 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define IO_DEBUG 3          /**< print lots of debug information + protocol progress + application traffic */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application traffic + bytes on the wire */
 
-// THESE ARE IMPORTANT SETTINGS
-#define USE_MIRACL_CORE         /**< Always define for fall-back crypto */
+// THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
+#define USE_MIRACL_CORE         /**< Currently always define for fall-back crypto */
 //#define USE_LIB_SODIUM          /**< Define this if using LIBSODIUM */
+
 //#define POPULAR_ROOT_CERTS      /**< Define this to limit root CAs to most popular only */
 //#define TLS_ARDUINO             /**< Define for Arduino-based implementation */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
+// *****************************************************************************
 
 // Hash Types
 
