@@ -165,13 +165,62 @@ void Hash_Output(unihash *h,char *d)
         HASH384_continuing_hash(&(h->sh64),d);
 }
 
+#ifdef USE_LIB_TII
+
 void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG)
+{ // AEAD encryption
+    if (send->suite==TLS_CHACHA20_POLY1305_SHA256)
+    { 
+        uint8_t iv[8];
+        uint8_t constant[4];
+        for (int i=0;i<4;i++)
+            constant[i]=send->IV.val[i];
+        for (int i=0;i<8;i++)
+            iv[i]=send->IV.val[4+i];
+        chacha20_poly1305_aead_encrypt((uint8_t *)send->K.val,iv,constant,(uint8_t *)pt,(uint64_t)ptlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)pt,(uint8_t *)TAG->val);
+    } 
+    if (send->suite==TLS_AES_128_GCM_SHA256)
+    {
+        aes128_gcm_encrypt((uint8_t *)send->K.val,(uint8_t *)send->IV.val,12,(uint8_t *)pt,(uint64_t)ptlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)pt,(uint8_t *)TAG->val);
+    }
+    if (send->suite==TLS_AES_256_GCM_SHA384)
+    {
+        aes256_gcm_encrypt((uint8_t *)send->K.val,(uint8_t *)send->IV.val,12,(uint8_t *)pt,(uint64_t)ptlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)pt,(uint8_t *)TAG->val);
+    }
+    TAG->len=16;
+}
+
+int AEAD_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG)
 { // AEAD decryption
+    if (recv->suite==TLS_CHACHA20_POLY1305_SHA256)
+    {
+        uint8_t iv[8];
+        uint8_t constant[4];
+        for (int i=0;i<4;i++)
+            constant[i]=recv->IV.val[i];
+        for (int i=0;i<8;i++)
+            iv[i]=recv->IV.val[4+i];
+        return chacha20_poly1305_aead_decrypt((uint8_t *)recv->K.val,iv,constant,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val);
+    }
+    if (recv->suite==TLS_AES_128_GCM_SHA256)
+    {
+        return aes128_gcm_decrypt((uint8_t *)recv->K.val,(uint8_t *)recv->IV.val,12,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val);
+    }
+    if (recv->suite==TLS_AES_256_GCM_SHA384)
+    {
+        return aes256_gcm_decrypt((uint8_t *)recv->K.val,(uint8_t *)recv->IV.val,12,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val);
+    }
+    return -1;
+}
+
+#else
+
+void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG)
+{ // AEAD encryption
     if (send->suite==TLS_CHACHA20_POLY1305_SHA256)
     { 
 #ifdef USE_LIB_SODIUM
         crypto_aead_chacha20poly1305_ietf_encrypt_detached((unsigned char*)pt,(unsigned char *)TAG->val,NULL,(unsigned char*)pt,(unsigned long long)ptlen,(unsigned char*)hdr,(unsigned long long)hdrlen,NULL,(unsigned char*)send->iv,(unsigned char*)send->k);
-        TAG->len=16;
 #endif
     } else { // its AES-GCM
         gcm g;
@@ -179,8 +228,9 @@ void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TA
         GCM_add_header(&g,hdr,hdrlen);
         GCM_add_plain(&g,pt,pt,ptlen);
 //create and append TA
-        GCM_finish(&g,TAG->val); TAG->len=16;
+        GCM_finish(&g,TAG->val); 
     }
+    TAG->len=16;
 }
 
 int AEAD_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG)
@@ -206,29 +256,31 @@ int AEAD_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG
     return 0;
 }
 
+#endif
+
 // generate a public/private key pair in an approved group for a key exchange
 void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK)
 {
-    char tk[32];
-    octad TK{0,sizeof(tk),tk};
 // Random secret key
     TLS_RANDOM_OCTAD(32,SK);
-    OCT_copy(&TK,SK);
+    if (group==X25519)
+    { // RFC7748 the secret key
+        SK->val[31]&=248;  
+        SK->val[0]&=127;
+        SK->val[0]|=64;
+    }
 
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
     if (group==X25519)
     {
-// RFC 7748
 #ifndef USE_LIB_SODIUM
-        MC_SK.val[32-1]&=248;  
-        MC_SK.val[0]&=127;
-        MC_SK.val[0]|=64;
         C25519::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
-        OCT_reverse(&MC_PK);
+        OCT_reverse(&MC_PK);  // public key must be transmitted in little-endian form
 #else
-        OCT_reverse(&MC_SK);
+        OCT_reverse(&MC_SK);  // to little-endian
         crypto_scalarmult_base((unsigned char *)MC_PK.val, (unsigned char *)MC_SK.val);
+        OCT_reverse(&MC_SK);  // convert back
         MC_PK.len=MC_SK.len=32;
 #endif
 
@@ -245,7 +297,6 @@ void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK)
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;
 
-    OCT_copy(SK,&TK);
 }
 
 // generate shared secret SS from secret key SK and public key PK
@@ -255,17 +306,16 @@ void GENERATE_SHARED_SECRET(int group,octad *SK,octad *PK,octad *SS)
     octet MC_PK=octad_to_octet(PK);
     octet MC_SS=octad_to_octet(SS);
 
-    if (group==X25519) { // RFC 7748
+    if (group==X25519) {
 #ifndef USE_LIB_SODIUM
-        OCT_reverse(&MC_PK);
-        MC_SK.val[32-1]&=248;  
-        MC_SK.val[0]&=127;
-        MC_SK.val[0]|=64;
+        OCT_reverse(&MC_PK); // to big endian
         C25519::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
+        OCT_reverse(&MC_PK); // back again
         OCT_reverse(&MC_SS);
 #else
-        OCT_reverse(&MC_SK);
+        OCT_reverse(&MC_SK); // to little-endian
         int rtn=crypto_scalarmult((unsigned char *)MC_SS.val, (unsigned char *)MC_SK.val, (unsigned char *)MC_PK.val);
+        OCT_reverse(&MC_SK); // convert back
         MC_SS.len=32;
 #endif
     }

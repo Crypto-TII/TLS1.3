@@ -26,11 +26,11 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application traffic + bytes on the wire */
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
-#define USE_MIRACL_CORE         /**< Currently always define for fall-back crypto */
-//#define USE_LIB_SODIUM          /**< Define this if using LIBSODIUM */
-
-//#define POPULAR_ROOT_CERTS      /**< Define this to limit root CAs to most popular only */
-//#define TLS_ARDUINO             /**< Define for Arduino-based implementation */
+#define USE_MIRACL_CORE           /**< Currently always define for fall-back crypto */
+//#define USE_LIB_SODIUM            /**< Define this if also using LIBSODIUM */
+//#define USE_LIB_TII               /**< Define this is using TII Crypto library */
+//#define POPULAR_ROOT_CERTS        /**< Define this to limit root CAs to most popular only */
+//#define TLS_ARDUINO               /**< Define for Arduino-based implementation */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
@@ -102,7 +102,6 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define RSA_PKCS1_SHA384 0x0501         /**< Supported RSA Signature algorithm */
 #define RSA_PSS_RSAE_SHA512 0x0806      /**< Supported RSA Signature algorithm */
 #define RSA_PKCS1_SHA512 0x0601         /**< Supported RSA Signature algorithm */
-//#define RSA_PKCS1_SHA1 0x0201           /**< Supported (but deprecated!) RSA Signature algorithm */
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */

@@ -226,19 +226,32 @@ void setup()
     CPB.ciphers[1]=TLS_AES_256_GCM_SHA384;
     CPB.ciphers[2]=TLS_CHACHA20_POLY1305_SHA256;  // maybe not supported
 
+    raw[0] = ran;  // fake random seed source
+    raw[1] = ran >> 8;
+    raw[2] = ran >> 16;
+    raw[3] = ran >> 24;
+    for (int i = 4; i < 100; i++) raw[i] = i;  // should be from output of true random number generator
+
 #ifdef USE_LIB_SODIUM
     CPB.nsc=3;  
     CPB.ciphers[2]=TLS_AES_128_GCM_SHA256;
     CPB.ciphers[0]=TLS_CHACHA20_POLY1305_SHA256; // make CHACHA our favourite
     for (int i=0;i<100;i++)
         raw[i]=(char)(randombytes_random()%256); // use libsodium rng to seed miracl core generator
-#else
-    raw[0] = ran;  // fake random seed source
-    raw[1] = ran >> 8;
-    raw[2] = ran >> 16;
-    raw[3] = ran >> 24;
-    for (int i = 4; i < 100; i++) raw[i] = i;  // should be from output of true random number generator
 #endif
+
+#ifdef USE_LIB_TII
+
+//    CPB.nsc=1;
+//    CPB.ciphers[0]=TLS_CHACHA20_POLY1305_SHA256;
+    CPB.nsc=2;    // Only AES-GCM for now
+//    CPB.ciphers[2]=TLS_AES_128_GCM_SHA256;
+//    CPB.ciphers[0]=TLS_CHACHA20_POLY1305_SHA256; // make CHACHA our favourite
+    tii_prng_ctx_t ctx;
+    tii_prng_instantiate(&ctx);
+    tii_prng_generate_bytes(&ctx, (uint8_t *)raw, 100);  // use TII rng to seed miracl core generator  
+#endif
+
     TLS_SEED_RNG(100,raw); // initialise strong RNG for miracl core
 
 // Extensions

@@ -18,9 +18,13 @@ Set the verbosity of the output in tls1_3.h to IO_DEBUG. Build the tls library a
 	ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_crypto_api.o tls_octads.o tls_x509.o
 	g++ -O2 client.cpp tls.a core.a -o client
 
-Alternatively, if libsodium is available and installed, undefine USE_LIB_SODIUM in tls1_3.h and compile as 
+Alternatively, if libsodium is available and installed, define USE_LIB_SODIUM in tls1_3.h and compile as 
 
 	g++ -O2 client.cpp tls.a core.a -lsodium -o client
+
+Alternatively, if TIIcrypto is available and installed, define USE_LIB_TII in tls1_3.h and compile as 
+
+	g++ -O2 client.cpp tls.a core.a libtiicrypto-v2.3.0.1 -o client
 
 
 Or by using CMake. If you follow this alternative, copy the header files into `vendor/miracl/includes`, and the `core.a` to `vendor/miracl/` 

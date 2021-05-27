@@ -20,6 +20,17 @@ extern "C"
 }
 #endif
 
+#ifdef USE_LIB_TII
+extern "C" 
+{
+    #include "aes.h"
+    #include "aes_gcm.h"
+    #include "chacha20.h"
+    #include "chacha20_poly1305_aead.h"
+    #include "tii_prng.h"
+}
+#endif
+
 using namespace core;
 
 /**
