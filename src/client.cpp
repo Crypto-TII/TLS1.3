@@ -3,7 +3,7 @@
 // ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_crypto_api.o tls_octads.o tls_x509.o
 // g++ -O2 client.cpp tls.a core.a -o client
 
-#include "tls_crypto_api.h"
+#include "tls_sal.h"
 #include "tls_protocol.h"
 
 #ifdef TLS_ARDUINO
@@ -213,18 +213,15 @@ void setup()
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Hostname= ",hostname,0,NULL);
 #endif
-// Client Capabilities to be advertised to Server
-// Supported Key Exchange Groups in order of preference
-    CPB.nsg=3;
-    CPB.supportedGroups[0]=X25519;
-    CPB.supportedGroups[1]=SECP256R1;
-    CPB.supportedGroups[2]=SECP384R1;
 
-// Supported Cipher Suits
-    CPB.nsc=2;     
-    CPB.ciphers[0]=TLS_AES_128_GCM_SHA256;
-    CPB.ciphers[1]=TLS_AES_256_GCM_SHA384;
-    CPB.ciphers[2]=TLS_CHACHA20_POLY1305_SHA256;  // maybe not supported
+// Client Capabilities to be advertised to Server
+// Get supported Key Exchange Groups in order of preference
+
+    CPB.nsg=TLS_SAL_GROUPS(CPB.supportedGroups);
+
+// Get supported Cipher Suits
+
+    CPB.nsc=TLS_SAL_CIPHERS(CPB.ciphers);
 
     raw[0] = ran;  // fake random seed source
     raw[1] = ran >> 8;
@@ -232,42 +229,13 @@ void setup()
     raw[3] = ran >> 24;
     for (int i = 4; i < 100; i++) raw[i] = i;  // should be from output of true random number generator
 
-#ifdef USE_LIB_SODIUM
-    CPB.nsc=3;  
-    CPB.ciphers[2]=TLS_AES_128_GCM_SHA256;
-    CPB.ciphers[0]=TLS_CHACHA20_POLY1305_SHA256; // make CHACHA our favourite
-    for (int i=0;i<100;i++)
-        raw[i]=(char)(randombytes_random()%256); // use libsodium rng to seed miracl core generator
-#endif
-
-#ifdef USE_LIB_TII
-
-//    CPB.nsc=1;
-//    CPB.ciphers[0]=TLS_CHACHA20_POLY1305_SHA256;
-    CPB.nsc=2;    // Only AES-GCM for now
-//    CPB.ciphers[2]=TLS_AES_128_GCM_SHA256;
-//    CPB.ciphers[0]=TLS_CHACHA20_POLY1305_SHA256; // make CHACHA our favourite
-    tii_prng_ctx_t ctx;
-    tii_prng_instantiate(&ctx);
-    tii_prng_generate_bytes(&ctx, (uint8_t *)raw, 100);  // use TII rng to seed miracl core generator  
-#endif
-
     TLS_SEED_RNG(100,raw); // initialise strong RNG for miracl core
 
-// Extensions
-// Supported TLS1.3 signing Algorithms - could add more
-    CPB.nsa=3;
-    CPB.sigAlgs[0]=ECDSA_SECP256R1_SHA256;
-    CPB.sigAlgs[1]=RSA_PSS_RSAE_SHA256;
-    CPB.sigAlgs[2]=ECDSA_SECP384R1_SHA384;
+// Get supported TLS1.3 signing Algorithms 
+    CPB.nsa=TLS_SAL_SIGS(CPB.sigAlgs);
 
-// Supported Certificate signing Algorithms - could add more
-    CPB.nsac=5;
-    CPB.sigAlgsCert[0]=ECDSA_SECP256R1_SHA256;
-    CPB.sigAlgsCert[1]=RSA_PKCS1_SHA256;
-    CPB.sigAlgsCert[2]=ECDSA_SECP384R1_SHA384;
-    CPB.sigAlgsCert[3]=RSA_PKCS1_SHA384;
-    CPB.sigAlgsCert[4]=RSA_PKCS1_SHA512;
+// Get supported Certificate signing Algorithms 
+    CPB.nsac=TLS_SAL_SIGCERTS(CPB.sigAlgsCert);
 
 #ifdef ESP32
     xTaskCreatePinnedToCore(
@@ -465,12 +433,7 @@ int main(int argc, char const *argv[])
     argv++; argc--;
     socketType = SocketType::SOCKET_TYPE_AF_INET;
 
-#ifdef USE_SODIUM_LIB
-    if (sodium_init() < 0) {
-        printf("Libsodium failed to start\n");
-        exit(0);
-    }
-#endif
+    TLS_SAL_INITLIB();
 
     if (argc==1 && strcmp(argv[0],"psk")==0)
     {

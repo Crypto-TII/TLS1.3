@@ -10,7 +10,7 @@
 #define TLS_KEYS_CALC_H
 
 #include "tls1_3.h"
-#include "tls_crypto_api.h"
+#include "tls_sal.h"
 
 // transcript hash support
 

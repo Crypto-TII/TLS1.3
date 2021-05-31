@@ -6,32 +6,37 @@
  */
 // Process input received from Server
 
-#ifndef TLS_CRYPTO_API_H
-#define TLS_CRYPTO_API_H
+#ifndef TLS_SAL_H
+#define TLS_SAL_H
 
 // Use MIRACL core library
-#include "core.h"
+
 #include "tls1_3.h"
 
-#ifdef USE_LIB_SODIUM
-extern "C" 
-{
-    #include <sodium.h>
-}
-#endif
 
-#ifdef USE_LIB_TII
-extern "C" 
+/**
+ * @brief SHA256 hash function instance */
+typedef struct
 {
-    #include "aes.h"
-    #include "aes_gcm.h"
-    #include "chacha20.h"
-    #include "chacha20_poly1305_aead.h"
-    #include "tii_prng.h"
-}
-#endif
+    unsign32 length[2]; /**< 64-bit input length */
+    unsign32 h[8];      /**< Internal state */
+    unsign32 w[80];	/**< Internal state */
+    int hlen;		/**< Hash length in bytes */
+} hash256;
 
-using namespace core;
+/**
+ * @brief SHA384-512 hash function instance */
+typedef struct
+{
+    unsign64 length[2]; /**< 64-bit input length */
+    unsign64 h[8];      /**< Internal state */
+    unsign64 w[80];	/**< Internal state */
+    int hlen;           /**< Hash length in bytes */
+} hash512;
+
+/**
+ * @brief SHA384 hash function instance */
+typedef hash512 hash384;
 
 /**
  * @brief Universal Hash structure */
@@ -42,6 +47,39 @@ typedef struct
     int hlen;           /**< The length of the SHA output in bytes (32/48/64) */
 } unihash;
 
+/** @brief Return supported ciphers
+*
+    @param ciphers array of supported ciphers
+    @return number of supported ciphers
+*/
+extern int TLS_SAL_CIPHERS(int *ciphers);
+
+/** @brief Return supported groups
+*
+    @param groups array of supported groups
+    @return number of supported groups
+*/
+extern int TLS_SAL_GROUPS(int *groups);
+
+/** @brief Return supported TLS signature algorithms
+*
+    @param sigAlgs array of supported signature algorithms
+    @return number of supported groups
+*/
+extern int TLS_SAL_SIGS(int *sigAlgs);
+
+/** @brief Return supported TLS signature algorithms for Certificates
+*
+    @param sigAlgs array of supported signature algorithms for Certificates
+    @return number of supported groups
+*/
+extern int TLS_SAL_SIGCERTS(int *sigAlgsCert);
+
+
+/** @brief Initialise libraries
+*
+*/
+extern void TLS_SAL_INITLIB();
 
 /** @brief Seed the random number generator
 *

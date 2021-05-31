@@ -492,6 +492,8 @@ int getServerFinished(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,
     return 0;
 }
 
+static const char *hrrh= (const char *)"CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";
+
 // Process initial serverHello - NOT encrypted
 // pskid >=0 if Pre-Shared-Key is accepted
 int getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *CID,octad *CK,octad *PK,int &pskid)
@@ -503,16 +505,11 @@ int getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *CID,octa
     octad SID = {0, sizeof(sid), sid};
     char srn[32];
     octad SRN={0,sizeof(srn),srn};    
-    hash256 sh;
-    char *helloretryrequest=(char *)"HelloRetryRequest";
     char hrr[32];
     octad HRR={0,sizeof(hrr),hrr};
 
 // need this to check for Handshake Retry Request    
-    HASH256_init(&sh);
-    for (i=0;i<strlen(helloretryrequest);i++)
-        HASH256_process(&sh,(int)helloretryrequest[i]);
-    HASH256_hash(&sh,&HRR.val[0]); HRR.len=32;
+    OCT_from_hex(&HRR,(char *)hrrh);
 
     kex=cipher=-1;
     pskid=-1;

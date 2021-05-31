@@ -1,6 +1,6 @@
 # Description
 
-UPDATE: The Crypto support functions are now all concentrated in the tls_crypto_api.cpp/h files. This will make it easier to use alternate crypto providers.
+UPDATE: The Crypto support functions are now all concentrated in the tls_sal_*.xpp files. This will make it easier to use alternate crypto providers.
 
 This C++ version is really just C plus namespaces plus pass-by-reference. These the only features of C++ that are used. The Rust version will come later.
 Documentation can be found in the doxygen generated file refman.pdf
@@ -12,19 +12,37 @@ Make sure to always use the latest version of this library - as the requirements
 
 Then copy the contents of this archive to the same directory, in particular client.cpp and tls*.*
 
-Set the verbosity of the output in tls1_3.h to IO_DEBUG. Build the tls library and the client app by 
+Set the verbosity of the output in tls1_3.h to IO_DEBUG. 
+
+Decide which crypto providers to use.
+
+If using only the miracl library 
+
+	cp tls_sal_m.xpp tls_sal.cpp
+
+If using miracl+libsodium 
+
+	cp tls_sal_ms.xpp tls_sal.cpp
+
+If using miracl+tiicrypto 
+
+	cp tls_sal_mt.xpp tls_sal.cpp
+
+Build the tls library and the client app by 
 
 	g++ -O2 -c tls*.cpp
-	ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_crypto_api.o tls_octads.o tls_x509.o
+	ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_sal.o tls_octads.o tls_x509.o
+
+If using miracl only	
 	g++ -O2 client.cpp tls.a core.a -o client
 
-Alternatively, if libsodium is available and installed, define USE_LIB_SODIUM in tls1_3.h and compile as 
+If using miracl+libsodium  
 
 	g++ -O2 client.cpp tls.a core.a -lsodium -o client
 
-Alternatively, if TIIcrypto is available and installed, define USE_LIB_TII in tls1_3.h and compile as 
+If using miracl+TIIcrypto 
 
-	g++ -O2 client.cpp tls.a core.a libtiicrypto-v2.3.0.1 -o client
+	g++ -O2 client.cpp tls.a core.a libtiicrypto-v2.3.0.a -o client
 
 
 Or by using CMake. If you follow this alternative, copy the header files into `vendor/miracl/includes`, and the `core.a` to `vendor/miracl/` 

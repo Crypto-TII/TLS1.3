@@ -11,7 +11,7 @@
 #define TLS_CERT_CHAIN_H
 #include "tls1_3.h" 
 #include "tls_x509.h"
-#include "tls_crypto_api.h"
+#include "tls_sal.h"
 #include "tls_client_recv.h"
 #include "tls_logger.h"
 #include "tls_cacerts.h"

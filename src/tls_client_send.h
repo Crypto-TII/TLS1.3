@@ -9,7 +9,7 @@
 #ifndef TLS_CLIENT_SEND_H
 #define TLS_CLIENT_SEND_H
 
-#include "tls_crypto_api.h"
+#include "tls_sal.h"
 #include "tls1_3.h"
 #include "tls_sockets.h"
 #include "tls_keys_calc.h"

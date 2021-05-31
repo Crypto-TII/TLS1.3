@@ -135,9 +135,9 @@ static bool CHECK_CERT_SIG(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 {
     int sha=0;
     bool res=false;
-    if (st.hash == X509_H256) sha = SHA256;
-    if (st.hash == X509_H384) sha = SHA384;
-    if (st.hash == X509_H512) sha = SHA512;
+    if (st.hash == X509_H256) sha = TLS_SHA256;
+    if (st.hash == X509_H384) sha = TLS_SHA384;
+    if (st.hash == X509_H512) sha = TLS_SHA512;
     if (st.hash == 0)
     {
 #if VERBOSITY >= IO_DEBUG
