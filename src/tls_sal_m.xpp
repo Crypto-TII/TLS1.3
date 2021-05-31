@@ -172,11 +172,12 @@ void TLS_HASH(int sha,octad *H,octad *M)
 void Hash_Init(int hlen,unihash *h)
 {
     if (hlen==TLS_SHA256) 
-        HASH256_init((core::hash256*)&(h->sh32));
+        HASH256_init((core::hash256*)&(h->state));
     if (hlen==TLS_SHA384)
-        HASH384_init((core::hash512*)&(h->sh64));
+        HASH384_init((core::hash512*)&(h->state));
     if (hlen==TLS_SHA512)
-        HASH512_init((core::hash512*)&(h->sh64));
+        HASH512_init((core::hash512*)&(h->state));
+
     h->hlen=hlen;
 }
 
@@ -184,22 +185,22 @@ void Hash_Init(int hlen,unihash *h)
 void Hash_Process(unihash *h,int b)
 {
     if (h->hlen==TLS_SHA256)
-        HASH256_process((core::hash256*)&(h->sh32),b);
+        HASH256_process((core::hash256*)&(h->state),b);
     if (h->hlen==TLS_SHA384)
-        HASH384_process((core::hash512*)&(h->sh64),b);
+        HASH384_process((core::hash512*)&(h->state),b);
     if (h->hlen==TLS_SHA512)
-        HASH512_process((core::hash512*)&(h->sh64),b);
+        HASH512_process((core::hash512*)&(h->state),b);
 }
 
 // output digest
 void Hash_Output(unihash *h,char *d)
 {
     if (h->hlen==TLS_SHA256)
-        HASH256_continuing_hash((core::hash256*)&(h->sh32),d);
+        HASH256_continuing_hash((core::hash256*)&(h->state),d);
     if (h->hlen==TLS_SHA384)
-        HASH384_continuing_hash((core::hash512*)&(h->sh64),d);
+        HASH384_continuing_hash((core::hash512*)&(h->state),d);
     if (h->hlen==TLS_SHA512)
-        HASH384_continuing_hash((core::hash512*)&(h->sh64),d);
+        HASH384_continuing_hash((core::hash512*)&(h->state),d);
 }
 
 void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG)

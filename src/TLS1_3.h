@@ -46,6 +46,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 
 // Some maximum sizes for stack allocated memory. Handshake will fail if these sizes are exceeded! 
 
+#define TLS_MAX_HASH_STATE 1024 /**< Maximum memory required to store hash function state */
 #define TLS_MAX_HASH 64         /**< Maximum hash output length in bytes */
 #define TLS_MAX_KEY 32          /**< Maximum key length in bytes */
 #define TLS_X509_MAX_FIELD 256           /**< Maximum X.509 field size */

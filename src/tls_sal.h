@@ -13,37 +13,11 @@
 
 #include "tls1_3.h"
 
-
-/**
- * @brief SHA256 hash function instance */
-typedef struct
-{
-    unsign32 length[2]; /**< 64-bit input length */
-    unsign32 h[8];      /**< Internal state */
-    unsign32 w[80];	/**< Internal state */
-    int hlen;		/**< Hash length in bytes */
-} hash256;
-
-/**
- * @brief SHA384-512 hash function instance */
-typedef struct
-{
-    unsign64 length[2]; /**< 64-bit input length */
-    unsign64 h[8];      /**< Internal state */
-    unsign64 w[80];	/**< Internal state */
-    int hlen;           /**< Hash length in bytes */
-} hash512;
-
-/**
- * @brief SHA384 hash function instance */
-typedef hash512 hash384;
-
 /**
  * @brief Universal Hash structure */
 typedef struct 
 {
-    hash256 sh32;       /**< A SHA256 instance (MIRACL core) */ 
-    hash512 sh64;       /**< A SHA384/512 instance (MIRACL core) */
+    char state[TLS_MAX_HASH_STATE];   /**< hash function state */
     int hlen;           /**< The length of the SHA output in bytes (32/48/64) */
 } unihash;
 
