@@ -1,5 +1,5 @@
 // 
-// Cryptographic API - this version uses MIRACL core functions
+// Cryptographic API - this version uses MIRACL core functions + TIIcrypto
 //
 
 #include "tls_sal.h"
@@ -22,6 +22,8 @@ extern "C"
     #include "chacha20.h"
     #include "chacha20_poly1305_aead.h"
     #include "tii_prng.h"
+    #include "tii_mac.h"
+    #include "sha2.h"
 }
 
 using namespace core;
@@ -29,7 +31,10 @@ using namespace core;
 csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware source
 
 void TLS_SAL_INITLIB()
-{ // no initialisation required
+{ // Initialise library
+    uint8_t raw[100];
+    tii_prng_get_bytes(raw, 100); // get true random seed
+    RAND_seed(&RNG, 100, (char *)raw);  
 }
 
 int TLS_SAL_CIPHERS(int *ciphers)
@@ -85,23 +90,18 @@ static octet octad_to_octet(octad *x)
     return y;
 }
 
-// Seed the miracl core random number generator
-void TLS_SEED_RNG(int len, char *r)
-{
-    RAND_seed(&RNG, len, r);
-}
-
 // Return a random byte
 int TLS_RANDOM_BYTE()
 {
-    return RAND_byte(&RNG);
+    uint8_t b[1];
+    tii_prng_get_bytes(b, 1);
+    return (int)b[0]&0xff;
 }
 
 // Fill an octad with random values
 void TLS_RANDOM_OCTAD(int len,octad *R)
 {
-    for (int i=0;i<len;i++)
-        R->val[i]=TLS_RANDOM_BYTE();
+    tii_prng_get_bytes((uint8_t *)R->val, len);
     R->len=len;
 }
 
@@ -154,15 +154,29 @@ void TLS_HKDF_Extract(int sha,octad *PRK,octad *SALT,octad *IKM)
 // TLS HMAC
 void TLS_HMAC(int sha,octad *T,octad *K,octad *M)
 {
-    octet MC_T=octad_to_octet(T);
-    octet MC_K=octad_to_octet(K);
-    octet MC_M=octad_to_octet(M);
+    if (sha==TLS_SHA256) {
+        sha256hmac_ctx_t hmacctx;
+        sha256hmac_reset(&hmacctx,(uint8_t *)K->val,TLS_SHA256);
+        sha256hmac_update(&hmacctx,(uint8_t *)M->val,(const uint64_t)M->len);
+        sha256hmac_final(&hmacctx,(uint8_t *)T->val,TLS_SHA256);
+        T->len=TLS_SHA256;
+    }
+    if (sha==TLS_SHA384) {
 
-    HMAC(MC_SHA2,sha,&MC_T,sha,&MC_K,&MC_M);
+        sha384hmac_ctx_t hmacctx;
+        sha384hmac_reset(&hmacctx,(uint8_t *)K->val,TLS_SHA384);
+        sha384hmac_update(&hmacctx,(uint8_t *)M->val,(const uint64_t)M->len);
+        sha384hmac_final(&hmacctx,(uint8_t *)T->val,TLS_SHA384);
 
-    T->len=MC_T.len;
-    K->len=MC_K.len;
-    M->len=MC_M.len;
+        T->len=TLS_SHA384;
+    }
+    if (sha==TLS_SHA512) {
+        sha512hmac_ctx_t hmacctx;
+        sha512hmac_reset(&hmacctx,(uint8_t *)K->val,TLS_SHA512);
+        sha512hmac_update(&hmacctx,(uint8_t *)M->val,(const uint64_t)M->len);
+        sha512hmac_final(&hmacctx,(uint8_t *)T->val,TLS_SHA512);
+        T->len=TLS_SHA512;
+    }
 }
 
 // TLS HASH

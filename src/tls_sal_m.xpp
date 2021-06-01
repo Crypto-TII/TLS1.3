@@ -18,7 +18,10 @@ using namespace core;
 csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware source
 
 void TLS_SAL_INITLIB()
-{ // no initialisation required
+{ // Initialise library
+    char raw[100];
+    for (int i = 0; i < 100; i++) raw[i] = i;  // *** should be from output of true random number generator
+    RAND_seed(&RNG, 100, raw);    
 }
 
 int TLS_SAL_CIPHERS(int *ciphers)
@@ -72,12 +75,6 @@ static octet octad_to_octet(octad *x)
         y.val=NULL;
     }
     return y;
-}
-
-// Seed the miracl core random number generator
-void TLS_SEED_RNG(int len, char *r)
-{
-    RAND_seed(&RNG, len, r);
 }
 
 // Return a random byte

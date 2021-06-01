@@ -30,6 +30,9 @@ void TLS_SAL_INITLIB()
         printf("Libsodium failed to start\n");
         exit(0);
     }
+    char raw[100];
+    randombytes_buf(raw, 100);  // get true random seed
+    RAND_seed(&RNG, 100, raw);  
 }
 
 int TLS_SAL_CIPHERS(int *ciphers)
@@ -84,12 +87,6 @@ static octet octad_to_octet(octad *x)
         y.val=NULL;
     }
     return y;
-}
-
-// Seed the miracl core random number generator
-void TLS_SEED_RNG(int len, char *r)
-{
-    RAND_seed(&RNG, len, r);
 }
 
 // Return a random byte

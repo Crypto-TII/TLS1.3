@@ -158,11 +158,6 @@ void client_send(Socket &client,octad *GET,crypto *K_send,octad *IO)
 capabilities CPB;
 bool PSKMODE=false;
 
-#ifdef ESP32
-unsigned long ran=esp_random();   // ESP32 true random number generator
-#else
-unsigned long ran=42L;
-#endif
 int port=443;
 
 #ifdef TLS_ARDUINO
@@ -197,7 +192,6 @@ void myloop( void *pvParameters );
 
 void setup()
 {
-    char raw[100];
 #ifdef TLS_ARDUINO
     Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
@@ -214,6 +208,8 @@ void setup()
     logger((char *)"Hostname= ",hostname,0,NULL);
 #endif
 
+    TLS_SAL_INITLIB();
+
 // Client Capabilities to be advertised to Server
 // Get supported Key Exchange Groups in order of preference
 
@@ -222,14 +218,6 @@ void setup()
 // Get supported Cipher Suits
 
     CPB.nsc=TLS_SAL_CIPHERS(CPB.ciphers);
-
-    raw[0] = ran;  // fake random seed source
-    raw[1] = ran >> 8;
-    raw[2] = ran >> 16;
-    raw[3] = ran >> 24;
-    for (int i = 4; i < 100; i++) raw[i] = i;  // should be from output of true random number generator
-
-    TLS_SEED_RNG(100,raw); // initialise strong RNG for miracl core
 
 // Get supported TLS1.3 signing Algorithms 
     CPB.nsa=TLS_SAL_SIGS(CPB.sigAlgs);
@@ -433,8 +421,6 @@ int main(int argc, char const *argv[])
     argv++; argc--;
     socketType = SocketType::SOCKET_TYPE_AF_INET;
 
-    TLS_SAL_INITLIB();
-
     if (argc==1 && strcmp(argv[0],"psk")==0)
     {
         printf("PSK mode selected\n");
@@ -486,7 +472,6 @@ int main(int argc, char const *argv[])
         logger((char*) "Did not understand your request. Cannot proceed with request.", NULL, 0, NULL);
         exit(EXIT_FAILURE);
     }
-    time((time_t *)&ran);
     setup();
     loop();  // just once
 }

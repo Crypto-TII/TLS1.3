@@ -55,13 +55,6 @@ extern int TLS_SAL_SIGCERTS(int *sigAlgsCert);
 */
 extern void TLS_SAL_INITLIB();
 
-/** @brief Seed the random number generator
-*
-    @param len length of seed in bytes
-    @param r array of seed bytes to initialize RNG
-*/
-extern void TLS_SEED_RNG(int len, char *r);
-
 /** @brief get a random byte
 *
     @return a random byte

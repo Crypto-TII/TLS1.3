@@ -34,6 +34,7 @@ Build the tls library and the client app by
 	ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_sal.o tls_octads.o tls_x509.o
 
 If using miracl only	
+
 	g++ -O2 client.cpp tls.a core.a -o client
 
 If using miracl+libsodium  
