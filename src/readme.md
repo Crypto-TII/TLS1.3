@@ -192,7 +192,11 @@ See list.txt for some websites that work OK.
 
 ## Client side Authentication
 
-Another way to test less popular options is to set up a local openssl server. First generate a self-signed server certificate, then for example
+Another way to test less popular options is to set up a local openssl server. First generate a self-signed server certificate using something like
+
+	openssl req -x509 -nodes -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365
+
+then for example
 
 	openssl s_server -tls1_3 -key key.pem -cert cert.pem -accept 4433 -www
 

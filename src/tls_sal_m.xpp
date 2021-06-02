@@ -13,6 +13,11 @@
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
 
+// define hash algorithms
+#define TLS_SHA256_T 1
+#define TLS_SHA384_T 2
+#define TLS_SHA512_T 3
+
 using namespace core;
 
 csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware source
@@ -62,6 +67,26 @@ int TLS_SAL_SIGCERTS(int *sigAlgsCert)
     return n;
 }
 
+// return hashtype from cipher_suite
+int TLS_SAL_HASHTYPE(int cipher_suite)
+{
+    int htype=1;   // SHA256 default;
+    if (cipher_suite==TLS_AES_128_GCM_SHA256) htype=TLS_SHA256_T;
+    if (cipher_suite==TLS_AES_256_GCM_SHA384) htype=TLS_SHA384_T;
+    if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256) htype=TLS_SHA256_T;
+    return htype;
+}
+
+// return hash length from hash type
+int TLS_SAL_HASHLEN(int hash_type)
+{
+    int hlen=0;
+    if (hash_type==TLS_SHA256_T) hlen=32;
+    if (hash_type==TLS_SHA384_T) hlen=48;
+    if (hash_type==TLS_SHA512_T) hlen=64;
+    return hlen;
+}
+
 // convert TLS octad to MIRACL core octet
 static octet octad_to_octet(octad *x)
 {
@@ -108,8 +133,9 @@ static void hkdfLabel(octad *LB,int length,octad *Label,octad *CTX)
 }
 
 // HKDF extension for TLS1.3
-void TLS_HKDF_Expand_Label(int sha,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX)
+void TLS_HKDF_Expand_Label(int htype,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX)
 {
+    int hlen=TLS_SAL_HASHLEN(htype);
     char hl[TLS_MAX_HASH+24];
     octad HL={0,sizeof(hl),hl};
 
@@ -118,19 +144,20 @@ void TLS_HKDF_Expand_Label(int sha,octad *OKM,int olen,octad *PRK,octad *Label,o
 
     hkdfLabel(&HL,olen,Label,CTX);
     octet MC_HL=octad_to_octet(&HL);
-    HKDF_Expand(MC_SHA2,sha,&MC_OKM,olen,&MC_PRK,&MC_HL);
+    HKDF_Expand(MC_SHA2,hlen,&MC_OKM,olen,&MC_PRK,&MC_HL);
     OKM->len=MC_OKM.len;
     PRK->len=MC_PRK.len;
 }
 
 // HKDF - Extract secret from raw input
-void TLS_HKDF_Extract(int sha,octad *PRK,octad *SALT,octad *IKM)
+void TLS_HKDF_Extract(int htype,octad *PRK,octad *SALT,octad *IKM)
 {
+    int hlen=TLS_SAL_HASHLEN(htype);
     octet MC_PRK=octad_to_octet(PRK);   // Make it MIRACL core compatible
     octet MC_SALT=octad_to_octet(SALT);
     octet MC_IKM=octad_to_octet(IKM);
 
-    HKDF_Extract(MC_SHA2,sha,&MC_PRK,&MC_SALT,&MC_IKM);
+    HKDF_Extract(MC_SHA2,hlen,&MC_PRK,&MC_SALT,&MC_IKM);
 
     IKM->len=MC_IKM.len;              // restore length
     SALT->len=MC_SALT.len;
@@ -138,66 +165,63 @@ void TLS_HKDF_Extract(int sha,octad *PRK,octad *SALT,octad *IKM)
 }
 
 // TLS HMAC
-void TLS_HMAC(int sha,octad *T,octad *K,octad *M)
+void TLS_HMAC(int htype,octad *T,octad *K,octad *M)
 {
+    int hlen=TLS_SAL_HASHLEN(htype);
     octet MC_T=octad_to_octet(T);
     octet MC_K=octad_to_octet(K);
     octet MC_M=octad_to_octet(M);
 
-    HMAC(MC_SHA2,sha,&MC_T,sha,&MC_K,&MC_M);
+    HMAC(MC_SHA2,hlen,&MC_T,hlen,&MC_K,&MC_M);
 
     T->len=MC_T.len;
     K->len=MC_K.len;
     M->len=MC_M.len;
 }
 
-// TLS HASH
-void TLS_HASH(int sha,octad *H,octad *M)
+// TLS HASH of NULL
+void TLS_HASH_NULL(int htype,octad *H)
 {
+    int hlen=TLS_SAL_HASHLEN(htype);
     octet MC_H=octad_to_octet(H);
-    if (M!=NULL)
-    {
-        octet MC_M=octad_to_octet(M);
-        SPhash(MC_SHA2,sha,&MC_H,&MC_M);
-    } else {
-        SPhash(MC_SHA2,sha,&MC_H,NULL);
-    }
+    SPhash(MC_SHA2,hlen,&MC_H,NULL);
     H->len=MC_H.len;
 }
 
-// Unified hashing. SHA2 type indicate by hlen. For SHA256 hlen=32 etc
-void Hash_Init(int hlen,unihash *h)
+// Unified hashing. Hash type type indicate by htype.
+void Hash_Init(int htype,unihash *h)
 {
-    if (hlen==TLS_SHA256) 
+    if (htype==TLS_SHA256_T) 
         HASH256_init((core::hash256*)&(h->state));
-    if (hlen==TLS_SHA384)
+    if (htype==TLS_SHA384_T)
         HASH384_init((core::hash512*)&(h->state));
-    if (hlen==TLS_SHA512)
+    if (htype==TLS_SHA512_T)
         HASH512_init((core::hash512*)&(h->state));
-
-    h->hlen=hlen;
+    h->htype=htype;
 }
 
 // Process a byte
 void Hash_Process(unihash *h,int b)
 {
-    if (h->hlen==TLS_SHA256)
+    if (h->htype==TLS_SHA256_T)
         HASH256_process((core::hash256*)&(h->state),b);
-    if (h->hlen==TLS_SHA384)
+    if (h->htype==TLS_SHA384_T)
         HASH384_process((core::hash512*)&(h->state),b);
-    if (h->hlen==TLS_SHA512)
+    if (h->htype==TLS_SHA512_T)
         HASH512_process((core::hash512*)&(h->state),b);
 }
 
 // output digest
-void Hash_Output(unihash *h,char *d)
+int Hash_Output(unihash *h,char *d)
 {
-    if (h->hlen==TLS_SHA256)
+    int hlen=TLS_SAL_HASHLEN(h->htype);
+    if (h->htype==TLS_SHA256_T)
         HASH256_continuing_hash((core::hash256*)&(h->state),d);
-    if (h->hlen==TLS_SHA384)
-        HASH384_continuing_hash((core::hash512*)&(h->state),d);
-    if (h->hlen==TLS_SHA512)
-        HASH384_continuing_hash((core::hash512*)&(h->state),d);
+    if (h->htype==TLS_SHA384_T)
+        HASH384_continuing_hash((core::hash384*)&(h->state),d);
+    if (h->htype==TLS_SHA512_T)
+        HASH512_continuing_hash((core::hash512*)&(h->state),d);
+    return hlen;
 }
 
 void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG)

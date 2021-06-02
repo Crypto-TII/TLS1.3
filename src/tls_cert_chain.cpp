@@ -566,7 +566,7 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK)
         }
         return false;
     case ECDSA_SECP256R1_SHA256:  // DER encoded !!
-        sha=0x20; // SHA256
+        sha=TLS_SHA256; // SHA256
         ptr=0;
         rt=parseByte(SCVSIG,ptr); der=rt.val;
         if (rt.err || der!=0x30) return false;
@@ -603,7 +603,7 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK)
         return SECP256R1_ECDSA_VERIFY(sha,&SCV,&R,&S,CERTPK);
 
     case ECDSA_SECP384R1_SHA384:
-        sha=0x30;
+        sha=TLS_SHA384;
         ptr=0;
         rt=parseByte(SCVSIG,ptr); der=rt.val;
         if (rt.err || der!=0x30) return false;

@@ -18,42 +18,55 @@
 typedef struct 
 {
     char state[TLS_MAX_HASH_STATE];   /**< hash function state */
-    int hlen;           /**< The length of the SHA output in bytes (32/48/64) */
+    int htype;                        /**< The hash type (typically SHA256) */
 } unihash;
 
 /** @brief Return supported ciphers
 *
-    @param ciphers array of supported ciphers
+    @param ciphers array of supported ciphers in preferred order
     @return number of supported ciphers
 */
 extern int TLS_SAL_CIPHERS(int *ciphers);
 
-/** @brief Return supported groups
+/** @brief Return supported groups in preferred order
 *
     @param groups array of supported groups
     @return number of supported groups
 */
 extern int TLS_SAL_GROUPS(int *groups);
 
-/** @brief Return supported TLS signature algorithms
+/** @brief Return supported TLS signature algorithms in preferred order 
 *
     @param sigAlgs array of supported signature algorithms
     @return number of supported groups
 */
 extern int TLS_SAL_SIGS(int *sigAlgs);
 
-/** @brief Return supported TLS signature algorithms for Certificates
+/** @brief Return supported TLS signature algorithms for Certificates in preferred order
 *
     @param sigAlgs array of supported signature algorithms for Certificates
     @return number of supported groups
 */
 extern int TLS_SAL_SIGCERTS(int *sigAlgsCert);
 
-
 /** @brief Initialise libraries
 *
 */
 extern void TLS_SAL_INITLIB();
+
+/** @brief return hash type asspciated with a cipher suite
+*
+    @param cipher_suite a TLS cipher suite
+    @return hash function output length
+*/
+extern int TLS_SAL_HASHTYPE(int cipher_suite);
+
+/** @brief return output length of hash function associated with a hash type
+*
+    @param hash_type a TLS hash type
+    @return hash function output length
+*/
+extern int TLS_SAL_HASHLEN(int hash_type);
 
 /** @brief get a random byte
 *
@@ -70,7 +83,7 @@ extern void TLS_RANDOM_OCTAD(int len, octad *R);
 
 /**	@brief HKDF Extract function
  *
-	@param sha length in bytes of SHA2 hashing output (32/48/64)
+	@param htype hash algorithm
 	@param PRK an output Key
     @param SALT public input salt
     @param IKM raw secret keying material
@@ -79,31 +92,30 @@ extern void TLS_HKDF_Extract(int sha,octad *PRK,octad *SALT,octad *IKM);
 
 /**	@brief Special HKDF Expand function (for TLS)
  *
-	@param sha length in bytes of SHA2 hashing output (32/48/64)
+	@param htype hash algorithm
 	@param OKM an expanded output Key
     @param olen is the desired length of the expanded key
     @param PRK is the fixed length input key
     @param Label is public label information
     @param CTX is public context information
  */
-extern void TLS_HKDF_Expand_Label(int sha,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX);
+extern void TLS_HKDF_Expand_Label(int htype,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX);
 
 /**	@brief simple HMAC function
  *
-	@param sha the SHA2 function output length (32,48 or 64), also tag length
+	@param htype hash algorithm
 	@param T an output tag
     @param K an input key, or salt
     @param M an input message
  */
-extern void TLS_HMAC(int sha,octad *T,octad *K,octad *M);
+extern void TLS_HMAC(int htype,octad *T,octad *K,octad *M);
 
-/**	@brief simple HASH function
+/**	@brief simple HASH of nothing function
  *
 	@param sha the SHA2 function output length (32,48 or 64)
 	@param H the output hash
-    @param M an input message
  */
-extern void TLS_HASH(int sha,octad *H,octad *M);
+extern void TLS_HASH_NULL(int sha,octad *H);
 
 // hash functions
 
@@ -125,8 +137,9 @@ extern void Hash_Process(unihash *h,int b);
  *
     @param h a hashing context
     @param d the current output digest of an ongoing hashing operation
+    @return hash output length
  */
-extern void Hash_Output(unihash *h,char *d);
+extern int Hash_Output(unihash *h,char *d);
 
 /**	@brief AEAD encryption 
  *

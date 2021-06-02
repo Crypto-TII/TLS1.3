@@ -15,7 +15,7 @@
 int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send,crypto &K_recv,octad &STS,capabilities &CPB,int &cipher_suite,int &favourite_group)
 {
     int i,rtn,pskid;
-    int cs_hrr,kex,sha;
+    int cs_hrr,kex,hashtype,hashlen;
     bool early_data_accepted,ccs_sent=false;
     bool resumption_required=false;
     bool gotacertrequest=false;
@@ -121,16 +121,14 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     }
 
 // Find cipher-suite chosen by Server
-    sha=0;
+    hashtype=0;
     for (i=0;i<CPB.nsc;i++)
     {
         if (cipher_suite==CPB.ciphers[i])
-        {
-            sha=TLS_SHA256; // length of SHA256 hash
-            if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=TLS_SHA384; // length of SHA384
-        }
+            hashtype=TLS_SAL_HASHTYPE(cipher_suite);
     }
-    if (sha==0)
+    hashlen=TLS_SAL_HASHLEN(hashtype);
+    if (hashlen==0)
     {
         sendClientAlert(client,UNEXPECTED_MESSAGE,NULL,&IO);
 #if VERBOSITY >= IO_DEBUG
@@ -142,12 +140,12 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Cipher suite= ",(char *)"%x",cipher_suite,NULL);
 #endif
-    GET_EARLY_SECRET(sha,NULL,&ES,NULL,NULL);   // Early Secret
+    GET_EARLY_SECRET(hashtype,NULL,&ES,NULL,NULL);   // Early Secret
 
 // Initialise Transcript Hash
-// For Transcript hash we must use cipher-suite hash function which could be SHA256 or SHA384
-    unihash tlshash;
-    Hash_Init(sha,&tlshash);    
+// For Transcript hash we must use cipher-suite hash function
+    unihash tlshash;    // Universal Hash
+    Hash_Init(hashtype,&tlshash);    
 
 // Did serverHello ask for HelloRetryRequest?
     if (rtn==HANDSHAKE_RETRY)
@@ -239,7 +237,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
     transcript_hash(&tlshash,&HH);              // hash of clientHello+serverHello
-    GET_HANDSHAKE_SECRETS(sha,&SS,&ES,&HH,&HS,&CTS,&STS);
+    GET_HANDSHAKE_SECRETS(hashtype,&SS,&ES,&HH,&HS,&CTS,&STS);
     GET_KEY_AND_IV(cipher_suite,&CTS,&K_send);
     GET_KEY_AND_IV(cipher_suite,&STS,&K_recv);
 #if VERBOSITY >= IO_DEBUG
@@ -378,7 +376,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
         return 0;
 
 
-    if (!IS_VERIFY_DATA(sha,&FIN,&STS,&FH))
+    if (!IS_VERIFY_DATA(hashtype,&FIN,&STS,&FH))
     {
         sendClientAlert(client,DECRYPT_ERROR,&K_send,&IO);
 #if VERBOSITY >= IO_DEBUG
@@ -427,7 +425,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 
 // create client verify data
 // .... and send it to Server
-    VERIFY_DATA(sha,&CHF,&CTS,&TH);  
+    VERIFY_DATA(hashtype,&CHF,&CTS,&TH);  
     sendClientFinish(client,&K_send,&tlshash,&CHF,&IO);  
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client Verify Data= ",NULL,0,&CHF); 
@@ -436,7 +434,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     transcript_hash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify+serverFinish(+clientCertChain+clientCertVerify)+clientFinish
 
 // calculate traffic and application keys from handshake secret and transcript hashes
-    GET_APPLICATION_SECRETS(sha,&HS,&HH,&FH,&CTS,&STS,NULL,&RMS);
+    GET_APPLICATION_SECRETS(hashtype,&HS,&HH,&FH,&CTS,&STS,NULL,&RMS);
 
     GET_KEY_AND_IV(cipher_suite,&CTS,&K_send);
     GET_KEY_AND_IV(cipher_suite,&STS,&K_recv);
@@ -459,7 +457,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 // EARLY - First message from Client to Server (should ideally be sent as early data!)
 int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send,crypto &K_recv,octad &STS,ticket &T,octad &EARLY)
 {
-    int sha,rtn,kex,cipher_suite,pskid,favourite_group;
+    int hashtype,hashlen,rtn,kex,cipher_suite,pskid,favourite_group;
     bool early_data_accepted;
 
     char es[TLS_MAX_HASH];               // Early Secret
@@ -544,20 +542,18 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
 
 // recover PSK from Resumption Master Secret and Nonce, or directly as external PSK
 
-    sha=TLS_SHA256; // SHA256 default;
-    if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=TLS_SHA256;
-    if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=TLS_SHA384;
-    if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256) sha=TLS_SHA256;
+    hashtype=TLS_SAL_HASHTYPE(cipher_suite);
+    hashlen=TLS_SAL_HASHLEN(hashtype); // get hash function output length
 
     if (time_ticket_received==0 && age_obfuscator==0)
     { // its an external PSK
         external_psk=true;
         OCT_copy(&PSK,&NONCE);   // get external PSK - we put it in the ticket nonce!
-        GET_EARLY_SECRET(sha,&PSK,&ES,&BK,NULL);
+        GET_EARLY_SECRET(hashtype,&PSK,&ES,&BK,NULL);
     } else {
         external_psk=false;
-        RECOVER_PSK(sha,&RMS,&NONCE,&PSK);          // recover PSK from resumption master secret and ticket nonce
-        GET_EARLY_SECRET(sha,&PSK,&ES,NULL,&BK);   // compute early secret and Binder Key from PSK
+        RECOVER_PSK(hashtype,&RMS,&NONCE,&PSK);          // recover PSK from resumption master secret and ticket nonce
+        GET_EARLY_SECRET(hashtype,&PSK,&ES,NULL,&BK);   // compute early secret and Binder Key from PSK
     }
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"PSK= ",NULL,0,&PSK); 
@@ -604,7 +600,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
         logger((char *)"obfuscated age = ",(char *)"%x",age,NULL);
 #endif
     }
-    int extra=addPreSharedKeyExt(&EXT,age,&ETICK,sha);
+    int extra=addPreSharedKeyExt(&EXT,age,&ETICK,hashlen);
 
     int ciphers[1]; ciphers[0]=cipher_suite;     // Only allow one cipher suite
 // create and send Client Hello octad
@@ -614,13 +610,13 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
     logger((char *)"Client to Server -> ",NULL,0,&IO);
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
 #endif
-    unihash tlshash;
-    Hash_Init(sha,&tlshash);        // but which hash function to use - serverHello might change it!
+    unihash tlshash;   // Universal Hash
+    Hash_Init(hashtype,&tlshash);        // but which hash function to use - serverHello might change it!
     running_hash(&CH,&tlshash); 
     running_hash(&EXT,&tlshash);
     transcript_hash(&tlshash,&HH);            // hash of Truncated clientHello
 
-    VERIFY_DATA(sha,&BND,&BK,&HH);
+    VERIFY_DATA(hashtype,&BND,&BK,&HH);
     sendBinder(client,&BL,&BND,&IO);
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"BND= ",NULL,0,&BND);
@@ -633,7 +629,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
     if (have_early_data)
         sendCCCS(client);
 
-    GET_LATER_SECRETS(sha,&ES,&HH,&CETS,NULL);   // Get Client Early Traffic Secret from transcript hash and ES
+    GET_LATER_SECRETS(hashtype,&ES,&HH,&CETS,NULL);   // Get Client Early Traffic Secret from transcript hash and ES
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client Early Traffic Secret= ",NULL,0,&CETS); 
 #endif
@@ -684,14 +680,6 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
         return 0;
     }
 
-// Check which cipher-suite chosen by Server
-    sha=0;
-    if (cipher_suite==TLS_AES_128_GCM_SHA256) sha=TLS_SHA256;
-    if (cipher_suite==TLS_AES_256_GCM_SHA384) sha=TLS_SHA384;
-    if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256) sha=TLS_SHA256;
-
-    if (sha==0) return 0;
-
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
     GENERATE_SHARED_SECRET(kex,&CSK,&PK,&SS);
 #if VERBOSITY >= IO_DEBUG
@@ -700,7 +688,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
 #endif
     running_hash(&IO,&tlshash);
     transcript_hash(&tlshash,&HH);       // hash of clientHello+serverHello
-    GET_HANDSHAKE_SECRETS(sha,&SS,&ES,&HH,&HS,&CTS,&STS); 
+    GET_HANDSHAKE_SECRETS(hashtype,&SS,&ES,&HH,&HS,&CTS,&STS); 
     GET_KEY_AND_IV(cipher_suite,&STS,&K_recv);
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Handshake Secret= ",NULL,0,&HS);
@@ -767,7 +755,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
 // Switch to handshake keys
     GET_KEY_AND_IV(cipher_suite,&CTS,&K_send);
 
-    if (!IS_VERIFY_DATA(sha,&FIN,&STS,&FH))
+    if (!IS_VERIFY_DATA(hashtype,&FIN,&STS,&FH))
     {
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Server Data is NOT verified\n",NULL,0,NULL);
@@ -776,7 +764,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
     }
 
 // create client verify data and send it to Server
-    VERIFY_DATA(sha,&CHF,&CTS,&TH);  
+    VERIFY_DATA(hashtype,&CHF,&CTS,&TH);  
     sendClientFinish(client,&K_send,&tlshash,&CHF,&IO);  
 
 #if VERBOSITY >= IO_DEBUG
@@ -787,7 +775,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
     transcript_hash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtension+serverFinish+EndOfEarlyData+clientFinish
 
 // calculate traffic and application keys from handshake secret and transcript hashes
-    GET_APPLICATION_SECRETS(sha,&HS,&HH,NULL,&CTS,&STS,NULL,NULL);  
+    GET_APPLICATION_SECRETS(hashtype,&HS,&HH,NULL,&CTS,&STS,NULL,NULL);  
     GET_KEY_AND_IV(cipher_suite,&CTS,&K_send);
     GET_KEY_AND_IV(cipher_suite,&STS,&K_recv);
 #if VERBOSITY >= IO_DEBUG
