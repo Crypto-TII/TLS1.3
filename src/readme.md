@@ -45,7 +45,6 @@ If using miracl+TIIcrypto
 
 	g++ -O2 client.cpp tls.a core.a libtiicrypto-v2.3.0.a -o client
 
-
 Or by using CMake. If you follow this alternative, copy the header files into `vendor/miracl/includes`, and the `core.a` to `vendor/miracl/` 
 
 Then execute the client process as for example

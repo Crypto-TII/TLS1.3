@@ -267,7 +267,8 @@ void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK)
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
     if (group==X25519)
-    {
+    { // Note that this program maintains the private key in big-endian format
+      // But X25519 assumes private and public keys are all in little-endian form (and are transmitted/received in that form)
         C25519::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
         OCT_reverse(&MC_PK);  // public key must be transmitted in little-endian form
     }
@@ -435,6 +436,11 @@ bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *R,octad *S,octad *PUBKEY)
     return true;
 }
 
+bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+{ // TBD
+    return false;
+}
+
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S)
 {
@@ -461,6 +467,10 @@ void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S)
 
     R->len=MC_R.len;
     S->len=MC_S.len;
+}
+
+void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG)
+{ // TBD
 }
 
 // Use RSA-2048 PSS-RSAE to digitally sign a message using a private key

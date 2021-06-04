@@ -60,22 +60,23 @@ int TLS_SAL_GROUPS(int *groups)
 
 int TLS_SAL_SIGS(int *sigAlgs)
 {
-    int n=3;
+    int n=4;
     sigAlgs[0]=ECDSA_SECP256R1_SHA256;
     sigAlgs[1]=RSA_PSS_RSAE_SHA256;
     sigAlgs[2]=ECDSA_SECP384R1_SHA384;
+    sigAlgs[3]=ED25519;
     return n;
 }
 
 int TLS_SAL_SIGCERTS(int *sigAlgsCert)
 {
-    int n=5;
+    int n=6;
     sigAlgsCert[0]=ECDSA_SECP256R1_SHA256;
     sigAlgsCert[1]=RSA_PKCS1_SHA256;
     sigAlgsCert[2]=ECDSA_SECP384R1_SHA384;
     sigAlgsCert[3]=RSA_PKCS1_SHA384;
     sigAlgsCert[4]=RSA_PKCS1_SHA512;
-
+    sigAlgsCert[5]=ED25519;
     return n;
 }
 
@@ -286,7 +287,8 @@ void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK)
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
     if (group==X25519)
-    {
+    { // Note that this program maintains the private key in big-endian format
+      // But X25519 assumes private and public keys are all in little-endian form (and are transmitted/received in that form)
         OCT_reverse(&MC_SK);  // to little-endian
         crypto_scalarmult_base((unsigned char *)MC_PK.val, (unsigned char *)MC_SK.val);
         OCT_reverse(&MC_SK);  // convert back
@@ -456,6 +458,22 @@ bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *R,octad *S,octad *PUBKEY)
     return true;
 }
 
+bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+{ 
+    unsigned char pk[crypto_sign_PUBLICKEYBYTES];
+    unsigned char sig[crypto_sign_BYTES];
+
+    for (int i=0;i<crypto_sign_PUBLICKEYBYTES;i++)
+        pk[i]=PUBKEY->val[i];
+    for (int i=0;i<crypto_sign_BYTES;i++)
+        sig[i]=SIG->val[i];
+
+    if (crypto_sign_verify_detached(sig, (unsigned char *)CERT->val, CERT->len, pk) != 0) 
+        return false;
+
+    return true;
+}
+
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S)
 {
@@ -482,6 +500,20 @@ void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S)
 
     R->len=MC_R.len;
     S->len=MC_S.len;
+}
+
+void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG)
+{ 
+    unsigned char sk[crypto_sign_SECRETKEYBYTES];
+    unsigned char sig[crypto_sign_BYTES];
+    for (int i=0;i<crypto_sign_SECRETKEYBYTES;i++)
+        sk[i]=KEY->val[i];
+
+    crypto_sign_detached(sig, NULL, (unsigned char *)MESS->val, MESS->len, sk);
+
+    SIG->len=crypto_sign_BYTES;
+    for (int i=0;i<crypto_sign_BYTES;i++)
+        SIG->val[i]=sig[i];
 }
 
 // Use RSA-2048 PSS-RSAE to digitally sign a message using a private key

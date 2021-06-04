@@ -173,8 +173,7 @@ static bool CHECK_CERT_SIG(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
         if (st.curve==USE_NIST256)
             res=SECP256R1_ECDSA_VERIFY(sha,CERT,&R,&S,PUBKEY);
         if (st.curve==USE_NIST384)
-            res=SECP384R1_ECDSA_VERIFY(sha,CERT,&R,&S,PUBKEY);        
-
+            res=SECP384R1_ECDSA_VERIFY(sha,CERT,&R,&S,PUBKEY); 
         if (res)
         {
 #if VERBOSITY >= IO_DEBUG
@@ -187,6 +186,29 @@ static bool CHECK_CERT_SIG(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 #endif
             return false;
         }
+    }
+    if (st.type == X509_ECD)
+    {
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"SIG = \n",NULL,0,SIG);
+        logger((char *)"\nEdDSA PUBLIC KEY= \n",NULL,0,PUBKEY);
+        logger((char *)"Checking EdDSA Signature on Cert ",(char *)"%d",st.curve,NULL);
+#endif
+        if (st.curve==USE_C25519)
+            res=Ed25519_VERIFY(CERT,SIG,PUBKEY);
+        if (res)
+        {
+#if VERBOSITY >= IO_DEBUG
+            logger((char *)"EdDSA Signature/Verification succeeded \n",NULL,0,NULL);
+#endif
+            return true;
+        } else {
+#if VERBOSITY >= IO_DEBUG
+            logger((char *)"***EdDSA Verification Failed\n",NULL,0,NULL);
+#endif
+            return false;
+        }
+
     }
     if (st.type == X509_RSA)
     { // its an RSA signature - assuming PKCS1.5 encoding
@@ -461,6 +483,11 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
         }
     }
     break;
+    case ED25519:
+    {
+        Ed25519_SIGN(KEY,&CCV,CCVSIG) ;
+    }
+    break;
     case ECDSA_SECP256R1_SHA256:
     case ECDSA_SECP384R1_SHA384:
     { 
@@ -637,6 +664,8 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK)
 
         return SECP384R1_ECDSA_VERIFY(sha,&SCV,&R,&S,CERTPK);
 
+   case ED25519:
+        return Ed25519_VERIFY(&SCV,SCVSIG,CERTPK);
     default :
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"WHOOPS - Unsupported signature type\n",NULL,0,NULL);

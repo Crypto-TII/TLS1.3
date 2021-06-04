@@ -33,15 +33,6 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 // *****************************************************************************
 
-// Standard Hash Types
-
-#define TLS_SHA256 32           /**< SHA256 hash length in bytes */
-#define TLS_SHA384 48           /**< SHA384 hash length in bytes */
-#define TLS_SHA512 64           /**< SHA512 hash length in bytes */
-
-
-
-
 // Encryption
 #define TLS_AES_128 16          /**< AES128 key length in bytes */
 #define TLS_AES_256 32          /**< AES256 key length in bytes */

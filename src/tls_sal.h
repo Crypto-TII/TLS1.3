@@ -243,6 +243,17 @@ extern bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *R,octad *S,octad *
  */
 extern bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *R,octad *S,octad *PUBKEY);
 
+
+/**	@brief Verify an Ed25519 signature 
+ *
+    @param CERT the input that was signed
+    @param SIG is the input signature
+    @param PUBKEY the public key used to verify the signature
+    @return true if signature is valid, else false
+ */
+extern bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY);
+
+
 /**	@brief Create ECDSA signature using curve SECP256R1
  *
     @param sha the SHA2 algorithm (32/48/64)
@@ -261,7 +272,16 @@ extern void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *
     @param R is first part of the output signature
     @param S is second part of the output signature
  */
-void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S);
+extern void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S);
+
+/**	@brief Create Ed225519 signature
+ *
+    @param KEY the private signing key
+    @param MESS is the message to be signed
+    @param SIG is the output signature
+ */
+extern void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG);
+
 
 /**	@brief Create RSA-2048 PSS-RSAE signature 
  *

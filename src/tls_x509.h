@@ -16,6 +16,7 @@
 
 #define X509_ECC 1      /**< Elliptic Curve data type detected */
 #define X509_RSA 2      /**< RSA data type detected */
+#define X509_ECD 3      /**< Elliptic Curve (Ed25519) detected */
 
 // Supported Hash functions
 

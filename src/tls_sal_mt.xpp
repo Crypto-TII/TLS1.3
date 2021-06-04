@@ -15,6 +15,8 @@
 
 // Use TIIcrypto 
 
+#define TII_CURVE_25519
+
 extern "C" 
 {
     #include "aes.h"
@@ -22,8 +24,9 @@ extern "C"
     #include "chacha20.h"
     #include "chacha20_poly1305_aead.h"
     #include "tii_prng.h"
-    #include "tii_mac.h"
     #include "sha2.h"
+    #include "eckeys.h"
+    #include "eddsa.h"
 }
 
 // define hash algorithms
@@ -61,21 +64,23 @@ int TLS_SAL_GROUPS(int *groups)
 
 int TLS_SAL_SIGS(int *sigAlgs)
 {
-    int n=3;
+    int n=4;
     sigAlgs[0]=ECDSA_SECP256R1_SHA256;
     sigAlgs[1]=RSA_PSS_RSAE_SHA256;
     sigAlgs[2]=ECDSA_SECP384R1_SHA384;
+    sigAlgs[3]=ED25519;
     return n;
 }
 
 int TLS_SAL_SIGCERTS(int *sigAlgsCert)
 {
-    int n=5;
+    int n=6;
     sigAlgsCert[0]=ECDSA_SECP256R1_SHA256;
     sigAlgsCert[1]=RSA_PKCS1_SHA256;
     sigAlgsCert[2]=ECDSA_SECP384R1_SHA384;
     sigAlgsCert[3]=RSA_PKCS1_SHA384;
     sigAlgsCert[4]=RSA_PKCS1_SHA512;
+    sigAlgsCert[5]=ED25519;
 
     return n;
 }
@@ -326,11 +331,47 @@ void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK)
         SK->val[0]|=64;
     }
 
+
+/*
+    ec_private_key_t private_key;
+    ec_public_key_t public_key;
+    ec_public_key_init(&public_key);
+
+    ec_private_key_init(&private_key);
+    for (int i=0;i<32;i++) private_key.bytes_representation[i]=SK->val[i];
+    gfco_set_nbo(&private_key.internal_representation, private_key.bytes_representation,32);
+
+    printf("Private key= ");
+    for (int i=0;i<32;i++)
+        printf("%02x",private_key.bytes_representation[i]);
+    printf("\n");
+
+    ec_public_key_gen(&public_key,&private_key);
+    printf("Public key= \n");
+    printf("x= ");
+    for (int i=0;i<32;i++)
+        printf("%02x",public_key.public_x[i]);
+    printf("\n");
+    printf("y= ");
+    for (int i=0;i<32;i++)
+        printf("%02x",public_key.public_y[i]);
+    printf("\n");
+*/
+
+
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
     if (group==X25519)
-    {
+    { // Note that this program maintains the private key in big-endian format
+      // But X25519 assumes private and public keys are all in little-endian form (and are transmitted/received in that form)
         C25519::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
+/*    
+    printf("Public key= \n");
+    printf("x= ");
+    for (int i=0;i<32;i++)
+        printf("%02x",(unsigned char)(MC_PK.val[i]&0xff));   
+    printf("\n");
+*/
         OCT_reverse(&MC_PK);  // public key must be transmitted in little-endian form
     }
     if (group==SECP256R1)
@@ -497,6 +538,23 @@ bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *R,octad *S,octad *PUBKEY)
     return true;
 }
 
+bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+{ 
+    eddsa_public_key_t pk;
+    eddsa_signature_t sig;
+
+    for (int i=0;i<ED25519_DSA_PUBLIC_KEY_SIZE_IN_BYTES;i++)
+        pk[i]=PUBKEY->val[i];
+    for (int i=0;i<ED25519_DSA_SIGNATURE_SIZE_IN_BYTES;i++)
+        sig[i]=SIG->val[i];
+
+    int result=eddsa_verify(&sig,&pk,(uint8_t *)CERT->val,CERT->len);
+
+    if (result == 0) 
+        return true;
+    return false;
+}
+
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S)
 {
@@ -523,6 +581,22 @@ void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S)
 
     R->len=MC_R.len;
     S->len=MC_S.len;
+}
+
+void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG)
+{ 
+    eddsa_private_key_t sk;
+    eddsa_signature_t sig;
+
+    for (int i=0;i<ED25519_DSA_PRIVATE_KEY_SIZE_IN_BYTES;i++)
+        sk.private_key[i]=KEY->val[i];
+    eddsa_public_key_gen(&(sk.public_key),&sk);   // ??
+
+    eddsa_sign(&sig,&sk,(uint8_t *)MESS->val,MESS->len);
+
+    SIG->len=ED25519_DSA_SIGNATURE_SIZE_IN_BYTES;
+    for (int i=0;i<ED25519_DSA_SIGNATURE_SIZE_IN_BYTES;i++)
+        SIG->val[i]=sig[i];   
 }
 
 // Use RSA-2048 PSS-RSAE to digitally sign a message using a private key

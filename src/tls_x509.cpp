@@ -42,6 +42,10 @@ static octad ECCSHA512 = {8, sizeof(eccsha512), (char *)eccsha512};
 static unsigned char ecpk[7] = {0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01};
 static octad ECPK = {7, sizeof(ecpk), (char *)ecpk};
 
+// ED Public Key - Elliptic curve EdDSA (Ed25519) Signature
+static unsigned char edpk[3] = {0x2B, 0x65, 0x70};              
+static octad EDPK = {3, sizeof(edpk),(char *)edpk};
+
 // C25519 curve
 static unsigned char prime25519[9] = {0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01}; /*****/
 static octad PRIME25519 = {9, sizeof(prime25519), (char *)prime25519};
@@ -202,6 +206,24 @@ pktype X509_extract_private_key(octad *c,octad *pk)
     for (i = 0; j < fin; j++)
         SOID.val[i++] = c->val[j];
     j=fin;
+
+    if (OCT_compare(&EDPK, &SOID)) 
+    { // Its an Ed25519 key
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        rlen=32;
+        pk->len=rlen;
+        for (i=0;i<rlen-len;i++)
+            pk->val[i]=0;
+        for (i=rlen-len;i<rlen;i++)
+            pk->val[i]=c->val[j++];
+        ret.type = X509_ECD;
+        ret.curve = USE_C25519;
+    }
 
     if (OCT_compare(&ECPK, &SOID))
     { // Its an ECC key
@@ -368,7 +390,11 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         SOID.val[i++] = sc->val[j];
 
     // check OID here..
-
+    if (OCT_compare(&EDPK, &SOID)) 
+    {
+        ret.type = X509_ECD;
+        ret.hash = X509_H512;
+    }
     if (OCT_compare(&ECCSHA256, &SOID))
     {
         ret.type = X509_ECC;
@@ -413,6 +439,21 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
     j += skip(len);
     j++;
     len--; // skip bit shift (hopefully 0!)
+
+    if (ret.type==X509_ECD)
+    {
+        rlen = bround(len);
+        ex = rlen - len;
+
+        sig->len = rlen;
+        i = 0;
+        for (k = 0; k < ex; k++)
+            sig->val[i++] = 0;
+
+        fin = j + len;
+        for (; j < fin; j++)
+            sig->val[i++] = sc->val[j];
+    }
 
     if (ret.type == X509_ECC)
     {
@@ -593,6 +634,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
 
     ret.type = 0;
     if (OCT_compare(&ECPK, &KOID)) ret.type = X509_ECC;
+    if (OCT_compare(&EDPK, &KOID)) ret.type = X509_ECD;
     if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
 
     if (ret.type == 0) return ret;
@@ -632,7 +674,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
     len--; // skip bit shift (hopefully 0!)
 
 // extract key
-    if (ret.type == X509_ECC)
+    if (ret.type == X509_ECC || ret.type == X509_ECD)
     {
         key->len = len;
         fin = j + len;
