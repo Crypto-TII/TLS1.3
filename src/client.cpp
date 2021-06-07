@@ -208,7 +208,16 @@ void setup()
     logger((char *)"Hostname= ",hostname,0,NULL);
 #endif
 
-    TLS_SAL_INITLIB();
+// Initialise Security Abstraction Layer
+    bool retn=TLS_SAL_INITLIB();
+    if (!retn)
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
+#endif
+        return;
+    }
+
 
 // Client Capabilities to be advertised to Server
 // Get supported Key Exchange Groups in order of preference

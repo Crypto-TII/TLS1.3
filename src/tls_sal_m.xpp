@@ -1,5 +1,5 @@
 // 
-// Cryptographic API - this version uses MIRACL core functions
+// Cryptographic Security Abstraction Layer API - this version uses MIRACL core functions
 //
 
 #include "tls_sal.h"
@@ -22,11 +22,12 @@ using namespace core;
 
 csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware source
 
-void TLS_SAL_INITLIB()
+bool TLS_SAL_INITLIB()
 { // Initialise library
     char raw[100];
     for (int i = 0; i < 100; i++) raw[i] = i;  // *** should be from output of true random number generator
     RAND_seed(&RNG, 100, raw);    
+    return true;
 }
 
 int TLS_SAL_CIPHERS(int *ciphers)
@@ -70,7 +71,7 @@ int TLS_SAL_SIGCERTS(int *sigAlgsCert)
 // return hashtype from cipher_suite
 int TLS_SAL_HASHTYPE(int cipher_suite)
 {
-    int htype=1;   // SHA256 default;
+    int htype=TLS_SHA256_T;   // SHA256 default;
     if (cipher_suite==TLS_AES_128_GCM_SHA256) htype=TLS_SHA256_T;
     if (cipher_suite==TLS_AES_256_GCM_SHA384) htype=TLS_SHA384_T;
     if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256) htype=TLS_SHA256_T;

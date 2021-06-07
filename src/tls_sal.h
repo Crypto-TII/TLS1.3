@@ -51,8 +51,9 @@ extern int TLS_SAL_SIGCERTS(int *sigAlgsCert);
 
 /** @brief Initialise libraries
 *
+    @return return true if successful, else false
 */
-extern void TLS_SAL_INITLIB();
+extern bool TLS_SAL_INITLIB();
 
 /** @brief return hash type asspciated with a cipher suite
 *

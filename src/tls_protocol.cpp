@@ -5,13 +5,14 @@
 // TLS1.3 full handshake
 // client - socket connection
 // hostname - website for connection
-// Capabilities - the supported crypto primitives
+// IO - main input/output buffer
 // RMS - returned Resumption Master secret
 // K_send - Sending Key
 // K_recv - Receiving Key
 // STS - Server traffic secret
+// Capabilities - the supported crypto primitives
 // cipher_suite - agreed cipher suite 
-// favourite group - may be changed on handshake retry
+// favourite key exchange group - may be changed on handshake retry
 int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send,crypto &K_recv,octad &STS,capabilities &CPB,int &cipher_suite,int &favourite_group)
 {
     int i,rtn,pskid;
@@ -449,6 +450,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 // TLS1.3 resumption handshake
 // client - socket connection
 // hostname - website for reconnection
+// IO - main input/output buffer
 // RMS - Resumption Master secret from previous session
 // K_send - Sending Key
 // K_recv - Receiving Key

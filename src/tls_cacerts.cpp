@@ -1,3 +1,8 @@
+//
+// Certificate data stored here
+// My private key, my cert, and CA root certificates
+//
+
 
 #include "tls_cacerts.h"
 
