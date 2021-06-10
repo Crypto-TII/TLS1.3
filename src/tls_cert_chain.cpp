@@ -1,4 +1,4 @@
-// TLS1.3 Server Certificate Chain Code
+// TLS1.3 Certificate Processing Code
 
 #include "tls_cert_chain.h"
 
@@ -116,16 +116,8 @@ static pktype STRIP_DOWN_CERT(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJEC
     ic = X509_find_issuer(CERT);
     FULL_NAME(ISSUER,CERT,ic);
 
-//#if VERBOSITY >= IO_DEBUG
-//    logger((char *)"Full Issuer Name Length= ",(char *)"%d",ISSUER->len,NULL);
-//#endif
-
     ic = X509_find_subject(CERT);
     FULL_NAME(SUBJECT,CERT,ic);
-
-//#if VERBOSITY >= IO_DEBUG
-//    logger((char *)"Full Subject Name Length= ",(char *)"%d",SUBJECT->len,NULL);
-//#endif
 
     return sg;
 }
@@ -133,110 +125,55 @@ static pktype STRIP_DOWN_CERT(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJEC
 // Check signature on Certificate given signature type and public key
 static bool CHECK_CERT_SIG(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 {
+// determine signature algorithm
     int sha=0;
     bool res=false;
-    if (st.hash == X509_H256) sha = TLS_SHA256;
-    if (st.hash == X509_H384) sha = TLS_SHA384;
-    if (st.hash == X509_H512) sha = TLS_SHA512;
-    if (st.hash == 0)
-    {
-#if VERBOSITY >= IO_DEBUG
-        logger((char *)"Hash Function not supported\n",NULL,0,NULL);
-#endif
-        return false;
-    }
-    if (st.type == 0)
+
+// determine certificate signature type, by parsing pktype
+    int sigAlg=0;
+    if (st.type== X509_ECC && st.hash==X509_H256 && st.curve==USE_NIST256)
+        sigAlg = ECDSA_SECP256R1_SHA256;
+    if (st.type== X509_ECC && st.hash==X509_H384 && st.curve==USE_NIST384)
+        sigAlg = ECDSA_SECP384R1_SHA384;
+    if (st.type== X509_ECD && st.curve==USE_C25519)
+        sigAlg = ED25519;
+    if (st.type== X509_RSA && st.hash==X509_H256)
+        sigAlg = RSA_PKCS1_SHA256;
+    if (st.type== X509_RSA && st.hash==X509_H384)
+        sigAlg = RSA_PKCS1_SHA384;
+    if (st.type== X509_RSA && st.hash==X509_H512)
+        sigAlg = RSA_PKCS1_SHA512;
+
+    if (sigAlg == 0)
     {
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Unable to check cert signature\n",NULL,0,NULL);
 #endif
         return false;
     }
-    if (st.type == X509_ECC)
-    { // its an ECC signature
-        char r[TLS_MAX_ECC_FIELD];
-        octad R={0,sizeof(r),r};
-        char s[TLS_MAX_ECC_FIELD];
-        octad S={0,sizeof(s),s};
-        int siglen=SIG->len/2;
-        for (int i=0;i<siglen;i++)
-        {
-            OCT_append_byte(&R,SIG->val[i],1);
-            OCT_append_byte(&S,SIG->val[i+siglen],1);
-        }
+
 #if VERBOSITY >= IO_DEBUG
-        logger((char *)"SIG R= \n",NULL,0,&R);
-        logger((char *)"SIG S= \n",NULL,0,&S);
-        logger((char *)"\nECC PUBLIC KEY= \n",NULL,0,PUBKEY);
-        logger((char *)"Checking ECC Signature on Cert ",(char *)"%d",st.curve,NULL);
+    logger((char *)"SIG = \n",NULL,0,SIG);
+    logger((char *)"\nPUBLIC KEY= \n",NULL,0,PUBKEY);
+    logger((char *)"Checking Signature on Cert \n",NULL,0,NULL);
+    logSigAlg(sigAlg);
 #endif
-        if (st.curve==USE_NIST256)
-            res=SECP256R1_ECDSA_VERIFY(sha,CERT,&R,&S,PUBKEY);
-        if (st.curve==USE_NIST384)
-            res=SECP384R1_ECDSA_VERIFY(sha,CERT,&R,&S,PUBKEY); 
-        if (res)
-        {
-#if VERBOSITY >= IO_DEBUG
-            logger((char *)"ECDSA Signature/Verification succeeded \n",NULL,0,NULL);
-#endif
-            return true;
-        } else {
-#if VERBOSITY >= IO_DEBUG
-            logger((char *)"***ECDSA Verification Failed\n",NULL,0,NULL);
-#endif
-            return false;
-        }
-    }
-    if (st.type == X509_ECD)
+
+    res=CERT_SIGNATURE_VERIFY(sigAlg,CERT,SIG,PUBKEY); 
+
+
+    if (res)
     {
 #if VERBOSITY >= IO_DEBUG
-        logger((char *)"SIG = \n",NULL,0,SIG);
-        logger((char *)"\nEdDSA PUBLIC KEY= \n",NULL,0,PUBKEY);
-        logger((char *)"Checking EdDSA Signature on Cert ",(char *)"%d",st.curve,NULL);
+        logger((char *)"Cert Signature Verification succeeded \n",NULL,0,NULL);
 #endif
-        if (st.curve==USE_C25519)
-            res=Ed25519_VERIFY(CERT,SIG,PUBKEY);
-        if (res)
-        {
+        return true;
+    } else {
 #if VERBOSITY >= IO_DEBUG
-            logger((char *)"EdDSA Signature/Verification succeeded \n",NULL,0,NULL);
+        logger((char *)"Cert Signature Verification Failed\n",NULL,0,NULL);
 #endif
-            return true;
-        } else {
-#if VERBOSITY >= IO_DEBUG
-            logger((char *)"***EdDSA Verification Failed\n",NULL,0,NULL);
-#endif
-            return false;
-        }
-
+        return false;
     }
-    if (st.type == X509_RSA)
-    { // its an RSA signature - assuming PKCS1.5 encoding
-#if VERBOSITY >= IO_DEBUG
-        logger((char *)"Checking RSA Signature on Cert \n",NULL,0,NULL);
-#endif
-        if (st.curve==2048)
-        {
-            res=RSA_2048_PKCS15_VERIFY(sha,CERT,SIG,PUBKEY);
-        }
-        if (st.curve==4096)
-        {
-            res=RSA_4096_PKCS15_VERIFY(sha,CERT,SIG,PUBKEY);
-        } 
-        if (res)
-        {
-#if VERBOSITY >= IO_DEBUG
-            logger((char *)"RSA Signature/Verification succeeded \n",NULL,0,NULL);
-#endif
-            return true;
-        } else {
-#if VERBOSITY >= IO_DEBUG
-            logger((char *)"***RSA Verification Failed\n",NULL,0,NULL);
-#endif
-            return false;
-        }
-    }
-    return false;
 }
 
 // Read in client private key from .pem file
@@ -287,7 +224,7 @@ int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad
     pktype pk= X509_extract_private_key(&SC, PRIVKEY); // returns signature type
 
 // figure out kind of signature client can apply - should be tested against client capabilities
-// Not that no hash type is specified - its just a private key, no algorithm specified
+// Note that no hash type is specified - its just a private key, no algorithm specified
     kind=0;
     if (pk.type==X509_ECC)
     {
@@ -301,10 +238,10 @@ int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad
 
     for (i=0;i<nccsalgs;i++)
     {
-        if (kind==csigAlgs[i]) break;
+        if (kind==csigAlgs[i]) return kind;
     }
 
-    return kind;
+    return 0;
 }
 
 // extract server public key, and check validity of certificate chain
@@ -442,7 +379,7 @@ bool CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 
     if (CHECK_CERT_SIG(ist,&ICERT,&ISIG,&RPK)) {  // Check inter cert signature with root cert public key
 #if VERBOSITY >= IO_DEBUG
-        logger((char *)"Root Certificate sig is OK!!!!\n",NULL,0,NULL);
+        logger((char *)"Root Certificate sig is OK\n",NULL,0,NULL);
 #endif
     } else {
 #if VERBOSITY >= IO_DEBUG
@@ -453,10 +390,58 @@ bool CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     return true;
 }
 
+static void parse_in_ecdsa_sig(int sha,octad *CCVSIG)
+{ // parse ECDSA signature into DER encoded (r,s) form
+    char c[TLS_MAX_ECC_FIELD];
+    octad C={0,sizeof(c),c};
+    char d[TLS_MAX_ECC_FIELD];
+    octad D={0,sizeof(d),d};
+    int len,clen=sha;
+    bool cinc=false;
+    bool dinc=false;
+
+    C.len=D.len=clen;
+    for (int i=0;i<clen;i++)
+    {
+        C.val[i]=CCVSIG->val[i];
+        D.val[i]=CCVSIG->val[clen+i];
+    }
+
+    if (C.val[0]&0x80) cinc=true;
+    if (D.val[0]&0x80) dinc=true;
+
+    len=2*clen+4;
+    if (cinc) len++;    // -ve values need leading zero inserted
+    if (dinc) len++;
+
+    OCT_kill(CCVSIG);
+    OCT_append_byte(CCVSIG,0x30,1);  // ASN.1 SEQ
+    OCT_append_byte(CCVSIG,len,1);
+// C
+    OCT_append_byte(CCVSIG,0x02,1);  // ASN.1 INT type
+    if (cinc)
+    {
+        OCT_append_byte(CCVSIG,clen+1,1);
+        OCT_append_byte(CCVSIG,0,1);
+    } else {
+        OCT_append_byte(CCVSIG,clen,1);
+    }
+    OCT_append_octad(CCVSIG,&C);
+// D
+    OCT_append_byte(CCVSIG,0x02,1);  // ASN.1 INT type
+    if (dinc)
+    {
+        OCT_append_byte(CCVSIG,clen+1,1);
+        OCT_append_byte(CCVSIG,0,1);
+    } else {
+        OCT_append_byte(CCVSIG,clen,1);
+    }
+    OCT_append_octad(CCVSIG,&D);
+}
+
 // Create Client Cert Verify message, a digital signature using KEY on some TLS1.3 specific message+transcript hash
 void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
 {
-    int sha,len;
     char ccv[100+TLS_MAX_HASH];
     octad CCV={0,sizeof(ccv),ccv};
 // create TLS1.3 message to be signed
@@ -465,108 +450,80 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     OCT_append_byte(&CCV,0,1);   // add 0 character
     OCT_append_octad(&CCV,H);    // add Transcript Hash 
 
-    switch (sigAlg)
-    {
-    case RSA_PSS_RSAE_SHA256:
-    {
-        sha=TLS_SHA256; // SHA256
-        len=KEY->len/5;   // length of p and q
+    TLS_SIGNATURE_SIGN(sigAlg,KEY,&CCV,CCVSIG);
 
-        if (len==0x80)
-        { // 2048 bit RSA
-            RSA_2048_PSS_RSAE_SIGN(sha,KEY,&CCV,CCVSIG);
-        }
+// adjustment for ECDSA signatures
+    if (sigAlg==ECDSA_SECP256R1_SHA256)
+        parse_in_ecdsa_sig(TLS_SHA256,CCVSIG);
+    if (sigAlg==ECDSA_SECP384R1_SHA384)
+        parse_in_ecdsa_sig(TLS_SHA384,CCVSIG);
 
-        if (len==0x100)
-        { // 4096 bit RSA
-            RSA_4096_PSS_RSAE_SIGN(sha,KEY,&CCV,CCVSIG);
-        }
-    }
-    break;
-    case ED25519:
-    {
-        Ed25519_SIGN(KEY,&CCV,CCVSIG) ;
-    }
-    break;
-    case ECDSA_SECP256R1_SHA256:
-    case ECDSA_SECP384R1_SHA384:
-    { 
-        bool cinc=false;
-        bool dinc=false;
-        int clen;      // curve field/group length
-        char c[TLS_MAX_ECC_FIELD];
-        octad C={0,sizeof(c),c};
-        char d[TLS_MAX_ECC_FIELD];
-        octad D={0,sizeof(c),c};
-
-        if (sigAlg==ECDSA_SECP256R1_SHA256)
-        {
-            clen=32;
-            sha=TLS_SHA256; 
-            SECP256R1_ECDSA_SIGN(sha,KEY,&CCV,&C,&D);
-        }
-        if (sigAlg==ECDSA_SECP384R1_SHA384)
-        {
-            clen=48;
-            sha=TLS_SHA384;
-            SECP384R1_ECDSA_SIGN(sha,KEY,&CCV,&C,&D);
-        }
-        
-        if (C.val[0]&0x80) cinc=true;
-        if (D.val[0]&0x80) dinc=true;
-
-        len=2*clen+4;
-        if (cinc) len++;    // -ve values need leading zero inserted
-        if (dinc) len++;
- 
-        OCT_kill(CCVSIG);
-        OCT_append_byte(CCVSIG,0x30,1);  // ASN.1 SEQ
-        OCT_append_byte(CCVSIG,len,1);
-// C
-        OCT_append_byte(CCVSIG,0x02,1);  // ASN.1 INT type
-        if (cinc)
-        {
-            OCT_append_byte(CCVSIG,clen+1,1);
-            OCT_append_byte(CCVSIG,0,1);
-        } else {
-            OCT_append_byte(CCVSIG,clen,1);
-        }
-        OCT_append_octad(CCVSIG,&C);
-// D
-        OCT_append_byte(CCVSIG,0x02,1);  // ASN.1 INT type
-        if (dinc)
-        {
-            OCT_append_byte(CCVSIG,clen+1,1);
-            OCT_append_byte(CCVSIG,0,1);
-        } else {
-            OCT_append_byte(CCVSIG,clen,1);
-        }
-        OCT_append_octad(CCVSIG,&D);
-    }
-    break;
-    }
     return;
 }
 
-// check that SCVSIG is digital signature (using sigalg algorithm) of some TLS1.3 specific message+transcript hash, as verified by Server Certificate public key CERTPK
-// Only supports MUST supported algorithms.
-// RFC8446:     "A TLS-compliant application MUST support digital signatures with
-//              rsa_pkcs1_sha256 (for certificates), rsa_pss_rsae_sha256 (for
-//              CertificateVerify and certificates), and ecdsa_secp256r1_sha256."
+static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
+{ // parse out DER encoded (r,s) ECDSA signature into a single SIG 
+    ret rt;
+    int lzero,der,rlen,slen,Int,ptr=0;
+    int len=SCVSIG->len;
+    char r[TLS_MAX_ECC_FIELD];
+    octad R={0,sizeof(r),r};
+    char s[TLS_MAX_ECC_FIELD];
+    octad S={0,sizeof(s),s};
 
-bool IS_SERVER_CERT_VERIFY(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK)
+    rt=parseByte(SCVSIG,ptr); der=rt.val;
+    if (rt.err || der!=0x30) return false;
+    rt=parseByte(SCVSIG,ptr); slen=rt.val;
+    if (rt.err || slen+2!=len) return false;
+
+// get R
+    rt=parseByte(SCVSIG,ptr); Int=rt.val;
+    if (rt.err || Int!=0x02) return false;
+    rt=parseByte(SCVSIG,ptr); rlen=rt.val;
+    if (rt.err) return false;
+    if (rlen==sha+1)
+    { // one too big
+        rlen--;
+        rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+        if (rt.err || lzero!=0) return false;
+    }
+    rt=parseoctad(&R,sha,SCVSIG,ptr); if (rt.err) return false;
+
+// get S
+    rt=parseByte(SCVSIG,ptr); Int=rt.val;
+    if (rt.err || Int!=0x02) return false;
+    rt=parseByte(SCVSIG,ptr); slen=rt.val;
+    if (rt.err || slen==sha+1)
+    { // one too big
+        slen--;
+        rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+        if (rt.err || lzero!=0) return false;
+    }
+    rt=parseoctad(&S,sha,SCVSIG,ptr); if (rt.err) return false;
+
+    if (rlen<sha || slen<sha) return false;
+
+    OCT_copy(SCVSIG,&R);
+    OCT_append_octad(SCVSIG,&S);
+    return true;
+}
+
+// check that SCVSIG is digital signature (using sigAlg algorithm) of some TLS1.3 specific message+transcript hash, 
+// as verified by Server Certificate public key CERTPK
+
+bool IS_SERVER_CERT_VERIFY(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
 {
 // Server Certificate Verify
     ret rt;
     int lzero,sha;
     char scv[100+TLS_MAX_HASH];
     octad SCV={0,sizeof(scv),scv};
-    char p[TLS_MAX_SIGNATURE_SIZE];
-    octad P={0,sizeof(p),p};
     char r[TLS_MAX_ECC_FIELD];
     octad R={0,sizeof(r),r};
     char s[TLS_MAX_ECC_FIELD];
     octad S={0,sizeof(s),s};
+    char sig[2*TLS_MAX_ECC_FIELD];
+    octad SIG={0,sizeof(sig),sig};
 
 // TLS1.3 message that was signed
     OCT_append_byte(&SCV,32,64); // 64 spaces
@@ -574,104 +531,13 @@ bool IS_SERVER_CERT_VERIFY(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK)
     OCT_append_byte(&SCV,0,1);   // add 0 character
     OCT_append_octad(&SCV,H);    // add Transcript Hash 
 
-    int len=SCVSIG->len;
-    int rlen,slen,Int,der,ptr=0;
-
-// probably need to support more cases
-    switch (sigalg)
-    {
-    case RSA_PSS_RSAE_SHA256:
-        sha=TLS_SHA256; // SHA256
-
-        if (len==0x100)
-        { // 2048 bit RSA
-            return RSA_2048_PSS_RSAE_VERIFY(sha,&SCV,SCVSIG,CERTPK);
-        }
-        if (len==0x200)
-        { // 4096 bit RSA
-            return RSA_4096_PSS_RSAE_VERIFY(sha,&SCV,SCVSIG,CERTPK);
-        }
-        return false;
-    case ECDSA_SECP256R1_SHA256:  // DER encoded !!
-        sha=TLS_SHA256; // SHA256
-        ptr=0;
-        rt=parseByte(SCVSIG,ptr); der=rt.val;
-        if (rt.err || der!=0x30) return false;
-        rt=parseByte(SCVSIG,ptr); slen=rt.val;
-        if (rt.err || slen+2!=len) return false;
-
-// get R
-        rt=parseByte(SCVSIG,ptr); Int=rt.val;
-        if (rt.err || Int!=0x02) return false;
-        rt=parseByte(SCVSIG,ptr); rlen=rt.val;
-        if (rt.err) return false;
-        if (rlen==0x21)
-        { // one too big
-            rlen--;
-            rt=parseByte(SCVSIG,ptr); lzero=rt.val;
-            if (rt.err || lzero!=0) return false;
-        }
-        rt=parseoctad(&R,0x20,SCVSIG,ptr); if (rt.err) return false;
-
-// get S
-        rt=parseByte(SCVSIG,ptr); Int=rt.val;
-        if (rt.err || Int!=0x02) return false;
-        rt=parseByte(SCVSIG,ptr); slen=rt.val;
-        if (rt.err || slen==0x21)
-        { // one too big
-            slen--;
-            rt=parseByte(SCVSIG,ptr); lzero=rt.val;
-            if (rt.err || lzero!=0) return false;
-        }
-        rt=parseoctad(&S,0x20,SCVSIG,ptr); if (rt.err) return false;
-
-        if (rlen<0x20 || slen<0x20) return false;
-
-        return SECP256R1_ECDSA_VERIFY(sha,&SCV,&R,&S,CERTPK);
-
-    case ECDSA_SECP384R1_SHA384:
-        sha=TLS_SHA384;
-        ptr=0;
-        rt=parseByte(SCVSIG,ptr); der=rt.val;
-        if (rt.err || der!=0x30) return false;
-        rt=parseByte(SCVSIG,ptr); slen=rt.val;
-        if (rt.err || slen+2!=len) return false;
-
-        rt=parseByte(SCVSIG,ptr); Int=rt.val;
-        if (rt.err || Int!=0x02) return false;
-        rt=parseByte(SCVSIG,ptr); rlen=rt.val;
-        if (rt.err || rlen==0x31)
-        { // there must be a leading zero...
-            rlen--;
-            rt=parseByte(SCVSIG,ptr); lzero=rt.val;
-            if (rt.err || lzero!=0) return false;
-        }
-        rt=parseoctad(&R,0x30,SCVSIG,ptr);  if (rt.err) return false;
-
-        rt=parseByte(SCVSIG,ptr); Int=rt.val;
-        if (rt.err || Int!=0x02) return false;
-        rt=parseByte(SCVSIG,ptr); slen=rt.val;
-        if (rt.err) return false;
-        if (slen==0x31)
-        { // there must be a leading zero..
-            slen--;
-            rt=parseByte(SCVSIG,ptr); lzero=rt.val;
-            if (rt.err || lzero!=0) return false;
-        }
-        rt=parseoctad(&S,0x30,SCVSIG,ptr); if (rt.err) return false;
-
-        if (rlen<0x30 || slen<0x30) return false;
-
-        return SECP384R1_ECDSA_VERIFY(sha,&SCV,&R,&S,CERTPK);
-
-   case ED25519:
-        return Ed25519_VERIFY(&SCV,SCVSIG,CERTPK);
-    default :
-#if VERBOSITY >= IO_DEBUG
-        logger((char *)"WHOOPS - Unsupported signature type\n",NULL,0,NULL);
-#endif
-        return false;
+// Special case processing required here for ECDSA signatures -  SCVSIG is modified
+    if (sigAlg==ECDSA_SECP256R1_SHA256) {
+        if (!parse_out_ecdsa_sig(TLS_SHA256,SCVSIG)) return false;
     }
-    return false;
-}
+    if (sigAlg==ECDSA_SECP384R1_SHA384) {
+        if (!parse_out_ecdsa_sig(TLS_SHA384,SCVSIG)) return false;
+    } 
 
+    return TLS_SIGNATURE_VERIFY(sigAlg,&SCV,SCVSIG,CERTPK);
+}

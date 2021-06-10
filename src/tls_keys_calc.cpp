@@ -1,5 +1,5 @@
 //
-// TLS1.3 crypto support functions (hashing and AEAD encryption)
+// TLS1.3 crypto support functions (hashing, KDFs and AEAD encryption)
 //
 
 #include "tls_keys_calc.h"

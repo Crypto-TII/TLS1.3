@@ -1,7 +1,7 @@
 /**
- * @file tls_crypto_api.h
+ * @file tls_sal.h
  * @author Mike Scott
- * @brief Cryptographic support functions for TLS using MIRACL core
+ * @brief Security Abstraction Layer for TLS 
  *
  */
 // Process input received from Server
@@ -44,7 +44,7 @@ extern int TLS_SAL_SIGS(int *sigAlgs);
 
 /** @brief Return supported TLS signature algorithms for Certificates in preferred order
 *
-    @param sigAlgs array of supported signature algorithms for Certificates
+    @param sigAlgsCert array of supported signature algorithms for Certificates
     @return number of supported groups
 */
 extern int TLS_SAL_SIGCERTS(int *sigAlgsCert);
@@ -84,7 +84,7 @@ extern void TLS_RANDOM_OCTAD(int len, octad *R);
 
 /**	@brief HKDF Extract function
  *
-	@param htype hash algorithm
+	@param sha hash algorithm
 	@param PRK an output Key
     @param SALT public input salt
     @param IKM raw secret keying material
@@ -182,124 +182,34 @@ extern void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK);
  */
 extern void GENERATE_SHARED_SECRET(int group,octad *SK,octad *PK,octad *SS);
 
-/**	@brief Verify a 2048-bit RSA PKCS1.5 signature
+/**	@brief Verify a generic certificate signature
  *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param CERT the input that was signed
+    @param sigAlg the signature type
+    @param CERT the input certificate that was signed
     @param SIG the input signature
     @param PUBKEY the public key used to verify the signature
     @return true if signature is valid, else false
  */
-extern bool RSA_2048_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY);
+extern bool CERT_SIGNATURE_VERIFY(int sigAlg,octad *CERT,octad *SIG,octad *PUBKEY);
 
-/**	@brief Verify a 4096-bit RSA PKCS1.5 signature
+/**	@brief Verify a generic TLS transcript signature
  *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param CERT the input that was signed
+    @param sigAlg the signature type
+    @param TRANS the input transcript hash that was signed
     @param SIG the input signature
     @param PUBKEY the public key used to verify the signature
     @return true if signature is valid, else false
  */
-extern bool RSA_4096_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY);
+extern bool TLS_SIGNATURE_VERIFY(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKEY);
 
-/**	@brief Verify a 2048-bit RSA PSS RSAE signature
+/**	@brief Apply a generic TLS transcript signature
  *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param MESS the input that was signed
-    @param SIG the input signature
-    @param PUBKEY the public key used to verify the signature
-    @return true if signature is valid, else false
+    @param sigAlg the signature type
+    @param KEY the private key used to form the signature
+    @param TRANS the input transcript hash to be signed
+    @param SIG the output signature
  */
-extern bool RSA_2048_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY);
+extern void TLS_SIGNATURE_SIGN(int sigAlg,octad *KEY,octad *TRANS,octad *SIG);
 
-/**	@brief Verify a 4096-bit RSA PSS RSAE signature
- *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param MESS the input that was signed
-    @param SIG the input signature
-    @param PUBKEY the public key used to verify the signature
-    @return true if signature is valid, else false
- */
-extern bool RSA_4096_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY);
-
-/**	@brief Verify an ECDSA signature on curve SECP256R1
- *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param CERT the input that was signed
-    @param R is first part of the input signature
-    @param S is second part of the input signature
-    @param PUBKEY the public key used to verify the signature
-    @return true if signature is valid, else false
- */
-extern bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *R,octad *S,octad *PUBKEY);
-
-/**	@brief Verify an ECDSA signature on curve SECP384R1
- *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param CERT the input that was signed
-    @param R is first part of the input signature
-    @param S is second part of the input signature
-    @param PUBKEY the public key used to verify the signature
-    @return true if signature is valid, else false
- */
-extern bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *R,octad *S,octad *PUBKEY);
-
-
-/**	@brief Verify an Ed25519 signature 
- *
-    @param CERT the input that was signed
-    @param SIG is the input signature
-    @param PUBKEY the public key used to verify the signature
-    @return true if signature is valid, else false
- */
-extern bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY);
-
-
-/**	@brief Create ECDSA signature using curve SECP256R1
- *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param KEY the private signing key
-    @param MESS is the message to be signed
-    @param R is first part of the output signature
-    @param S is second part of the output signature
- */
-extern void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S);
-
-/**	@brief Create ECDSA signature using curve SECP384R1
- *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param KEY the private signing key
-    @param MESS is the message to be signed
-    @param R is first part of the output signature
-    @param S is second part of the output signature
- */
-extern void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S);
-
-/**	@brief Create Ed225519 signature
- *
-    @param KEY the private signing key
-    @param MESS is the message to be signed
-    @param SIG is the output signature
- */
-extern void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG);
-
-
-/**	@brief Create RSA-2048 PSS-RSAE signature 
- *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param KEY the private signing key
-    @param MESS is the message to be signed
-    @param SIG is the output signature
- */
-extern void RSA_2048_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG);
-
-/**	@brief Create RSA-4096 PSS-RSAE signature 
- *
-    @param sha the SHA2 algorithm (32/48/64)
-    @param KEY the private signing key
-    @param MESS is the message to be signed
-    @param SIG is the output signature
- */
-extern void RSA_4096_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG);
 
 #endif

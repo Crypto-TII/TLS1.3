@@ -505,7 +505,7 @@ int getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *CID,octa
     octad SID = {0, sizeof(sid), sid};
     char srn[32];
     octad SRN={0,sizeof(srn),srn};    
-    char hrr[32];
+    char hrr[40];
     octad HRR={0,sizeof(hrr),hrr};
 
 // need this to check for Handshake Retry Request    
@@ -536,7 +536,7 @@ int getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *CID,octa
 
     if (svr!=TLS1_2)  
         return NOT_TLS1_3;  // don't ask
-   
+
     r= parseoctadorPull(client,&SRN,32,SH,ptr,NULL); if (r.err) return r.err;
     left-=32;
 

@@ -64,6 +64,7 @@ int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,tick
                     nticks++;
                     rtn=parseTicket(&TICK,(unsign32)millis(),T);       // extract into ticket structure T, and keep for later use
 //printf("Error return= %d\n",rtn);
+                    
                     if (ptr==IO->len) fin=true; // record finished
                     if (fin) break;
                     continue;
@@ -118,7 +119,8 @@ int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,tick
         if (type==ALERT)
         {
 #if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Alert received from Server - type= ",NULL,0,IO);
+            logger((char *)"Alert received from Server\n",NULL,0,NULL);
+            logAlert(IO);
 #endif
             return 0;
         }
@@ -162,7 +164,7 @@ int port=443;
 
 #ifdef TLS_ARDUINO
 char* ssid = "TP-LINK_5B40F0";
-char* password =  "31146678";
+char* password =  "********";
 char* hostname = "swifttls.org";
 void mydelay()
 {
@@ -221,16 +223,11 @@ void setup()
 
 // Client Capabilities to be advertised to Server
 // Get supported Key Exchange Groups in order of preference
-
     CPB.nsg=TLS_SAL_GROUPS(CPB.supportedGroups);
-
 // Get supported Cipher Suits
-
     CPB.nsc=TLS_SAL_CIPHERS(CPB.ciphers);
-
 // Get supported TLS1.3 signing Algorithms 
     CPB.nsa=TLS_SAL_SIGS(CPB.sigAlgs);
-
 // Get supported Certificate signing Algorithms 
     CPB.nsac=TLS_SAL_SIGCERTS(CPB.sigAlgsCert);
 
@@ -294,89 +291,93 @@ void loop() {
     }
 
 
-if (!PSKMODE) // Don't have a preshared Key
-{
+    if (!PSKMODE) // Don't have a preshared Key
+    {
     
 
 // Do full TLS 1.3 handshake unless PSK available
-    rtn=TLS13_full(client,hostname,IO,RMS,K_send,K_recv,STS,CPB,cipher_suite,favourite_group);
-    if (rtn)
-    {
+        rtn=TLS13_full(client,hostname,IO,RMS,K_send,K_recv,STS,CPB,cipher_suite,favourite_group);
+        if (rtn)
+        {
 #if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake succeeded\n",NULL,0,NULL);
-        if (rtn==2) logger((char *)"... after handshake resumption\n",NULL,0,NULL);
+            logger((char *)"Full Handshake succeeded\n",NULL,0,NULL);
+            if (rtn==2) logger((char *)"... after handshake resumption\n",NULL,0,NULL);
 #endif
-    }
-    else {
+        }
+        else {
 #if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
+            logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
-        mydelay();
-        return;
-    }
+            mydelay();
+            return;
+        }
 
 // Send client message
-    client_send(client,&GET,&K_send,&IO);
+        client_send(client,&GET,&K_send,&IO);
 
 // Initialise a ticket structure, and remember which cipher suite and which key exchange group was agreed.
-    init_ticket_context(&T,cipher_suite,favourite_group);
+        init_ticket_context(&T,cipher_suite,favourite_group);
 // Process server responses
-    rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
-    if (rtn<0)
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
+        if (rtn<0)
+            sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
 
-    client.stop();
+        client.stop();
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"Connection closed\n",NULL,0,NULL);
+        logger((char *)"Connection closed\n",NULL,0,NULL);
 #endif
+
+
+//printf("Press Enter to Continue");
+//while( getchar() != '\n' );
 
 
 // reopen socket - attempt resumption
-    if (T.lifetime==0)
-    {
+        if (T.lifetime==0)
+        {
 #if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"No Ticket provided - unable to resume\n",NULL,0,NULL);
+            logger((char *)"No Ticket provided - unable to resume\n",NULL,0,NULL);
 #endif
-        mydelay();
-        return;
-    }
+            mydelay();
+            return;
+        }
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"\nAttempting resumption\n",NULL,0,NULL);
+        logger((char *)"\nAttempting resumption\n",NULL,0,NULL);
 #endif
-    if (!client.connect(hostname,port))
-    {
+        if (!client.connect(hostname,port))
+        {
 #if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"\nConnection Failed \n",NULL,0,NULL); 
+            logger((char *)"\nConnection Failed \n",NULL,0,NULL); 
 #endif
-        mydelay();
-        return;
-    }
+            mydelay();
+            return;
+        }
 
-} else {
+    } else {
 // we have a pre-shared key..!
 // Test with openssl s_server -tls1_3 -verify 0 -cipher PSK-AES128-GCM-SHA256 -psk_identity 42 -psk 0102030405060708090a0b0c0d0e0f10 -nocert -max_send_frag 4096 -accept 4433 -www  
 
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"\nAttempting connection with PSK\n",NULL,0,NULL);
+        logger((char *)"\nAttempting connection with PSK\n",NULL,0,NULL);
 #endif
 
-    char psk[TLS_MAX_KEY];
-    octad PSK = {0,sizeof(psk),psk};    // Pre-Shared Key   
-    char psk_label[32];
-    octad PSK_LABEL={0,sizeof(psk_label),psk_label};
+        char psk[TLS_MAX_KEY];
+        octad PSK = {0,sizeof(psk),psk};    // Pre-Shared Key   
+        char psk_label[32];
+        octad PSK_LABEL={0,sizeof(psk_label),psk_label};
 
-    PSK.len=16;
-    for (int i=0;i<16;i++)
-        PSK.val[i]=i+1;                // Fake a 128-bit pre-shared key
-    PSK_LABEL.len=2;
-    PSK_LABEL.val[0]='4';              // Fake a pre-shared key label
-    PSK_LABEL.val[1]='2'; 
+        PSK.len=16;
+        for (int i=0;i<16;i++)
+            PSK.val[i]=i+1;                // Fake a 128-bit pre-shared key
+        PSK_LABEL.len=2;
+        PSK_LABEL.val[0]='4';              // Fake a pre-shared key label
+        PSK_LABEL.val[1]='2'; 
 
-    init_ticket_context(&T,TLS_AES_128_GCM_SHA256,CPB.supportedGroups[0]);  // Create a special Ticket for PSK
-    OCT_copy(&T.TICK,&PSK_LABEL);
-    OCT_copy(&T.NONCE,&PSK);
-    T.max_early_data=1024;
-}
+        init_ticket_context(&T,TLS_AES_128_GCM_SHA256,CPB.supportedGroups[0]);  // Create a special Ticket for PSK
+        OCT_copy(&T.TICK,&PSK_LABEL);
+        OCT_copy(&T.NONCE,&PSK);
+        T.max_early_data=1024;
+    }
 
 #ifdef TLS_ARDUINO
 // clear out the socket RX buffer
@@ -439,16 +440,14 @@ int main(int argc, char const *argv[])
 
     if(argc==0)
     {
-// test against openssl s_server -tls1_3 -verify 0 -key key.pem -cert cert.pem -accept 4433 -www
+// testing against openssl s_server -tls1_3 -key ***.pem -cert ****.pem -accept 4433 -www
         strcpy(hostname, "localhost");
         port = 4433;
-    } else if (argc == 1)
-    {
-        bool contains_colon = false;
-        
+    } else if (argc == 1) {
         int i;
+        bool contains_colon = false;
         size_t argv0_len = strlen(argv[0]);
-        for(i =0; i < argv0_len; ++i)
+        for(i=0; i < argv0_len; ++i)
         {
             if(argv[0][i] == ':')
             {

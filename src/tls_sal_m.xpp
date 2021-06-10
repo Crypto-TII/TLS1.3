@@ -1,5 +1,5 @@
 // 
-// Cryptographic Security Abstraction Layer API - this version uses MIRACL core functions
+// Cryptographic Security Abstraction Layer API - this version uses only MIRACL core functions
 //
 
 #include "tls_sal.h"
@@ -25,7 +25,7 @@ csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware sou
 bool TLS_SAL_INITLIB()
 { // Initialise library
     char raw[100];
-    for (int i = 0; i < 100; i++) raw[i] = i;  // *** should be from output of true random number generator
+    for (int i = 0; i < 100; i++) raw[i] = i;  // *** should be from output of true random number generator ****
     RAND_seed(&RNG, 100, raw);    
     return true;
 }
@@ -312,7 +312,7 @@ void GENERATE_SHARED_SECRET(int group,octad *SK,octad *PK,octad *SS)
 }
 
 // RSA 2048-bit PKCS1.5 signature verification
-bool RSA_2048_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
+static bool RSA_2048_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 {
     bool res;
     char p1[RFS_RSA2048];
@@ -339,7 +339,7 @@ bool RSA_2048_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 }
 
 // RSA 4096-bit PKCS1.5 signature verification
-bool RSA_4096_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
+static bool RSA_4096_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 {
     bool res;
     char p1[RFS_RSA4096];
@@ -365,8 +365,17 @@ bool RSA_4096_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
     return res;
 }
 
+static bool RSA_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
+{
+    if (PUBKEY->len==RFS_RSA2048)
+        return RSA_2048_PKCS15_VERIFY(sha,CERT,SIG,PUBKEY);
+    if (PUBKEY->len==RFS_RSA4096)
+        return RSA_4096_PKCS15_VERIFY(sha,CERT,SIG,PUBKEY);
+    return false;
+}
+
 // RSA 2048-bit PSS-RSAE signature verification
-bool RSA_2048_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY)
+static bool RSA_2048_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY)
 {
     char p[RFS_RSA2048];
     octet P={0,sizeof(p),p};
@@ -385,7 +394,7 @@ bool RSA_2048_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY)
 }
 
 // RSA 4096-bit PSS-RSAE signature verification
-bool RSA_4096_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY)
+static bool RSA_4096_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY)
 {
     char p[RFS_RSA4096];
     octet P={0,sizeof(p),p};
@@ -403,79 +412,125 @@ bool RSA_4096_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY)
     return false;
 }
 
+static bool RSA_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY)
+{
+    if (PUBKEY->len==RFS_RSA2048)
+        return RSA_2048_PSS_RSAE_VERIFY(sha,MESS,SIG,PUBKEY);
+    if (PUBKEY->len==RFS_RSA4096)
+        return RSA_4096_PSS_RSAE_VERIFY(sha,MESS,SIG,PUBKEY);
+    return false;
+}
+
 // Curve SECP256R1 elliptic curve ECDSA verification
-bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *R,octad *S,octad *PUBKEY)
+static bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 {
     int res;
 
     octet MC_CERT=octad_to_octet(CERT);
-    octet MC_R=octad_to_octet(R);
-    octet MC_S=octad_to_octet(S);
+    octet MC_SIG=octad_to_octet(SIG);
     octet MC_PUBKEY=octad_to_octet(PUBKEY);
 
     res=NIST256::ECP_PUBLIC_KEY_VALIDATE(&MC_PUBKEY);
     if (res!=0) return false;
-    res=NIST256::ECP_VP_DSA(sha, &MC_PUBKEY, &MC_CERT, &MC_R, &MC_S);
+
+    char r[32];
+    octet R={0,sizeof(r),r};
+    char s[32];
+    octet S={0,sizeof(s),s};
+    int siglen=SIG->len/2;
+    for (int i=0;i<siglen;i++)
+    {
+        OCT_jbyte(&R,MC_SIG.val[i],1);
+        OCT_jbyte(&S,MC_SIG.val[i+siglen],1);
+    }    
+
+    res=NIST256::ECP_VP_DSA(sha, &MC_PUBKEY, &MC_CERT, &R, &S);
     if (res!=0) return false;
+
     return true;
 }
 
 // Curve SECP384R1 elliptic curve ECDSA verification
-bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *R,octad *S,octad *PUBKEY)
+
+static bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 {
     int res;
 
     octet MC_CERT=octad_to_octet(CERT);
-    octet MC_R=octad_to_octet(R);
-    octet MC_S=octad_to_octet(S);
+    octet MC_SIG=octad_to_octet(SIG);
     octet MC_PUBKEY=octad_to_octet(PUBKEY);
 
     res=NIST384::ECP_PUBLIC_KEY_VALIDATE(&MC_PUBKEY);
     if (res!=0) return false;
-    res=NIST384::ECP_VP_DSA(sha, &MC_PUBKEY, &MC_CERT, &MC_R, &MC_S);
+
+    char r[48];
+    octet R={0,sizeof(r),r};
+    char s[48];
+    octet S={0,sizeof(s),s};
+    int siglen=SIG->len/2;
+    for (int i=0;i<siglen;i++)
+    {
+        OCT_jbyte(&R,MC_SIG.val[i],1);
+        OCT_jbyte(&S,MC_SIG.val[i+siglen],1);
+    }    
+
+    res=NIST384::ECP_VP_DSA(sha, &MC_PUBKEY, &MC_CERT, &R, &S);
     if (res!=0) return false;
+
     return true;
 }
 
-bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+static bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 { // TBD
     return false;
 }
 
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
-void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S)
+static void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 {
     octet MC_MESS=octad_to_octet(MESS);
     octet MC_KEY=octad_to_octet(KEY);
-    octet MC_R=octad_to_octet(R);
-    octet MC_S=octad_to_octet(S);
+    octet MC_SIG=octad_to_octet(SIG);
 
-    NIST256::ECP_SP_DSA(sha, &RNG, NULL, &MC_KEY, &MC_MESS, &MC_R, &MC_S);
+    char r[32];
+    octet R={0,sizeof(r),r};
+    char s[32];
+    octet S={0,sizeof(s),s};
 
-    R->len=MC_R.len;
-    S->len=MC_S.len;
+    NIST256::ECP_SP_DSA(sha, &RNG, NULL, &MC_KEY, &MC_MESS, &R, &S);
+
+    OCT_copy(&MC_SIG,&R);
+    OCT_joctet(&MC_SIG,&S);
+
+    SIG->len=MC_SIG.len;
 }
 
 // Use Curve SECP384R1 ECDSA to digitally sign a message using a private key 
-void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *R,octad *S)
+static void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 {
     octet MC_MESS=octad_to_octet(MESS);
     octet MC_KEY=octad_to_octet(KEY);
-    octet MC_R=octad_to_octet(R);
-    octet MC_S=octad_to_octet(S);
+    octet MC_SIG=octad_to_octet(SIG);
 
-    NIST256::ECP_SP_DSA(sha, &RNG, NULL, &MC_KEY, &MC_MESS, &MC_R, &MC_S);
+    char r[48];
+    octet R={0,sizeof(r),r};
+    char s[48];
+    octet S={0,sizeof(s),s};
 
-    R->len=MC_R.len;
-    S->len=MC_S.len;
+    NIST384::ECP_SP_DSA(sha, &RNG, NULL, &MC_KEY, &MC_MESS, &R, &S);
+
+    OCT_copy(&MC_SIG,&R);
+    OCT_joctet(&MC_SIG,&S);
+
+    SIG->len=MC_SIG.len;
 }
 
-void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG)
+static void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG)
 { // TBD
 }
 
 // Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
-void RSA_2048_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
+static void RSA_2048_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 {
     int len=KEY->len/5;   // length of p and q
     if (len!=128) return;
@@ -511,7 +566,7 @@ void RSA_2048_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 }
 
 // Use RSA-4096 PSS-RSAE to digitally sign a message using a private key
-void RSA_4096_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
+static void RSA_4096_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 {
     int len=KEY->len/5;   // length of p and q
     if (len!=256) return;
@@ -545,3 +600,77 @@ void RSA_4096_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
     RSA4096::RSA_DECRYPT(&SK,&ENC,&MC_SIG);
     SIG->len=MC_SIG.len;
 }
+
+static void RSA_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
+{
+    int len=KEY->len/5;
+    if (len==128) RSA_2048_PSS_RSAE_SIGN(sha,KEY,MESS,SIG);
+    if (len==256) RSA_4096_PSS_RSAE_SIGN(sha,KEY,MESS,SIG);
+}
+
+// RFC8446:     "A TLS-compliant application MUST support digital signatures with
+//              rsa_pkcs1_sha256 (for certificates), rsa_pss_rsae_sha256 (for
+//              CertificateVerify and certificates), and ecdsa_secp256r1_sha256."
+
+// Certificate Signature Verification
+bool CERT_SIGNATURE_VERIFY(int sigAlg,octad *CERT,octad *SIG,octad *PUBKEY)
+{
+    bool res=false;
+    switch (sigAlg) {
+        case 0x0403 :
+            return SECP256R1_ECDSA_VERIFY(32,CERT,SIG,PUBKEY); 
+        case 0x0503 :
+            return SECP384R1_ECDSA_VERIFY(48,CERT,SIG,PUBKEY);
+        case 0x0807 :
+            return Ed25519_VERIFY(CERT,SIG,PUBKEY);
+        case 0x0401 :
+            return RSA_PKCS15_VERIFY(32,CERT,SIG,PUBKEY); 
+        case 0x0501 :
+            return RSA_PKCS15_VERIFY(48,CERT,SIG,PUBKEY); 
+        case 0x0601 :
+            return RSA_PKCS15_VERIFY(64,CERT,SIG,PUBKEY); 
+        default:
+            return false;
+    }
+    return false;
+}
+
+// Transcript Signature Verification
+bool TLS_SIGNATURE_VERIFY(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKEY)
+{ // probably need to support more cases
+    switch (sigAlg)
+    {
+    case 0x0804:
+        return RSA_PSS_RSAE_VERIFY(32,TRANS,SIG,PUBKEY);
+    case 0x0403:  
+        return SECP256R1_ECDSA_VERIFY(32,TRANS,SIG,PUBKEY);
+    case 0x0503:
+        return SECP384R1_ECDSA_VERIFY(48,TRANS,SIG,PUBKEY);
+    case 0x0807:
+        return Ed25519_VERIFY(TRANS,SIG,PUBKEY);
+    default :
+        return false;
+    }
+    return false;
+}
+
+// Form Transcript Signature 
+void TLS_SIGNATURE_SIGN(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
+{ // probably need to support more cases
+    switch (sigAlg)
+    {
+    case 0x0804:
+        RSA_PSS_RSAE_SIGN(32,KEY,TRANS,SIG);
+        break;
+    case 0x0807:
+        Ed25519_SIGN(KEY,TRANS,SIG) ;
+        break;
+    case 0x0403:
+        SECP256R1_ECDSA_SIGN(32,KEY,TRANS,SIG);
+        break;
+    case 0x0503:
+        SECP384R1_ECDSA_SIGN(48,KEY,TRANS,SIG);
+        break;
+    }
+}
+

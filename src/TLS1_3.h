@@ -87,12 +87,12 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 
 // Supported signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 
-#define RSA_PSS_RSAE_SHA256 0x0804      /**< Supported RSA Signature algorithm */ 
-#define RSA_PKCS1_SHA256 0x0401         /**< Supported RSA Signature algorithm */
 #define ECDSA_SECP384R1_SHA384 0x0503   /**< Supported ECDSA Signature algorithm */
+#define RSA_PSS_RSAE_SHA256 0x0804      /**< Supported RSA Signature algorithm */ 
 #define RSA_PSS_RSAE_SHA384 0x0805      /**< Supported RSA Signature algorithm */
-#define RSA_PKCS1_SHA384 0x0501         /**< Supported RSA Signature algorithm */
 #define RSA_PSS_RSAE_SHA512 0x0806      /**< Supported RSA Signature algorithm */
+#define RSA_PKCS1_SHA256 0x0401         /**< Supported RSA Signature algorithm */
+#define RSA_PKCS1_SHA384 0x0501         /**< Supported RSA Signature algorithm */
 #define RSA_PKCS1_SHA512 0x0601         /**< Supported RSA Signature algorithm */
 #define ED25519 0x0807                  /**< Ed25519 EdDSA Signature algorithm */
 
@@ -142,7 +142,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define MESSAGE_HASH 0xFE               /**< Special synthetic message hash message */    
 #define END_OF_EARLY_DATA 0x05          /**< End of Early Data message */    
 
-// Causes of server error - which should generate an alert 
+// Causes of server error - which should generate a client alert 
 #define NOT_TLS1_3 -2                   /**< Wrong version error, not TLS1.3 */
 #define BAD_CERT_CHAIN -3               /**< Bad Certificate Chain error */
 #define ID_MISMATCH -4                  /**< Session ID mismatch error */
@@ -154,12 +154,12 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define BAD_RECORD -10                  /**< Badly formed Record received */
 #define BAD_TICKET -11                  /**< Badly formed Ticket received */
 
-// alerts 
-#define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert from Server */
-#define UNEXPECTED_MESSAGE 0x0A         /**< Unexpected message alert from Server */
-#define DECRYPT_ERROR 0x33              /**< Decryption error alert from Server */
-#define BAD_CERTIFICATE 0x2A            /**< Bad certificate alert from Server */
-#define UNSUPPORTED_EXTENSION 0x6E      /**< Unsupported extension alert from Server */
+// client alerts 
+#define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */
+#define UNEXPECTED_MESSAGE 0x0A         /**< Unexpected message alert */
+#define DECRYPT_ERROR 0x33              /**< Decryption error alert */
+#define BAD_CERTIFICATE 0x2A            /**< Bad certificate alert */
+#define UNSUPPORTED_EXTENSION 0x6E      /**< Unsupported extension alert */
 
 /**
  * @brief function return structure */

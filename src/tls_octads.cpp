@@ -11,7 +11,11 @@ void OCT_append_int(octad *y, unsigned int x, int len)
 {
     int i, n;
     n = y->len + len;
-    if (n > y->max || len <= 0) return;
+    if (n > y->max || len <= 0) 
+    {
+//        printf("1. ************************** Octad Problem!\n");
+        return;
+    }
     for (i = y->len; i < n; i++) y->val[i] = 0;
     y->len = n;
 
@@ -37,6 +41,7 @@ void OCT_append_octad(octad *y, octad *x)
         if (j >= y->max)
         {
             y->len = y->max;
+ //           printf("2. ************************** Octad Problem!\n");
             return;
         }
         y->val[j] = x->val[i];
@@ -99,12 +104,14 @@ void OCT_from_hex(octad *dst, char *src)
     int i = 0;
     int j = 0;
     OCT_kill(dst);
-    while (src[j] != 0)
+    while (src[j] != 0 && i<dst->max)
     {
         dst->val[i++] = char2int(src[j]) * 16 + char2int(src[j + 1]);
         j += 2;
     }
     dst->len = i;
+//    if (dst->len>=dst->max)
+//        printf("3. ************************** Octad Problem!\n");
 }
 
 /* Appends C string to an octad - truncates if no room  */
@@ -120,6 +127,8 @@ void OCT_append_string(octad *y, char *s)
         i++;
         j++;
     }
+ //   if (y->len>=y->max)
+ //       printf("4. ************************** Octad Problem!\n");
 }
 
 /* Append byte to octad rep times */
@@ -133,6 +142,8 @@ void OCT_append_byte(octad *y, int ch, int rep)
         y->len++;
         i++;
     }
+//    if (y->len>=y->max)
+//        printf("5. ************************** Octad Problem!\n");
 }
 
 /* Append byte array to octad - truncates if no room */
@@ -146,6 +157,8 @@ void OCT_append_bytes(octad *y, char *b, int len)
         y->len++;
         i++;
     }
+//    if (y->len>=y->max)
+//        printf("6. ************************** Octad Problem!\n");
 }
 
 /* Convert to octad from a bas64 string */
@@ -208,8 +221,11 @@ void OCT_copy(octad *y, octad *x)
     int i;
     OCT_kill(y);
     y->len = x->len;
-    if (y->len > y->max) y->len = y->max;
-
+    if (y->len > y->max) 
+    {
+//        printf("7. ************************** Octad Problem!\n");
+        y->len = y->max;
+    }
     for (i = 0; i < y->len; i++)
         y->val[i] = x->val[i];
 }

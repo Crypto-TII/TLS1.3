@@ -57,12 +57,87 @@ void logger(char *preamble,char *string,unsign32 info,octad *O)
 #endif
 }
 
+void logCipherSuite(int cipher_suite)
+{
+    switch (cipher_suite)
+    {
+    case TLS_AES_128_GCM_SHA256:
+        logger((char *)"Cipher Suite is TLS_AES_128_GCM_SHA256\n",NULL,0,NULL);
+        break;
+    case TLS_AES_256_GCM_SHA384:
+        logger((char *)"Cipher Suite is TLS_AES_256_GCM_SHA384\n",NULL,0,NULL);   
+        break;
+    case TLS_CHACHA20_POLY1305_SHA256:
+        logger((char *)"Cipher Suite is TLS_CHACHA20_POLY1305_SHA256\n",NULL,0,NULL);   
+        break;
+    default:
+        logger((char *)"Non-standard Cipher Suite\n",NULL,0,NULL);   
+        break;
+    }
+}
+
+void logKeyExchange(int kex)
+{
+    switch (kex)
+    {
+    case X25519:
+        logger((char *)"Key Exchange Group is X25519\n",NULL,0,NULL);
+        break;
+    case SECP256R1:
+        logger((char *)"Key Exchange Group is SECP256R1\n",NULL,0,NULL);   
+        break;
+    case SECP384R1:
+        logger((char *)"Key Exchange Group is SECP384R1\n",NULL,0,NULL);   
+        break;
+    default:
+        logger((char *)"Non-standard Key Exchange Group\n",NULL,0,NULL);   
+        break;
+    }
+}
+
+void logSigAlg(int sigAlg)
+{
+    switch (sigAlg)
+    {
+    case ECDSA_SECP256R1_SHA256:
+        logger((char *)"Signature Algorithm is ECDSA_SECP256R1_SHA256\n",NULL,0,NULL);
+        break;
+    case RSA_PSS_RSAE_SHA256:
+        logger((char *)"Signature Algorithm is RSA_PSS_RSAE_SHA256\n",NULL,0,NULL);   
+        break;
+    case RSA_PKCS1_SHA256:
+        logger((char *)"Signature Algorithm is RSA_PKCS1_SHA256\n",NULL,0,NULL);   
+        break;
+    case ECDSA_SECP384R1_SHA384:
+        logger((char *)"Signature Algorithm is ECDSA_SECP384R1_SHA384\n",NULL,0,NULL);
+        break;
+    case RSA_PSS_RSAE_SHA384:
+        logger((char *)"Signature Algorithm is RSA_PSS_RSAE_SHA384\n",NULL,0,NULL);   
+        break;
+    case RSA_PKCS1_SHA384:
+        logger((char *)"Signature Algorithm is RSA_PKCS1_SHA384\n",NULL,0,NULL);   
+        break;
+    case RSA_PSS_RSAE_SHA512:
+        logger((char *)"Signature Algorithm is RSA_PSS_RSAE_SHA512\n",NULL,0,NULL);   
+        break;
+    case RSA_PKCS1_SHA512:
+        logger((char *)"Signature Algorithm is RSA_PKCS1_SHA512\n",NULL,0,NULL);   
+        break;
+    case ED25519:
+        logger((char *)"Signature Algorithm is ED25519\n",NULL,0,NULL);   
+        break;
+    default:
+        logger((char *)"Non-standard Signature Algorithm\n",NULL,0,NULL);   
+        break;
+    }
+}
+
 // log server hello outputs
 void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK)
 {
     logger((char *)"\nParsing serverHello\n",NULL,0,NULL);
-    logger((char *)"cipher suite= ",(char *)"%x",cipher_suite,NULL);
-    logger((char *)"Key exchange algorithm= ",(char *)"%x",kex,NULL);
+    logCipherSuite(cipher_suite);
+    logKeyExchange(kex);
     if (pskid>=0) logger((char *)"PSK Identity= ",(char *)"%d",pskid,NULL);
     if (PK->len>0) {
         logger((char *)"Server Public Key= ",NULL,0,PK);//OCT_output(PK);
@@ -137,6 +212,107 @@ void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad
     logger((char *)"Subject is ",(char *)SUBJECT->val,0,NULL);
 }
 
+
+bool logAlert(octad *O)
+{
+    bool type=false; // true if fatal
+    if (O->val[0]==0x02) type=true;
+    int detail=O->val[1];
+    if (!type)
+        logger((char *)"*** Alert is a warning - ",NULL,0,NULL);
+    else
+        logger((char *)"*** Alert is fatal - ",NULL,0,NULL);
+
+    switch (detail)
+    {
+    case 0 :
+        logger((char *)"Close notify\n",NULL,0,NULL);
+        break;
+    case 10 :
+        logger((char *)"Unexpected Message\n",NULL,0,NULL);
+        break;
+    case 20 :
+        logger((char *)"Bad record mac\n",NULL,0,NULL);
+        break;
+    case 22 :
+        logger((char *)"Record overflow\n",NULL,0,NULL);
+        break;
+    case 40 :
+        logger((char *)"Handshake Failure (not TLS1.3?)\n",NULL,0,NULL);
+        break;
+    case 42 :
+        logger((char *)"Bad certificate\n",NULL,0,NULL);
+        break;
+    case 43 :
+        logger((char *)"Unsupported certificate\n",NULL,0,NULL);
+        break;
+    case 44 :
+        logger((char *)"Certificate revoked\n",NULL,0,NULL);
+        break;
+    case 45 :
+        logger((char *)"Certificate expired\n",NULL,0,NULL);
+        break;
+    case 46 :
+        logger((char *)"Certificate unknown\n",NULL,0,NULL);
+        break;
+    case 47 :
+        logger((char *)"Illegal parameter\n",NULL,0,NULL);
+        break;
+    case 48 :
+        logger((char *)"Unknown CA\n",NULL,0,NULL);
+        break;
+    case 49 :
+        logger((char *)"Access denied\n",NULL,0,NULL);
+        break;
+    case 50 :
+        logger((char *)"Decode error\n",NULL,0,NULL);
+        break;
+    case 51 :
+        logger((char *)"Decrypt error\n",NULL,0,NULL);
+        break;
+    case 70 :
+        logger((char *)"Protocol version\n",NULL,0,NULL);
+        break;
+    case 71 :
+        logger((char *)"Insufficient security\n",NULL,0,NULL);
+        break;
+    case 80 :
+        logger((char *)"Internal error\n",NULL,0,NULL);
+        break;
+    case 86 :
+        logger((char *)"Inappropriate fallback\n",NULL,0,NULL);
+        break;
+    case 90 :
+        logger((char *)"User cancelled\n",NULL,0,NULL);
+        break;
+    case 109 :
+        logger((char *)"Missing Extension\n",NULL,0,NULL);
+        break;
+    case 110 :
+        logger((char *)"Unsupported Extension\n",NULL,0,NULL);
+        break;
+    case 112 :
+        logger((char *)"Unrecognised name\n",NULL,0,NULL);
+        break;
+    case 113 :
+        logger((char *)"Bad certificate status response\n",NULL,0,NULL);
+        break;
+    case 115 :
+        logger((char *)"Unknown PSK identity \n",NULL,0,NULL);
+        break;
+    case 116 :
+        logger((char *)"Certificate required\n",NULL,0,NULL);
+        break;
+    case 120 :
+        logger((char *)"No application protocol\n",NULL,0,NULL);
+        break;
+    default:
+        logger((char *)"Unrecognised alert\n",NULL,0,NULL);
+        break;
+    }
+    return type;
+}
+
 // process server function return
 void logServerResponse(int rtn,octad *O)
 {
@@ -188,7 +364,8 @@ void logServerResponse(int rtn,octad *O)
             logger((char *)"Handshake Retry Request\n",NULL,0,NULL);
             break;
         case ALERT :
-            logger((char *)"Alert received from server - ",NULL,0,O);  // received an alert - close connection
+            logger((char *)"Alert received from server\n",NULL,0,NULL);  // received an alert 
+            logAlert(O);
             break;
         case STRANGE_EXTENSION:
             logger((char *)"Strange Extension Detected\n",NULL,0,NULL);

@@ -112,14 +112,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
         return 0;
     }
 
-    if (rtn==TIME_OUT) return 0;
-    if (rtn==ALERT)
-    {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Alert received from Server - probably does not support TLS1.3\n",NULL,0,NULL);
-#endif
-        return 0;
-    }
+    if (rtn==TIME_OUT || rtn==ALERT) return 0;
 
 // Find cipher-suite chosen by Server
     hashtype=0;
@@ -133,13 +126,14 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     {
         sendClientAlert(client,UNEXPECTED_MESSAGE,NULL,&IO);
 #if VERBOSITY >= IO_DEBUG
-        logger((char *)"Cipher_suite not valid ",(char *)"%x",cipher_suite,NULL);
+        logCipherSuite(cipher_suite);
+        logger((char *)"Cipher_suite not valid\n",NULL,0,NULL);
         logger((char *)"Client to Server -> ",NULL,0,&IO);     
 #endif
         return 0;
     }
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Cipher suite= ",(char *)"%x",cipher_suite,NULL);
+    logCipherSuite(cipher_suite);
 #endif
     GET_EARLY_SECRET(hashtype,NULL,&ES,NULL,NULL);   // Early Secret
 
@@ -349,7 +343,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     transcript_hash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Transcript Hash= ",NULL,0,&FH);
-    logger((char *)"Signature Algorithm= ",(char *)"%04x",sigalg,NULL);
+    logSigAlg(sigalg);
     logger((char *)"Server Certificate Signature= ",NULL,0,&SCVSIG);
 #endif
     if (!IS_SERVER_CERT_VERIFY(sigalg,&SCVSIG,&HH,&SS))
@@ -386,7 +380,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
         return 0;
     }
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Server Data is verified\n",NULL,0,NULL);
+    logger((char *)"\nServer Data is verified\n",NULL,0,NULL);
 #endif
     if (!ccs_sent)
         sendCCCS(client);  // send Client Cipher Change (if not already sent)
@@ -650,6 +644,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
 
 // Process Server Hello
     rtn=getServerHello(client,&IO,cipher_suite,kex,&CID,&COOK,&PK,pskid);
+
 #if VERBOSITY >= IO_DEBUG
     logServerResponse(rtn,&IO);
 #endif
@@ -685,7 +680,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
     GENERATE_SHARED_SECRET(kex,&CSK,&PK,&SS);
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Key Exchange= ",(char *)"%d",kex,NULL);
+    logKeyExchange(kex);
     logger((char *)"Shared Secret= ",NULL,0,&SS);
 #endif
     running_hash(&IO,&tlshash);

@@ -6,7 +6,37 @@
 
 #include "tls_cacerts.h"
 
-// My personal private key */
+// My personal ECC sec384r1 private key 
+const char *myprivate=(char *)
+"-----BEGIN PRIVATE KEY-----\n"
+"MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDBELTYgV5qllTcmi7yC\n"
+"GtEcRLv6+X8S/mBbwsyAs7x6bWPoFPbylQsW/QW7MajqvwihZANiAASheRvfAucz\n"
+"7qWY6bPw0nCJ0yOFy9myOk/D41ca8/Xkg8LREhp41x9NaZuUvaTyeFdG3MGdxWeU\n"
+"vGMIf+AMN2lSqeROAxjr6niBWaVdx92c2U2sgCfffx572fq39FK9ufo=\n"
+"-----END PRIVATE KEY-----\n";
+
+// self-signed cert
+const char *mycert=(char *)
+"-----BEGIN CERTIFICATE-----\n"
+"MIICpzCCAiygAwIBAgIUOWyoVDTdVCoahJ9s+X+UySjqhRIwCgYIKoZIzj0EAwIw\n"
+"gYkxCzAJBgNVBAYTAklFMREwDwYDVQQIDAhMZWluc3RlcjENMAsGA1UEBwwEVHJp\n"
+"bTEPMA0GA1UECgwGU2hhbXVzMREwDwYDVQQLDAhSZXNlYXJjaDETMBEGA1UEAwwK\n"
+"TWlrZSBTY290dDEfMB0GCSqGSIb3DQEJARYQbXNjb3R0QGluZGlnby5pZTAeFw0y\n"
+"MTA2MDkxMTI0MDJaFw0zMTA2MDcxMTI0MDJaMIGJMQswCQYDVQQGEwJJRTERMA8G\n"
+"A1UECAwITGVpbnN0ZXIxDTALBgNVBAcMBFRyaW0xDzANBgNVBAoMBlNoYW11czER\n"
+"MA8GA1UECwwIUmVzZWFyY2gxEzARBgNVBAMMCk1pa2UgU2NvdHQxHzAdBgkqhkiG\n"
+"9w0BCQEWEG1zY290dEBpbmRpZ28uaWUwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAASh\n"
+"eRvfAucz7qWY6bPw0nCJ0yOFy9myOk/D41ca8/Xkg8LREhp41x9NaZuUvaTyeFdG\n"
+"3MGdxWeUvGMIf+AMN2lSqeROAxjr6niBWaVdx92c2U2sgCfffx572fq39FK9ufqj\n"
+"UzBRMB0GA1UdDgQWBBSYPI9k9lXYRLdtIywyJ7GIdhei2zAfBgNVHSMEGDAWgBSY\n"
+"PI9k9lXYRLdtIywyJ7GIdhei2zAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMC\n"
+"A2kAMGYCMQD47M76+NN5Md/M1i3/ep07BgNj8haQ0T/XLwWZMovfHNDBtWhqCG/Z\n"
+"t6bdbNJdQZkCMQDMhYLOnl/dfwZ4sLKKd5BbQevoNWy4vVOEXR53qRzryAkRTJhU\n"
+"4rPPesutUy3OHdI=\n"
+"-----END CERTIFICATE-----\n";
+
+/*
+// My personal private key RSA 2048 bits 
 const char *myprivate=(char *)
 "-----BEGIN PRIVATE KEY-----\n"
 "MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQCoCw+tQ0BRraq+\n"
@@ -63,6 +93,7 @@ const char *mycert=(char *)
 "zZQC8pPt3dKHDhM4IKPbhGhl/zKDqyZaYx7QQd5YZ8U5vdF+qrrdYwao91jSSLSW\n"
 "wPM17xpdd/yeQkV8kJMhmYfgkgCQvCFLiMX+\n"
 "-----END CERTIFICATE-----\n";
+*/
 
 // Root Certificate Store begins here
 

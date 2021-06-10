@@ -71,4 +71,29 @@ extern void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype s
     @param O the server's raw response, might include alert indication
  */
 extern void logServerResponse(int rtn,octad *O);
+
+/**	@brief log Server Alert
+ *
+    @param O the server's alert code
+ */
+extern bool logAlert(octad *O);
+
+/**	@brief log Cipher Suite
+ *
+    @param cipher_suite the Cipher Suite to be logged
+ */
+extern void logCipherSuite(int cipher_suite);
+
+/**	@brief log Key Exchange Group
+ *
+    @param kex the Key Exchange Group to be logged
+ */
+extern void logKeyExchange(int kex);
+
+/**	@brief log Signature Algorithm
+ *
+    @param sigAlg the Signature Algorithm to be logged
+ */
+extern void logSigAlg(int sigAlg);
+
 #endif

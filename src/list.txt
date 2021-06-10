@@ -6,7 +6,7 @@ www.miracl.com			No			No                Yes
 www.facebook.com		No			No		  Yes
 tls13.ulfheim.net		No			No		  Yes
 tls13.cloudfare.com		No			No		  Yes
-www.google.com			No			No		  Yes	
+www.google.com			No			No		  No	 (?)
 slack.com			No			No                Yes
 owasp.org			No			No                Yes
 mozilla.org			No			No		  Sometimes
