@@ -19,11 +19,15 @@ using sign64 = int64_t;			/**< 64-bit signed integer */
 using unsign32 = uint32_t;		/**< 32-bit unsigned integer */
 using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 
+// Terminal Output
 #define IO_NONE 0           /**< Run silently */
 #define IO_APPLICATION 1    /**< just print application traffic */
 #define IO_PROTOCOL 2       /**< print protocol progress + application traffic */
 #define IO_DEBUG 3          /**< print lots of debug information + protocol progress + application traffic */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application traffic + bytes on the wire */
+
+// Supported protocols
+#define TLS_HTTP_PROTOCOL 1  /**< Supported ALPN protocol */
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 //#define POPULAR_ROOT_CERTS        /**< Define this to limit root CAs to most popular only */
@@ -31,6 +35,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
+#define TLS_PROTOCOL TLS_HTTP_PROTOCOL   /**< Selected protocol */
 // *****************************************************************************
 
 // Encryption
@@ -118,6 +123,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define EARLY_DATA 0x002a               /**< Early Data extension */
 #define MAX_FRAG_LENGTH 0x0001          /**< max fragmentation length extension */
 #define PADDING 0x0015                  /**< Padding extension */
+#define APP_PROTOCOL 0x0010             /**< Application Layer Protocol Negotiation (ALPN) */
 
 // record types 
 #define HSHAKE 0x16                     /**< Handshake record */
@@ -153,6 +159,9 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define AUTHENTICATION_FAILURE -9       /**< Authentication error - AEAD Tag incorrect */
 #define BAD_RECORD -10                  /**< Badly formed Record received */
 #define BAD_TICKET -11                  /**< Badly formed Ticket received */
+#define NOT_EXPECTED -12                /**< Received ack for something not requested */
+#define CA_NOT_FOUND -13                /**< Certificate Authority not found */
+#define CERT_OUTOFDATE -14              /**< Certificate Expired */
 
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */
@@ -160,6 +169,9 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define DECRYPT_ERROR 0x33              /**< Decryption error alert */
 #define BAD_CERTIFICATE 0x2A            /**< Bad certificate alert */
 #define UNSUPPORTED_EXTENSION 0x6E      /**< Unsupported extension alert */
+#define UNKNOWN_CA 0x30                 /**< Unrecognised Certificate Authority */
+#define CERTIFICATE_EXPIRED 0x2D        /**< Certificate Expired */
+
 
 /**
  * @brief function return structure */
@@ -168,6 +180,27 @@ typedef struct
     unsign32 val;    /**< return value */
     int err;         /**< error return */   
 } ret;
+
+/**
+ * @brief server encrypted extensions responses */
+typedef struct 
+{
+    bool early_data;    /**< true if early data accepted */
+    bool alpn;          /**< true if ALPN accepted */
+    bool server_name;   /**< true if server name accepted */
+    bool max_frag_length;   /**< true if max frag length respected */
+} ee_resp;
+
+/**
+ * @brief server encrypted extensions expectations */
+typedef struct 
+{
+    bool early_data;    /**< true if early data acceptance expected */
+    bool alpn;          /**< true if ALPN response expected */
+    bool server_name;   /**< true if server name extension response expected */
+    bool max_frag_length; /**< true if max frag length request made */
+} ee_expt;
+
 
 /**
  * @brief crypto context structure */

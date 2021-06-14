@@ -47,6 +47,13 @@ extern void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *C
  */
 extern void logTicket(int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octad *NONCE,octad *ETICK);
 
+/**	@brief logging server extended extensions responses vs expectations
+ *
+	@param e structure containing server expectations
+	@param r structure containing server responses
+ */
+extern void logEncExt(ee_expt *e,ee_resp *r);
+
 /**	@brief logging a Certificate in standard base 64 format
  *
 	@param CERT the certificate to be logged

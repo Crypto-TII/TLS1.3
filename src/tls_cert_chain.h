@@ -30,9 +30,9 @@ using namespace std;
 	@param CERTCHAIN the input certificate chain
     @param hostname the input Server name associated with the Certificate chain
     @param PUBKEY the Server's public key extracted from the Certificate chain 
-	@return true if certificate chain is OK, else returns false
+	@return 0 if certificate chain is OK, else returns negative failure reason
  */
-extern bool CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY);  
+extern int CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY);  
 
 /**	@brief verify Server's signature on protocol transcript
  *

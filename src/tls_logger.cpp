@@ -59,6 +59,7 @@ void logger(char *preamble,char *string,unsign32 info,octad *O)
 
 void logCipherSuite(int cipher_suite)
 {
+#if VERBOSITY >= IO_DEBUG
     switch (cipher_suite)
     {
     case TLS_AES_128_GCM_SHA256:
@@ -74,6 +75,7 @@ void logCipherSuite(int cipher_suite)
         logger((char *)"Non-standard Cipher Suite\n",NULL,0,NULL);   
         break;
     }
+#endif
 }
 
 void logKeyExchange(int kex)
@@ -97,6 +99,7 @@ void logKeyExchange(int kex)
 
 void logSigAlg(int sigAlg)
 {
+#if VERBOSITY >= IO_DEBUG
     switch (sigAlg)
     {
     case ECDSA_SECP256R1_SHA256:
@@ -130,12 +133,48 @@ void logSigAlg(int sigAlg)
         logger((char *)"Non-standard Signature Algorithm\n",NULL,0,NULL);   
         break;
     }
+#endif
+}
+
+// log Encrypted Extensions Responses
+void logEncExt(ee_expt *expected,ee_resp *received)
+{
+#if VERBOSITY >= IO_PROTOCOL
+    if (expected->early_data)
+    {
+        if (received->early_data)
+        {
+            logger((char *)"Early Data Accepted\n",NULL,0,NULL);
+        } else {
+            logger((char *)"Early Data was NOT Accepted\n",NULL,0,NULL);
+        }
+    }
+#endif
+    if (expected->alpn && !received->alpn)
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Warning - ALPN extension NOT acknowledged by server\n",NULL,0,NULL);
+#endif
+    } 
+#if VERBOSITY >= IO_DEBUG
+    if (expected->server_name && !received->server_name)
+    {
+        logger ((char *)"Server Name NOT Acknowledged\n",NULL,0,NULL);
+    }
+#endif
+#if VERBOSITY >= IO_DEBUG
+    if (expected->max_frag_length && !received->max_frag_length)
+    {
+        logger ((char *)"Max frag length request NOT Acknowledged\n",NULL,0,NULL);
+    }
+#endif
 }
 
 // log server hello outputs
 void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK)
 {
-    logger((char *)"\nParsing serverHello\n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+    logger((char *)"Parsing serverHello\n",NULL,0,NULL);
     logCipherSuite(cipher_suite);
     logKeyExchange(kex);
     if (pskid>=0) logger((char *)"PSK Identity= ",(char *)"%d",pskid,NULL);
@@ -146,11 +185,13 @@ void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK)
         logger((char *)"Cookie= ",NULL,0,CK); //OCT_output(CK);
     }
     logger((char *)"\n",NULL,0,NULL);
+#endif
 }
 
 // log ticket details
 void logTicket(int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octad *NONCE,octad *ETICK)
 {
+#if VERBOSITY >= IO_DEBUG
     logger((char *)"\nParsing Ticket\n",NULL,0,NULL);
     unsign32 minutes=lifetime/60;
     logger((char *)"life time in minutes = ",(char *)"%d",minutes,NULL);
@@ -159,6 +200,7 @@ void logTicket(int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octa
     logger((char *)"Ticket = ",NULL,0,ETICK); 
     logger((char *)"max_early_data = ",(char *)"%d",max_early_data,NULL);
     logger((char *)"\n",NULL,0,NULL);
+#endif
 }
 
 // log a certificate in base64
@@ -316,6 +358,7 @@ bool logAlert(octad *O)
 // process server function return
 void logServerResponse(int rtn,octad *O)
 {
+#if VERBOSITY >= IO_DEBUG
     if (rtn<0)
     { // fatal errors - after logging we will send a server alert and close connection
         switch (rtn)
@@ -373,4 +416,5 @@ void logServerResponse(int rtn,octad *O)
         default: break;
         }
     }
+#endif
 }

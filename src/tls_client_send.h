@@ -71,6 +71,15 @@ extern void addSigAlgsCertExt(octad *EXT,int nsac,int *sigAlgsCert);
  */  
 extern void addKeyShareExt(octad *EXT,int alg,octad *PK);
 
+
+/**	@brief Add Application Layer Protocol Negotiation (ALPN) extension to under-construction Extensions Octet
+ *
+	@param EXT the extensions octad which is being built
+    @param AP the IANA sequence associated with the expected protocol
+ */ 
+extern void addALPNExt(octad *EXT,octad *AP);
+
+
 /**	@brief Add Maximum Fragment Length extension to under-construction Extensions Octet
  *
 	@param EXT the extensions octad which is being built

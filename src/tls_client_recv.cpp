@@ -13,9 +13,14 @@ ret parseoctad(octad *E,int len,octad *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
     if (ptr+len>M->len) return r;   // not enough in M - probably need to read in some more
-    E->len=len;
-    for (int i=0;i<len && i<E->max;i++ )
-        E->val[i]=M->val[ptr++];
+    if (E==NULL)
+    {
+        ptr+=len;
+    } else {
+        E->len=len;
+        for (int i=0;i<len && i<E->max;i++ )
+            E->val[i]=M->val[ptr++];
+    }
     r.val=len; r.err=0;             // it looks OK
     return r;
 }
@@ -298,7 +303,7 @@ int getWhatsNext(Socket &client,octad *IO,crypto *recv,unihash *trans_hash)
 }
 
 // Get encrypted extensions
-int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,bool &early_data_accepted)
+int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,ee_expt *enc_ext_expt,ee_resp *enc_ext_resp)
 {
     ret r;
     int nb,ext,len,tlen,mfl,ptr=0;
@@ -307,7 +312,10 @@ int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *
     if (nb<0) return nb;
     r=parseInt24orPull(client,IO,ptr,recv); len=r.val; if (r.err) return r.err;         // message length    
 
-    early_data_accepted=false;
+    enc_ext_resp->early_data=false;
+    enc_ext_resp->alpn=false;
+    enc_ext_resp->server_name=false;
+    enc_ext_resp->max_frag_length=false;
     if (nb!=ENCRYPTED_EXTENSIONS)
         return WRONG_MESSAGE;
 
@@ -325,8 +333,9 @@ int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *
         case EARLY_DATA :
             r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val;  // if tlen != 0?
             len-=2;  // length is zero
-            early_data_accepted=true;
             if (tlen!=0) return UNRECOGNIZED_EXT;
+            enc_ext_resp->early_data=true;
+            if (!enc_ext_expt->early_data) return NOT_EXPECTED;
             break;
         case MAX_FRAG_LENGTH :
             r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val; if (r.err) return r.err;
@@ -334,6 +343,25 @@ int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *
             r=parseByteorPull(client,IO,ptr,recv); mfl=r.val;  // ideally this should the same as requested by client
             len-=tlen;                                       // but server may have ignored this request... :(
             if (tlen!=1) return UNRECOGNIZED_EXT;            // so we ignore this response  
+            enc_ext_resp->max_frag_length=true;
+            if (!enc_ext_expt->max_frag_length) return NOT_EXPECTED;
+            break;
+        case APP_PROTOCOL :
+            r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val;
+            len-=2;  // length of extension
+            r=parseInt16orPull(client,IO,ptr,recv); mfl=r.val;
+            r=parseByteorPull(client,IO,ptr,recv); mfl=r.val;
+            r=parseoctadorPull(client,NULL,mfl,IO,ptr,recv);   // ALPN code - send to NULL
+            len-=tlen;
+            enc_ext_resp->alpn=true;
+            if (!enc_ext_expt->alpn) return NOT_EXPECTED;
+            break;
+        case SERVER_NAME:
+            r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val;  // Acknowledging server name client request.
+            len-=2;  // length of extension
+            enc_ext_resp->server_name=true;
+            if (tlen!=0) return UNRECOGNIZED_EXT;
+            if (!enc_ext_expt->server_name) return NOT_EXPECTED;
             break;
         default:    // ignore all other extensions
             r=parseInt16orPull(client,IO,ptr,recv); tlen=r.val;
@@ -437,10 +465,7 @@ int getCheckServerCertificateChain(Socket &client,octad *IO,crypto *recv,unihash
     for (int i=0;i<ptr;i++)
         Hash_Process(trans_hash,IO->val[i]);
 
-    if (CHECK_CERT_CHAIN(&CERTCHAIN,hostname,PUBKEY))
-        rtn=0;
-    else
-        rtn=BAD_CERT_CHAIN;
+    rtn=CHECK_CERT_CHAIN(&CERTCHAIN,hostname,PUBKEY);
 
     OCT_shift_left(IO,ptr);  // rewind to start
 

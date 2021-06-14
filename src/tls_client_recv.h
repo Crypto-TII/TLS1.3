@@ -155,10 +155,11 @@ extern int getWhatsNext(Socket &client,octad *IO,crypto *recv,unihash *trans_has
     @param IO an octad to accept input
     @param recv the cryptographic key under which the extensions are encrypted
     @param trans_hash the current and updated transcript hash
-    @param early_data_accepted an output boolean indicating if early data was accepted
+    @param enc_ext_expt ext structure containing server expectations
+    @param enc_ext_resp ext structure containing server responses
 	@return negative error, zero for OK, or positive for informative response
  */
-extern int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,bool &early_data_accepted);
+extern int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,ee_expt *enc_ext_expt,ee_resp *enc_ext_resp);
 
 /**	@brief Get Server proof that he owns the Certificate, by receiving and verifying its signature on transcript hash
  *

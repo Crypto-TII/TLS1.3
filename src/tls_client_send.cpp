@@ -89,6 +89,18 @@ void addKeyShareExt(octad *EXT,int alg,octad *PK)
     OCT_append_octad(EXT,PK);
 }
 
+// Add ALPN extension
+// Offer just one option
+void addALPNExt(octad *EXT,octad *AP)
+{
+    int tlen=AP->len+1;
+    OCT_append_int(EXT,APP_PROTOCOL,2);
+    OCT_append_int(EXT,tlen+2,2);
+    OCT_append_int(EXT,tlen,2);
+    OCT_append_int(EXT,AP->len,1);
+    OCT_append_octad(EXT,AP);
+}
+
 // indicate supported PSK mode
 void addPSKModesExt(octad *EXT,int mode)
 {
@@ -349,6 +361,12 @@ int alert_from_cause(int rtn)
         return ILLEGAL_PARAMETER;
     case BAD_TICKET:
         return ILLEGAL_PARAMETER;
+    case NOT_EXPECTED:
+        return UNSUPPORTED_EXTENSION;
+    case CA_NOT_FOUND:
+        return UNKNOWN_CA;
+    case CERT_OUTOFDATE:
+        return CERTIFICATE_EXPIRED;
     default:
         return ILLEGAL_PARAMETER;    
     }
