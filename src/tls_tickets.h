@@ -33,6 +33,6 @@ extern int parseTicket(octad *TICK,unsign32 birth,ticket *T);
     @param cipher_suite the cipher suite currently in use
     @param favourite_group the server/client agreed group
  */
-extern void init_ticket_context(ticket *T,int cipher_suite,int favourite_group);
+extern void initTicketContext(ticket *T,int cipher_suite,int favourite_group);
 
 #endif

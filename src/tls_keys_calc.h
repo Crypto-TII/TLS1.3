@@ -19,14 +19,14 @@
     @param O an octad to be included in hash
     @param h a hashing context
  */
-extern void running_hash(octad *O,unihash *h);
+extern void runningHash(octad *O,unihash *h);
 
 /**	@brief Output current hash value
  *
     @param h a hashing context
     @param O an output octad containing current hash
  */
-extern void transcript_hash(unihash *h,octad *O);
+extern void transcriptHash(unihash *h,octad *O);
 
 /**	@brief Calculate special synthetic hash calculation for first clientHello after retry request (RFC 8446 section 4.4.1)
  *
@@ -35,13 +35,13 @@ extern void transcript_hash(unihash *h,octad *O);
     @param h a hashing context
 
  */
-extern void running_syn_hash(octad *O,octad *E,unihash *h);
+extern void runningSyntheticHash(octad *O,octad *E,unihash *h);
 
 /**	@brief Initiate a Crypto Context
  *
     @param C an AEAD encryption context
  */
-extern void init_crypto_context(crypto *C);
+extern void initCryptoContext(crypto *C);
 
 /**	@brief Build a Crypto Context
  *
@@ -49,13 +49,13 @@ extern void init_crypto_context(crypto *C);
     @param K an encryption key
     @param IV an encryption Initialisation Vector
  */
-extern void create_crypto_context(crypto *C,octad *K,octad *IV);
+extern void updateCryptoContext(crypto *C,octad *K,octad *IV);
 
 /**	@brief Increment a Crypto Context for the next record, updating IV
  *
     @param C an AEAD encryption context
  */
-extern void increment_crypto_context(crypto *C);
+extern void incrementCryptoContext(crypto *C);
 
 /**	@brief Build a crypto context from an input raw Secret and an agreed cipher_suite 
  *
@@ -63,7 +63,7 @@ extern void increment_crypto_context(crypto *C);
     @param TS the input raw secret
     @param context an AEAD encryption context
  */
-extern void GET_KEY_AND_IV(int cipher_suite,octad *TS,crypto *context);
+extern void createCryptoContext(int cipher_suite,octad *TS,crypto *context);
 
 /**	@brief Recover a pre-shared key from Resumption Master Secret and a nonce
  *
@@ -72,7 +72,7 @@ extern void GET_KEY_AND_IV(int cipher_suite,octad *TS,crypto *context);
     @param NONCE the input nonce
     @param PSK the output pre-shared key
  */
-extern void RECOVER_PSK(int htype,octad *RMS,octad *NONCE,octad *PSK);
+extern void recoverPSK(int htype,octad *RMS,octad *NONCE,octad *PSK);
 
 /**	@brief Extract Early Secret Key and Binder Key from Preshared Key (External or Resumption)
  *
@@ -82,7 +82,7 @@ extern void RECOVER_PSK(int htype,octad *RMS,octad *NONCE,octad *PSK);
     @param BKE the output external binder key (or NULL if not required)
     @param BKR the output resumption binder key (or NULL if not required)
  */
-extern void GET_EARLY_SECRET(int htype,octad *PSK,octad *ES,octad *BKE,octad *BKR);
+extern void deriveEarlySecrets(int htype,octad *PSK,octad *ES,octad *BKE,octad *BKR);
 
 /**	@brief Extract more secrets from Early Secret
  *
@@ -92,7 +92,7 @@ extern void GET_EARLY_SECRET(int htype,octad *PSK,octad *ES,octad *BKE,octad *BK
     @param CETS the output Client Early Traffic Secret (or NULL if not required)
     @param EEMS the output Early Exporter Master Secret (or NULL if not required)
  */
-extern void GET_LATER_SECRETS(int htype,octad *H,octad *ES,octad *CETS,octad *EEMS);
+extern void deriveLaterSecrets(int htype,octad *H,octad *ES,octad *CETS,octad *EEMS);
 
 /**	@brief Extract Handshake Secret from Shared Secret and Early Secret. Use Handshake Secret to extract Client and Server Handshake Traffic secrets 
  *
@@ -104,7 +104,7 @@ extern void GET_LATER_SECRETS(int htype,octad *H,octad *ES,octad *CETS,octad *EE
     @param CHTS the output Client Handshake Traffic Secret
     @param SHTS the output Server Handshake Traffic Secret
  */
-extern void GET_HANDSHAKE_SECRETS(int htype,octad *SS,octad *ES, octad *H,octad *HS,octad *CHTS,octad *SHTS);
+extern void deriveHandshakeSecrets(int htype,octad *SS,octad *ES, octad *H,octad *HS,octad *CHTS,octad *SHTS);
 
 /**	@brief Extract Application Secret from Handshake Secret and Early Secret. Use Handshake Secret to extract Client and Server Application Traffic secrets 
  *
@@ -117,14 +117,14 @@ extern void GET_HANDSHAKE_SECRETS(int htype,octad *SS,octad *ES, octad *H,octad 
     @param EMS the output External Master Secret (or NULL if not required)
     @param RMS the output Resumption Master Secret (or NULL if not required)
  */
-extern void GET_APPLICATION_SECRETS(int htype,octad *HS,octad *SFH,octad *CFH,octad *CTS,octad *STS,octad *EMS,octad *RMS);
+extern void deriveApplicationSecrets(int htype,octad *HS,octad *SFH,octad *CFH,octad *CTS,octad *STS,octad *EMS,octad *RMS);
 
 /**	@brief Perform a Key Update on a crypto context
  *
     @param context an AEAD encryption context
     @param TS the updated Traffic secret
  */
-extern void UPDATE_KEYS(crypto *context,octad *TS);
+extern void deriveUpdatedKeys(crypto *context,octad *TS);
 
 /**	@brief Test if data from Server is verified using server traffic secret and a transcript hash 
  *
@@ -134,7 +134,7 @@ extern void UPDATE_KEYS(crypto *context,octad *TS);
     @param H the input partial transcript hash
     @return true is data is verified, else false
  */
-extern bool IS_VERIFY_DATA(int htype,octad *SF,octad *STS,octad *H);
+extern bool checkVeriferData(int htype,octad *SF,octad *STS,octad *H);
 
 /**	@brief Create handshake verification data for Client to send to Server from client traffic secret and a transcript hash
  *
@@ -143,6 +143,6 @@ extern bool IS_VERIFY_DATA(int htype,octad *SF,octad *STS,octad *H);
     @param CTS the input Client Traffic Secret
     @param H the input partial transcript hash
  */
-extern void VERIFY_DATA(int htype,octad *SF,octad *CTS,octad *H);
+extern void deriveVeriferData(int htype,octad *SF,octad *CTS,octad *H);
 
 #endif

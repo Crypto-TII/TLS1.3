@@ -13,6 +13,7 @@
 #include "tls1_3.h"
 #include "tls_sockets.h"
 #include "tls_keys_calc.h"
+#include "tls_client_send.h"
 
 /**	@brief Parse out an octad from a pointer into an octad 
  *
@@ -139,6 +140,15 @@ extern ret parseoctadorPull(Socket &client,octad *O,int len,octad *IO,int &ptr,c
  */
 extern ret parseoctadorPullptr(Socket &client,octad *O,int len,octad *IO,int &ptr,crypto *recv);
 
+/**	@brief Process response from server input
+ *
+	@param client the socket connection to the Server
+    @param send the cryptographic key under which an outgoing alert may be encrypted
+    @param r return value to be processed
+	@return true, if its a bad response requiring an abort
+ */
+extern bool badResponse(Socket &client,crypto *send,ret r);
+
 /**	@brief Identify type of message
  *
 	@param client the socket connection to the Server
@@ -147,7 +157,7 @@ extern ret parseoctadorPullptr(Socket &client,octad *O,int len,octad *IO,int &pt
     @param trans_hash the current and updated transcript hash
 	@return negative error, zero for OK, or positive for message type
  */
-extern int getWhatsNext(Socket &client,octad *IO,crypto *recv,unihash *trans_hash);
+extern ret getWhatsNext(Socket &client,octad *IO,crypto *recv,unihash *trans_hash);
 
 /**	@brief Receive and parse Server Encrypted Extensions
  *
@@ -157,9 +167,9 @@ extern int getWhatsNext(Socket &client,octad *IO,crypto *recv,unihash *trans_has
     @param trans_hash the current and updated transcript hash
     @param enc_ext_expt ext structure containing server expectations
     @param enc_ext_resp ext structure containing server responses
-	@return negative error, zero for OK, or positive for informative response
+	@return response structure
  */
-extern int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,ee_expt *enc_ext_expt,ee_resp *enc_ext_resp);
+extern ret getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,ee_expt *enc_ext_expt,ee_resp *enc_ext_resp);
 
 /**	@brief Get Server proof that he owns the Certificate, by receiving and verifying its signature on transcript hash
  *
@@ -169,9 +179,9 @@ extern int getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,un
     @param trans_hash the current and updated transcript hash
     @param SCVSIG the received signature on the transcript hash
     @param sigalg the type of the received signature
-	@return negative error, zero for OK, or positive for informative response
+	@return response structure
  */
-extern int getServerCertVerify(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,octad *SCVSIG,int &sigalg);
+extern ret getServerCertVerify(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,octad *SCVSIG,int &sigalg);
 
 /**	@brief Get final handshake message from Server, a HMAC on the transcript hash
  *
@@ -180,9 +190,9 @@ extern int getServerCertVerify(Socket &client,octad *IO,crypto *recv,unihash *tr
     @param recv the cryptographic key under which the server response is encrypted
     @param trans_hash the current and updated transcript hash
     @param HFIN an octad containing HMAC on transcript as calculated by Server
-	@return negative error, zero for OK, or positive for informative response
+	@return response structure
  */
-extern int getServerFinished(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,octad *HFIN);
+extern ret getServerFinished(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,octad *HFIN);
 
 /**	@brief Receive and parse initial Server Hello
  *
@@ -194,9 +204,9 @@ extern int getServerFinished(Socket &client,octad *IO,crypto *recv,unihash *tran
     @param CK an output Cookie
     @param PK the key exchange public value supplied by the Server
     @param pskid indicates if a pre-shared key was accepted, otherwise -1
-	@return negative error, zero for OK, or positive for informative response
+	@return response structure
  */
-extern int getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *CID,octad *CK,octad *PK,int &pskid);
+extern ret getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *CID,octad *CK,octad *PK,int &pskid);
 
 /**	@brief Receive and check certificate chain
  *
@@ -206,9 +216,9 @@ extern int getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *C
     @param trans_hash the current and updated transcript hash
     @param hostname the Server name which the client wants confirmed by Server Certificate
     @param PUBKEY the public key extracted from the Server certificate 
-	@return negative error, zero for OK, or positive for informative response
+	@return response structure
  */
-extern int getCheckServerCertificateChain(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,char *hostname,octad *PUBKEY);
+extern ret getCheckServerCertificateChain(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,char *hostname,octad *PUBKEY);
 
 /**	@brief process a Certificate Request
  *
@@ -218,8 +228,10 @@ extern int getCheckServerCertificateChain(Socket &client,octad *IO,crypto *recv,
     @param trans_hash the current and updated transcript hash
     @param nalgs the number of acceptable signature algorithms
     @param sigalgs an array of nalgs signature algorithms
-	@return negative error, zero for OK, or positive for informative response
+	@return response structure
  */
-extern int getCertificateRequest(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,int &nalgs,int *sigalgs);
+extern ret getCertificateRequest(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,int &nalgs,int *sigalgs);
+
+
 
 #endif

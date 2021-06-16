@@ -22,7 +22,7 @@ unsigned long millis()
 #endif
 
 // Initialise a ticket. Also record the cipher-suite in use, and servers favourite key exchange group
-void init_ticket_context(ticket *T,int cipher_suite,int favourite_group)
+void initTicketContext(ticket *T,int cipher_suite,int favourite_group)
 {
     T->NONCE.len = 0;
     T->NONCE.max = TLS_MAX_KEY;

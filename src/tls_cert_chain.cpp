@@ -3,7 +3,7 @@
 #include "tls_cert_chain.h"
 
 // combine Common Name, Organisation Name and Unit Name to make unique determination
-static void FULL_NAME(octad *FN,octad *CERT,int ic)
+static void createFullName(octad *FN,octad *CERT,int ic)
 {
     int c,len;
     OCT_kill(FN);
@@ -31,13 +31,13 @@ static int readaline(char *line,const char *rom,int &ptr)
 }
 
 // Extract public key from a certificate
-static pktype GET_PUBLIC_KEY_FROM_CERT(octad *CERT,octad *PUBLIC_KEY)
+static pktype getPublicKeyFromCert(octad *CERT,octad *PUBLIC_KEY)
 {
     pktype pk=X509_extract_public_key(CERT, PUBLIC_KEY);  // pull out its public key
     return pk;
 }
 
-static bool CHECK_HOSTNAME_IN_CERT(octad *CERT,char *hostname)
+static bool checkHostnameInCert(octad *CERT,char *hostname)
 {
     int len;
     int ic=X509_find_extensions(CERT);
@@ -45,7 +45,7 @@ static bool CHECK_HOSTNAME_IN_CERT(octad *CERT,char *hostname)
     return (bool)X509_find_alt_name(CERT,c,hostname);
 }
 
-static bool CHECK_VALIDITY(octad *CERT)
+static bool checkCertValidity(octad *CERT)
 {
     int len;
     int ic = X509_find_validity(CERT);
@@ -59,7 +59,7 @@ static bool CHECK_VALIDITY(octad *CERT)
 // This is a simple linear search through CA certificates found in the ca-certificates.crt file (borrowed from Ubuntu)
 // This file should be in Read-Only-Memory
 
-static bool FIND_ROOT_CA(octad* ISSUER,pktype st,octad *PUBKEY)
+static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
 {
     char ca[TLS_X509_MAX_FIELD];
     octad CA={0,sizeof(ca),ca};
@@ -86,9 +86,9 @@ static bool FIND_ROOT_CA(octad* ISSUER,pktype st,octad *PUBKEY)
         int c = X509_extract_cert(&SC, &SC);  // extract Cert from Signed Cert
 
         int ic = X509_find_issuer(&SC);
-        FULL_NAME(&OWNER,&SC,ic);
+        createFullName(&OWNER,&SC,ic);
 
-        if (!CHECK_VALIDITY(&SC))
+        if (!checkCertValidity(&SC))
         { // Its expired!
             continue;
         }
@@ -106,7 +106,7 @@ static bool FIND_ROOT_CA(octad* ISSUER,pktype st,octad *PUBKEY)
 }
 
 // strip signature off certificate. Return signature type
-static pktype STRIP_DOWN_CERT(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJECT)
+static pktype stripDownCert(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJECT)
 {
     int c,ic,len;
 
@@ -114,16 +114,16 @@ static pktype STRIP_DOWN_CERT(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJEC
     X509_extract_cert(CERT,CERT);
 
     ic = X509_find_issuer(CERT);
-    FULL_NAME(ISSUER,CERT,ic);
+    createFullName(ISSUER,CERT,ic);
 
     ic = X509_find_subject(CERT);
-    FULL_NAME(SUBJECT,CERT,ic);
+    createFullName(SUBJECT,CERT,ic);
 
     return sg;
 }
 
 // Check signature on Certificate given signature type and public key
-static bool CHECK_CERT_SIG(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
+static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 {
 // determine signature algorithm
     int sha=0;
@@ -159,7 +159,7 @@ static bool CHECK_CERT_SIG(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
     logSigAlg(sigAlg);
 #endif
 
-    res=CERT_SIGNATURE_VERIFY(sigAlg,CERT,SIG,PUBKEY); 
+    res=SAL_certSignatureVerify(sigAlg,CERT,SIG,PUBKEY); 
 
 
     if (res)
@@ -178,7 +178,7 @@ static bool CHECK_CERT_SIG(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 
 // Read in client private key from .pem file
 // Read in certificate, and make a certificate chain
-int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN)
+int getClientKeyAndCertchain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
     char sc[TLS_MAX_MYCERT_SIZE];  // X.509 .pem file (is it a cert or a cert chain??)
@@ -249,7 +249,7 @@ int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad
 // Assumes simple chain Server Cert->Intermediate Cert->CA cert
 // CA cert not read from chain (if its even there). 
 // Search for issuer of Intermediate Cert in cert store 
-int CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
+int checkCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 {
     ret r;
     int len,c,ptr=0;
@@ -283,17 +283,17 @@ int CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;
     ptr+=len;   // skip certificate extensions
 
-    sst=STRIP_DOWN_CERT(&SCERT,&SSIG,&ISSUER,&SUBJECT);    // extract signature
-    spt=GET_PUBLIC_KEY_FROM_CERT(&SCERT,PUBKEY);           // extract  public key
+    sst=stripDownCert(&SCERT,&SSIG,&ISSUER,&SUBJECT);    // extract signature
+    spt=getPublicKeyFromCert(&SCERT,PUBKEY);           // extract  public key
 
-    if (!CHECK_HOSTNAME_IN_CERT(&SCERT,hostname))
+    if (!checkHostnameInCert(&SCERT,hostname))
     { // Check that certificate covers the server URL
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Hostname not found in certificate\n",NULL,0,NULL);
 #endif
         if (strcmp(hostname,"localhost")!=0) return BAD_CERT_CHAIN;
     }
-    if (!CHECK_VALIDITY(&SCERT))
+    if (!checkCertValidity(&SCERT))
     {
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Server Certificate has expired\n",NULL,0,NULL);
@@ -331,21 +331,21 @@ int CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
         logger((char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
 #endif
 
-    ist=STRIP_DOWN_CERT(&ICERT,&ISIG,&ISSUER,&SUBJECT);
-    ipt=GET_PUBLIC_KEY_FROM_CERT(&ICERT,&IPK);
+    ist=stripDownCert(&ICERT,&ISIG,&ISSUER,&SUBJECT);
+    ipt=getPublicKeyFromCert(&ICERT,&IPK);
 
-    if (!CHECK_VALIDITY(&ICERT))
+    if (!checkCertValidity(&ICERT))
     {
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Intermediate Certificate has expired\n",NULL,0,NULL);
 #endif
-        return BAD_CERT_CHAIN;
+        return CERT_OUTOFDATE;
     }
 
 #if VERBOSITY >= IO_DEBUG
     logCertDetails((char *)"Parsing Intermediate certificate\n",&IPK,ipt,&ISIG,ist,&ISSUER,&SUBJECT);
 #endif
-    if (CHECK_CERT_SIG(sst,&SCERT,&SSIG,&IPK)) {  // Check server cert signature with inter cert public key
+    if (checkCertSig(sst,&SCERT,&SSIG,&IPK)) {  // Check server cert signature with inter cert public key
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Intermediate Certificate Chain sig is OK\n",NULL,0,NULL);
 #endif
@@ -366,7 +366,7 @@ int CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 
 // Find Root of Trust
 // Find root certificate public key
-    if (FIND_ROOT_CA(&ISSUER,ist,&RPK)) {
+    if (findRootCA(&ISSUER,ist,&RPK)) {
 #if VERBOSITY >= IO_DEBUG        
         logger((char *)"\nPublic Key from root cert= ",NULL,0,&RPK);
 #endif
@@ -377,7 +377,7 @@ int CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
         return CA_NOT_FOUND;
     }
 
-    if (CHECK_CERT_SIG(ist,&ICERT,&ISIG,&RPK)) {  // Check inter cert signature with root cert public key
+    if (checkCertSig(ist,&ICERT,&ISIG,&RPK)) {  // Check inter cert signature with root cert public key
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Root Certificate sig is OK\n",NULL,0,NULL);
 #endif
@@ -440,7 +440,7 @@ static void parse_in_ecdsa_sig(int sha,octad *CCVSIG)
 }
 
 // Create Client Cert Verify message, a digital signature using KEY on some TLS1.3 specific message+transcript hash
-void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
+void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
 {
     char ccv[100+TLS_MAX_HASH];
     octad CCV={0,sizeof(ccv),ccv};
@@ -450,7 +450,7 @@ void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     OCT_append_byte(&CCV,0,1);   // add 0 character
     OCT_append_octad(&CCV,H);    // add Transcript Hash 
 
-    TLS_SIGNATURE_SIGN(sigAlg,KEY,&CCV,CCVSIG);
+    SAL_tlsSignature(sigAlg,KEY,&CCV,CCVSIG);
 
 // adjustment for ECDSA signatures
     if (sigAlg==ECDSA_SECP256R1_SHA256)
@@ -511,7 +511,7 @@ static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
 // check that SCVSIG is digital signature (using sigAlg algorithm) of some TLS1.3 specific message+transcript hash, 
 // as verified by Server Certificate public key CERTPK
 
-bool IS_SERVER_CERT_VERIFY(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
+bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
 {
 // Server Certificate Verify
     ret rt;
@@ -539,5 +539,5 @@ bool IS_SERVER_CERT_VERIFY(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
         if (!parse_out_ecdsa_sig(TLS_SHA384,SCVSIG)) return false;
     } 
 
-    return TLS_SIGNATURE_VERIFY(sigAlg,&SCV,SCVSIG,CERTPK);
+    return SAL_tlsSignatureVerify(sigAlg,&SCV,SCVSIG,CERTPK);
 }

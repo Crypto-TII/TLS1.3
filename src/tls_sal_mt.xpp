@@ -38,7 +38,7 @@ using namespace core;
 
 csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware source
 
-bool TLS_SAL_INITLIB()
+bool SAL_initLib()
 { // Initialise library
     uint8_t raw[100];
     tii_prng_get_bytes(raw, 100); // get true random seed
@@ -46,7 +46,7 @@ bool TLS_SAL_INITLIB()
     return true;
 }
 
-int TLS_SAL_CIPHERS(int *ciphers)
+int SAL_ciphers(int *ciphers)
 {
     int n=2;
     ciphers[0]=TLS_AES_128_GCM_SHA256;
@@ -54,7 +54,7 @@ int TLS_SAL_CIPHERS(int *ciphers)
     return n;
 }
 
-int TLS_SAL_GROUPS(int *groups)
+int SAL_groups(int *groups)
 {
     int n=3;
     groups[0]=X25519;
@@ -63,7 +63,7 @@ int TLS_SAL_GROUPS(int *groups)
     return n;
 }
 
-int TLS_SAL_SIGS(int *sigAlgs)
+int SAL_sigs(int *sigAlgs)
 {
     int n=4;
     sigAlgs[0]=ECDSA_SECP256R1_SHA256;
@@ -73,7 +73,7 @@ int TLS_SAL_SIGS(int *sigAlgs)
     return n;
 }
 
-int TLS_SAL_SIGCERTS(int *sigAlgsCert)
+int SAL_sigCerts(int *sigAlgsCert)
 {
     int n=6;
     sigAlgsCert[0]=ECDSA_SECP256R1_SHA256;
@@ -87,7 +87,7 @@ int TLS_SAL_SIGCERTS(int *sigAlgsCert)
 }
 
 // return hashtype from cipher_suite
-int TLS_SAL_HASHTYPE(int cipher_suite)
+int SAL_hashType(int cipher_suite)
 {
     int htype=TLS_SHA256_T;   // SHA256 default;
     if (cipher_suite==TLS_AES_128_GCM_SHA256) htype=TLS_SHA256_T;
@@ -97,7 +97,7 @@ int TLS_SAL_HASHTYPE(int cipher_suite)
 }
 
 // return hash length from hash type
-int TLS_SAL_HASHLEN(int hash_type)
+int SAL_hashLen(int hash_type)
 {
     int hlen=0;
     if (hash_type==TLS_SHA256_T) hlen=32;
@@ -122,7 +122,7 @@ static octet octad_to_octet(octad *x)
 }
 
 // Return a random byte
-int TLS_RANDOM_BYTE()
+int SAL_randomByte()
 {
     uint8_t b[1];
     tii_prng_get_bytes(b, 1);
@@ -130,7 +130,7 @@ int TLS_RANDOM_BYTE()
 }
 
 // Fill an octad with random values
-void TLS_RANDOM_OCTAD(int len,octad *R)
+void SAL_randomOctad(int len,octad *R)
 {
     tii_prng_get_bytes((uint8_t *)R->val, len);
     R->len=len;
@@ -153,9 +153,9 @@ static void hkdfLabel(octad *LB,int length,octad *Label,octad *CTX)
 }
 
 // HKDF extension for TLS1.3
-void TLS_HKDF_Expand_Label(int htype,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX)
+void SAL_hkdfExpandLabel(int htype,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX)
 {
-    int hlen=TLS_SAL_HASHLEN(htype);
+    int hlen=SAL_hashLen(htype);
     char hl[TLS_MAX_HASH+24];
     octad HL={0,sizeof(hl),hl};
 
@@ -170,9 +170,9 @@ void TLS_HKDF_Expand_Label(int htype,octad *OKM,int olen,octad *PRK,octad *Label
 }
 
 // HKDF - Extract secret from raw input
-void TLS_HKDF_Extract(int htype,octad *PRK,octad *SALT,octad *IKM)
+void SAL_hkdfExtract(int htype,octad *PRK,octad *SALT,octad *IKM)
 {
-    int hlen=TLS_SAL_HASHLEN(htype);
+    int hlen=SAL_hashLen(htype);
     octet MC_PRK=octad_to_octet(PRK);   // Make it MIRACL core compatible
     octet MC_SALT=octad_to_octet(SALT);
     octet MC_IKM=octad_to_octet(IKM);
@@ -184,10 +184,10 @@ void TLS_HKDF_Extract(int htype,octad *PRK,octad *SALT,octad *IKM)
     PRK->len=MC_PRK.len;
 }
 
-// TLS HMAC
-void TLS_HMAC(int htype,octad *T,octad *K,octad *M)
+// HMAC
+void SAL_hmac(int htype,octad *T,octad *K,octad *M)
 {
-    int hlen=TLS_SAL_HASHLEN(htype);
+    int hlen=SAL_hashLen(htype);
     if (htype==TLS_SHA256_T) {
         sha256hmac_ctx_t hmacctx;
         sha256hmac_reset(&hmacctx,(uint8_t *)K->val,hlen);
@@ -213,10 +213,10 @@ void TLS_HMAC(int htype,octad *T,octad *K,octad *M)
     }
 }
 
-// TLS HASH of NULL
-void TLS_HASH_NULL(int htype,octad *H)
+// HASH of NULL
+void SAL_hashNull(int htype,octad *H)
 {
-    int hlen=TLS_SAL_HASHLEN(htype);
+    int hlen=SAL_hashLen(htype);
     if (htype==TLS_SHA256_T) {
         sha256_ctx_t h;
         sha256_reset(&h);
@@ -236,7 +236,7 @@ void TLS_HASH_NULL(int htype,octad *H)
 }
 
 // Unified hashing. Hash type type indicate by htype.
-void Hash_Init(int htype,unihash *h)
+void SAL_hashInit(int htype,unihash *h)
 {
     if (htype==TLS_SHA256_T) 
         sha256_reset((sha256_ctx_t *)&(h->state));
@@ -248,7 +248,7 @@ void Hash_Init(int htype,unihash *h)
 }
 
 // Process a byte
-void Hash_Process(unihash *h,int b)
+void SAL_hashProcess(unihash *h,int b)
 {
     uint8_t c[1];
     c[0]=(uint8_t)b;
@@ -261,10 +261,10 @@ void Hash_Process(unihash *h,int b)
 }
 
 // output digest, return length
-int Hash_Output(unihash *h,char *d)
+int SAL_hashOutput(unihash *h,char *d)
 {
     unihash f=*h;  // make copy of state
-    int hlen=TLS_SAL_HASHLEN(h->htype);
+    int hlen=SAL_hashLen(h->htype);
     if (h->htype==TLS_SHA256_T)
         sha256_final((sha256_ctx_t *)&(f.state),(uint8_t *)d,hlen);
     if (h->htype==TLS_SHA384_T)
@@ -274,7 +274,7 @@ int Hash_Output(unihash *h,char *d)
     return hlen;
 }
 
-void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG)
+void SAL_aeadEncrypt(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG)
 { // AEAD encryption
     if (send->suite==TLS_CHACHA20_POLY1305_SHA256)
     { 
@@ -297,7 +297,7 @@ void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TA
     TAG->len=16;
 }
 
-int AEAD_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG)
+int SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG)
 { // AEAD decryption
     if (recv->suite==TLS_CHACHA20_POLY1305_SHA256)
     {
@@ -321,10 +321,10 @@ int AEAD_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG
 }
 
 // generate a public/private key pair in an approved group for a key exchange
-void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK)
+void SAL_generateKeyPair(int group,octad *SK,octad *PK)
 {
 // Random secret key
-    TLS_RANDOM_OCTAD(32,SK);
+    SAL_randomOctad(32,SK);
     if (group==X25519)
     { // RFC7748 the secret key
         SK->val[31]&=248;  
@@ -389,7 +389,7 @@ void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK)
 }
 
 // generate shared secret SS from secret key SK and public key PK
-void GENERATE_SHARED_SECRET(int group,octad *SK,octad *PK,octad *SS)
+void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
 {
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
@@ -737,7 +737,7 @@ static void RSA_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 //              CertificateVerify and certificates), and ecdsa_secp256r1_sha256."
 
 // Certificate Signature Verification
-bool CERT_SIGNATURE_VERIFY(int sigAlg,octad *CERT,octad *SIG,octad *PUBKEY)
+bool SAL_certSignatureVerify(int sigAlg,octad *CERT,octad *SIG,octad *PUBKEY)
 {
     bool res=false;
     switch (sigAlg) {
@@ -760,7 +760,7 @@ bool CERT_SIGNATURE_VERIFY(int sigAlg,octad *CERT,octad *SIG,octad *PUBKEY)
 }
 
 // Transcript Signature Verification
-bool TLS_SIGNATURE_VERIFY(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKEY)
+bool SAL_tlsSignatureVerify(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKEY)
 { // probably need to support more cases
     switch (sigAlg)
     {
@@ -779,7 +779,7 @@ bool TLS_SIGNATURE_VERIFY(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKEY)
 }
 
 // Form Transcript Signature 
-void TLS_SIGNATURE_SIGN(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
+void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
 { // probably need to support more cases
     switch (sigAlg)
     {

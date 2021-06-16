@@ -26,61 +26,61 @@ typedef struct
     @param ciphers array of supported ciphers in preferred order
     @return number of supported ciphers
 */
-extern int TLS_SAL_CIPHERS(int *ciphers);
+extern int SAL_ciphers(int *ciphers);
 
 /** @brief Return supported groups in preferred order
 *
     @param groups array of supported groups
     @return number of supported groups
 */
-extern int TLS_SAL_GROUPS(int *groups);
+extern int SAL_groups(int *groups);
 
 /** @brief Return supported TLS signature algorithms in preferred order 
 *
     @param sigAlgs array of supported signature algorithms
     @return number of supported groups
 */
-extern int TLS_SAL_SIGS(int *sigAlgs);
+extern int SAL_sigs(int *sigAlgs);
 
 /** @brief Return supported TLS signature algorithms for Certificates in preferred order
 *
     @param sigAlgsCert array of supported signature algorithms for Certificates
     @return number of supported groups
 */
-extern int TLS_SAL_SIGCERTS(int *sigAlgsCert);
+extern int SAL_sigCerts(int *sigAlgsCert);
 
 /** @brief Initialise libraries
 *
     @return return true if successful, else false
 */
-extern bool TLS_SAL_INITLIB();
+extern bool SAL_initLib();
 
 /** @brief return hash type asspciated with a cipher suite
 *
     @param cipher_suite a TLS cipher suite
     @return hash function output length
 */
-extern int TLS_SAL_HASHTYPE(int cipher_suite);
+extern int SAL_hashType(int cipher_suite);
 
 /** @brief return output length of hash function associated with a hash type
 *
     @param hash_type a TLS hash type
     @return hash function output length
 */
-extern int TLS_SAL_HASHLEN(int hash_type);
+extern int SAL_hashLen(int hash_type);
 
 /** @brief get a random byte
 *
     @return a random byte
 */
-extern int TLS_RANDOM_BYTE();
+extern int SAL_randomByte();
 
 /** @brief get a random octad
 *
     @param len number of random bytes
     @param R octad to be filled with random bytes
 */
-extern void TLS_RANDOM_OCTAD(int len, octad *R);
+extern void SAL_randomOctad(int len, octad *R);
 
 /**	@brief HKDF Extract function
  *
@@ -89,7 +89,7 @@ extern void TLS_RANDOM_OCTAD(int len, octad *R);
     @param SALT public input salt
     @param IKM raw secret keying material
  */
-extern void TLS_HKDF_Extract(int sha,octad *PRK,octad *SALT,octad *IKM);
+extern void SAL_hkdfExtract(int sha,octad *PRK,octad *SALT,octad *IKM);
 
 /**	@brief Special HKDF Expand function (for TLS)
  *
@@ -100,7 +100,7 @@ extern void TLS_HKDF_Extract(int sha,octad *PRK,octad *SALT,octad *IKM);
     @param Label is public label information
     @param CTX is public context information
  */
-extern void TLS_HKDF_Expand_Label(int htype,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX);
+extern void SAL_hkdfExpandLabel(int htype,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX);
 
 /**	@brief simple HMAC function
  *
@@ -109,14 +109,14 @@ extern void TLS_HKDF_Expand_Label(int htype,octad *OKM,int olen,octad *PRK,octad
     @param K an input key, or salt
     @param M an input message
  */
-extern void TLS_HMAC(int htype,octad *T,octad *K,octad *M);
+extern void SAL_hmac(int htype,octad *T,octad *K,octad *M);
 
 /**	@brief simple HASH of nothing function
  *
 	@param sha the SHA2 function output length (32,48 or 64)
 	@param H the output hash
  */
-extern void TLS_HASH_NULL(int sha,octad *H);
+extern void SAL_hashNull(int sha,octad *H);
 
 // hash functions
 
@@ -125,14 +125,14 @@ extern void TLS_HASH_NULL(int sha,octad *H);
 	@param hlen length in bytes of SHA2 hashing output
     @param h a hashing context
  */
-extern void Hash_Init(int hlen,unihash *h);
+extern void SAL_hashInit(int hlen,unihash *h);
 
 /**	@brief Hash process a byte
  *
     @param h a hashing context
     @param b the byte to be included in hash
  */
-extern void Hash_Process(unihash *h,int b);
+extern void SAL_hashProcess(unihash *h,int b);
 
 /**	@brief Hash finish and output
  *
@@ -140,7 +140,7 @@ extern void Hash_Process(unihash *h,int b);
     @param d the current output digest of an ongoing hashing operation
     @return hash output length
  */
-extern int Hash_Output(unihash *h,char *d);
+extern int SAL_hashOutput(unihash *h,char *d);
 
 /**	@brief AEAD encryption 
  *
@@ -151,7 +151,7 @@ extern int Hash_Output(unihash *h,char *d);
     @param pt the input plaintext and output ciphertext
     @param TAG the output authentication tag
  */
-extern void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG);
+extern void SAL_aeadEncrypt(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG);
 
 /**	@brief AEAD decryption 
  *
@@ -163,7 +163,7 @@ extern void AEAD_ENCRYPT(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,oc
     @param TAG the expected authentication tag
     @return -1 if tag is wrong, else 0
  */
-extern int AEAD_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG);
+extern int SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG);
 
 /**	@brief generate a public/private key pair in an approved group for a key exchange
  *
@@ -171,7 +171,7 @@ extern int AEAD_DECRYPT(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,oct
     @param SK the output Private Key
     @param PK the output Public Key
  */
-extern void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK);
+extern void SAL_generateKeyPair(int group,octad *SK,octad *PK);
 
 /**	@brief generate a Diffie-Hellman shared secret
  *
@@ -180,7 +180,7 @@ extern void GENERATE_KEY_PAIR(int group,octad *SK,octad *PK);
     @param PK the input server public Key
     @param SS the output shared secret
  */
-extern void GENERATE_SHARED_SECRET(int group,octad *SK,octad *PK,octad *SS);
+extern void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS);
 
 /**	@brief Verify a generic certificate signature
  *
@@ -190,7 +190,7 @@ extern void GENERATE_SHARED_SECRET(int group,octad *SK,octad *PK,octad *SS);
     @param PUBKEY the public key used to verify the signature
     @return true if signature is valid, else false
  */
-extern bool CERT_SIGNATURE_VERIFY(int sigAlg,octad *CERT,octad *SIG,octad *PUBKEY);
+extern bool SAL_certSignatureVerify(int sigAlg,octad *CERT,octad *SIG,octad *PUBKEY);
 
 /**	@brief Verify a generic TLS transcript signature
  *
@@ -200,7 +200,7 @@ extern bool CERT_SIGNATURE_VERIFY(int sigAlg,octad *CERT,octad *SIG,octad *PUBKE
     @param PUBKEY the public key used to verify the signature
     @return true if signature is valid, else false
  */
-extern bool TLS_SIGNATURE_VERIFY(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKEY);
+extern bool SAL_tlsSignatureVerify(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKEY);
 
 /**	@brief Apply a generic TLS transcript signature
  *
@@ -209,7 +209,7 @@ extern bool TLS_SIGNATURE_VERIFY(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKE
     @param TRANS the input transcript hash to be signed
     @param SIG the output signature
  */
-extern void TLS_SIGNATURE_SIGN(int sigAlg,octad *KEY,octad *TRANS,octad *SIG);
+extern void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG);
 
 
 #endif

@@ -32,7 +32,7 @@ using namespace std;
     @param PUBKEY the Server's public key extracted from the Certificate chain 
 	@return 0 if certificate chain is OK, else returns negative failure reason
  */
-extern int CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY);  
+extern int checkCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY);  
 
 /**	@brief verify Server's signature on protocol transcript
  *
@@ -42,7 +42,7 @@ extern int CHECK_CERT_CHAIN(octad *CERTCHAIN,char *hostname,octad *PUBKEY);
     @param CERTPK the Server's public key
 	@return true if signature is verified, else returns false
  */
-extern bool IS_SERVER_CERT_VERIFY(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK);
+extern bool checkServerCertVerifier(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK);
 
 /**	@brief Get Client private key and Certificate chain from .pem files
  *
@@ -52,7 +52,7 @@ extern bool IS_SERVER_CERT_VERIFY(int sigalg,octad *SCVSIG,octad *H,octad *CERTP
     @param CERTCHAIN the Client's certificate chain
 	@return type of private key, ECC or RSA
  */
-extern int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN);
+extern int getClientKeyAndCertchain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN);
 
 /**	@brief Create Cert Verify message, as a digital signature on some TLS1.3 specific message+transcript hash
  *
@@ -61,6 +61,6 @@ extern int GET_CLIENT_KEY_AND_CERTCHAIN(int nccsalgs,int *csigAlgs,octad *PRIVKE
     @param KEY the Client's private key
     @param CCVSIG the output digital signature
  */
-extern void CREATE_CLIENT_CERT_VERIFIER(int sigAlg,octad *H,octad *KEY,octad *CCVSIG);
+extern void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG);
 
 #endif

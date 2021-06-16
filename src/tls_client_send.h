@@ -184,9 +184,8 @@ extern void sendClientHello(Socket &client,int version,octad *CH,int nsc,int *ci
 	@param client the socket connection to the Server
     @param type the type of the Alert
     @param send the cryptographic key under which the alert message is encrypted (or NULL if no encryption)
-    @param IO the workspace octad in which to construct the overall message
  */
-extern void sendClientAlert(Socket &client,int type,crypto *send,octad *IO);
+extern void sendClientAlert(Socket &client,int type,crypto *send);
 
 /**	@brief Prepare and send a final handshake Verification message to the Server
  *

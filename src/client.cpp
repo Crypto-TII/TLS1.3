@@ -38,7 +38,7 @@ int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,tick
         type=getServerFragment(client,K_recv,IO);  // get first fragment to determine type
         if (type<0)
             return type;   // its an error
-        if (type==TIME_OUT)
+        if (type==TIMED_OUT)
         {
 #if VERBOSITY >= IO_PROTOCOL
             logger((char *)"TIME_OUT\n",NULL,0,NULL);
@@ -80,14 +80,14 @@ int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,tick
                     r=parseByteorPull(client,IO,ptr,K_recv); kur=r.val; if (r.err) break;
                     if (kur==0)
                     {
-                        UPDATE_KEYS(K_recv,STS);  // reset record number
+                        deriveUpdatedKeys(K_recv,STS);  // reset record number
 #if VERBOSITY >= IO_PROTOCOL
                         logger((char *)"KEYS UPDATED\n",NULL,0,NULL);
 #endif
                     }
                     if (kur==1)
                     {
-                        UPDATE_KEYS(K_recv,STS);
+                        deriveUpdatedKeys(K_recv,STS);
 #if VERBOSITY >= IO_PROTOCOL
                         logger((char *)"Key update notified - client should do the same (?) \n",NULL,0,NULL);
                         logger((char *)"KEYS UPDATED\n",NULL,0,NULL);
@@ -119,8 +119,8 @@ int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,tick
         if (type==ALERT)
         {
 #if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Alert received from Server\n",NULL,0,NULL);
-            logAlert(IO);
+            logger((char *)"*** Alert received - ",NULL,0,NULL);
+            logAlert(IO->val[1]);
 #endif
             return 0;
         }
@@ -211,7 +211,7 @@ void setup()
 #endif
 
 // Initialise Security Abstraction Layer
-    bool retn=TLS_SAL_INITLIB();
+    bool retn=SAL_initLib();
     if (!retn)
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -223,13 +223,13 @@ void setup()
 
 // Client Capabilities to be advertised to Server
 // Get supported Key Exchange Groups in order of preference
-    CPB.nsg=TLS_SAL_GROUPS(CPB.supportedGroups);
+    CPB.nsg=SAL_groups(CPB.supportedGroups);
 // Get supported Cipher Suits
-    CPB.nsc=TLS_SAL_CIPHERS(CPB.ciphers);
-// Get supported TLS1.3 signing Algorithms 
-    CPB.nsa=TLS_SAL_SIGS(CPB.sigAlgs);
-// Get supported Certificate signing Algorithms 
-    CPB.nsac=TLS_SAL_SIGCERTS(CPB.sigAlgsCert);
+    CPB.nsc=SAL_ciphers(CPB.ciphers);
+// Get supported TLS1.3 signing algorithms 
+    CPB.nsa=SAL_sigs(CPB.sigAlgs);
+// Get supported Certificate signing algorithms 
+    CPB.nsac=SAL_sigCerts(CPB.sigAlgsCert);
 
 #ifdef ESP32
     xTaskCreatePinnedToCore(
@@ -269,8 +269,8 @@ void loop() {
     ticket T;
     crypto K_send, K_recv;             // crypto contexts, sending and receiving
 
-    init_crypto_context(&K_send);
-    init_crypto_context(&K_recv);
+    initCryptoContext(&K_send);
+    initCryptoContext(&K_recv);
     make_client_message(&GET,hostname);
 
 #ifndef TLS_ARDUINO
@@ -289,7 +289,6 @@ void loop() {
         mydelay();
  		return;
     }
-
 
     if (!PSKMODE) // Don't have a preshared Key
     {
@@ -316,12 +315,13 @@ void loop() {
         client_send(client,&GET,&K_send,&IO);
 
 // Initialise a ticket structure, and remember which cipher suite and which key exchange group was agreed.
-        init_ticket_context(&T,cipher_suite,favourite_group);
+        initTicketContext(&T,cipher_suite,favourite_group);
 // Process server responses
         rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
         if (rtn<0)
-            sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
-
+            sendClientAlert(client,alert_from_cause(rtn),&K_send);
+        else
+            sendClientAlert(client,CLOSE_NOTIFY,&K_send);
         client.stop();
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Connection closed\n",NULL,0,NULL);
@@ -373,7 +373,7 @@ void loop() {
         PSK_LABEL.val[0]='4';              // Fake a pre-shared key label
         PSK_LABEL.val[1]='2'; 
 
-        init_ticket_context(&T,TLS_AES_128_GCM_SHA256,CPB.supportedGroups[0]);  // Create a special Ticket for PSK
+        initTicketContext(&T,TLS_AES_128_GCM_SHA256,CPB.supportedGroups[0]);  // Create a special Ticket for PSK
         OCT_copy(&T.TICK,&PSK_LABEL);
         OCT_copy(&T.NONCE,&PSK);
         T.max_early_data=1024;
@@ -407,9 +407,11 @@ void loop() {
 // Process server responses
     rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
     if (rtn<0)
-        sendClientAlert(client,alert_from_cause(rtn),&K_send,&IO);
+        sendClientAlert(client,alert_from_cause(rtn),&K_send);
+    else
+        sendClientAlert(client,CLOSE_NOTIFY,&K_send);
+    client.stop();  // exit and close session
 
-    client.stop();  // After time out, exit and close session
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Connection closed\n",NULL,0,NULL);
 #endif

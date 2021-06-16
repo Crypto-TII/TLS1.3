@@ -155,17 +155,26 @@ void logEncExt(ee_expt *expected,ee_resp *received)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Warning - ALPN extension NOT acknowledged by server\n",NULL,0,NULL);
 #endif
-    } 
+    } else {
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"ALPN extension acknowledged by server\n",NULL,0,NULL);
+#endif
+    }
+
 #if VERBOSITY >= IO_DEBUG
     if (expected->server_name && !received->server_name)
     {
-        logger ((char *)"Server Name NOT Acknowledged\n",NULL,0,NULL);
+        logger ((char *)"Server Name NOT acknowledged\n",NULL,0,NULL);
+    } else {
+        logger ((char *)"Server Name acknowledged\n",NULL,0,NULL);
     }
 #endif
 #if VERBOSITY >= IO_DEBUG
     if (expected->max_frag_length && !received->max_frag_length)
     {
-        logger ((char *)"Max frag length request NOT Acknowledged\n",NULL,0,NULL);
+        logger ((char *)"Max frag length request NOT acknowledged\n",NULL,0,NULL);
+    } else {
+        logger ((char *)"Max frag length request acknowledged\n",NULL,0,NULL);
     }
 #endif
 }
@@ -254,17 +263,10 @@ void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad
     logger((char *)"Subject is ",(char *)SUBJECT->val,0,NULL);
 }
 
-
-bool logAlert(octad *O)
+// log alert
+void logAlert(int detail)
 {
-    bool type=false; // true if fatal
-    if (O->val[0]==0x02) type=true;
-    int detail=O->val[1];
-    if (!type)
-        logger((char *)"*** Alert is a warning - ",NULL,0,NULL);
-    else
-        logger((char *)"*** Alert is fatal - ",NULL,0,NULL);
-
+#if VERBOSITY >= IO_PROTOCOL
     switch (detail)
     {
     case 0 :
@@ -352,12 +354,14 @@ bool logAlert(octad *O)
         logger((char *)"Unrecognised alert\n",NULL,0,NULL);
         break;
     }
-    return type;
+#endif
 }
 
 // process server function return
-void logServerResponse(int rtn,octad *O)
+void logServerResponse(ret r)
 {
+    int rtn=r.err;
+    if (rtn==0) return;
 #if VERBOSITY >= IO_DEBUG
     if (rtn<0)
     { // fatal errors - after logging we will send a server alert and close connection
@@ -400,19 +404,12 @@ void logServerResponse(int rtn,octad *O)
     } else { // server response requiring client action 
         switch (rtn)
         {
-        case TIME_OUT :
+        case TIMED_OUT :
             logger((char *)"Time Out\n",NULL,0,NULL);
-            break;
-        case HANDSHAKE_RETRY :
-            logger((char *)"Handshake Retry Request\n",NULL,0,NULL);
             break;
         case ALERT :
             logger((char *)"Alert received from server\n",NULL,0,NULL);  // received an alert 
-            logAlert(O);
             break;
-        case STRANGE_EXTENSION:
-            logger((char *)"Strange Extension Detected\n",NULL,0,NULL);
-            break;      
         default: break;
         }
     }

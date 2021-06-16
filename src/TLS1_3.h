@@ -35,7 +35,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
-#define TLS_PROTOCOL TLS_HTTP_PROTOCOL   /**< Selected protocol */
+#define TLS_PROTOCOL TLS_HTTP_PROTOCOL   /**< Selected application protocol */
 // *****************************************************************************
 
 // Encryption
@@ -130,10 +130,8 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define APPLICATION 0x17                /**< Application record */
 #define ALERT 0x15                      /**< Alert record */
 #define CHANGE_CIPHER 0x14              /**< Change Cipher record */
-// pseudo-types
-#define TIME_OUT 0x01                   /**< Time-out  */
-#define HANDSHAKE_RETRY 0x02            /**< Handshake retry */
-#define STRANGE_EXTENSION 0x03          /**< Strange extension */
+// pseudo record types
+#define TIMED_OUT 0x01                  /**< Time-out  */
 
 // message types 
 #define CLIENT_HELLO 0x01               /**< Client Hello message */ 
@@ -146,7 +144,9 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define TICKET 0x04                     /**< Ticket message */ 
 #define KEY_UPDATE 0x18                 /**< Key Update message */
 #define MESSAGE_HASH 0xFE               /**< Special synthetic message hash message */    
-#define END_OF_EARLY_DATA 0x05          /**< End of Early Data message */    
+#define END_OF_EARLY_DATA 0x05          /**< End of Early Data message */   
+// pseudo message types
+#define HANDSHAKE_RETRY 0x102           /**< Handshake retry */
 
 // Causes of server error - which should generate a client alert 
 #define NOT_TLS1_3 -2                   /**< Wrong version error, not TLS1.3 */
@@ -162,6 +162,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define NOT_EXPECTED -12                /**< Received ack for something not requested */
 #define CA_NOT_FOUND -13                /**< Certificate Authority not found */
 #define CERT_OUTOFDATE -14              /**< Certificate Expired */
+#define MEM_OVERFLOW -15                /**< Memory Overflow */
 
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */
@@ -171,7 +172,9 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define UNSUPPORTED_EXTENSION 0x6E      /**< Unsupported extension alert */
 #define UNKNOWN_CA 0x30                 /**< Unrecognised Certificate Authority */
 #define CERTIFICATE_EXPIRED 0x2D        /**< Certificate Expired */
-
+#define PROTOCOL_VERSION 0x46           /**< Wrong TLS version */
+#define DECODE_ERROR 0x32               /**< Decode error alert */
+#define CLOSE_NOTIFY 0x00               /**< Orderly shut down of connection */
 
 /**
  * @brief function return structure */

@@ -72,18 +72,17 @@ extern void logCert(octad *CERT);
  */
 extern void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT);
 
-/**	@brief log the result of client processing of a Server response
+/**	@brief log client processing of a Server response
  *
-	@param rtn the return value from Server response function processing 
-    @param O the server's raw response, might include alert indication
+	@param r the Server response 
  */
-extern void logServerResponse(int rtn,octad *O);
+extern void logServerResponse(ret r);
 
 /**	@brief log Server Alert
  *
-    @param O the server's alert code
+    @param detail the server's alert code
  */
-extern bool logAlert(octad *O);
+extern void logAlert(int detail);
 
 /**	@brief log Cipher Suite
  *

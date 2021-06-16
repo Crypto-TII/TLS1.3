@@ -47,7 +47,7 @@ If using miracl+TIIcrypto
 
 Or by using CMake. If you follow this alternative, copy the header files into `vendor/miracl/includes`, and the `core.a` to `vendor/miracl/` 
 
-Then execute the client process as for example
+The test TLS client app tries to connect to a Web site, drops the connections, and then attempts a resumption. Execute the client process as for example
 
 	./client swifttls.org
 
@@ -191,7 +191,8 @@ The output should look something like
 	
 Try it out on your favourite websites. It will abort if TLS1.3 is not supported. 
 At this stage the tool is still quite fragile (only tested and debugged aginst a dozen websites or so!), and would be expected to often fail.
-In a small number of cases it will fail due to receiving a malformed certificate chain from the Server.
+In a small number of cases it will fail due to receiving a malformed certificate chain from the Server. It is not forgiving of bad certificate 
+chains. and makes no attempt to fix them.
 
 Also try
 
@@ -199,7 +200,7 @@ Also try
 	
 Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
 
-See list.txt for some websites that work OK.
+See list.txt for some websites that work OK and test different functionality
 
 ## Client side Authentication
 
