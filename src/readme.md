@@ -273,7 +273,7 @@ This is our own server, using TLSSwift (`localhost:4433`)
 6.	Edit the file core.h to define CORE_ARDUINO
 7.	Edit the file tls1_3.h to define POPULAR_ROOT_CERTS and TLS_ARDUINO
 8.	Edit the file client.cpp to use your wifi SSID and password (near line 170)
-9.	Run py config.py, and select options 2,3,8,40 and 42
+9.	Run py config.py, and select options 2,3,8,41 and 43
 10.	Drop the working directory into where the Arduino IDE expects it. 
 11.	(In the IDE select File->Preferences and find the Sketchbook location - its the library directory off that.)
 12.	Open the Arduino app, and look in File->Examples->NAME, and look for the example "client"
