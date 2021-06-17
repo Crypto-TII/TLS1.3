@@ -1,4 +1,6 @@
+//
 // Main TLS1.3 protocol
+//
 
 #include "tls_protocol.h"
 
@@ -112,7 +114,6 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 // create and send Client Hello octad
     sendClientHello(client,TLS1_0,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);  
 #if VERBOSITY >= IO_DEBUG     
-    logger((char *)"Client to Server -> ",NULL,0,&IO); 
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
 #endif
 
@@ -188,7 +189,6 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 // create and send new Client Hello octad
         sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);
 #if VERBOSITY >= IO_DEBUG
-        logger((char *)"Client to Server -> ",NULL,0,&IO);
         logger((char *)"Client Hello re-sent\n",NULL,0,NULL);
 #endif
         rtn=getServerHello(client,&IO,cs_hrr,kex,&CID,&COOK,&PK,pskid);
@@ -279,7 +279,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     transcriptHash(&tlshash,&HH); // hash of clientHello+serverHello+encryptedExtensions+CertChain
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Certificate Chain is valid\n",NULL,0,NULL);
-    logger((char *)"Transcript Hash= ",NULL,0,&HH); 
+    logger((char *)"Transcript Hash (CH+SH+EE+CT) = ",NULL,0,&HH); 
 #endif
 // 3. get verifier signature
     int sigalg;
@@ -296,7 +296,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 
     transcriptHash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Transcript Hash= ",NULL,0,&FH);
+    logger((char *)"Transcript Hash (CH+SH+EE+SCT+SCV) = ",NULL,0,&FH);
     logger((char *)"Server Certificate Signature= ",NULL,0,&SCVSIG);
 #endif
     logSigAlg(sigalg);
@@ -357,7 +357,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     }
 
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Transcript Hash= ",NULL,0,&TH);
+    logger((char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]) = ",NULL,0,&TH);
 #endif
 
 // create client verify data
@@ -366,9 +366,13 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     sendClientFinish(client,&K_send,&tlshash,&CHF,&IO);  
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client Verify Data= ",NULL,0,&CHF); 
-    logger((char *)"Client to Server -> ",NULL,0,&IO);
 #endif
     transcriptHash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify+serverFinish(+clientCertChain+clientCertVerify)+clientFinish
+
+#if VERBOSITY >= IO_DEBUG
+    logger((char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]+CF) = ",NULL,0,&FH);
+#endif
+
 
 // calculate traffic and application keys from handshake secret and transcript hashes
     deriveApplicationSecrets(hashtype,&HS,&HH,&FH,&CTS,&STS,NULL,&RMS);
@@ -382,6 +386,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     if (resumption_required) return 2;
     return 1;
 }
+
 
 // TLS1.3 resumption handshake
 // client - socket connection
@@ -556,7 +561,6 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
     sendClientHello(client,TLS1_2,&CH,1,ciphers,&CID,&EXT,extra,&IO);  
 
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Client to Server -> ",NULL,0,&IO);
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
 #endif
     unihash tlshash;   // Universal Hash
@@ -570,7 +574,6 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"BND= ",NULL,0,&BND);
     logger((char *)"Sending Binders\n",NULL,0,NULL);   // only sending one
-    logger((char *)"Client to Server -> ",NULL,0,&IO);
 #endif
     runningHash(&BL,&tlshash);
     transcriptHash(&tlshash,&HH);            // hash of full clientHello
@@ -643,7 +646,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
 
     transcriptHash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtension
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Transcript Hash= ",NULL,0,&FH); 
+    logger((char *)"Transcript Hash (CH+SH+EE) = ",NULL,0,&FH); 
 #endif
 // 2. get server finish
     rtn=getServerFinished(client,&IO,&K_recv,&tlshash,&FIN);   // Finished
@@ -656,12 +659,11 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
         sendEndOfEarlyData(client,&K_send,&tlshash,&IO);     // Should only be sent if server has accepted Early data - see encrypted extensions!
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Send End of Early Data \n",NULL,0,NULL);
-        logger((char *)"Client to Server -> ",NULL,0,&IO);
 #endif
     }
     transcriptHash(&tlshash,&TH); // hash of clientHello+serverHello+encryptedExtension+serverFinish+EndOfEarlyData
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Transcript Hash= ",NULL,0,&TH); 
+    logger((char *)"Transcript Hash (CH+SH+EE+SF+ED) = ",NULL,0,&TH); 
 #endif
 // Switch to handshake keys
     createCryptoContext(cipher_suite,&CTS,&K_send);
@@ -682,7 +684,6 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Server Data is verified\n",NULL,0,NULL);
     logger((char *)"Client Verify Data= ",NULL,0,&CHF); 
-    logger((char *)"Client to Server -> ",NULL,0,&IO);
 #endif
     transcriptHash(&tlshash,&FH); // hash of clientHello+serverHello+encryptedExtension+serverFinish+EndOfEarlyData+clientFinish
 

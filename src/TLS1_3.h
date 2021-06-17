@@ -23,8 +23,8 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define IO_NONE 0           /**< Run silently */
 #define IO_APPLICATION 1    /**< just print application traffic */
 #define IO_PROTOCOL 2       /**< print protocol progress + application traffic */
-#define IO_DEBUG 3          /**< print lots of debug information + protocol progress + application traffic */
-#define IO_WIRE 4           /**< print lots of debug information + protocol progress + application traffic + bytes on the wire */
+#define IO_DEBUG 3          /**< print lots of debug information + protocol progress + application progress */
+#define IO_WIRE 4           /**< print lots of debug information + protocol progress + application progress + bytes on the wire */
 
 // Supported protocols
 #define TLS_HTTP_PROTOCOL 1  /**< Supported ALPN protocol */

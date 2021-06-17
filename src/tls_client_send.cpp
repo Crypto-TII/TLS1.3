@@ -271,9 +271,6 @@ void sendClientAlert(Socket &client,int type,crypto *send)
         logger((char *)"Alert sent to Server - ",NULL,0,NULL);
         logAlert(type);
 #endif
-#if VERBOSITY >= IO_DEBUG
-        logger((char *)"Client to Server -> ",NULL,0,&BUFF);
-#endif
 }
 
 // Send final client handshake verification data

@@ -1,7 +1,10 @@
 // Client side C/C++ program to demonstrate TLS1.3 
+// (Requires MIRACL core build crypto library core.a with support for elliptic curves and RSA - options 2,3,8,41,43)
 // g++ -O2 -c tls*.cpp
-// ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_crypto_api.o tls_octads.o tls_x509.o
+// cp tls_sal_m.xpp tls_sal.cpp
+// ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_sal.o tls_octads.o tls_x509.o
 // g++ -O2 client.cpp tls.a core.a -o client
+// ./client www.bbc.co.uk
 
 #include "tls_sal.h"
 #include "tls_protocol.h"
@@ -18,7 +21,7 @@ enum SocketType{
 // Process Server records received post-handshake
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
-// Extract a ticket. K_recv might be updated.
+// Extract a ticket. Receiving key K_recv might be updated.
 int processServerMessage(Socket &client,octad *IO,crypto *K_recv,octad *STS,ticket *T)
 {
     ret r;
@@ -221,7 +224,7 @@ void setup()
     }
 
 
-// Client Capabilities to be advertised to Server
+// Client Capabilities to be advertised to Server - obtained from the Security Abstraction Layer (SAL)
 // Get supported Key Exchange Groups in order of preference
     CPB.nsg=SAL_groups(CPB.supportedGroups);
 // Get supported Cipher Suits
@@ -354,6 +357,7 @@ void loop() {
         }
 
     } else {
+
 // we have a pre-shared key..!
 // Test with openssl s_server -tls1_3 -verify 0 -cipher PSK-AES128-GCM-SHA256 -psk_identity 42 -psk 0102030405060708090a0b0c0d0e0f10 -nocert -max_send_frag 4096 -accept 4433 -www  
 

@@ -79,7 +79,6 @@ static unsigned char rsasha512[9] = {0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0
 static octad RSASHA512 = {9, sizeof(rsasha512), (char *)rsasha512};
 
 
-
 // Cert details
 // countryName
 static unsigned char cn[3] = {0x55, 0x04, 0x06};
@@ -999,5 +998,3 @@ int X509_find_alt_name(octad *c,int start,char *name)
     }
     return 0;
 }
-
-

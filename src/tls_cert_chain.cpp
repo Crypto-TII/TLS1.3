@@ -161,7 +161,6 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 
     res=SAL_certSignatureVerify(sigAlg,CERT,SIG,PUBKEY); 
 
-
     if (res)
     {
 #if VERBOSITY >= IO_DEBUG
@@ -177,7 +176,7 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 }
 
 // Read in client private key from .pem file
-// Read in certificate, and make a certificate chain
+// Read in certificate, and form a certificate chain
 int getClientKeyAndCertchain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
@@ -245,7 +244,6 @@ int getClientKeyAndCertchain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CE
 }
 
 // extract server public key, and check validity of certificate chain
-// This will need improving!
 // Assumes simple chain Server Cert->Intermediate Cert->CA cert
 // CA cert not read from chain (if its even there). 
 // Search for issuer of Intermediate Cert in cert store 

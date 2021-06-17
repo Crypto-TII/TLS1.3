@@ -86,6 +86,18 @@ int getIPaddress(char *ip,char *hostname)
 void sendOctad(Socket &client,octad *B)
 {
     client.write(B->val,B->len);
+#if VERBOSITY >= IO_WIRE
+
+    char w[4];
+    myprintf((char *)"-> ");
+    for (int j = 0; j < B->len; j++)
+    {
+        sprintf(w,"%02x", (unsigned char)B->val[j]);
+        myprintf(w);
+    }
+    myprintf((char *)"\n");
+
+#endif    
 }
 
 // Send Octet length
@@ -147,12 +159,12 @@ int getBytes(Socket &client,char *b,int expected)
 #if VERBOSITY >= IO_WIRE
 
     char w[4];
+    myprintf((char *)"<- ");
     for (int j = 0; j < expected; j++)
     {
-        sprintf(w,"%02x,", (unsigned char)b[j]);
+        sprintf(w,"%02x", (unsigned char)b[j]);
         myprintf(w);
     }
-
     myprintf((char *)"\n");
 
 #endif
