@@ -295,14 +295,12 @@ void loop() {
 
     if (!PSKMODE) // Don't have a preshared Key
     {
-    
-
 // Do full TLS 1.3 handshake unless PSK available
         rtn=TLS13_full(client,hostname,IO,RMS,K_send,K_recv,STS,CPB,cipher_suite,favourite_group);
         if (rtn)
         {
 #if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Full Handshake succeeded\n",NULL,0,NULL);
+            logger((char *)"Full Handshake concluded\n",NULL,0,NULL);
             if (rtn==2) logger((char *)"... after handshake resumption\n",NULL,0,NULL);
 #endif
         }
@@ -393,7 +391,7 @@ void loop() {
     if (rtn)
     {
 #if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Resumption Handshake succeeded\n",NULL,0,NULL);
+        logger((char *)"Resumption Handshake concluded\n",NULL,0,NULL);
         if (rtn==2) logger((char *)"Early data was accepted\n",NULL,0,NULL);
 #endif
     } else {
