@@ -167,10 +167,11 @@ void createCryptoContext(int cipher_suite,octad *TS,crypto *context)
 }
 
 // recover Pre-Shared-Key from Resumption Master Secret
-void recoverPSK(int htype,octad *RMS,octad *NONCE,octad *PSK)
+void recoverPSK(int cipher_suite,octad *RMS,octad *NONCE,octad *PSK)
 {
     char info[16];
     octad INFO = {0,sizeof(info),info};
+    int htype=SAL_hashType(cipher_suite);
     int hlen=SAL_hashLen(htype);
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"resumption");

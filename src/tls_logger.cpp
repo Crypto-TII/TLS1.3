@@ -57,42 +57,91 @@ void logger(char *preamble,char *string,unsign32 info,octad *O)
 #endif
 }
 
-void logCipherSuite(int cipher_suite)
+void nameCipherSuite(int cipher_suite)
 {
-#if VERBOSITY >= IO_DEBUG
     switch (cipher_suite)
     {
     case TLS_AES_128_GCM_SHA256:
-        logger((char *)"Cipher Suite is TLS_AES_128_GCM_SHA256\n",NULL,0,NULL);
+        logger((char *)"TLS_AES_128_GCM_SHA256\n",NULL,0,NULL);
         break;
     case TLS_AES_256_GCM_SHA384:
-        logger((char *)"Cipher Suite is TLS_AES_256_GCM_SHA384\n",NULL,0,NULL);   
+        logger((char *)"TLS_AES_256_GCM_SHA384\n",NULL,0,NULL);   
         break;
     case TLS_CHACHA20_POLY1305_SHA256:
-        logger((char *)"Cipher Suite is TLS_CHACHA20_POLY1305_SHA256\n",NULL,0,NULL);   
+        logger((char *)"TLS_CHACHA20_POLY1305_SHA256\n",NULL,0,NULL);   
         break;
     default:
-        logger((char *)"Non-standard Cipher Suite\n",NULL,0,NULL);   
+        logger((char *)"Non-standard\n",NULL,0,NULL);   
         break;
     }
+}
+
+void logCipherSuite(int cipher_suite)
+{
+#if VERBOSITY >= IO_DEBUG
+    logger((char *)"Cipher Suite is ",NULL,0,NULL);
+    nameCipherSuite(cipher_suite);
 #endif
 }
 
-void logKeyExchange(int kex)
+void nameKeyExchange(int kex)
 {
     switch (kex)
     {
     case X25519:
-        logger((char *)"Key Exchange Group is X25519\n",NULL,0,NULL);
+        logger((char *)"X25519\n",NULL,0,NULL);
         break;
     case SECP256R1:
-        logger((char *)"Key Exchange Group is SECP256R1\n",NULL,0,NULL);   
+        logger((char *)"SECP256R1\n",NULL,0,NULL);   
         break;
     case SECP384R1:
-        logger((char *)"Key Exchange Group is SECP384R1\n",NULL,0,NULL);   
+        logger((char *)"SECP384R1\n",NULL,0,NULL);   
         break;
     default:
-        logger((char *)"Non-standard Key Exchange Group\n",NULL,0,NULL);   
+        logger((char *)"Non-standard\n",NULL,0,NULL);   
+        break;
+    }
+}
+
+void logKeyExchange(int kex)
+{
+    logger((char *)"Key Exchange Group is ",NULL,0,NULL);
+    nameKeyExchange(kex);
+}
+
+void nameSigAlg(int sigAlg)
+{
+    switch (sigAlg)
+    {
+    case ECDSA_SECP256R1_SHA256:
+        logger((char *)"ECDSA_SECP256R1_SHA256\n",NULL,0,NULL);
+        break;
+    case RSA_PSS_RSAE_SHA256:
+        logger((char *)"RSA_PSS_RSAE_SHA256\n",NULL,0,NULL);   
+        break;
+    case RSA_PKCS1_SHA256:
+        logger((char *)"RSA_PKCS1_SHA256\n",NULL,0,NULL);   
+        break;
+    case ECDSA_SECP384R1_SHA384:
+        logger((char *)"ECDSA_SECP384R1_SHA384\n",NULL,0,NULL);
+        break;
+    case RSA_PSS_RSAE_SHA384:
+        logger((char *)"RSA_PSS_RSAE_SHA384\n",NULL,0,NULL);   
+        break;
+    case RSA_PKCS1_SHA384:
+        logger((char *)"RSA_PKCS1_SHA384\n",NULL,0,NULL);   
+        break;
+    case RSA_PSS_RSAE_SHA512:
+        logger((char *)"RSA_PSS_RSAE_SHA512\n",NULL,0,NULL);   
+        break;
+    case RSA_PKCS1_SHA512:
+        logger((char *)"RSA_PKCS1_SHA512\n",NULL,0,NULL);   
+        break;
+    case ED25519:
+        logger((char *)"ED25519\n",NULL,0,NULL);   
+        break;
+    default:
+        logger((char *)"Non-standard\n",NULL,0,NULL);   
         break;
     }
 }
@@ -100,39 +149,8 @@ void logKeyExchange(int kex)
 void logSigAlg(int sigAlg)
 {
 #if VERBOSITY >= IO_DEBUG
-    switch (sigAlg)
-    {
-    case ECDSA_SECP256R1_SHA256:
-        logger((char *)"Signature Algorithm is ECDSA_SECP256R1_SHA256\n",NULL,0,NULL);
-        break;
-    case RSA_PSS_RSAE_SHA256:
-        logger((char *)"Signature Algorithm is RSA_PSS_RSAE_SHA256\n",NULL,0,NULL);   
-        break;
-    case RSA_PKCS1_SHA256:
-        logger((char *)"Signature Algorithm is RSA_PKCS1_SHA256\n",NULL,0,NULL);   
-        break;
-    case ECDSA_SECP384R1_SHA384:
-        logger((char *)"Signature Algorithm is ECDSA_SECP384R1_SHA384\n",NULL,0,NULL);
-        break;
-    case RSA_PSS_RSAE_SHA384:
-        logger((char *)"Signature Algorithm is RSA_PSS_RSAE_SHA384\n",NULL,0,NULL);   
-        break;
-    case RSA_PKCS1_SHA384:
-        logger((char *)"Signature Algorithm is RSA_PKCS1_SHA384\n",NULL,0,NULL);   
-        break;
-    case RSA_PSS_RSAE_SHA512:
-        logger((char *)"Signature Algorithm is RSA_PSS_RSAE_SHA512\n",NULL,0,NULL);   
-        break;
-    case RSA_PKCS1_SHA512:
-        logger((char *)"Signature Algorithm is RSA_PKCS1_SHA512\n",NULL,0,NULL);   
-        break;
-    case ED25519:
-        logger((char *)"Signature Algorithm is ED25519\n",NULL,0,NULL);   
-        break;
-    default:
-        logger((char *)"Non-standard Signature Algorithm\n",NULL,0,NULL);   
-        break;
-    }
+    logger((char *)"Signature Algorithm is ",NULL,0,NULL);
+    nameSigAlg(sigAlg);
 #endif
 }
 
@@ -198,16 +216,15 @@ void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK)
 }
 
 // log ticket details
-void logTicket(int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octad *NONCE,octad *ETICK)
+void logTicket(ticket *T)
 {
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"\nParsing Ticket\n",NULL,0,NULL);
-    unsign32 minutes=lifetime/60;
-    logger((char *)"life time in minutes = ",(char *)"%d",minutes,NULL);
-    logger((char *)"Age obfuscator = ",(char *)"%08x",age_obfuscator,NULL);
-    logger((char *)"Nonce = ",NULL,0,NONCE); 
-    logger((char *)"Ticket = ",NULL,0,ETICK); 
-    logger((char *)"max_early_data = ",(char *)"%d",max_early_data,NULL);
+    logger((char *)"Ticket = ",NULL,0,&T->TICK); 
+    unsign32 minutes=T->lifetime/60;
+    logger((char *)"life time in minutes = ",(char *)"%d",T->lifetime,NULL);
+    logger((char *)"Pre-Shared Key = ",NULL,0,&T->PSK); 
+    logger((char *)"max_early_data = ",(char *)"%d",T->max_early_data,NULL);
     logger((char *)"\n",NULL,0,NULL);
 #endif
 }

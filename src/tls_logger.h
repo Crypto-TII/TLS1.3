@@ -39,13 +39,9 @@ extern void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *C
 
 /**	@brief logging a resumption ticket
  *
-	@param lifetime the ticket lifetime in minutes
-    @param age_obfuscator the ticket age obfuscator
-    @param max_early_data the maximum amount of permitted early data
-    @param NONCE the Ticket nonce
-    @param ETICK the Ticket octad
+	@param T a resumption ticket
  */
-extern void logTicket(int lifetime,unsign32 age_obfuscator,unsign32 max_early_data,octad *NONCE,octad *ETICK);
+extern void logTicket(ticket *T);
 
 /**	@brief logging server extended extensions responses vs expectations
  *
@@ -84,17 +80,37 @@ extern void logServerResponse(ret r);
  */
 extern void logAlert(int detail);
 
+
+/**	@brief name Cipher Suite
+ *
+    @param cipher_suite print Cipher Suite
+ */
+extern void nameCipherSuite(int cipher_suite);
+
+
 /**	@brief log Cipher Suite
  *
     @param cipher_suite the Cipher Suite to be logged
  */
 extern void logCipherSuite(int cipher_suite);
 
+/**	@brief name Key Exchange Group
+ *
+    @param kex print key exchange algorithm
+ */
+extern void nameKeyExchange(int kex);
+
 /**	@brief log Key Exchange Group
  *
     @param kex the Key Exchange Group to be logged
  */
 extern void logKeyExchange(int kex);
+
+/**	@brief name Signature Algorithm
+ *
+    @param sigAlg print Signature Algorithm
+ */
+extern void nameSigAlg(int sigAlg);
 
 /**	@brief log Signature Algorithm
  *

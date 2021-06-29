@@ -1,13 +1,14 @@
 # Description
 
 UPDATE: The Crypto support functions are now all concentrated in the tls_sal_*.xpp files. This will make it easier to use alternate crypto providers.
+SAL is the Security Abstraction Layer, which provides the cryptography.
 
 This C++ version is really just C plus namespaces plus pass-by-reference. These the only features of C++ that are used. The Rust version will come later.
 Documentation can be found in the doxygen generated file refman.pdf
 
 First inside a working directory build the C++ version of MIRACL core (https://github.com/miracl/core), selecting support for C25519, NIST256, NIST384, RSA2048 and RSA4096.
 
-This library does all the crypto, and can be regarded as a "placeholder" as we may in the future replace its functionality from other sources.
+This library provides the default SAL, does all the crypto, and can be regarded as a "placeholder" as we may in the future replace its functionality from other sources.
 Make sure to always use the latest version of this library - as the requirements of this project unfold, some minor updates will be required.
 
 Then copy the contents of this archive to the same directory, in particular client.cpp and tls*.*
@@ -47,9 +48,17 @@ If using miracl+TIIcrypto
 
 Or by using CMake. If you follow this alternative, copy the header files into `vendor/miracl/includes`, and the `core.a` to `vendor/miracl/` 
 
-The test TLS client app tries to connect to a Web site, drops the connections, and then attempts a resumption. Execute the client process as for example
+To see the SAL capabilities
+	
+	./client -s
+
+To connect to a Website
 
 	./client swifttls.org
+
+To attempt a fast resumption, based on a resumption ticket (generated and stored in a file cookie.txt)
+
+	./client -r swifttls.org
 
 The output should look something like
 
@@ -229,7 +238,7 @@ Again we will use OpenSSL to mimic a TLS1.3 server
 
 and connect via
 
-	./client psk
+	./client -p 42 localhost
 
 
 ### How to use it 

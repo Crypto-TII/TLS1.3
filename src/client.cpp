@@ -1,7 +1,7 @@
 // Client side C/C++ program to demonstrate TLS1.3 
 // (Requires MIRACL core build crypto library core.a with support for elliptic curves and RSA - options 2,3,8,41,43)
-// g++ -O2 -c tls*.cpp
 // cp tls_sal_m.xpp tls_sal.cpp
+// g++ -O2 -c tls*.cpp
 // ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_sal.o tls_octads.o tls_x509.o
 // g++ -O2 client.cpp tls.a core.a -o client
 // ./client www.bbc.co.uk
@@ -11,12 +11,58 @@
 
 #ifdef TLS_ARDUINO
 #include "tls_wifi.h"
-#endif
+#else
+// Output ticket to file
+static void storeTicket(ticket *T)
+{
+    FILE *fp;
+    fp=fopen("cookie.txt","wt");
+    char line[2050];
+    OCT_output_hex(&T->TICK,2048,line);
+    fprintf(fp,"%s\n",line);
+    OCT_output_hex(&T->PSK,2048,line);
+    fprintf(fp,"%s\n",line);
+    fprintf(fp,"%x\n",T->age_obfuscator); 
+    fprintf(fp,"%x\n",T->max_early_data);
+    fprintf(fp,"%x\n",T->birth);
+    fprintf(fp,"%x\n",T->lifetime);
+    fprintf(fp,"%x\n",T->cipher_suite);
+    fprintf(fp,"%x\n",T->favourite_group);
+    fprintf(fp,"%x\n",T->origin);
+    fclose(fp);
+}
 
-enum SocketType{
-    SOCKET_TYPE_AF_UNIX,
-    SOCKET_TYPE_AF_INET
-};
+static bool recoverTicket(ticket *T)
+{
+    FILE *fp;
+    char line[2050];
+    initTicketContext(T); 
+
+    fp=fopen("cookie.txt","rt");
+    if (fp==NULL)
+        return false;  
+    
+    if (fscanf(fp,"%s\n",line)) {};
+    OCT_from_hex(&T->TICK,line);
+    if (fscanf(fp,"%s\n",line)) {};
+    OCT_from_hex(&T->PSK,line);
+    if (fscanf(fp,"%x",&T->age_obfuscator)) {};
+    if (fscanf(fp,"%x",&T->max_early_data)) {};
+    if (fscanf(fp,"%x",&T->birth)) {};
+    if (fscanf(fp,"%x",&T->lifetime)) {};
+    if (fscanf(fp,"%x",&T->cipher_suite)) {};
+    if (fscanf(fp,"%x",&T->favourite_group)) {};
+    if (fscanf(fp,"%x",&T->origin)) {};
+    fclose(fp);
+    return true;
+}
+
+static void removeTicket()
+{
+    remove("cookie.txt");
+}
+
+#endif
 
 // Process Server records received post-handshake
 // Should be mostly application data, but..
@@ -161,11 +207,10 @@ void client_send(Socket &client,octad *GET,crypto *K_send,octad *IO)
 // Some globals
 
 capabilities CPB;
-bool PSKMODE=false;
-
 int port=443;
 
 #ifdef TLS_ARDUINO
+
 char* ssid = "TP-LINK_5B40F0";
 char* password =  "********";
 char* hostname = "swifttls.org";
@@ -173,12 +218,155 @@ void mydelay()
 {
     while (1) delay(1000);
 }
+
 #else
+enum SocketType{
+    SOCKET_TYPE_AF_UNIX,
+    SOCKET_TYPE_AF_INET
+};
 char hostname[TLS_MAX_SERVER_NAME];
+char psk_label[32];
 SocketType socketType = SocketType::SOCKET_TYPE_AF_INET;
 void mydelay()
 {}
+
 #endif
+
+// make connection, using full handshake, resumption, or PSK.
+// Full handshake may provide a ticket
+// Resumption mode consumes a ticket, and may provide one
+// If TLS_ARDUINO, just maintain last ticket in memory 
+static void makeConnection(Socket client,int mode,ticket &T)
+{
+    int rtn,favourite_group,cipher_suite;
+    char rms[TLS_MAX_HASH];
+    octad RMS = {0,sizeof(rms),rms};   // Resumption master secret
+    char sts[TLS_MAX_HASH];
+    octad STS = {0,sizeof(sts),sts};   // server traffic secret
+    char io[TLS_MAX_IO_SIZE];
+    octad IO={0,sizeof(io),io};        // main IO buffer - all messages come and go via this octad   --- BIG
+    char get[256];
+    octad GET={0,sizeof(get),get};     // initial message
+    crypto K_send, K_recv;             // crypto contexts, sending and receiving
+    bool HAVE_PSK=false;
+    int origin;
+
+    initCryptoContext(&K_send);
+    initCryptoContext(&K_recv);
+    make_client_message(&GET,hostname);
+
+#ifdef TLS_ARDUINO
+// clear out the socket RX buffer
+    clearsoc(client,&IO);
+#endif
+
+    switch (mode)
+    {
+#ifndef TLS_ARDUINO
+    case TLS_EXTERNAL_PSK :  // we have a pre-shared key..!    
+        {
+#if VERBOSITY >= IO_PROTOCOL
+            logger((char *)"\nAttempting connection with PSK\n",NULL,0,NULL);
+#endif
+            char psk[TLS_MAX_KEY];
+            octad PSK = {0,sizeof(psk),psk};    // Pre-Shared Key   
+            octad PSK_LABEL={(int)strlen(psk_label),sizeof(psk_label),psk_label};
+
+            PSK.len=16;
+            for (int i=0;i<16;i++)
+                PSK.val[i]=i+1;                // Fake a 128-bit pre-shared key
+
+            OCT_copy(&T.TICK,&PSK_LABEL);      // Create a special ticket 
+            OCT_copy(&T.PSK,&PSK);
+            T.max_early_data=1024;
+            T.cipher_suite=TLS_AES_128_GCM_SHA256;
+            T.favourite_group=CPB.supportedGroups[0];
+            T.origin=TLS_EXTERNAL_PSK;
+            removeTicket();  // delete any stored ticket - fall into resumption mode
+            HAVE_PSK=true;
+        }
+#endif
+    case TLS_TICKET_RESUME :
+        {
+#ifndef TLS_ARDUINO
+            if (!HAVE_PSK)
+            { 
+                if (!recoverTicket(&T))
+                {
+#if VERBOSITY >= IO_PROTOCOL
+                    logger((char *)"No Ticket available - unable to resume\n",NULL,0,NULL);
+#endif
+                    return;
+                }
+            }
+#endif
+            origin=T.origin;
+#ifndef TLS_ARDUINO
+            removeTicket();
+#endif
+// Resume connection. Try and send early data in GET
+            rtn=TLS13_resume(client,hostname,IO,RMS,K_send,K_recv,STS,T,GET);
+            if (!rtn)
+            {
+                mydelay();
+                return;
+            }
+
+// Send client message again - if it failed to go as early data
+            if (rtn!=2)
+                client_send(client,&GET,&K_send,&IO);
+        }
+        break;
+    case TLS_FULL_HANDSHAKE :
+    default:
+        {    
+#ifndef TLS_ARDUINO
+            removeTicket();  // get rid of any unused ticket
+#endif
+            rtn=TLS13_full(client,hostname,IO,RMS,K_send,K_recv,STS,CPB,cipher_suite,favourite_group); // Do full TLS 1.3 handshake 
+            if (!rtn)
+            { // failed
+                mydelay();
+                return;
+            }
+// Initialise a ticket structure, and remember which cipher suite and which key exchange group was agreed.
+            initTicketContext(&T); 
+            T.cipher_suite=cipher_suite;
+            T.favourite_group=favourite_group;
+            origin=TLS_FULL_HANDSHAKE;
+
+// Send client message
+            client_send(client,&GET,&K_send,&IO);
+        }
+    }
+
+// Run the Application - Process server responses
+    rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
+    if (rtn<0)
+        sendClientAlert(client,alert_from_cause(rtn),&K_send);
+    else
+        sendClientAlert(client,CLOSE_NOTIFY,&K_send);
+
+// check if a ticket was received
+    if (T.lifetime==0)
+    { // no ticket provided
+#ifndef TLS_ARDUINO
+        removeTicket();  // delete any old ticket
+#endif
+        mydelay();
+        return;
+    } else {
+        recoverPSK(cipher_suite,&RMS,&T.NONCE,&T.PSK); // recover PSK using NONCE and RMS, and store it with ticket
+        T.origin=origin;
+#ifndef TLS_ARDUINO
+        storeTicket(&T);
+#endif
+    }
+}
+
+
+// Try for a full handshake - disconnect - try to resume connection - repeat
+#ifdef TLS_ARDUINO
 
 #ifdef ESP32
 #if CONFIG_FREERTOS_UNICORE
@@ -192,12 +380,10 @@ void myloop( void *pvParameters );
 // This rather strange program structure is required by the Arduino development environment
 // A hidden main() functions calls setup() once, and then repeatedly calls loop()
 // This actually makes a lot of sense in an embedded environment
-
 // This structure does however mean that a certain of amount of global data is inevitable
 
 void setup()
 {
-#ifdef TLS_ARDUINO
     Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
     WiFi.begin(ssid, password);
@@ -207,7 +393,6 @@ void setup()
     }
     Serial.print("\nWiFi connected with IP: ");
     Serial.println(WiFi.localIP());
-#endif
              
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Hostname= ",hostname,0,NULL);
@@ -222,7 +407,6 @@ void setup()
 #endif
         return;
     }
-
 
 // Client Capabilities to be advertised to Server - obtained from the Security Abstraction Layer (SAL)
 // Get supported Key Exchange Groups in order of preference
@@ -247,7 +431,7 @@ void setup()
 
 }
 
-// Try for a full handshake - disconnect - try to resume connection - repeat
+
 #ifdef ESP32
 void loop()
 {
@@ -260,29 +444,25 @@ void myloop(void *pvParameters) {
 #else
 void loop() {
 #endif
-    int rtn,favourite_group,cipher_suite;
-    char rms[TLS_MAX_HASH];
-    octad RMS = {0,sizeof(rms),rms};   // Resumption master secret
-    char sts[TLS_MAX_HASH];
-    octad STS = {0,sizeof(sts),sts};   // server traffic secret
-    char io[TLS_MAX_IO_SIZE];
-    octad IO={0,sizeof(io),io};        // main IO buffer - all messages come and go via this octad   --- BIG
-    char get[256];
-    octad GET={0,sizeof(get),get};     // initial message
-    ticket T;
-    crypto K_send, K_recv;             // crypto contexts, sending and receiving
-
-    initCryptoContext(&K_send);
-    initCryptoContext(&K_recv);
-    make_client_message(&GET,hostname);
-
-#ifndef TLS_ARDUINO
-    Socket client = (socketType == SocketType::SOCKET_TYPE_AF_UNIX) ?
-                    Socket::UnixSocket():
-                    Socket::InetSocket();
-#else
     Socket client;
+    ticket T;
+    initTicketContext(&T);
+    if (!client.connect(hostname,port))
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Unable to access ",hostname,0,NULL);
 #endif
+        mydelay();
+ 		return;
+    }
+
+    makeConnection(client,TLS_FULL_HANDSHAKE,T);
+
+    client.stop();
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"Connection closed\n",NULL,0,NULL);
+#endif
+    delay(1000);
 
     if (!client.connect(hostname,port))
     {
@@ -293,198 +473,198 @@ void loop() {
  		return;
     }
 
-    if (!PSKMODE) // Don't have a preshared Key
-    {
-// Do full TLS 1.3 handshake unless PSK available
-        rtn=TLS13_full(client,hostname,IO,RMS,K_send,K_recv,STS,CPB,cipher_suite,favourite_group);
-        if (rtn)
-        {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Full Handshake concluded\n",NULL,0,NULL);
-            if (rtn==2) logger((char *)"... after handshake resumption\n",NULL,0,NULL);
-#endif
-        }
-        else {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
-            mydelay();
-            return;
-        }
-
-// Send client message
-        client_send(client,&GET,&K_send,&IO);
-
-// Initialise a ticket structure, and remember which cipher suite and which key exchange group was agreed.
-        initTicketContext(&T,cipher_suite,favourite_group);
-// Process server responses
-        rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
-        if (rtn<0)
-            sendClientAlert(client,alert_from_cause(rtn),&K_send);
-        else
-            sendClientAlert(client,CLOSE_NOTIFY,&K_send);
-        client.stop();
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Connection closed\n",NULL,0,NULL);
-#endif
-
-
-//printf("Press Enter to Continue");
-//while( getchar() != '\n' );
-
-
-// reopen socket - attempt resumption
-        if (T.lifetime==0)
-        {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"No Ticket provided - unable to resume\n",NULL,0,NULL);
-#endif
-            mydelay();
-            return;
-        }
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"\nAttempting resumption\n",NULL,0,NULL);
-#endif
-        if (!client.connect(hostname,port))
-        {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"\nConnection Failed \n",NULL,0,NULL); 
-#endif
-            mydelay();
-            return;
-        }
-
-    } else {
-
-// we have a pre-shared key..!
-// Test with openssl s_server -tls1_3 -verify 0 -cipher PSK-AES128-GCM-SHA256 -psk_identity 42 -psk 0102030405060708090a0b0c0d0e0f10 -nocert -max_send_frag 4096 -accept 4433 -www  
-
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"\nAttempting connection with PSK\n",NULL,0,NULL);
-#endif
-
-        char psk[TLS_MAX_KEY];
-        octad PSK = {0,sizeof(psk),psk};    // Pre-Shared Key   
-        char psk_label[32];
-        octad PSK_LABEL={0,sizeof(psk_label),psk_label};
-
-        PSK.len=16;
-        for (int i=0;i<16;i++)
-            PSK.val[i]=i+1;                // Fake a 128-bit pre-shared key
-        PSK_LABEL.len=2;
-        PSK_LABEL.val[0]='4';              // Fake a pre-shared key label
-        PSK_LABEL.val[1]='2'; 
-
-        initTicketContext(&T,TLS_AES_128_GCM_SHA256,CPB.supportedGroups[0]);  // Create a special Ticket for PSK
-        OCT_copy(&T.TICK,&PSK_LABEL);
-        OCT_copy(&T.NONCE,&PSK);
-        T.max_early_data=1024;
-    }
-
-#ifdef TLS_ARDUINO
-// clear out the socket RX buffer
-    clearsoc(client,&IO);
-#endif
-
-// Resume connection. Try and send early data in GET
-    rtn=TLS13_resume(client,hostname,IO,RMS,K_send,K_recv,STS,T,GET);
-    if (rtn)
-    {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Resumption Handshake concluded\n",NULL,0,NULL);
-        if (rtn==2) logger((char *)"Early data was accepted\n",NULL,0,NULL);
-#endif
-    } else {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
-#endif
-        mydelay();
-        return;
-    }
-
-// Send client message again - if it failed to go as early data
-    if (rtn!=2)
-        client_send(client,&GET,&K_send,&IO);
-
-// Process server responses
-    rtn=processServerMessage(client,&IO,&K_recv,&STS,&T); 
-    if (rtn<0)
-        sendClientAlert(client,alert_from_cause(rtn),&K_send);
-    else
-        sendClientAlert(client,CLOSE_NOTIFY,&K_send);
-    client.stop();  // exit and close session
+    makeConnection(client,TLS_TICKET_RESUME,T);
+    client.stop();
 
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Connection closed\n",NULL,0,NULL);
 #endif
+
 #ifdef ESP32
     Serial.print("Amount of unused stack memory ");
-    Serial.println(uxTaskGetStackHighWaterMark( NULL ));
+    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    }
+#endif
     delay(5000);
 }
-#endif
 
-#ifdef TLS_ARDUINO
-    delay(5000);
-#endif
+#else
+
+static void bad_input()
+{
+    printf("Incorrect Usage\n");
+    printf("client <flags> <hostname>\n");
+    printf("client <flags> <hostname:port>\n");
+    printf("(hostname may be localhost)\n");
+    printf("(port defaults to 443, or 4433 on localhost)\n");
+    printf("Valid flags:- \n");
+    printf("    -p <n> (where <n> is preshared key identity)\n");
+    printf("    -r (attempt resumption using stored ticket)\n");
+    printf("    -s print out SAL capabilities\n");
 }
 
-#ifndef TLS_ARDUINO
+// printf's allowed in here
 int main(int argc, char const *argv[])
 {
+    Socket client = (socketType == SocketType::SOCKET_TYPE_AF_UNIX) ?
+                    Socket::UnixSocket():
+                    Socket::InetSocket();
     argv++; argc--;
-    socketType = SocketType::SOCKET_TYPE_AF_INET;
+    int ip=0;
 
-    if (argc==1 && strcmp(argv[0],"psk")==0)
+    if (ip>=argc)
     {
-        printf("PSK mode selected\n");
-        argc=0;
-        PSKMODE=true;
+        bad_input();
+        exit(EXIT_FAILURE);
     }
 
-    if(argc==0)
+    int CONNECTION_MODE=TLS_FULL_HANDSHAKE;
+    ticket T;
+    initTicketContext(&T);
+
+    if (strcmp(argv[ip],"-r")==0)
     {
-// testing against openssl s_server -tls1_3 -key ***.pem -cert ****.pem -accept 4433 -www
+        ip++;
+        if (ip<argc)
+        {
+            printf("Attempting resumption\n");
+            CONNECTION_MODE=TLS_TICKET_RESUME;
+        }
+    }
+
+    if (strcmp(argv[ip],"-p")==0)
+    {
+        ip++;
+        if (ip<argc)
+        {
+            printf("PSK mode selected\n");
+            strcpy(psk_label,argv[1]);
+            ip++;
+            CONNECTION_MODE=TLS_EXTERNAL_PSK;
+        }
+    }
+
+    if (strcmp(argv[ip],"-s")==0)
+    { // interrogate SAL
+        int i,ns;
+        int nt[20];
+        printf("Cryptography by %s\n",SAL_name());
+        ns=SAL_groups(nt);
+        printf("SAL supported Key Exchange groups\n");
+        for (i=0;i<ns;i++ )
+        {
+            printf("    ");
+            nameKeyExchange(nt[i]);
+        }
+        ns=SAL_ciphers(nt);
+        printf("SAL supported Cipher suites\n");
+        for (i=0;i<ns;i++ )
+        {
+            printf("    ");
+            nameCipherSuite(nt[i]);
+        }
+        ns=SAL_sigs(nt);
+        printf("SAL supported TLS signatures\n");
+        for (i=0;i<ns;i++ )
+        {
+            printf("    ");
+            nameSigAlg(nt[i]);
+        }
+        ns=SAL_sigCerts(nt);
+        printf("SAL supported Certificate signatures\n");
+        for (i=0;i<ns;i++ )
+        {
+            printf("    ");
+            nameSigAlg(nt[i]);
+        }
+        exit(0);
+    }
+
+    if (ip>=argc)
+    {
+        bad_input();
+        exit(EXIT_FAILURE);
+    }
+
+    if (strcmp(argv[ip],"localhost")==0)
+    {
         strcpy(hostname, "localhost");
         port = 4433;
-    } else if (argc == 1) {
+    } else {
         int i;
         bool contains_colon = false;
-        size_t argv0_len = strlen(argv[0]);
-        for(i=0; i < argv0_len; ++i)
+        size_t argv_len = strlen(argv[ip]);
+        for(i=0; i < argv_len; ++i)
         {
-            if(argv[0][i] == ':')
+            if(argv[ip][i] == ':')
             {
                 contains_colon = true;
                 break;
             }
         }
-        
-        if(contains_colon)
+        if (contains_colon)
         {
-            strncpy(hostname, argv[0], i);
+            strncpy(hostname, argv[ip], i);
             char port_part[5];
-            strncpy(port_part, argv[0]+sizeof(char)*(i+1), (argv0_len - i));
+            strncpy(port_part, argv[ip]+sizeof(char)*(i+1), (argv_len - i));
             port = atoi(port_part);
-            printf("Host: %s, Port: %d", hostname, port);
         } else {
-            strcpy(hostname, argv[0]);
+            strcpy(hostname, argv[ip]);
             port = 443;
         }
-    } else if (argc == 2) {
-        if(strncasecmp(argv[0], "AF_UNIX", strlen("AF_UNIX")) == 0){
-            logger((char*) "AF_UNIX mode\n", NULL, 0, NULL);
-            socketType = SocketType::SOCKET_TYPE_AF_UNIX;
-            strcpy(hostname, argv[1]);
-        } else {
-            logger((char*) "AF_UNIX mode requires: AF_UNIX $socketname", NULL, 0, NULL);
-            exit(EXIT_FAILURE);
-        }
-    } else {
-        logger((char*) "Did not understand your request. Cannot proceed with request.", NULL, 0, NULL);
+    }
+
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"Hostname= ",hostname,0,NULL);
+#endif
+
+// Initialise Security Abstraction Layer
+    bool retn=SAL_initLib();
+    if (!retn)
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
+#endif
         exit(EXIT_FAILURE);
     }
-    setup();
-    loop();  // just once
+
+// Client Capabilities to be advertised to Server - obtained from the Security Abstraction Layer (SAL)
+// Get supported Key Exchange Groups in order of preference
+    CPB.nsg=SAL_groups(CPB.supportedGroups);
+// Get supported Cipher Suits
+    CPB.nsc=SAL_ciphers(CPB.ciphers);
+// Get supported TLS1.3 signing algorithms 
+    CPB.nsa=SAL_sigs(CPB.sigAlgs);
+// Get supported Certificate signing algorithms 
+    CPB.nsac=SAL_sigCerts(CPB.sigAlgsCert);
+
+    if (!client.connect(hostname,port))
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Unable to access ",hostname,0,NULL);
+#endif
+        mydelay();
+ 		exit(EXIT_FAILURE);
+    }
+
+    switch (CONNECTION_MODE)
+    {
+    case TLS_EXTERNAL_PSK :
+        makeConnection(client,TLS_EXTERNAL_PSK,T);
+        break;
+    case TLS_TICKET_RESUME :
+        makeConnection(client,TLS_TICKET_RESUME,T);
+        break;
+    case TLS_FULL_HANDSHAKE :
+    default:
+        makeConnection(client,TLS_FULL_HANDSHAKE,T);
+        break;
+    }
+
+    client.stop();
+
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"Connection closed\n",NULL,0,NULL);
+#endif
 }
 #endif

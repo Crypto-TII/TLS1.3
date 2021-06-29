@@ -36,7 +36,7 @@ extern int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto 
 	@param client the socket connection to the Server
     @param hostname the host name (URL) of the server
     @param IO a workspace octad to buffer Server input
-    @param RMS a provided Resumption Master secret
+    @param RMS a returned Resumption Master secret
     @param K_send a crypto context for encrypting application traffic to the server
     @param K_recv a crypto context for decrypting application traffic from the server
     @param STS server application traffic secret - may be updated

@@ -22,11 +22,15 @@ unsigned long millis()
 #endif
 
 // Initialise a ticket. Also record the cipher-suite in use, and servers favourite key exchange group
-void initTicketContext(ticket *T,int cipher_suite,int favourite_group)
+void initTicketContext(ticket *T)
 {
     T->NONCE.len = 0;
     T->NONCE.max = TLS_MAX_KEY;
     T->NONCE.val = T->nonce;
+
+    T->PSK.len = 0;
+    T->PSK.max = TLS_MAX_HASH;
+    T->PSK.val = T->psk;
 
     T->TICK.len = 0;
     T->TICK.max = TLS_MAX_TICKET_SIZE;
@@ -36,8 +40,9 @@ void initTicketContext(ticket *T,int cipher_suite,int favourite_group)
     T->age_obfuscator=0;
     T->max_early_data=0;
     T->birth=0;
-    T->cipher_suite=cipher_suite;   // cipher suite in use at time of creation
-    T->favourite_group=favourite_group;
+    T->cipher_suite=0;
+    T->favourite_group=0;
+    T->origin=0;
 }
 
 // Parse ticket data and birth time into a ticket structure 

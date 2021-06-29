@@ -29,6 +29,11 @@ using namespace core;
 
 csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware source
 
+char* SAL_name()
+{
+    return (char *)"MIRACL Core and LibSodium"; 
+}
+
 bool SAL_initLib()
 { // Initialisation required
     if (sodium_init() < 0) {

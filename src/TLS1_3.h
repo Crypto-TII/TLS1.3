@@ -105,6 +105,11 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define PSKOK 0x00                      /**< Preshared Key only mode */
 #define PSKWECDHE 0x01                  /**< Preshared Key with Diffie-Hellman key exchange mode */
 
+// connection modes
+#define TLS_FULL_HANDSHAKE  1           /**< Do Full Handshakee */
+#define TLS_EXTERNAL_PSK  2             /**< Use external Pre-Shared Key */
+#define TLS_TICKET_RESUME  3            /**< Use ticket-based resumption */
+
 // TLS versions 
 #define TLS1_0 0x0301                   /**< TLS 1.0 version */
 #define TLS1_2 0x0303                   /**< TLS 1.2 version */
@@ -223,14 +228,17 @@ typedef struct
 {
     char tick[TLS_MAX_TICKET_SIZE];     /**< Ticket bytes */
     char nonce[TLS_MAX_KEY];            /**< 32-byte nonce */
-    octad TICK;                         /**< Ticket or external PSK as octad */
-    octad NONCE;                        /**< Nonce or external PSK label as octad */
-    int lifetime;                       /**< ticket lifetime */
+    char psk[TLS_MAX_HASH];             /**< pre-shared key */
+    octad TICK;                         /**< Ticket or external PSK label as octad */
+    octad NONCE;                        /**< Nonce as octad */
+    octad PSK;                          /**< PSK as octad */
     unsign32 age_obfuscator;            /**< ticket age obfuscator - 0 for external PSK */
     unsign32 max_early_data;            /**< Maximum early data allowed for this ticket */
-    unsign32 birth;                     /**< Birth time of this ticket */  
+    unsign32 birth;                     /**< Birth time of this ticket */ 
+    int lifetime;                       /**< ticket lifetime */        
     int cipher_suite;                   /**< Cipher suite used */
     int favourite_group;                /**< the server's favourite group */
+    int origin;                         /**< Origin of initial handshake - Full or PSK? */
 } ticket;
 
 /**

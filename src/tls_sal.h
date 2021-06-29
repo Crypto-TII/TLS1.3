@@ -21,6 +21,12 @@ typedef struct
     int htype;                        /**< The hash type (typically SHA256) */
 } unihash;
 
+/** @brief Return name of SAL provider
+*
+    @return name of SAL provider
+*/
+extern char *SAL_name();
+
 /** @brief Return supported ciphers
 *
     @param ciphers array of supported ciphers in preferred order

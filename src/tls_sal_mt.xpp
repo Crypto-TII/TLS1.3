@@ -38,6 +38,11 @@ using namespace core;
 
 csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware source
 
+char* SAL_name()
+{
+    return (char *)"MIRACL Core and TIICrypto"; 
+}
+
 bool SAL_initLib()
 { // Initialise library
     uint8_t raw[100];

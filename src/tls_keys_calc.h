@@ -67,12 +67,12 @@ extern void createCryptoContext(int cipher_suite,octad *TS,crypto *context);
 
 /**	@brief Recover a pre-shared key from Resumption Master Secret and a nonce
  *
-    @param htype hash algorithm
+    @param cipher_suite the active cipher suite
     @param RMS the input resumption master secret
     @param NONCE the input nonce
     @param PSK the output pre-shared key
  */
-extern void recoverPSK(int htype,octad *RMS,octad *NONCE,octad *PSK);
+extern void recoverPSK(int cipher_suite,octad *RMS,octad *NONCE,octad *PSK);
 
 /**	@brief Extract Early Secret Key and Binder Key from Preshared Key (External or Resumption)
  *
