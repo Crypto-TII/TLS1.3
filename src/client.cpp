@@ -12,7 +12,7 @@
 #ifdef TLS_ARDUINO
 #include "tls_wifi.h"
 #else
-// Output ticket to file
+// Output ticket to cookie file
 static void storeTicket(ticket *T)
 {
     FILE *fp;
@@ -365,9 +365,8 @@ static void makeConnection(Socket client,int mode,ticket &T)
 }
 
 
-// Try for a full handshake - disconnect - try to resume connection - repeat
 #ifdef TLS_ARDUINO
-
+// Try for a full handshake - disconnect - try to resume connection - repeat
 #ifdef ESP32
 #if CONFIG_FREERTOS_UNICORE
 #define ARDUINO_RUNNING_CORE 0
@@ -447,6 +446,8 @@ void loop() {
     Socket client;
     ticket T;
     initTicketContext(&T);
+
+// make connection using full handshake...
     if (!client.connect(hostname,port))
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -457,13 +458,15 @@ void loop() {
     }
 
     makeConnection(client,TLS_FULL_HANDSHAKE,T);
-
+// drop the connection..
     client.stop();
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Connection closed\n",NULL,0,NULL);
 #endif
     delay(1000);
 
+
+// try to resume connection using...
     if (!client.connect(hostname,port))
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -475,7 +478,7 @@ void loop() {
 
     makeConnection(client,TLS_TICKET_RESUME,T);
     client.stop();
-
+// drop the connection..
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Connection closed\n",NULL,0,NULL);
 #endif
@@ -483,13 +486,14 @@ void loop() {
 #ifdef ESP32
     Serial.print("Amount of unused stack memory ");
     Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    delay(5000);
     }
 #endif
     delay(5000);
 }
 
 #else
-
+// printf's allowed in here
 static void bad_input()
 {
     printf("Incorrect Usage\n");
@@ -498,12 +502,13 @@ static void bad_input()
     printf("(hostname may be localhost)\n");
     printf("(port defaults to 443, or 4433 on localhost)\n");
     printf("Valid flags:- \n");
-    printf("    -p <n> (where <n> is preshared key identity)\n");
-    printf("    -r (attempt resumption using stored ticket)\n");
-    printf("    -s print out SAL capabilities\n");
+    printf("    -p <n> hostname (where <n> is preshared key identity)\n");
+    printf("    -r hostname (attempt resumption using stored ticket)\n");
+    printf("    -s show SAL capabilities\n");
+    printf("Example:- client www.bbc.co.uk\n");
+    printf("          client -r www.bbc.co.uk\n");
 }
 
-// printf's allowed in here
 int main(int argc, char const *argv[])
 {
     Socket client = (socketType == SocketType::SOCKET_TYPE_AF_UNIX) ?
