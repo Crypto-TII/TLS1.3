@@ -2,14 +2,17 @@
 // (Requires MIRACL core build crypto library core.a with support for elliptic curves and RSA - options 2,3,8,41,43)
 // cp tls_sal_m.xpp tls_sal.cpp
 // g++ -O2 -c tls*.cpp
-// ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_sal.o tls_octads.o tls_x509.o
-// g++ -O2 client.cpp tls.a core.a -o client
+// ar rc tiitls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_sal.o tls_octads.o tls_x509.o
+// These steps create the library tiitls.a
+// g++ -O2 client.cpp tiitls.a core.a -o client
 // ./client www.bbc.co.uk
+
+// This client demonstrator can also be built for an embedded Arduino environment
 
 #include "tls_sal.h"
 #include "tls_protocol.h"
 
-#ifdef TLS_ARDUINO
+#ifdef TLS_ARDUINO                 // defined in tls1_3.h
 #include "tls_wifi.h"
 #else
 // Output ticket to cookie file
@@ -213,7 +216,7 @@ int port=443;
 
 char* ssid = "TP-LINK_5B40F0";
 char* password =  "********";
-char* hostname = "swifttls.org";
+char* hostname = "tls13.cloudfare.com";  // HTTPS TLS1.3 server
 void mydelay()
 {
     while (1) delay(1000);
@@ -233,9 +236,9 @@ void mydelay()
 #endif
 
 // make connection, using full handshake, resumption, or PSK.
-// Full handshake may provide a ticket
+// Full handshake may provide a ticket, stored in file cookie.txt
 // Resumption mode consumes a ticket, and may provide one
-// If TLS_ARDUINO, just maintain last ticket in memory 
+// If TLS_ARDUINO, just maintain last ticket in memory, and perform immediate resumption
 static void makeConnection(Socket client,int mode,ticket &T)
 {
     int rtn,favourite_group,cipher_suite;
@@ -244,7 +247,7 @@ static void makeConnection(Socket client,int mode,ticket &T)
     char sts[TLS_MAX_HASH];
     octad STS = {0,sizeof(sts),sts};   // server traffic secret
     char io[TLS_MAX_IO_SIZE];
-    octad IO={0,sizeof(io),io};        // main IO buffer - all messages come and go via this octad   --- BIG
+    octad IO={0,sizeof(io),io};        // main IO buffer - all messages come and go via this octad   --- BIG!
     char get[256];
     octad GET={0,sizeof(get),get};     // initial message
     crypto K_send, K_recv;             // crypto contexts, sending and receiving
@@ -380,6 +383,7 @@ void myloop( void *pvParameters );
 // A hidden main() functions calls setup() once, and then repeatedly calls loop()
 // This actually makes a lot of sense in an embedded environment
 // This structure does however mean that a certain of amount of global data is inevitable
+// Note that the ESP32 does things rather differently...
 
 void setup()
 {
@@ -408,14 +412,11 @@ void setup()
     }
 
 // Client Capabilities to be advertised to Server - obtained from the Security Abstraction Layer (SAL)
-// Get supported Key Exchange Groups in order of preference
-    CPB.nsg=SAL_groups(CPB.supportedGroups);
-// Get supported Cipher Suits
-    CPB.nsc=SAL_ciphers(CPB.ciphers);
-// Get supported TLS1.3 signing algorithms 
-    CPB.nsa=SAL_sigs(CPB.sigAlgs);
-// Get supported Certificate signing algorithms 
-    CPB.nsac=SAL_sigCerts(CPB.sigAlgsCert);
+
+    CPB.nsg=SAL_groups(CPB.supportedGroups);    // Get supported Key Exchange Groups in order of preference
+    CPB.nsc=SAL_ciphers(CPB.ciphers);           // Get supported Cipher Suits
+    CPB.nsa=SAL_sigs(CPB.sigAlgs);              // Get supported TLS1.3 signing algorithms 
+    CPB.nsac=SAL_sigCerts(CPB.sigAlgsCert);     // Get supported Certificate signing algorithms 
 
 #ifdef ESP32
     xTaskCreatePinnedToCore(
@@ -463,7 +464,7 @@ void loop() {
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Connection closed\n",NULL,0,NULL);
 #endif
-    delay(1000);
+    delay(5000);
 
 
 // try to resume connection using...
@@ -475,7 +476,9 @@ void loop() {
         mydelay();
  		return;
     }
-
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"\nAttempting resumption\n",NULL,0,NULL);
+#endif
     makeConnection(client,TLS_TICKET_RESUME,T);
     client.stop();
 // drop the connection..
@@ -484,12 +487,13 @@ void loop() {
 #endif
 
 #ifdef ESP32
-    Serial.print("Amount of unused stack memory ");
+    Serial.print("Amount of unused stack memory ");     // useful information!
     Serial.println(uxTaskGetStackHighWaterMark(NULL));
     delay(5000);
     }
-#endif
+#else
     delay(5000);
+#endif
 }
 
 #else
@@ -634,14 +638,11 @@ int main(int argc, char const *argv[])
     }
 
 // Client Capabilities to be advertised to Server - obtained from the Security Abstraction Layer (SAL)
-// Get supported Key Exchange Groups in order of preference
-    CPB.nsg=SAL_groups(CPB.supportedGroups);
-// Get supported Cipher Suits
-    CPB.nsc=SAL_ciphers(CPB.ciphers);
-// Get supported TLS1.3 signing algorithms 
-    CPB.nsa=SAL_sigs(CPB.sigAlgs);
-// Get supported Certificate signing algorithms 
-    CPB.nsac=SAL_sigCerts(CPB.sigAlgsCert);
+
+    CPB.nsg=SAL_groups(CPB.supportedGroups);    // Get supported Key Exchange Groups in order of preference
+    CPB.nsc=SAL_ciphers(CPB.ciphers);           // Get supported Cipher Suits
+    CPB.nsa=SAL_sigs(CPB.sigAlgs);              // Get supported TLS1.3 signing algorithms 
+    CPB.nsac=SAL_sigCerts(CPB.sigAlgsCert);     // Get supported Certificate signing algorithms 
 
     if (!client.connect(hostname,port))
     {

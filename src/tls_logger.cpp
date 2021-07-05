@@ -245,7 +245,7 @@ void logCert(octad *CERT)
 void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT)
 {
     logger(txt,NULL,0,NULL);
-    logger((char *)"Signature is ",NULL,0,SIG); 
+    logger((char *)"Signature on Certificate is ",NULL,0,SIG); 
     if (sg.type==X509_ECC)
     {
         logger((char *)"ECC signature ",NULL,0,NULL);
@@ -262,7 +262,7 @@ void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad
     if (sg.type==X509_RSA)
         logger((char *)"RSA signature of length ",(char *)"%d",sg.curve,NULL);
 
-    logger((char *)"Public key= ",NULL,0,PUBKEY); 
+    logger((char *)"Public key from Certificate is ",NULL,0,PUBKEY); 
     if (pk.type==X509_ECC)
     {
         logger((char *)"ECC public key ",NULL,0,NULL);
@@ -274,7 +274,7 @@ void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad
             logger((char *)"Curve is SECP521R1\n",NULL,0,NULL);
     }
     if (pk.type==X509_RSA)
-        logger((char *)"RSA public key of length ",(char *)"%d",pk.curve,NULL);
+        logger((char *)"Certificate public key is RSA of length ",(char *)"%d",pk.curve,NULL);
     
     logger((char *)"Issuer is  ",(char *)ISSUER->val,0,NULL);
     logger((char *)"Subject is ",(char *)SUBJECT->val,0,NULL);

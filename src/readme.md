@@ -29,22 +29,22 @@ If using miracl+tiicrypto
 
 	cp tls_sal_mt.xpp tls_sal.cpp
 
-Build the tls library and the client app by 
+Build the TII tls library by
 
 	g++ -O2 -c tls*.cpp
-	ar rc tls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_sal.o tls_octads.o tls_x509.o
+	ar rc tiitls.a tls_protocol.o tls_keys_calc.o tls_sockets.o tls_cert_chain.o tls_client_recv.o tls_client_send.o tls_tickets.o tls_logger.o tls_cacerts.o tls_sal.o tls_octads.o tls_x509.o
 
-If using miracl only	
+Next create the client application. If using miracl only	
 
-	g++ -O2 client.cpp tls.a core.a -o client
+	g++ -O2 client.cpp tiitls.a core.a -o client
 
 If using miracl+libsodium  
 
-	g++ -O2 client.cpp tls.a core.a -lsodium -o client
+	g++ -O2 client.cpp tiitls.a core.a -lsodium -o client
 
 If using miracl+TIIcrypto 
 
-	g++ -O2 client.cpp tls.a core.a libtiicrypto-v2.3.0.a -o client
+	g++ -O2 client.cpp tiitls.a core.a libtiicrypto-v2.3.0.a -o client
 
 Or by using CMake. If you follow this alternative, copy the header files into `vendor/miracl/includes`, and the `core.a` to `vendor/miracl/` 
 
@@ -274,7 +274,7 @@ This is our own server, using TLSSwift (`localhost:4433`)
 
 ### Building the client application on an Arduino board (like ESP32)
 
-1.	Create working directory directory with name NAME
+1.	Create working directory directory with name tiitls
 2.	Copy in all from the cpp directory of https://github.com/miracl/core
 3.	Copy in all from the arduino directory of https://github.com/miracl/core
 4.	(If ever asked to overwrite a file, go ahead and overwrite it)
@@ -285,6 +285,6 @@ This is our own server, using TLSSwift (`localhost:4433`)
 9.	Run py config.py, and select options 2,3,8,41 and 43
 10.	Drop the working directory into where the Arduino IDE expects it. 
 11.	(In the IDE select File->Preferences and find the Sketchbook location - its the library directory off that.)
-12.	Open the Arduino app, and look in File->Examples->NAME, and look for the example "client"
+12.	Open the Arduino app, and look in File->Examples->tiitls, and look for the example "client"
 13.	Upload to the board and run it! Tools->Serial Monitor to see the output
 

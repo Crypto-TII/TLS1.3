@@ -6,18 +6,18 @@ project(tiitls1.3)
 set(HDR
         tls1_3.h
         tls_sockets.h
-        tls1_3.h
         tls_cert_chain.h
         tls_client_recv.h
         tls_client_send.h
-        tls_hash.h
         tls_keys_calc.h
-        tls_parse_octet.h
+        tls_octads.h
         tls_sockets.h
         tls_logger.h
         tls_protocol.h
         tls_cacerts.h
         tls_tickets.h
+	tls_x509.h
+	tls_sal.h
         )
 set(SRC
        tls_cert_chain.cpp
@@ -25,10 +25,13 @@ set(SRC
        tls_client_send.cpp
        tls_keys_calc.cpp
        tls_sockets.cpp
-        tls_logger.cpp
-        tls_protocol.cpp
-        tls_cacerts.cpp
+       tls_octads.cpp
+       tls_logger.cpp
+       tls_protocol.cpp
+       tls_cacerts.cpp
        tls_tickets.cpp
+       tls_x509.cpp
+       tls_sal.cpp
         )
 
 # Add a library
@@ -48,12 +51,3 @@ add_executable(client
 target_link_libraries(client
         prod_lib
         )
-
-add_executable(server
-        server.cpp
-        )
-target_link_libraries(server
-        prod_lib
-        )
-
-

@@ -910,9 +910,6 @@ while ptr<max:
 #    break;
 
 os.system(deltext+" *.rs")
-os.system(deltext+" test.txt")
-os.system(deltext+" test16.txt")
-os.system(deltext+" pins.txt")
 #os.system(deltext+" fast*.*")
 os.system(deltext+" big.*")
 os.system(deltext+" fp.*")

@@ -307,7 +307,7 @@ int checkCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
         return BAD_CERT_CHAIN;
     }
 #if VERBOSITY >= IO_DEBUG
-    logCertDetails((char *)"Parsing Server certificate\n",PUBKEY,spt,&SSIG,sst,&ISSUER,&SUBJECT);
+    logCertDetails((char *)"\nParsing Server certificate\n",PUBKEY,spt,&SSIG,sst,&ISSUER,&SUBJECT);
 #endif
     if (OCT_compare(&ISSUER,&SUBJECT))
     {
