@@ -176,8 +176,9 @@ extern void sendBinder(Socket &client,octad *B,octad *BND,octad *IO);
     @param EXTENSIONS pre-prepared extensions
     @param extra length of preshared key binder to be sent later
     @param IO the workspace octad in which to construct the overall message
+    @pararm resume true if this hello is for handshae resumption
  */
-extern void sendClientHello(Socket &client,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,octad *IO);
+extern void sendClientHello(Socket &client,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,octad *IO,bool resume);
 
 /**	@brief Prepare and send an Alert message to the Server
  *

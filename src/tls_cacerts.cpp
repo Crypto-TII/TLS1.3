@@ -3,7 +3,6 @@
 // My private key, my cert, and CA root certificates
 //
 
-
 #include "tls_cacerts.h"
 
 // My personal ECC sec384r1 private key 
@@ -34,6 +33,20 @@ const char *mycert=(char *)
 "t6bdbNJdQZkCMQDMhYLOnl/dfwZ4sLKKd5BbQevoNWy4vVOEXR53qRzryAkRTJhU\n"
 "4rPPesutUy3OHdI=\n"
 "-----END CERTIFICATE-----\n";
+
+/*
+// My Arduino Nano 33 IoT self-signed Cert. Private key is on the board.
+const char *mycert=(char *) 
+"-----BEGIN CERTIFICATE-----\n"
+"MIIBKjCB0aADAgECAgEBMAoGCCqGSM49BAMCMB0xGzAZBgNVBAMTEjAxMjNBMDUz\n"
+"MEQ0RkU1RUVFRTAeFw0yMTA3MDQxNTAwMDBaFw0zMTA3MDQxNTAwMDBaMB0xGzAZ\n"
+"BgNVBAMTEjAxMjNBMDUzMEQ0RkU1RUVFRTBZMBMGByqGSM49AgEGCCqGSM49AwEH\n"
+"A0IABL8xBsAdr4E1MZMoQeA6hmklaiidF8gpgZWmRkSfIIyHwMup/wsz4eTGAB5J\n"
+"IhLI/gFGVjsAU+WK7ulsW5YgxCqjAjAAMAoGCCqGSM49BAMCA0gAMEUCIQDYWgeH\n"
+"TF7AcJH+3nr7VQo8acgoyhlPnR62xwjj0AsUcwIgQ9qgNjVtZgoZC5+fTpPyG7dt\n"
+"1YI/aNe4SDOv0a2jtmc=\n"
+"-----END CERTIFICATE-----\n"
+*/
 
 /*
 // My personal private key RSA 2048 bits 

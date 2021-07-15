@@ -199,10 +199,27 @@ void SAL_hmac(int htype,octad *T,octad *K,octad *M)
 // HASH of NULL
 void SAL_hashNull(int htype,octad *H)
 {
-    int hlen=SAL_hashLen(htype);
-    octet MC_H=octad_to_octet(H);
-    SPhash(MC_SHA2,hlen,&MC_H,NULL);
-    H->len=MC_H.len;
+    if (htype==TLS_SHA256_T)
+    {
+        core::hash256 sh;
+        HASH256_init(&sh);
+        HASH256_hash(&sh,H->val);
+    } 
+    if (htype==TLS_SHA384_T)
+    {
+        core::hash384 sh;
+        HASH384_init(&sh);
+        HASH384_hash(&sh,H->val);
+    }     
+    if (htype==TLS_SHA512_T)
+    {
+        core::hash512 sh;
+        HASH512_init(&sh);
+        HASH512_hash(&sh,H->val);
+
+    }     
+    H->len=SAL_hashLen(htype);
+    return;    
 }
 
 // Unified hashing. Hash type type indicate by htype.
@@ -217,15 +234,25 @@ void SAL_hashInit(int htype,unihash *h)
     h->htype=htype;
 }
 
-// Process a byte
-void SAL_hashProcess(unihash *h,int b)
+// Process a byte array
+void SAL_hashProcessArray(unihash *h,char *b,int len)
 {
+    int i;
     if (h->htype==TLS_SHA256_T)
-        HASH256_process((core::hash256*)&(h->state),b);
+    {
+        for (i=0;i<len;i++)
+            HASH256_process((core::hash256*)&(h->state),b[i]);   
+    }   
     if (h->htype==TLS_SHA384_T)
-        HASH384_process((core::hash512*)&(h->state),b);
+    {
+        for (i=0;i<len;i++)
+            HASH384_process((core::hash512*)&(h->state),b[i]);   
+    }  
     if (h->htype==TLS_SHA512_T)
-        HASH512_process((core::hash512*)&(h->state),b);
+    {
+        for (i=0;i<len;i++)
+            HASH512_process((core::hash512*)&(h->state),b[i]);   
+    }     
 }
 
 // output digest

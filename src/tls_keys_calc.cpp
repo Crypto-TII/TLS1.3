@@ -7,8 +7,7 @@
 // Add octad to transcript hash 
 void runningHash(octad *O,unihash *h)
 {
-    for (int i=0;i<O->len;i++)
-        SAL_hashProcess(h,O->val[i]);
+    SAL_hashProcessArray(h,O->val,O->len);
 }
 
 // Output transcript hash 
@@ -31,9 +30,11 @@ void runningSyntheticHash(octad *O,octad *E,unihash *h)
     runningHash(E,&rhash);
     transcriptHash(&rhash,&HH);
     
-    SAL_hashProcess(h,MESSAGE_HASH);
-    SAL_hashProcess(h,0); SAL_hashProcess(h,0);
-    SAL_hashProcess(h,SAL_hashLen(htype));   // fe 00 00 sha
+    char t[4];
+    t[0]=MESSAGE_HASH;
+    t[1]=t[2]=0;
+    t[3]=SAL_hashLen(htype);
+    SAL_hashProcessArray(h,t,4);
     
     runningHash(&HH,h);
 }

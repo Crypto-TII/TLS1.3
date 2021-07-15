@@ -65,9 +65,9 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
     octad CA={0,sizeof(ca),ca};
     char owner[TLS_X509_MAX_FIELD];
     octad OWNER={0,sizeof(owner),owner};
-    char sc[TLS_MAX_ROOT_CERT_SIZE];  // server certificate
-    octad SC={0,sizeof(sc),sc};
+    //char sc[TLS_MAX_ROOT_CERT_SIZE];  // server certificate
     char b[TLS_MAX_ROOT_CERT_B64];  // maximum size for CA root signed certs in base64
+    octad SC={0,sizeof(b),b};       // optimization - share memory
     char line[80]; int ptr=0;
 
     for (;;)
@@ -263,11 +263,8 @@ int checkCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     octad ICERT;  // signature on intermediate certificate
     ICERT.len=0;
 
-    char ipk[TLS_MAX_PUB_KEY_SIZE];  // Public Key from Intermediate Cert
-    octad IPK = {0, sizeof(ipk), ipk};
-
-    char rpk[TLS_MAX_PUB_KEY_SIZE];  // Public Key Root Certificate
-    octad RPK = {0, sizeof(rpk), rpk};
+    char pk[TLS_MAX_PUB_KEY_SIZE];  // Public Key 
+    octad PK = {0, sizeof(pk), pk};
 
     char issuer[TLS_X509_MAX_FIELD];  
     octad ISSUER={0,sizeof(issuer),issuer};
@@ -330,7 +327,7 @@ int checkCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 #endif
 
     ist=stripDownCert(&ICERT,&ISIG,&ISSUER,&SUBJECT);
-    ipt=getPublicKeyFromCert(&ICERT,&IPK);
+    ipt=getPublicKeyFromCert(&ICERT,&PK);
 
     if (!checkCertValidity(&ICERT))
     {
@@ -341,9 +338,9 @@ int checkCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     }
 
 #if VERBOSITY >= IO_DEBUG
-    logCertDetails((char *)"Parsing Intermediate certificate\n",&IPK,ipt,&ISIG,ist,&ISSUER,&SUBJECT);
+    logCertDetails((char *)"Parsing Intermediate certificate\n",&PK,ipt,&ISIG,ist,&ISSUER,&SUBJECT);
 #endif
-    if (checkCertSig(sst,&SCERT,&SSIG,&IPK)) {  // Check server cert signature with inter cert public key
+    if (checkCertSig(sst,&SCERT,&SSIG,&PK)) {  // Check server cert signature with inter cert public key
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Intermediate Certificate Chain sig is OK\n",NULL,0,NULL);
 #endif
@@ -364,9 +361,9 @@ int checkCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 
 // Find Root of Trust
 // Find root certificate public key
-    if (findRootCA(&ISSUER,ist,&RPK)) {
+    if (findRootCA(&ISSUER,ist,&PK)) {
 #if VERBOSITY >= IO_DEBUG        
-        logger((char *)"\nPublic Key from root cert= ",NULL,0,&RPK);
+        logger((char *)"\nPublic Key from root cert= ",NULL,0,&PK);
 #endif
     } else {
 #if VERBOSITY >= IO_DEBUG
@@ -375,7 +372,7 @@ int checkCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
         return CA_NOT_FOUND;
     }
 
-    if (checkCertSig(ist,&ICERT,&ISIG,&RPK)) {  // Check inter cert signature with root cert public key
+    if (checkCertSig(ist,&ICERT,&ISIG,&PK)) {  // Check inter cert signature with root cert public key
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Root Certificate sig is OK\n",NULL,0,NULL);
 #endif

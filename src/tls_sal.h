@@ -133,12 +133,14 @@ extern void SAL_hashNull(int sha,octad *H);
  */
 extern void SAL_hashInit(int hlen,unihash *h);
 
-/**	@brief Hash process a byte
+/**	@brief Hash process an array of bytes
  *
     @param h a hashing context
-    @param b the byte to be included in hash
+    @param b the byte array to be included in hash
+    @param len the array length
  */
-extern void SAL_hashProcess(unihash *h,int b);
+extern void SAL_hashProcessArray(unihash *h,char *b,int len);
+
 
 /**	@brief Hash finish and output
  *

@@ -252,17 +252,15 @@ void SAL_hashInit(int htype,unihash *h)
     h->htype=htype;
 }
 
-// Process a byte
-void SAL_hashProcess(unihash *h,int b)
+// Process a byte array
+void SAL_hashProcessArray(unihash *h,char *b,int len)
 {
-    uint8_t c[1];
-    c[0]=(uint8_t)b;
     if (h->htype==TLS_SHA256_T)
-        sha256_update((sha256_ctx_t *)&(h->state),c,1);
+        sha256_update((sha256_ctx_t *)&(h->state),(uint8_t *)b,len);
     if (h->htype==TLS_SHA384_T)
-        sha384_update((sha384_ctx_t *)&(h->state),c,1);
+        sha384_update((sha384_ctx_t *)&(h->state),(uint8_t *)b,len);
     if (h->htype==TLS_SHA512_T)
-        sha512_update((sha512_ctx_t *)&(h->state),c,1);
+        sha512_update((sha512_ctx_t *)&(h->state),(uint8_t *)b,len);
 }
 
 // output digest, return length

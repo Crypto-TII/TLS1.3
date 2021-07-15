@@ -112,7 +112,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     addPadding(&EXT,SAL_randomByte()%16);  // add some random padding (because I can)
 
 // create and send Client Hello octad
-    sendClientHello(client,TLS1_0,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);  
+    sendClientHello(client,TLS1_0,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO,false);  
 #if VERBOSITY >= IO_DEBUG     
     logger((char *)"Client Hello sent\n",NULL,0,NULL);
 #endif
@@ -198,7 +198,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
         ccs_sent=true;
 
 // create and send new Client Hello octad
-        sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO);
+        sendClientHello(client,TLS1_2,&CH,CPB.nsc,CPB.ciphers,&CID,&EXT,0,&IO,true);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Client Hello re-sent\n",NULL,0,NULL);
 #endif
@@ -455,7 +455,6 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     logger((char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]+CF) = ",NULL,0,&FH);
 #endif
 
-
 // calculate traffic and application keys from handshake secret and transcript hashes
     deriveApplicationSecrets(hashtype,&HS,&HH,&FH,&CTS,&STS,NULL,&RMS);
 
@@ -472,7 +471,6 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     if (resumption_required) return 2;
     return 1;
 }
-
 
 // TLS1.3 resumption handshake
 // client - socket connection
@@ -647,7 +645,7 @@ int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_se
 
     int ciphers[1]; ciphers[0]=cipher_suite;     // Only allow one cipher suite
 // create and send Client Hello octad
-    sendClientHello(client,TLS1_2,&CH,1,ciphers,&CID,&EXT,extra,&IO);  
+    sendClientHello(client,TLS1_2,&CH,1,ciphers,&CID,&EXT,extra,&IO,false);  
 
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Client Hello sent\n",NULL,0,NULL);

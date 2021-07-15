@@ -215,7 +215,7 @@ void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octad
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
-void sendClientHello(Socket &client,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,octad *IO)
+void sendClientHello(Socket &client,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,octad *IO,bool resume)
 {
     char rn[32];
     octad RN = {0, sizeof(rn), rn};
@@ -225,7 +225,10 @@ void sendClientHello(Socket &client,int version,octad *CH,int nsc,int *ciphers,o
     int total=8;
     int extlen=EXTENSIONS->len+extra;
     total+=clientRandom(&RN);
-    total+=sessionID(CID);
+    if (!resume)
+        total+=sessionID(CID);  
+    else
+        total+=(1+CID->len);    // if its a handshake resumption, re-use the old CID?? Since its the same session?
     total+=cipherSuites(&CS,nsc,ciphers);
 
     OCT_kill(CH);

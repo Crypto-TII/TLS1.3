@@ -161,7 +161,7 @@ void OCT_append_bytes(octad *y, char *b, int len)
 //        printf("6. ************************** Octad Problem!\n");
 }
 
-/* Convert to octad from a bas64 string */
+/* Convert to octad from a base64 string */
 void OCT_from_base64(octad *w, char *b)
 {
     int i, j, k, pads, len;// = (int)strlen(b);

@@ -335,7 +335,9 @@ ret getWhatsNext(Socket &client,octad *IO,crypto *recv,unihash *trans_hash)
     r=parseByteorPull(client,IO,ptr,recv); 
     if (r.err) return r; 
 
-    SAL_hashProcess(trans_hash,r.val);
+    char b[1];
+    b[0]=r.val;
+    SAL_hashProcessArray(trans_hash,b,1);
     OCT_shift_left(IO,ptr); 
     return r;      
 }
@@ -439,9 +441,8 @@ ret getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *
     }
 
 // Update Transcript hash
-    for (int i=0;i<ptr;i++)
-        SAL_hashProcess(trans_hash,IO->val[i]);
-   
+    SAL_hashProcessArray(trans_hash,IO->val,ptr);
+
     OCT_shift_left(IO,ptr);  // Shift octad left - rewind to start 
 #if VERBOSITY >= IO_DEBUG
     if (unexp>0)    
@@ -504,8 +505,7 @@ ret getCertificateRequest(Socket &client,octad *IO,crypto *recv,unihash *trans_h
     }
 
 // Update Transcript hash
-    for (int i=0;i<ptr;i++)
-        SAL_hashProcess(trans_hash,IO->val[i]);
+    SAL_hashProcessArray(trans_hash,IO->val,ptr);
    
     OCT_shift_left(IO,ptr);  // Shift octad left - rewind to start 
 
@@ -544,8 +544,7 @@ ret getCheckServerCertificateChain(Socket &client,octad *IO,crypto *recv,unihash
     r=parseoctadorPullptr(client,&CERTCHAIN,len,IO,ptr,recv); if (r.err) return r; // get pointer to certificate chain
 
 // Update Transcript hash
-    for (int i=0;i<ptr;i++)
-        SAL_hashProcess(trans_hash,IO->val[i]);
+    SAL_hashProcessArray(trans_hash,IO->val,ptr);
 
     r.err=checkCertChain(&CERTCHAIN,hostname,PUBKEY);
 
@@ -569,8 +568,7 @@ ret getServerCertVerify(Socket &client,octad *IO,crypto *recv,unihash *trans_has
     r=parseoctadorPull(client,SCVSIG,len,IO,ptr,recv); if (r.err) return r;
    
 // Update Transcript hash
-    for (int i=0;i<ptr;i++)
-        SAL_hashProcess(trans_hash,IO->val[i]);
+    SAL_hashProcessArray(trans_hash,IO->val,ptr);
 
     OCT_shift_left(IO,ptr);  // rewind to start
     r.val=CERT_VERIFY;
@@ -592,8 +590,7 @@ ret getServerFinished(Socket &client,octad *IO,crypto *recv,unihash *trans_hash,
     r=parseoctadorPull(client,HFIN,len,IO,ptr,recv); if (r.err) return r;
 
 // Update Transcript hash
-    for (int i=0;i<ptr;i++)
-        SAL_hashProcess(trans_hash,IO->val[i]);
+    SAL_hashProcessArray(trans_hash,IO->val,ptr);
    
     OCT_shift_left(IO,ptr);  // rewind to start
     r.val=FINISHED;
@@ -657,7 +654,11 @@ ret getServerHello(Socket &client,octad* SH,int &cipher,int &kex,octad *CID,octa
     r=parseoctadorPull(client,&SID,silen,SH,ptr,NULL); if (r.err) return r;
     left-=silen;  
 
-    if (!OCT_compare(CID,&SID)) {
+// Tricky one. According to the RFC (4.1.3) this check should be made, even though the session id is "legacy",
+// Unfortunately it is not made clear if the same session ID should be use on a handshake resumption.
+// We note that some servers echo the original id, not a new id associated with a new Client Hello
+// Solution here is to use same id on resumption(?)
+    if (!OCT_compare(CID,&SID)) { 
         r.err=ID_MISMATCH;  // check identities match
         return r;
     }

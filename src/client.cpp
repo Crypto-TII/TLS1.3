@@ -457,7 +457,9 @@ void loop() {
         mydelay();
  		return;
     }
-
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"\nAttempting full handshake\n",NULL,0,NULL);
+#endif
     makeConnection(client,TLS_FULL_HANDSHAKE,T);
 // drop the connection..
     client.stop();

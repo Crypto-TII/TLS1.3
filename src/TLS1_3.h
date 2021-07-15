@@ -32,7 +32,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 //#define POPULAR_ROOT_CERTS        /**< Define this to limit root CAs to most popular only */
 //#define TLS_ARDUINO               /**< Define for Arduino-based implementation */
-#define VERBOSITY IO_DEBUG     /**< Set to level of output information desired - see above */
+#define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 #define TLS_PROTOCOL TLS_HTTP_PROTOCOL   /**< Selected application protocol */
@@ -45,7 +45,7 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 
 // Some maximum sizes for stack allocated memory. Handshake will fail if these sizes are exceeded! 
 
-#define TLS_MAX_HASH_STATE 1024 /**< Maximum memory required to store hash function state */
+#define TLS_MAX_HASH_STATE 768  /**< Maximum memory required to store hash function state */
 #define TLS_MAX_HASH 64         /**< Maximum hash output length in bytes */
 #define TLS_MAX_KEY 32          /**< Maximum key length in bytes */
 #define TLS_X509_MAX_FIELD 256           /**< Maximum X.509 field size */
