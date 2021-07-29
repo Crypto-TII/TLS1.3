@@ -30,13 +30,13 @@ char* SAL_name()
 
 bool SAL_initLib()
 { // Initialise library
-    char raw[100];
+    char raw[64];
     if (!ECCX08.begin()) {
         Serial.println("Failed to communicate with ECC508/ECC608!");
         return false;
     }
-    for (int i = 0; i < 100; i++) raw[i] = ECCX08.random(256);
-    RAND_seed(&RNG, 100, raw);    
+    for (int i = 0; i < 64; i++) raw[i] = ECCX08.random(256);  // Slow!!!!
+    RAND_seed(&RNG, 64, raw);    
     return true;
 }
 
@@ -116,7 +116,7 @@ static octet octad_to_octet(octad *x)
 // Return a random byte
 int SAL_randomByte()
 {
-    return ECCX08.random(256);
+    return RAND_byte(&RNG);
 }
 
 // Fill an octad with random values

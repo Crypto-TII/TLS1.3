@@ -214,9 +214,9 @@ int port=443;
 
 #ifdef TLS_ARDUINO
 
-char* ssid = "TP-LINK_5B40F0";
+char* ssid = "eir79562322-2.4G";
 char* password =  "********";
-char* hostname = "tls13.cloudfare.com";  // HTTPS TLS1.3 server
+char* hostname = "www.bbc.co.uk";  // HTTPS TLS1.3 server
 void mydelay()
 {
     while (1) delay(1000);

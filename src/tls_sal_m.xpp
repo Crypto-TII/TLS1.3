@@ -29,9 +29,9 @@ char* SAL_name()
 
 bool SAL_initLib()
 { // Initialise library
-    char raw[100];
-    for (int i = 0; i < 100; i++) raw[i] = i;  // *** should be from output of true random number generator ****
-    RAND_seed(&RNG, 100, raw);    
+    char raw[64];
+    for (int i = 0; i < 64; i++) raw[i] = i;  // *** should be from output of true random number generator ****
+    RAND_seed(&RNG, 64, raw);    
     return true;
 }
 

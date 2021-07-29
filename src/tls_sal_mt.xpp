@@ -45,9 +45,9 @@ char* SAL_name()
 
 bool SAL_initLib()
 { // Initialise library
-    uint8_t raw[100];
-    tii_prng_get_bytes(raw, 100); // get true random seed
-    RAND_seed(&RNG, 100, (char *)raw);  
+    uint8_t raw[64];
+    tii_prng_get_bytes(raw, 64); // get true random seed
+    RAND_seed(&RNG, 64, (char *)raw);  
     return true;
 }
 

@@ -21,6 +21,10 @@ If using only the miracl library
 
 	cp tls_sal_m.xpp tls_sal.cpp
 
+If using miracl+ECC608 hardware
+
+	cp tls_sal_mh.xpp tls_sal.cpp
+
 If using miracl+libsodium 
 
 	cp tls_sal_ms.xpp tls_sal.cpp
@@ -272,20 +276,19 @@ This is our own server, using TLSSwift (`localhost:4433`)
 ```
 
 
-### Building the client application on an Arduino board (like ESP32)
+### Building the client application on an Arduino board (here Arduino Nano 33 IoT)
 
 1.	Create working directory directory with name tiitls
 2.	Copy in all from the cpp directory of https://github.com/miracl/core
 3.	Copy in all from the arduino directory of https://github.com/miracl/core
 4.	(If ever asked to overwrite a file, go ahead and overwrite it)
-5.	Copy in the files config.py, client.cpp, ECCX08.cpp/.h and tlsXXX.* from this directory to the working directory
-6.	Copy either tls_sal_m.xpp or tls_sal_mh.xpp to tls_sal.cpp (the first for software only, the second if using hardware support from ECC608A chip.)
-7.	Edit the file core.h to define CORE_ARDUINO
-8.	Edit the file tls1_3.h to define POPULAR_ROOT_CERTS and TLS_ARDUINO
-9.	Edit the file client.cpp to use your wifi SSID and password (near line 170)
-10.	Run py config.py, and select options 2,3,8,41 and 43
-11.	Drop the working directory into where the Arduino IDE expects it. 
-12.	(In the IDE select File->Preferences and find the Sketchbook location - its the library directory off that.)
-13.	Open the Arduino app, and look in File->Examples->tiitls, and look for the example "client"
-14.	Upload to the board and run it! Tools->Serial Monitor to see the output
+5.	Copy in the files config.py, client.cpp, ECCX08.cpp/.h and tls*.* from this directory to the working directory
+6.	Edit the file core.h to define CORE_ARDUINO (line 31)
+7.	Edit the file tls1_3.h to define POPULAR_ROOT_CERTS and TLS_ARDUINO (lines 33, 34). Optionally set VERBOSITY to IO_DEBUG.
+8.	Edit the file client.cpp to use your wifi SSID and password (near line 215)
+9.	Run py config.py, and select options 2,8,41 and 43. This creates the SAL (in this case using miracl + ECC608A hardware).
+10.	Drop the working directory into where the Arduino IDE expects it. 
+11.	(In the IDE select File->Preferences and find the Sketchbook location - its the libraries directory off that.)
+12.	Open the Arduino app, and look in File->Examples->tiitls, and look for the example "client"
+13.	Upload to the board and run it! Tools->Serial Monitor to see the output
 

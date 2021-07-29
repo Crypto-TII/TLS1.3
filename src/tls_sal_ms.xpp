@@ -39,9 +39,9 @@ bool SAL_initLib()
     if (sodium_init() < 0) {
         return false;
     }
-    char raw[100];
-    randombytes_buf(raw, 100);  // get true random seed
-    RAND_seed(&RNG, 100, raw);  
+    char raw[64];
+    randombytes_buf(raw, 64);  // get true random seed
+    RAND_seed(&RNG, 64, raw);  
     return true;
 }
 

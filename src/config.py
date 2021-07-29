@@ -892,8 +892,8 @@ while ptr<max:
     if x==pf+13:
         #256 is slower but may allow reuse of 256-bit BIGs used for elliptic curve
         #512 is faster.. but best is 1024
-        rsaset("1024","RSA2048","28","2")
-        #rsaset("512","RSA2048","29","4")
+        #rsaset("1024","RSA2048","28","2")
+        rsaset("512","RSA2048","29","4")
         #rsaset("256","RSA2048","29","8")
         rsa_selected=True
     if x==pf+14:
@@ -999,7 +999,8 @@ os.system("mkdir examples"+slashtext+"client")
 os.system(copytext+" client.cpp "+"examples"+slashtext+"client"+slashtext+"client.ino")
 os.system(deltext+" client.cpp")
 
-os.system(copytext+" tls_sal_m.xpp "+"tls_sal.cpp")
+# using miracl + ECC608a hardware
+os.system(copytext+" tls_sal_mh.xpp "+"tls_sal.cpp")
 os.system(deltext+" *.md")
 os.system(deltext+" *.xpp")
 os.system(deltext+" testx509.cpp")
