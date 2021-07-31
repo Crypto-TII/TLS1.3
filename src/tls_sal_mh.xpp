@@ -178,6 +178,24 @@ void SAL_hkdfExtract(int htype,octad *PRK,octad *SALT,octad *IKM)
 // HMAC
 void SAL_hmac(int htype,octad *T,octad *K,octad *M)
 {
+
+    if (htype==TLS_SHA256_T)
+    {
+        ECCX08.writeSlot(8,(const byte*)K->val,32);  // first writable slot is 8
+        ECCX08.beginHMAC(8);
+        int ptr=0;
+        int len=M->len;
+        while (len>64)
+        {
+            ECCX08.updateSHA256((byte *)&M->val[ptr],64);
+            len-=64; ptr+=64;
+        }
+        ECCX08.updateSHA256((const byte *)&M->val[ptr],len);
+        ECCX08.endSHA256((byte *)T->val);
+        T->len=32;
+        return;
+    }
+
     int hlen=SAL_hashLen(htype);
     octet MC_T=octad_to_octet(T);
     octet MC_K=octad_to_octet(K);

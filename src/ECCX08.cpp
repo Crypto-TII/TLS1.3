@@ -143,7 +143,7 @@ int ECCX08Class::random(byte data[], size_t length)
       return 0;
     }
 
-    delay(23);
+    delay(15);     // was 23
 
     byte response[32];
 
@@ -159,9 +159,32 @@ int ECCX08Class::random(byte data[], size_t length)
   }
 
   delay(1);
-
   idle();
+  return 1;
+}
 
+// Delays here assume clock divider of 0, and ECC608A chip
+
+#define MIN_DELAY 2
+
+// Encrypt block of 16 bytes in place, take key from slot
+int ECCX08Class::aesEncrypt(int slot,byte block[])
+{
+  if (!wakeup()) {
+    return 0;
+  }
+  if (!sendCommand(0x51, 0x00, slot, block, 16)) {
+    return 0;
+  }
+
+  delay(MIN_DELAY);
+
+  if (!receiveResponse(block, 16)) {
+    return 0;
+  }
+
+  delay(1);
+  idle();
   return 1;
 }
 
@@ -179,8 +202,7 @@ int ECCX08Class::generatePrivateKey(int slot, byte publicKey[])
     return 0;
   }
 
-  delay(115);
-
+  delay(80);  // was 115
 
   if (!receiveResponse(publicKey, 64)) {
     return 0;
@@ -208,7 +230,7 @@ int ECCX08Class::generateSharedKey(int slot, byte publicKey[], byte sharedKey[])
     return 0;
   }
 
-  delay(94);
+  delay(45);  // was 94
 
   if (!receiveResponse(sharedKey, 32)) {
     return 0;
@@ -233,7 +255,7 @@ int ECCX08Class::generatePublicKey(int slot, byte publicKey[])
     return 0;
   }
 
-  delay(115);
+  delay(80);    // was 115
 
   if (!receiveResponse(publicKey, 64)) {
     return 0;
@@ -290,7 +312,35 @@ int ECCX08Class::beginSHA256()
     return 0;
   }
 
-  delay(9);
+  delay(MIN_DELAY);
+
+  if (!receiveResponse(&status, sizeof(status))) {
+    return 0;
+  }
+
+  delay(1);
+  idle();
+
+  if (status != 0) {
+    return 0;
+  }
+
+  return 1;
+}
+
+int ECCX08Class::beginHMAC(int slot)
+{
+  uint8_t status;
+
+  if (!wakeup()) {
+    return 0;
+  }
+
+  if (!sendCommand(0x47, 0x04, slot)) {
+    return 0;
+  }
+
+  delay(MIN_DELAY);
 
   if (!receiveResponse(&status, sizeof(status))) {
     return 0;
@@ -322,7 +372,7 @@ int ECCX08Class::updateSHA256(const byte data[],int len)
     return 0;
   }
 
-  delay(9);
+  delay(MIN_DELAY);
 
   if (!receiveResponse(&status, sizeof(status))) {
     return 0;
@@ -353,7 +403,7 @@ int ECCX08Class::endSHA256(const byte data[], int length, byte result[])
     return 0;
   }
 
-  delay(9);
+  delay(MIN_DELAY);
 
   if (!receiveResponse(result, 32)) {
     return 0;
@@ -376,7 +426,7 @@ int ECCX08Class::readSHA256(byte context[])
     return 0;
   }
 
-  delay(9);
+  delay(MIN_DELAY);
 
   int len=receiveResponse(context);
 
@@ -404,7 +454,7 @@ int ECCX08Class::writeSHA256(byte context[],int length)
     return 0;
   }
 
-  delay(9);
+  delay(MIN_DELAY);
 
   if (!receiveResponse(&status, sizeof(status))) {
     return 0;
@@ -612,7 +662,7 @@ int ECCX08Class::challenge(const byte message[])
     return 0;
   }
 
-  delay(29);
+  delay(17);
 
   if (!receiveResponse(&status, sizeof(status))) {
     return 0;
@@ -645,7 +695,7 @@ int ECCX08Class::verify(const byte signature[], const byte pubkey[])
     return 0;
   }
 
-  delay(72);
+  delay(27);
 
   if (!receiveResponse(&status, sizeof(status))) {
     return 0;
@@ -671,7 +721,7 @@ int ECCX08Class::sign(int slot, byte signature[])
     return 0;
   }
 
-  delay(70);
+  delay(64);
 
   if (!receiveResponse(signature, 64)) {
     return 0;
@@ -701,7 +751,7 @@ int ECCX08Class::read(int zone, int address, byte buffer[], int length)
     return 0;
   }
 
-  delay(5);
+  delay(1);
 
   if (!receiveResponse(buffer, length)) {
     return 0;
@@ -733,7 +783,7 @@ int ECCX08Class::write(int zone, int address, const byte buffer[], int length)
     return 0;
   }
 
-  delay(26);
+  delay(8);
 
   if (!receiveResponse(&status, sizeof(status))) {
     return 0;
@@ -815,12 +865,16 @@ int ECCX08Class::sendCommand(uint8_t opcode, uint8_t param1, uint16_t param2, co
 
 int ECCX08Class::receiveResponse(void* response, size_t length)
 {
-  int retries = 20;
+  int retries = 64;
   size_t responseSize = length + 3; // 1 for length header, 2 for CRC
   byte responseBuffer[responseSize];
 
-  while (_wire->requestFrom((uint8_t)_address, (size_t)responseSize, (bool)true) != responseSize && retries--);
+  while (_wire->requestFrom((uint8_t)_address, (size_t)responseSize, (bool)true) != responseSize && retries--) delay(1);  // MS put in delay
 
+if (retries<0)
+{
+    Serial.println("ECCX508 failure 1");
+}
   responseBuffer[0] = _wire->read();
 
   // make sure length matches
@@ -850,7 +904,12 @@ int ECCX08Class::receiveResponse(void* response)
   byte responseBuffer[128];
 // get responseSize from wire
 
-  while (_wire->requestFrom((uint8_t)_address, 1, (bool)true) != 1 && retries--);
+  while (_wire->requestFrom((uint8_t)_address, 1, (bool)true) != 1 && retries--) delay(1);
+
+if (retries<0)
+{
+    Serial.println("ECCX508 failure 2");
+}
 
   responseBuffer[0] = _wire->read();
   size_t responseSize=(size_t)responseBuffer[0];  

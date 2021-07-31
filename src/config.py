@@ -888,20 +888,19 @@ while ptr<max:
 # multiplier is 2^m (see above)
 
 # There are choices here, different ways of getting the same result, but some faster than others
-# There are choices here, different ways of getting the same result, but some faster than others
     if x==pf+13:
         #256 is slower but may allow reuse of 256-bit BIGs used for elliptic curve
         #512 is faster.. but best is 1024
         #rsaset("1024","RSA2048","28","2")
-        rsaset("512","RSA2048","29","4")
-        #rsaset("256","RSA2048","29","8")
+        #rsaset("512","RSA2048","29","4")
+        rsaset("256","RSA2048","29","8")
         rsa_selected=True
     if x==pf+14:
         rsaset("384","RSA3072","28","8")
         rsa_selected=True
     if x==pf+15:
-        #rsaset("256","RSA4096","29","16")
-        rsaset("512","RSA4096","29","8")
+        rsaset("256","RSA4096","29","16")
+        #rsaset("512","RSA4096","29","8")
         rsa_selected=True
 
     if x==pf+16:
