@@ -46,7 +46,9 @@ public:
   int ecdsaVerify(const byte message[], const byte signature[], const byte pubkey[]);
   int ecSign(int slot, const byte message[], byte signature[]);
 
-  int aesEncrypt(int slot,byte block[]);
+  int challenge(const byte message[]);
+  int aesEncrypt(byte block[]);
+  int aesGFM(byte state[],byte H[]);
 
   int beginSHA256();
   int beginHMAC(int slot);
@@ -70,7 +72,6 @@ private:
   int idle();
 
   long version();
-  int challenge(const byte message[]);
   int verify(const byte signature[], const byte pubkey[]);
   int sign(int slot, byte signature[]);
 

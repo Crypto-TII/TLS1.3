@@ -158,7 +158,7 @@ int ECCX08Class::random(byte data[], size_t length)
     data += copyLength;
   }
 
-  delay(1);
+//  delay(1);
   idle();
   return 1;
 }
@@ -167,13 +167,37 @@ int ECCX08Class::random(byte data[], size_t length)
 
 #define MIN_DELAY 2
 
-// Encrypt block of 16 bytes in place, take key from slot
-int ECCX08Class::aesEncrypt(int slot,byte block[])
+int ECCX08Class::aesGFM(byte state[], byte H[])
+{
+  byte input[32];
+  for (int i=0;i<16;i++)
+  {
+      input[i]=H[i];
+      input[16+i]=state[i];
+  }
+  if (!wakeup()) {
+    return 0;
+  }
+  if (!sendCommand(0x51, 0x03, 0x0000, input, 32)) {
+    return 0;
+  }
+  delay(MIN_DELAY);
+  if (!receiveResponse(state, 16)) {
+    return 0;
+  }
+
+//  delay(1);
+  idle();
+  return 1;
+}
+
+// Encrypt block of 16 bytes in place, take key from TempKey
+int ECCX08Class::aesEncrypt(byte block[])
 {
   if (!wakeup()) {
     return 0;
   }
-  if (!sendCommand(0x51, 0x00, slot, block, 16)) {
+  if (!sendCommand(0x51, 0x00, 0xFFFF, block, 16)) {
     return 0;
   }
 
@@ -183,7 +207,7 @@ int ECCX08Class::aesEncrypt(int slot,byte block[])
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
   return 1;
 }
@@ -318,7 +342,7 @@ int ECCX08Class::beginSHA256()
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
 
   if (status != 0) {
@@ -346,7 +370,7 @@ int ECCX08Class::beginHMAC(int slot)
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
 
   if (status != 0) {
@@ -378,7 +402,7 @@ int ECCX08Class::updateSHA256(const byte data[],int len)
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
 
   if (status != 0) {
@@ -409,7 +433,7 @@ int ECCX08Class::endSHA256(const byte data[], int length, byte result[])
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
 
   return 1;
@@ -434,7 +458,7 @@ int ECCX08Class::readSHA256(byte context[])
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
 
   return len;
@@ -460,7 +484,7 @@ int ECCX08Class::writeSHA256(byte context[],int length)
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
 
   if (status != 0) {
@@ -584,7 +608,7 @@ int ECCX08Class::wakeup()
   _wire->beginTransmission(0x00);
   _wire->endTransmission();
 
-  delayMicroseconds(1500);
+  delayMicroseconds(100);  // was 1500
 
   byte response;
 
@@ -620,7 +644,7 @@ int ECCX08Class::idle()
     return 0;
   }
 
-  delay(1);
+//  delay(1);
 
   return 1;
 }
@@ -649,6 +673,7 @@ long ECCX08Class::version()
   return version;
 }
 
+// Can be used to write to TempKey. For example can write AES key.
 int ECCX08Class::challenge(const byte message[])
 {
   uint8_t status;
@@ -668,7 +693,7 @@ int ECCX08Class::challenge(const byte message[])
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
 
   if (status != 0) {
@@ -757,7 +782,7 @@ int ECCX08Class::read(int zone, int address, byte buffer[], int length)
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
 
   return length;
@@ -789,7 +814,7 @@ int ECCX08Class::write(int zone, int address, const byte buffer[], int length)
     return 0;
   }
 
-  delay(1);
+//  delay(1);
   idle();
 
   if (status != 0) {
@@ -873,7 +898,7 @@ int ECCX08Class::receiveResponse(void* response, size_t length)
 
 if (retries<0)
 {
-    Serial.println("ECCX508 failure 1");
+    Serial.println("ECCX608 failure 1");
 }
   responseBuffer[0] = _wire->read();
 
@@ -900,7 +925,7 @@ if (retries<0)
 // variable length response - return length
 int ECCX08Class::receiveResponse(void* response)
 {
-  int length, retries = 20;
+  int length, retries = 64;
   byte responseBuffer[128];
 // get responseSize from wire
 
@@ -908,14 +933,19 @@ int ECCX08Class::receiveResponse(void* response)
 
 if (retries<0)
 {
-    Serial.println("ECCX508 failure 2");
+    Serial.println("ECCX608 failure 2");
 }
 
   responseBuffer[0] = _wire->read();
   size_t responseSize=(size_t)responseBuffer[0];  
 
-  retries=20;
-  while (_wire->requestFrom((uint8_t)_address, responseSize-1, (bool)true) != (responseSize-1) && retries--);
+  retries=64;
+  while (_wire->requestFrom((uint8_t)_address, responseSize-1, (bool)true) != (responseSize-1) && retries--) delay(1);
+
+if (retries<0)
+{
+    Serial.println("ECCX608 failure 3");
+}
 
   for (size_t i = 1; _wire->available(); i++) {
     responseBuffer[i] = _wire->read();
