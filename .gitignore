@@ -14,3 +14,13 @@ src/tls1_3.h
 ## Virtual environment (python)
 venv/
 
+## Build folder
+src/build
+
+
+## Includes
+src/vendor/miracl
+
+## Prepared SAL
+src/tls_sal.cpp
+
