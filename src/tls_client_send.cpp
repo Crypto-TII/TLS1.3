@@ -294,7 +294,7 @@ void sendClientFinish(Socket &client,crypto *send,unihash *h,octad *CHF,octad *I
 void sendClientCertVerify(Socket &client,crypto *send, unihash *h, int sigAlg, octad *CCVSIG,octad *IO)
 {
     char pt[10];
-    octad PT{0,sizeof(pt),pt};
+    octad PT={0,sizeof(pt),pt};
     OCT_append_byte(&PT,CERT_VERIFY,1);
     OCT_append_int(&PT,4+CCVSIG->len,3);
     OCT_append_int(&PT,sigAlg,2);
@@ -308,7 +308,7 @@ void sendClientCertVerify(Socket &client,crypto *send, unihash *h, int sigAlg, o
 void sendClientCertificateChain(Socket &client,crypto *send, unihash *h,octad *CERTCHAIN,octad *IO)
 {
     char pt[10];
-    octad PT{0,sizeof(pt),pt};
+    octad PT={0,sizeof(pt),pt};
 
     OCT_append_byte(&PT,CERTIFICATE,1);
     if (CERTCHAIN==NULL) {  // no acceptable certificate available
