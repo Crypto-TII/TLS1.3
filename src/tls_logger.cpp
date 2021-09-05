@@ -32,8 +32,8 @@ void logger(char *preamble,char *string,unsign32 info,octad *O)
 
     if (O!=NULL)
     {
-        char buff[128];
-        bool res=OCT_output_hex(O,120,buff);
+        char buff[LOG_OUTPUT_TRUNCATION+8];
+        bool res=OCT_output_hex(O,LOG_OUTPUT_TRUNCATION,buff);
         myprintf(buff);
         if (!res) myprintf((char *)" (truncated)");
         myprintf((char *)"\n");
@@ -326,7 +326,7 @@ void logAlert(int detail)
         logger((char *)"Access denied\n",NULL,0,NULL);
         break;
     case 50 :
-        logger((char *)"Decode error\n",NULL,0,NULL);
+        logger((char *)"Decode error (memory overflow?)\n",NULL,0,NULL);
         break;
     case 51 :
         logger((char *)"Decrypt error\n",NULL,0,NULL);

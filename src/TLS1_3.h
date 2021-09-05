@@ -11,13 +11,21 @@
 #include <stdint.h>
 #include "tls_octads.h"
 
-using byte = uint8_t;			/**< 8-bit unsigned integer */
-using sign8 = int8_t;			/**< 8-bit signed integer */
-using sign16 = int16_t;			/**< 16-bit signed integer */
-using sign32 = int32_t;			/**< 32-bit signed integer */
-using sign64 = int64_t;			/**< 64-bit signed integer */
-using unsign32 = uint32_t;		/**< 32-bit unsigned integer */
-using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
+typedef uint8_t byte;            /**< 8-bit unsigned integer */
+typedef int8_t sign8 ;			/**< 8-bit signed integer */
+typedef int16_t sign16;			/**< 16-bit signed integer */
+typedef int32_t sign32;			/**< 32-bit signed integer */
+typedef int64_t sign64;			/**< 64-bit signed integer */
+typedef uint32_t unsign32 ;		/**< 32-bit unsigned integer */
+typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
+
+//using byte = uint8_t;			/**< 8-bit unsigned integer */
+//using sign8 = int8_t;			/**< 8-bit signed integer */
+//using sign16 = int16_t;			/**< 16-bit signed integer */
+//using sign32 = int32_t;			/**< 32-bit signed integer */
+//using sign64 = int64_t;			/**< 64-bit signed integer */
+//using unsign32 = uint32_t;		/**< 32-bit unsigned integer */
+//using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 
 // Terminal Output
 #define IO_NONE 0           /**< Run silently */
@@ -180,6 +188,8 @@ using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
 #define PROTOCOL_VERSION 0x46           /**< Wrong TLS version */
 #define DECODE_ERROR 0x32               /**< Decode error alert */
 #define CLOSE_NOTIFY 0x00               /**< Orderly shut down of connection */
+
+#define LOG_OUTPUT_TRUNCATION 2048       /**< Output Hex digits before truncation */
 
 /**
  * @brief function return structure */

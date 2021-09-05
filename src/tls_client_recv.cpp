@@ -141,6 +141,9 @@ int getServerFragment(Socket &client,crypto *recv,octad *IO)
     OCT_append_int(&RH,left,2);
     if (left+pos>IO->max)
     { // this commonly happens with big records of application data from server
+#if VERBOSITY >= IO_DEBUG
+    logger((char *)"Record received of length= ",(char *)"%d",left+pos,NULL);
+#endif
         return MEM_OVERFLOW;   // record is too big - memory overflow
     }
     if (recv==NULL)
@@ -158,8 +161,9 @@ int getServerFragment(Socket &client,crypto *recv,octad *IO)
     rtn=SAL_aeadDecrypt(recv,RH.len,RH.val,left-16,&IO->val[pos],&TAG);
     incrementCryptoContext(recv); // update IV
     if (rtn<0)
+    {
        return AUTHENTICATION_FAILURE;     // tag is wrong   
-
+    }
 // get record ending - encodes real (disguised) record type. Could be an Alert.
     int lb=0;
     int pad=0;
@@ -172,7 +176,9 @@ int getServerFragment(Socket &client,crypto *recv,octad *IO)
         pad++;
     }
     if (lb==HSHAKE)
+    {
         return HSHAKE;
+    }
     if (lb==APPLICATION)
         return APPLICATION;
     if (lb==ALERT)
@@ -335,6 +341,8 @@ ret getWhatsNext(Socket &client,octad *IO,crypto *recv,unihash *trans_hash)
     r=parseByteorPull(client,IO,ptr,recv); 
     if (r.err) return r; 
 
+//logger((char *)"IO= \n",NULL,0,IO);
+
     char b[1];
     b[0]=r.val;
     SAL_hashProcessArray(trans_hash,b,1);
@@ -348,6 +356,7 @@ ret getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *
     ret r;
     int nb,ext,len,tlen,mfl,ptr=0;
     int unexp=0;
+
     r=getWhatsNext(client,IO,recv,trans_hash); 
     if (r.err) return r;
     nb=r.val;
@@ -358,6 +367,7 @@ ret getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *
     enc_ext_resp->alpn=false;
     enc_ext_resp->server_name=false;
     enc_ext_resp->max_frag_length=false;
+
     if (nb!=ENCRYPTED_EXTENSIONS) {
         r.err=WRONG_MESSAGE;
         return r;
@@ -446,7 +456,7 @@ ret getServerEncryptedExtensions(Socket &client,octad *IO,crypto *recv,unihash *
     OCT_shift_left(IO,ptr);  // Shift octad left - rewind to start 
 #if VERBOSITY >= IO_DEBUG
     if (unexp>0)    
-    logger((char *)"Unrecognized extensions received\n",NULL,0,NULL);
+        logger((char *)"Unrecognized extensions received\n",NULL,0,NULL);
 #endif
     r.val=nb;
     return r;

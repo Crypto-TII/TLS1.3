@@ -150,6 +150,10 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 
     deriveEarlySecrets(hashtype,NULL,&ES,NULL,NULL);   // Early Secret
 
+#if VERBOSITY >= IO_DEBUG
+    logger((char *)"Early Secret= ",NULL,0,&ES);
+#endif
+
 // Initialise Transcript Hash
 // For Transcript hash we must use cipher-suite hash function
     unihash tlshash;    // Universal Hash
@@ -258,7 +262,11 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Handshake Secret= ",NULL,0,&HS);
     logger((char *)"Client handshake traffic secret= ",NULL,0,&CTS);
+    logger((char *)"Client handshake key= ",NULL,0,&(K_send.K));
+    logger((char *)"Client handshake iv= ",NULL,0,&(K_send.IV));
     logger((char *)"Server handshake traffic secret= ",NULL,0,&STS);
+    logger((char *)"Server handshake key= ",NULL,0,&(K_recv.K));
+    logger((char *)"Server handshake iv= ",NULL,0,&(K_recv.IV));
 #endif
 // Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 

@@ -176,6 +176,7 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
 
 // ALL Client to Server output goes via this function 
 // Send a client message CM|EXT (as a single record). AEAD encrypted if send!=NULL
+// May need to break up into multiple records??
 void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octad *CM,octad *EXT,octad *IO)
 {
     int reclen;
