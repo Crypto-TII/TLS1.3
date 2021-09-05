@@ -10,6 +10,10 @@ cp .temp/core/c/core.a vendor/miracl/
 cp .temp/core/c/core.h vendor/miracl/includes
 cp .temp/core/c/arch.h vendor/miracl/includes
 cp .temp/core/c/ecdh_*.h vendor/miracl/includes
+cp .temp/core/c/ecp_*.h vendor/miracl/includes
+cp .temp/core/c/fp_*.h vendor/miracl/includes
+cp .temp/core/c/big_*.h vendor/miracl/includes
+cp .temp/core/c/config_*.h vendor/miracl/includes
 cp .temp/core/c/rsa*.h vendor/miracl/includes
 cp tls_sal_m.xpp tls_sal.cpp
 rm -rf .temp
