@@ -534,5 +534,10 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
         if (!parse_out_ecdsa_sig(TLS_SHA384,SCVSIG)) return false;
     } 
 
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Certificate Signature = \n",NULL,0,SCVSIG);
+        logger((char *)"Public Key = \n",NULL,0,CERTPK);
+#endif
+
     return SAL_tlsSignatureVerify(sigAlg,&SCV,SCVSIG,CERTPK);
 }
