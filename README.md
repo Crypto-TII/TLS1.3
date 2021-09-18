@@ -5,8 +5,12 @@ Documentation can be found in the doxygen generated file doc/refman.pdf
 
 # Linux Installation
 
-Copy the repository to your local machine. Inside /sal/miracl/ download and build the C++ version of MIRACL core (https://github.com/miracl/core/cpp), selecting support 
-for C25519, NIST256, NIST384, RSA2048 and RSA4096.
+Copy the repository to your local machine. Create /sal/miracl/ and download the C++ version of MIRACL core (https://github.com/miracl/core/cpp) into it, and build 
+it by executing
+
+	python3 config64.py
+
+and selecting support for C25519, NIST256, NIST384, RSA2048 and RSA4096.
 
 This library provides the default SAL (Security Abstraction Layer), does all the crypto, and can be regarded as a "placeholder" as we may in the future replace its 
 functionality from other sources. Make sure to always use the latest version of this library - as the requirements of this project unfold, some minor updates will be required.
@@ -23,7 +27,8 @@ To use a SAL which includes some functionality from the well known sodium crypto
 	cmake -DSAL=MIRACL_SODIUM .
 	make
 
-To use a SAL which use functions from the tii-crypto library, build the library in /sal/tiicrypto. Also move the tii-crypto header file directories in here.
+To use a SAL which use functions from the tii-crypto library, create /sal/tiicrypto/ and build the library there. Also copy the tii-crypto header file directories into 
+this directory.
 
 	cmake -DSAL=MIRACL_TIILIB .
 	make
@@ -36,7 +41,7 @@ To connect to a Website
 
 	./client swifttls.org
 
-The output should look something like this
+The output should (if IO_DEBUG has been selected) look something like this
 
 	Hostname= swifttls.org
 	Private key= 0373AF7D060E0E80959254DC071A068FCBEDA5F0C1B6FFFC02C7EB56AE6B00CD
