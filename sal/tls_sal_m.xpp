@@ -289,9 +289,9 @@ int SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *
 void SAL_generateKeyPair(int group,octad *SK,octad *PK)
 {
 // Random secret key
-    SAL_randomOctad(32,SK);
     if (group==X25519)
     { // RFC7748 the secret key
+        SAL_randomOctad(32,SK);
         SK->val[31]&=248;  
         SK->val[0]&=127;
         SK->val[0]|=64;
@@ -307,10 +307,12 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
     }
     if (group==SECP256R1)
     {
+        SAL_randomOctad(32,SK);
         NIST256::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
     }
     if (group==SECP384R1)
     {
+        SAL_randomOctad(48,SK);
         NIST384::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
     }
 

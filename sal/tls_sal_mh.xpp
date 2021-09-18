@@ -1,33 +1,18 @@
 // 
-// Cryptographic Security Abstraction Layer API - this version uses MIRACL core functions + TIIcrypto
+// Cryptographic Security Abstraction Layer API - this version uses MIRACL core functions + ECCX08 hardware
 //
 
+#include "ECCX08.h"   // IMPORTANT - this chip must first be "locked"
 #include "tls_sal.h"
 
 // Pull in MIRACL core code
 
 #include "core.h"
-#include "ecdh_NIST256.h"  
+//#include "ecdh_NIST256.h"     // no longer needed!
 #include "ecdh_NIST384.h"
 #include "ecdh_C25519.h"
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
-
-// Use TIIcrypto 
-
-#define TII_CURVE_25519
-
-extern "C" 
-{
-    #include "aes.h"
-    #include "aes_gcm.h"
-    #include "chacha20.h"
-    #include "chacha20_poly1305_aead.h"
-    #include "tii_prng.h"
-    #include "sha2.h"
-    #include "eckeys.h"
-    #include "eddsa.h"
-}
 
 // define hash algorithms
 #define TLS_SHA256_T 1
@@ -40,14 +25,18 @@ csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware sou
 
 char* SAL_name()
 {
-    return (char *)"MIRACL Core and TIICrypto"; 
+    return (char *)"MIRACL Core"; 
 }
 
 bool SAL_initLib()
 { // Initialise library
-    uint8_t raw[64];
-    tii_prng_get_bytes(raw, 64); // get true random seed
-    RAND_seed(&RNG, 64, (char *)raw);  
+    char raw[64];
+    if (!ECCX08.begin()) {
+        Serial.println("Failed to communicate with ECC508/ECC608!");
+        return false;
+    }
+    for (int i = 0; i < 64; i++) raw[i] = ECCX08.random(256);  // Slow!!!!
+    RAND_seed(&RNG, 64, raw);    
     return true;
 }
 
@@ -62,31 +51,29 @@ int SAL_ciphers(int *ciphers)
 int SAL_groups(int *groups)
 {
     int n=3;
-    groups[0]=X25519;
-    groups[1]=SECP256R1;
+    groups[0]=SECP256R1;   // put it first, as we have h/w support for it
+    groups[1]=X25519;
     groups[2]=SECP384R1;
     return n;
 }
 
 int SAL_sigs(int *sigAlgs)
 {
-    int n=4;
+    int n=3;
     sigAlgs[0]=ECDSA_SECP256R1_SHA256;
     sigAlgs[1]=RSA_PSS_RSAE_SHA256;
     sigAlgs[2]=ECDSA_SECP384R1_SHA384;
-    sigAlgs[3]=ED25519;
     return n;
 }
 
 int SAL_sigCerts(int *sigAlgsCert)
 {
-    int n=6;
+    int n=5;
     sigAlgsCert[0]=ECDSA_SECP256R1_SHA256;
     sigAlgsCert[1]=RSA_PKCS1_SHA256;
     sigAlgsCert[2]=ECDSA_SECP384R1_SHA384;
     sigAlgsCert[3]=RSA_PKCS1_SHA384;
     sigAlgsCert[4]=RSA_PKCS1_SHA512;
-    sigAlgsCert[5]=ED25519;
 
     return n;
 }
@@ -129,15 +116,14 @@ static octet octad_to_octet(octad *x)
 // Return a random byte
 int SAL_randomByte()
 {
-    uint8_t b[1];
-    tii_prng_get_bytes(b, 1);
-    return (int)b[0]&0xff;
+    return RAND_byte(&RNG);
 }
 
 // Fill an octad with random values
 void SAL_randomOctad(int len,octad *R)
 {
-    tii_prng_get_bytes((uint8_t *)R->val, len);
+    for (int i=0;i<len;i++)
+        R->val[i]=SAL_randomByte();
     R->len=len;
 }
 
@@ -192,175 +178,175 @@ void SAL_hkdfExtract(int htype,octad *PRK,octad *SALT,octad *IKM)
 // HMAC
 void SAL_hmac(int htype,octad *T,octad *K,octad *M)
 {
+
+    if (htype==TLS_SHA256_T)
+    {
+        ECCX08.writeSlot(8,(const byte*)K->val,32);  // first writable slot is 8
+        ECCX08.beginHMAC(8);
+        int ptr=0;
+        int len=M->len;
+        while (len>64)
+        {
+            ECCX08.updateSHA256((byte *)&M->val[ptr],64);
+            len-=64; ptr+=64;
+        }
+        ECCX08.updateSHA256((const byte *)&M->val[ptr],len);
+        ECCX08.endSHA256((byte *)T->val);
+        T->len=32;
+        return;
+    }
+
     int hlen=SAL_hashLen(htype);
-    if (htype==TLS_SHA256_T) {
-        sha256hmac_ctx_t hmacctx;
-        sha256hmac_reset(&hmacctx,(uint8_t *)K->val,hlen);
-        sha256hmac_update(&hmacctx,(uint8_t *)M->val,(const uint64_t)M->len);
-        sha256hmac_final(&hmacctx,(uint8_t *)T->val,hlen);
-        T->len=hlen;
-    }
-    if (htype==TLS_SHA384_T) {
+    octet MC_T=octad_to_octet(T);
+    octet MC_K=octad_to_octet(K);
+    octet MC_M=octad_to_octet(M);
 
-        sha384hmac_ctx_t hmacctx;
-        sha384hmac_reset(&hmacctx,(uint8_t *)K->val,hlen);
-        sha384hmac_update(&hmacctx,(uint8_t *)M->val,(const uint64_t)M->len);
-        sha384hmac_final(&hmacctx,(uint8_t *)T->val,hlen);
+    HMAC(MC_SHA2,hlen,&MC_T,hlen,&MC_K,&MC_M);
 
-        T->len=hlen;
-    }
-    if (htype==TLS_SHA512_T) {
-        sha512hmac_ctx_t hmacctx;
-        sha512hmac_reset(&hmacctx,(uint8_t *)K->val,hlen);
-        sha512hmac_update(&hmacctx,(uint8_t *)M->val,(const uint64_t)M->len);
-        sha512hmac_final(&hmacctx,(uint8_t *)T->val,hlen);
-        T->len=hlen;
-    }
+    T->len=MC_T.len;
+    K->len=MC_K.len;
+    M->len=MC_M.len;
 }
 
 // HASH of NULL
 void SAL_hashNull(int htype,octad *H)
 {
-    int hlen=SAL_hashLen(htype);
-    if (htype==TLS_SHA256_T) {
-        sha256_ctx_t h;
-        sha256_reset(&h);
-        sha256_final(&h,(uint8_t *)H->val,hlen);
-    }
-    if (htype==TLS_SHA384_T) {
-        sha384_ctx_t h;
-        sha384_reset(&h);
-        sha384_final(&h,(uint8_t *)H->val,hlen);
-    }
-    if (htype==TLS_SHA512_T) {
-        sha512_ctx_t h;
-        sha512_reset(&h);
-        sha512_final(&h,(uint8_t *)H->val,hlen);
-    }
-    H->len=hlen;
+    if (htype==TLS_SHA256_T)
+    {
+        ECCX08.beginSHA256();     // use hardware
+        ECCX08.endSHA256((byte *)H->val);
+    } 
+    if (htype==TLS_SHA384_T)
+    {
+        core::hash384 sh;
+        HASH384_init(&sh);
+        HASH384_hash(&sh,H->val);
+    }     
+    if (htype==TLS_SHA512_T)
+    {
+        core::hash512 sh;
+        HASH512_init(&sh);
+        HASH512_hash(&sh,H->val);
+
+    }     
+    H->len=SAL_hashLen(htype);
+    return;    
 }
 
 // Unified hashing. Hash type type indicate by htype.
 void SAL_hashInit(int htype,unihash *h)
 {
     if (htype==TLS_SHA256_T) 
-        sha256_reset((sha256_ctx_t *)&(h->state));
+    {
+        // init hash
+        // store state into h
+        ECCX08.beginSHA256();
+        ECCX08.readSHA256((byte *)&(h->state));
+    }
     if (htype==TLS_SHA384_T)
-        sha384_reset((sha384_ctx_t *)&(h->state));
+        HASH384_init((core::hash512*)&(h->state));
     if (htype==TLS_SHA512_T)
-        sha512_reset((sha512_ctx_t *)&(h->state));
+        HASH512_init((core::hash512*)&(h->state));
     h->htype=htype;
+}
+
+// need to update 64 bytes at a time
+static void updateHash(char *b,int len)
+{
+    int ptr=0;
+    while (len>64)
+    {
+        ECCX08.updateSHA256((byte *)&b[ptr],64);
+        len-=64; ptr+=64;
+    }
+    ECCX08.updateSHA256((const byte *)&b[ptr],len);
 }
 
 // Process a byte array
 void SAL_hashProcessArray(unihash *h,char *b,int len)
 {
+    int i,ch,length;
     if (h->htype==TLS_SHA256_T)
-        sha256_update((sha256_ctx_t *)&(h->state),(uint8_t *)b,len);
+    {   // write state to HW
+        // hash in 64-byte chunks
+        // store updated state into h
+        length=36+h->state[0]%64;
+        ECCX08.writeSHA256((byte*)&(h->state),length);
+        updateHash(b,len);
+        ECCX08.readSHA256((byte *)&(h->state));
+    }   
     if (h->htype==TLS_SHA384_T)
-        sha384_update((sha384_ctx_t *)&(h->state),(uint8_t *)b,len);
+    {
+        for (i=0;i<len;i++)
+            HASH384_process((core::hash512*)&(h->state),b[i]);   
+    }  
     if (h->htype==TLS_SHA512_T)
-        sha512_update((sha512_ctx_t *)&(h->state),(uint8_t *)b,len);
+    {
+        for (i=0;i<len;i++)
+            HASH512_process((core::hash512*)&(h->state),b[i]);   
+    }     
 }
 
-// output digest, return length
+// output digest
 int SAL_hashOutput(unihash *h,char *d)
 {
-    unihash f=*h;  // make copy of state
+    int i,ch;
     int hlen=SAL_hashLen(h->htype);
     if (h->htype==TLS_SHA256_T)
-        sha256_final((sha256_ctx_t *)&(f.state),(uint8_t *)d,hlen);
+    {
+        // write state to HW
+        // end hash
+        int length=36+h->state[0]%64;
+        ECCX08.writeSHA256((byte*)&(h->state),length);
+        ECCX08.endSHA256((byte *)d);
+    }
     if (h->htype==TLS_SHA384_T)
-        sha384_final((sha384_ctx_t *)&(f.state),(uint8_t *)d,hlen);
+        HASH384_continuing_hash((core::hash384*)&(h->state),d);
     if (h->htype==TLS_SHA512_T)
-        sha512_final((sha512_ctx_t *)&(f.state),(uint8_t *)d,hlen);
+        HASH512_continuing_hash((core::hash512*)&(h->state),d);
     return hlen;
 }
 
 void SAL_aeadEncrypt(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG)
 { // AEAD encryption
-    if (send->suite==TLS_CHACHA20_POLY1305_SHA256)
-    { 
-        uint8_t iv[8];
-        uint8_t constant[4];
-        for (int i=0;i<4;i++)
-            constant[i]=send->IV.val[i];
-        for (int i=0;i<8;i++)
-            iv[i]=send->IV.val[4+i];
-        chacha20_poly1305_aead_encrypt((uint8_t *)send->K.val,iv,constant,(uint8_t *)pt,(uint64_t)ptlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)pt,(uint8_t *)TAG->val);
-    } 
-    if (send->suite==TLS_AES_128_GCM_SHA256)
-    {
-        aes128_gcm_encrypt((uint8_t *)send->K.val,(uint8_t *)send->IV.val,12,(uint8_t *)pt,(uint64_t)ptlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)pt,(uint8_t *)TAG->val);
-    }
-    if (send->suite==TLS_AES_256_GCM_SHA384)
-    {
-        aes256_gcm_encrypt((uint8_t *)send->K.val,(uint8_t *)send->IV.val,12,(uint8_t *)pt,(uint64_t)ptlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)pt,(uint8_t *)TAG->val);
-    }
+  // its AES-GCM
+    gcm g;
+    GCM_init(&g,send->K.len,send->K.val,12,send->IV.val);  // Encrypt with Key and IV
+    GCM_add_header(&g,hdr,hdrlen);
+    GCM_add_plain(&g,pt,pt,ptlen);
+//create and append TA
+    GCM_finish(&g,TAG->val); 
     TAG->len=16;
 }
 
 int SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG)
 { // AEAD decryption
-    if (recv->suite==TLS_CHACHA20_POLY1305_SHA256)
-    {
-        uint8_t iv[8];
-        uint8_t constant[4];
-        for (int i=0;i<4;i++)
-            constant[i]=recv->IV.val[i];
-        for (int i=0;i<8;i++)
-            iv[i]=recv->IV.val[4+i];
-        return chacha20_poly1305_aead_decrypt((uint8_t *)recv->K.val,iv,constant,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val);
-    }
-    if (recv->suite==TLS_AES_128_GCM_SHA256)
-    {
-        return aes128_gcm_decrypt((uint8_t *)recv->K.val,(uint8_t *)recv->IV.val,12,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val);
-    }
-    if (recv->suite==TLS_AES_256_GCM_SHA384)
-    {
-        return aes256_gcm_decrypt((uint8_t *)recv->K.val,(uint8_t *)recv->IV.val,12,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val);
-    }
-    return -1;
+  // its AES-GCM
+    char ctag[TLS_TAG_SIZE];   // calculated TAG
+    octad CTAG={0,sizeof(ctag),ctag};
+    gcm g;
+    GCM_init(&g,recv->K.len,recv->K.val,12,recv->IV.val);  // Decrypt with Key and IV
+    GCM_add_header(&g,hdr,hdrlen);
+    GCM_add_cipher(&g,ct,ct,ctlen);
+//create and append TA
+    GCM_finish(&g,CTAG.val); CTAG.len=16;
+    if (!OCT_compare(TAG,&CTAG))
+        return -1;
+    return 0;
 }
 
 // generate a public/private key pair in an approved group for a key exchange
 void SAL_generateKeyPair(int group,octad *SK,octad *PK)
 {
 // Random secret key
-    SAL_randomOctad(32,SK);
+
     if (group==X25519)
     { // RFC7748 the secret key
+        SAL_randomOctad(32,SK);
         SK->val[31]&=248;  
         SK->val[0]&=127;
         SK->val[0]|=64;
     }
-
-/*
-    ec_private_key_t private_key;
-    ec_public_key_t public_key;
-    ec_public_key_init(&public_key);
-
-    ec_private_key_init(&private_key);
-    for (int i=0;i<32;i++) private_key.bytes_representation[i]=SK->val[i];
-    gfco_set_nbo(&private_key.internal_representation, private_key.bytes_representation,32);
-
-    printf("Private key= ");
-    for (int i=0;i<32;i++)
-        printf("%02x",private_key.bytes_representation[i]);
-    printf("\n");
-
-    ec_public_key_gen(&public_key,&private_key);
-    printf("Public key= \n");
-    printf("x= ");
-    for (int i=0;i<32;i++)
-        printf("%02x",public_key.public_x[i]);
-    printf("\n");
-    printf("y= ");
-    for (int i=0;i<32;i++)
-        printf("%02x",public_key.public_y[i]);
-    printf("\n");
-*/
-
 
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
@@ -368,21 +354,20 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
     { // Note that this program maintains the private key in big-endian format
       // But X25519 assumes private and public keys are all in little-endian form (and are transmitted/received in that form)
         C25519::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
-/*    
-    printf("Public key= \n");
-    printf("x= ");
-    for (int i=0;i<32;i++)
-        printf("%02x",(unsigned char)(MC_PK.val[i]&0xff));   
-    printf("\n");
-*/
         OCT_reverse(&MC_PK);  // public key must be transmitted in little-endian form
     }
     if (group==SECP256R1)
-    {
-        NIST256::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
+    { // Use ECCX08 chip
+        SAL_randomOctad(32,SK);
+        int slot=1;
+        ECCX08.generatePrivateKey(slot,(byte *)&MC_PK.val[1]);  // generate secret key in slot 1
+        MC_PK.val[0]=0x04;
+        MC_PK.len=65;
+        // NIST256::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
     }
     if (group==SECP384R1)
     {
+        SAL_randomOctad(48,SK);
         NIST384::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
     }
 
@@ -404,8 +389,11 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         OCT_reverse(&MC_PK); // back again
         OCT_reverse(&MC_SS);
     }
-    if (group==SECP256R1) {
-        NIST256::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
+    if (group==SECP256R1) { // Use ECCX08 chip
+        int slot=1;
+        ECCX08.generateSharedKey(slot,(byte *)&MC_PK.val[1],(byte *)MC_SS.val);
+        MC_SS.len=32;
+        //NIST256::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
     }
     if (group==SECP384R1) {
         NIST384::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
@@ -534,6 +522,17 @@ static bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
     octet MC_SIG=octad_to_octet(SIG);
     octet MC_PUBKEY=octad_to_octet(PUBKEY);
 
+    // Assume its sha256 - the ECCX08 chip can do this!
+//    if (sha==32) {
+        byte h[32];
+        ECCX08.beginSHA256();
+        updateHash(CERT->val,CERT->len);
+        ECCX08.endSHA256(h); 
+        int didRun=ECCX08.ecdsaVerify(h,(const byte*)MC_SIG.val,(const byte*)&MC_PUBKEY.val[1]); // Skip the 0x04
+        if (!didRun) return false;
+        return true;
+//    }
+/*
     res=NIST256::ECP_PUBLIC_KEY_VALIDATE(&MC_PUBKEY);
     if (res!=0) return false;
 
@@ -551,10 +550,11 @@ static bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
     res=NIST256::ECP_VP_DSA(sha, &MC_PUBKEY, &MC_CERT, &R, &S);
     if (res!=0) return false;
 
-    return true;
+    return true; */
 }
 
 // Curve SECP384R1 elliptic curve ECDSA verification
+
 static bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 {
     int res;
@@ -584,25 +584,21 @@ static bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 }
 
 static bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
-{ 
-    eddsa_public_key_t pk;
-    eddsa_signature_t sig;
-
-    for (int i=0;i<ED25519_DSA_PUBLIC_KEY_SIZE_IN_BYTES;i++)
-        pk[i]=PUBKEY->val[i];
-    for (int i=0;i<ED25519_DSA_SIGNATURE_SIZE_IN_BYTES;i++)
-        sig[i]=SIG->val[i];
-
-    int result=eddsa_verify(&sig,&pk,(uint8_t *)CERT->val,CERT->len);
-
-    if (result == 0) 
-        return true;
+{ // TBD
     return false;
 }
 
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 static void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
-{
+{ 
+    byte h[32];
+    ECCX08.beginSHA256();
+    updateHash(MESS->val,MESS->len);
+    ECCX08.endSHA256(h);
+
+    ECCX08.ecSign(0,h,(byte *)SIG->val);  // Use on-board private key in slot 0 to sign 
+    SIG->len=64;
+/*
     octet MC_MESS=octad_to_octet(MESS);
     octet MC_KEY=octad_to_octet(KEY);
     octet MC_SIG=octad_to_octet(SIG);
@@ -617,7 +613,7 @@ static void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
     OCT_copy(&MC_SIG,&R);
     OCT_joctet(&MC_SIG,&S);
 
-    SIG->len=MC_SIG.len;
+    SIG->len=MC_SIG.len; */
 }
 
 // Use Curve SECP384R1 ECDSA to digitally sign a message using a private key 
@@ -641,19 +637,7 @@ static void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 }
 
 static void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG)
-{ 
-    eddsa_private_key_t sk;
-    eddsa_signature_t sig;
-
-    for (int i=0;i<ED25519_DSA_PRIVATE_KEY_SIZE_IN_BYTES;i++)
-        sk.private_key[i]=KEY->val[i];
-    eddsa_public_key_gen(&(sk.public_key),&sk);   // ??
-
-    eddsa_sign(&sig,&sk,(uint8_t *)MESS->val,MESS->len);
-
-    SIG->len=ED25519_DSA_SIGNATURE_SIZE_IN_BYTES;
-    for (int i=0;i<ED25519_DSA_SIGNATURE_SIZE_IN_BYTES;i++)
-        SIG->val[i]=sig[i];   
+{ // TBD
 }
 
 // Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
@@ -800,3 +784,4 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
         break;
     }
 }
+
