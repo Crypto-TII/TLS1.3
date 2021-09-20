@@ -27,7 +27,7 @@ To use a SAL which includes some functionality from the well known sodium crypto
 	cmake -DSAL=MIRACL_SODIUM .
 	make
 
-To use a SAL which use functions from the tii-crypto library, move to /sal/tii-cryptolib/ and clone the tii-cryptolib library there. Build a TLS friendly version of the library
+To use a SAL which use functions from the tii-crypto library, move to sal/tii-cryptolib/ and clone the tii-cryptolib library there. Build a TLS friendly version of the library
 following the Opt. 1 Build instructions
 
 	cmake -DCMAKE_BUILD_TYPE=Release -DCURVE=NIST_P256 -Bcmake-build
@@ -200,7 +200,7 @@ Also try
 	
 Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
 
-See list.txt for some websites that work OK and test different functionality.
+See doc/list.txt for some websites that work OK and test different functionality.
 
 ## Client side Authentication
 
@@ -234,7 +234,7 @@ and connect via
 	./client -p 42 localhost
 
 
-### Building the client application on an Arduino board (here Arduino Nano 33 IoT)
+# Building the client application on an Arduino board (here Arduino Nano 33 IoT)
 
 1.	Create working directory directory with name tiitls
 2.	Copy in all from the cpp directory of https://github.com/miracl/core
