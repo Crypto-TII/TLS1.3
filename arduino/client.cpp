@@ -1,59 +1,9 @@
-// Client side C++ program to demonstrate TLS1.3 
-// Linux version
-// ./client www.bbc.co.uk
+// Client side C/C++ program to demonstrate TLS1.3 
+// Arduino Version
 
 #include "tls_sal.h"
 #include "tls_protocol.h"
-
-// Output ticket to cookie file
-static void storeTicket(ticket *T)
-{
-    FILE *fp;
-    fp=fopen("cookie.txt","wt");
-    char line[2050];
-    OCT_output_hex(&T->TICK,2048,line);
-    fprintf(fp,"%s\n",line);
-    OCT_output_hex(&T->PSK,2048,line);
-    fprintf(fp,"%s\n",line);
-    fprintf(fp,"%x\n",T->age_obfuscator); 
-    fprintf(fp,"%x\n",T->max_early_data);
-    fprintf(fp,"%x\n",T->birth);
-    fprintf(fp,"%x\n",T->lifetime);
-    fprintf(fp,"%x\n",T->cipher_suite);
-    fprintf(fp,"%x\n",T->favourite_group);
-    fprintf(fp,"%x\n",T->origin);
-    fclose(fp);
-}
-
-static bool recoverTicket(ticket *T)
-{
-    FILE *fp;
-    char line[2050];
-    initTicketContext(T); 
-
-    fp=fopen("cookie.txt","rt");
-    if (fp==NULL)
-        return false;  
-    
-    if (fscanf(fp,"%s\n",line)) {};
-    OCT_from_hex(&T->TICK,line);
-    if (fscanf(fp,"%s\n",line)) {};
-    OCT_from_hex(&T->PSK,line);
-    if (fscanf(fp,"%x",&T->age_obfuscator)) {};
-    if (fscanf(fp,"%x",&T->max_early_data)) {};
-    if (fscanf(fp,"%x",&T->birth)) {};
-    if (fscanf(fp,"%x",&T->lifetime)) {};
-    if (fscanf(fp,"%x",&T->cipher_suite)) {};
-    if (fscanf(fp,"%x",&T->favourite_group)) {};
-    if (fscanf(fp,"%x",&T->origin)) {};
-    fclose(fp);
-    return true;
-}
-
-static void removeTicket()
-{
-    remove("cookie.txt");
-}
+#include "tls_wifi.h"
 
 // Process Server records received post-handshake
 // Should be mostly application data, but..
@@ -200,20 +150,18 @@ void client_send(Socket &client,octad *GET,crypto *K_send,octad *IO)
 capabilities CPB;
 int port=443;
 
-enum SocketType{
-    SOCKET_TYPE_AF_UNIX,
-    SOCKET_TYPE_AF_INET
-};
-char hostname[TLS_MAX_SERVER_NAME];
-char psk_label[32];
-SocketType socketType = SocketType::SOCKET_TYPE_AF_INET;
+char* ssid = (char *)"eir79562322-2.4G";
+char* password =  (char *)"********";
+char* hostname = (char *)"www.bbc.co.uk";  // HTTPS TLS1.3 server
 void mydelay()
-{}
+{
+    while (1) delay(1000);
+}
 
 // make connection, using full handshake, resumption, or PSK.
 // Full handshake may provide a ticket, stored in file cookie.txt
 // Resumption mode consumes a ticket, and may provide one
-// If TLS_ARDUINO, just maintain last ticket in memory, and perform immediate resumption
+// For Arduino, just maintain last ticket in memory, and perform immediate resumption
 static void makeConnection(Socket client,int mode,ticket &T)
 {
     int rtn,favourite_group,cipher_suite;
@@ -233,48 +181,16 @@ static void makeConnection(Socket client,int mode,ticket &T)
     initCryptoContext(&K_recv);
     make_client_message(&GET,hostname);
 
+// clear out the socket RX buffer
+    clearsoc(client,&IO);
+
     switch (mode)
     {
-
-    case TLS_EXTERNAL_PSK :  // we have a pre-shared key..!    
-        {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"\nAttempting connection with PSK\n",NULL,0,NULL);
-#endif
-            char psk[TLS_MAX_KEY];
-            octad PSK = {0,sizeof(psk),psk};    // Pre-Shared Key   
-            octad PSK_LABEL={(int)strlen(psk_label),sizeof(psk_label),psk_label};
-
-            PSK.len=16;
-            for (int i=0;i<16;i++)
-                PSK.val[i]=i+1;                // Fake a 128-bit pre-shared key
-
-            OCT_copy(&T.TICK,&PSK_LABEL);      // Create a special ticket 
-            OCT_copy(&T.PSK,&PSK);
-            T.max_early_data=1024;
-            T.cipher_suite=TLS_AES_128_GCM_SHA256;
-            T.favourite_group=CPB.supportedGroups[0];
-            T.origin=TLS_EXTERNAL_PSK;
-            removeTicket();  // delete any stored ticket - fall into resumption mode
-            HAVE_PSK=true;
-        }
 
     case TLS_TICKET_RESUME :
         {
 
-            if (!HAVE_PSK)
-            { 
-                if (!recoverTicket(&T))
-                {
-#if VERBOSITY >= IO_PROTOCOL
-                    logger((char *)"No Ticket available - unable to resume\n",NULL,0,NULL);
-#endif
-                    return;
-                }
-            }
-
             origin=T.origin;
-            removeTicket();
 
 // Resume connection. Try and send early data in GET
             rtn=TLS13_resume(client,hostname,IO,RMS,K_send,K_recv,STS,T,GET);
@@ -292,7 +208,6 @@ static void makeConnection(Socket client,int mode,ticket &T)
     case TLS_FULL_HANDSHAKE :
     default:
         {    
-            removeTicket();  // get rid of any unused ticket
             rtn=TLS13_full(client,hostname,IO,RMS,K_send,K_recv,STS,CPB,cipher_suite,favourite_group); // Do full TLS 1.3 handshake 
             if (!rtn)
             { // failed
@@ -320,143 +235,43 @@ static void makeConnection(Socket client,int mode,ticket &T)
 // check if a ticket was received
     if (T.lifetime==0)
     { // no ticket provided
-        removeTicket();  // delete any old ticket
-
         mydelay();
         return;
     } else {
         recoverPSK(cipher_suite,&RMS,&T.NONCE,&T.PSK); // recover PSK using NONCE and RMS, and store it with ticket
         T.origin=origin;
-        storeTicket(&T);
+
     }
 }
 
-// printf's allowed in here
-static void bad_input()
+// Try for a full handshake - disconnect - try to resume connection - repeat
+#ifdef ESP32
+#if CONFIG_FREERTOS_UNICORE
+#define ARDUINO_RUNNING_CORE 0
+#else
+#define ARDUINO_RUNNING_CORE 1
+#endif
+void myloop( void *pvParameters );
+#endif
+
+// This rather strange program structure is required by the Arduino development environment
+// A hidden main() functions calls setup() once, and then repeatedly calls loop()
+// This actually makes a lot of sense in an embedded environment
+// This structure does however mean that a certain of amount of global data is inevitable
+// Note that the ESP32 does things rather differently...
+
+void setup()
 {
-    printf("Incorrect Usage\n");
-    printf("client <flags> <hostname>\n");
-    printf("client <flags> <hostname:port>\n");
-    printf("(hostname may be localhost)\n");
-    printf("(port defaults to 443, or 4433 on localhost)\n");
-    printf("Valid flags:- \n");
-    printf("    -p <n> hostname (where <n> is preshared key identity)\n");
-    printf("    -r hostname (attempt resumption using stored ticket)\n");
-    printf("    -s show SAL capabilities\n");
-    printf("Example:- client www.bbc.co.uk\n");
-    printf("          client -r www.bbc.co.uk\n");
-}
-
-int main(int argc, char const *argv[])
-{
-    Socket client = (socketType == SocketType::SOCKET_TYPE_AF_UNIX) ?
-                    Socket::UnixSocket():
-                    Socket::InetSocket();
-    argv++; argc--;
-    int ip=0;
-
-    if (ip>=argc)
-    {
-        bad_input();
-        exit(EXIT_FAILURE);
+    Serial.begin(115200); while (!Serial) ;
+// make WiFi connection
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
     }
-
-    int CONNECTION_MODE=TLS_FULL_HANDSHAKE;
-    ticket T;
-    initTicketContext(&T);
-
-    if (strcmp(argv[ip],"-r")==0)
-    {
-        ip++;
-        if (ip<argc)
-        {
-            printf("Attempting resumption\n");
-            CONNECTION_MODE=TLS_TICKET_RESUME;
-        }
-    }
-
-    if (strcmp(argv[ip],"-p")==0)
-    {
-        ip++;
-        if (ip<argc)
-        {
-            printf("PSK mode selected\n");
-            strcpy(psk_label,argv[1]);
-            ip++;
-            CONNECTION_MODE=TLS_EXTERNAL_PSK;
-        }
-    }
-
-    if (strcmp(argv[ip],"-s")==0)
-    { // interrogate SAL
-        int i,ns;
-        int nt[20];
-        printf("Cryptography by %s\n",SAL_name());
-        ns=SAL_groups(nt);
-        printf("SAL supported Key Exchange groups\n");
-        for (i=0;i<ns;i++ )
-        {
-            printf("    ");
-            nameKeyExchange(nt[i]);
-        }
-        ns=SAL_ciphers(nt);
-        printf("SAL supported Cipher suites\n");
-        for (i=0;i<ns;i++ )
-        {
-            printf("    ");
-            nameCipherSuite(nt[i]);
-        }
-        ns=SAL_sigs(nt);
-        printf("SAL supported TLS signatures\n");
-        for (i=0;i<ns;i++ )
-        {
-            printf("    ");
-            nameSigAlg(nt[i]);
-        }
-        ns=SAL_sigCerts(nt);
-        printf("SAL supported Certificate signatures\n");
-        for (i=0;i<ns;i++ )
-        {
-            printf("    ");
-            nameSigAlg(nt[i]);
-        }
-        exit(0);
-    }
-
-    if (ip>=argc)
-    {
-        bad_input();
-        exit(EXIT_FAILURE);
-    }
-
-    if (strcmp(argv[ip],"localhost")==0)
-    {
-        strcpy(hostname, "localhost");
-        port = 4433;
-    } else {
-        int i;
-        bool contains_colon = false;
-        size_t argv_len = strlen(argv[ip]);
-        for(i=0; i < argv_len; ++i)
-        {
-            if(argv[ip][i] == ':')
-            {
-                contains_colon = true;
-                break;
-            }
-        }
-        if (contains_colon)
-        {
-            strncpy(hostname, argv[ip], i);
-            char port_part[5];
-            strncpy(port_part, argv[ip]+sizeof(char)*(i+1), (argv_len - i));
-            port = atoi(port_part);
-        } else {
-            strcpy(hostname, argv[ip]);
-            port = 443;
-        }
-    }
-
+    Serial.print("\nWiFi connected with IP: ");
+    Serial.println(WiFi.localIP());
+             
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Hostname= ",hostname,0,NULL);
 #endif
@@ -468,7 +283,7 @@ int main(int argc, char const *argv[])
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
 #endif
-        exit(EXIT_FAILURE);
+        return;
     }
 
 // Client Capabilities to be advertised to Server - obtained from the Security Abstraction Layer (SAL)
@@ -478,32 +293,82 @@ int main(int argc, char const *argv[])
     CPB.nsa=SAL_sigs(CPB.sigAlgs);              // Get supported TLS1.3 signing algorithms 
     CPB.nsac=SAL_sigCerts(CPB.sigAlgsCert);     // Get supported Certificate signing algorithms 
 
+#ifdef ESP32
+    xTaskCreatePinnedToCore(
+        myloop
+        ,  "client"   // A name just for humans
+        ,  32768  // 32K-6K This stack size can be checked & adjusted by reading the Stack Highwater
+        ,  NULL
+        ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+        ,  NULL 
+        ,  ARDUINO_RUNNING_CORE);
+#endif
+
+}
+
+
+#ifdef ESP32
+void loop()
+{
+}
+
+void myloop(void *pvParameters) {
+    (void) pvParameters;
+    while (1)
+    {
+#else
+void loop() {
+#endif
+    Socket client;
+    ticket T;
+    initTicketContext(&T);
+
+// make connection using full handshake...
     if (!client.connect(hostname,port))
     {
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Unable to access ",hostname,0,NULL);
 #endif
         mydelay();
- 		exit(EXIT_FAILURE);
+ 		return;
     }
-
-    switch (CONNECTION_MODE)
-    {
-    case TLS_EXTERNAL_PSK :
-        makeConnection(client,TLS_EXTERNAL_PSK,T);
-        break;
-    case TLS_TICKET_RESUME :
-        makeConnection(client,TLS_TICKET_RESUME,T);
-        break;
-    case TLS_FULL_HANDSHAKE :
-    default:
-        makeConnection(client,TLS_FULL_HANDSHAKE,T);
-        break;
-    }
-
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"\nAttempting full handshake\n",NULL,0,NULL);
+#endif
+    makeConnection(client,TLS_FULL_HANDSHAKE,T);
+// drop the connection..
     client.stop();
-
 #if VERBOSITY >= IO_PROTOCOL
     logger((char *)"Connection closed\n",NULL,0,NULL);
+#endif
+    delay(5000);
+
+
+// try to resume connection using...
+    if (!client.connect(hostname,port))
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Unable to access ",hostname,0,NULL);
+#endif
+        mydelay();
+ 		return;
+    }
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"\nAttempting resumption\n",NULL,0,NULL);
+#endif
+    makeConnection(client,TLS_TICKET_RESUME,T);
+    client.stop();
+// drop the connection..
+#if VERBOSITY >= IO_PROTOCOL
+    logger((char *)"Connection closed\n",NULL,0,NULL);
+#endif
+
+#ifdef ESP32
+    Serial.print("Amount of unused stack memory ");     // useful information!
+    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    delay(5000);
+    }
+#else
+    delay(5000);
 #endif
 }

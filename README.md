@@ -240,10 +240,10 @@ and connect via
 2.	Copy in all from the cpp directory of https://github.com/miracl/core
 3.	Copy in all from the arduino directory of https://github.com/miracl/core
 4.	(If ever asked to overwrite a file, go ahead and overwrite it)
-5.	Copy in all of the code from the src/, include/, sal/, app/ and /arduino directories (but not from subdirectories)
+5.	Copy in all of the code from the src/, include/, sal/ and /arduino directories (but not from subdirectories)
 6.	Edit the file core.h to define CORE_ARDUINO (line 31)
-7.	Edit the file tls1_3.h to define POPULAR_ROOT_CERTS and TLS_ARDUINO (lines 33, 34). Optionally set VERBOSITY to IO_DEBUG.
-8.	Edit the file client.cpp to use your wifi SSID and password (near line 215)
+7.	Edit the file tls1_3.h to define TLS_ARDUINO and POPULAR_ROOT_CERTS. Optionally set VERBOSITY to IO_DEBUG.
+8.	Edit the file client.cpp to use your wifi SSID and password (near line 150)
 9.	Run py config.py, and select options 2,8,41 and 43. This creates the SAL (in this case using miracl + ECC608A hardware).
 10.	Drop the working directory into where the Arduino IDE expects it. 
 11.	(In the IDE select File->Preferences and find the Sketchbook location - its the libraries directory off that.)
