@@ -45,7 +45,7 @@ endif ()
 
 if (${SAL} MATCHES MIRACL_TIILIB)
 	target_include_directories(tiitls PUBLIC sal/miracl)
-	target_include_directories(tiitls PUBLIC sal/tiicrypto)
+	target_include_directories(tiitls PUBLIC sal/tii-cryptolib/src)
 endif ()
 
 
@@ -64,6 +64,6 @@ if (${SAL} MATCHES MIRACL_SODIUM)
 endif ()
 
 if (${SAL} MATCHES MIRACL_TIILIB)
-	target_link_libraries(client ${PROJECT_SOURCE_DIR}/sal/tiicrypto/libtiicrypto.a)
+	target_link_libraries(client ${PROJECT_SOURCE_DIR}/sal/tii-cryptolib/cmake-build/src/libtiicrypto-v2.4.0.a)
 	target_link_libraries(client ${PROJECT_SOURCE_DIR}/sal/miracl/core.a)
 endif ()

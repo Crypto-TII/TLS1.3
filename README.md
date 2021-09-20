@@ -5,12 +5,12 @@ Documentation can be found in the doxygen generated file doc/refman.pdf
 
 # Linux Installation
 
-Copy the repository to your local machine. Create /sal/miracl/ and download the C++ version of MIRACL core (https://github.com/miracl/core/cpp) into it, and build 
-it by executing
+Copy the repository to your local machine. Move to sal/miracl/ and download into it all files for the C++ version of MIRACL core from (https://github.com/miracl/core/cpp). 
+Build the MIRACL core library by executing
 
 	python3 config64.py
 
-and selecting support for C25519, NIST256, NIST384, RSA2048 and RSA4096.
+selecting support for C25519, NIST256, NIST384, RSA2048 and RSA4096.
 
 This library provides the default SAL (Security Abstraction Layer), does all the crypto, and can be regarded as a "placeholder" as we may in the future replace its 
 functionality from other sources. Make sure to always use the latest version of this library - as the requirements of this project unfold, some minor updates will be required.
@@ -27,8 +27,14 @@ To use a SAL which includes some functionality from the well known sodium crypto
 	cmake -DSAL=MIRACL_SODIUM .
 	make
 
-To use a SAL which use functions from the tii-crypto library, create /sal/tiicrypto/ and build the library there. Also copy the tii-crypto header file directories into 
-this directory.
+To use a SAL which use functions from the tii-crypto library, move to /sal/tii-cryptolib/ and clone the tii-cryptolib library there. Build a TLS friendly version of the library
+following the Opt. 1 Build instructions
+
+	cmake -DCMAKE_BUILD_TYPE=Release -DCURVE=NIST_P256 -Bcmake-build
+	cd cmake-build
+	make 
+
+Then build the tiitls library and the client app
 
 	cmake -DSAL=MIRACL_TIILIB .
 	make
@@ -226,35 +232,6 @@ Again we will use OpenSSL to mimic a TLS1.3 server
 and connect via
 
 	./client -p 42 localhost
-
-
-### How to use it 
-
-#### Localhost 4433
-
-This is our own server, using TLSSwift (`localhost:4433`)
-
-```bash
-./client
-```
-
-#### Just Host
-
-```bash
-./client tls13.1d.pw
-```
-
-#### Host and port
-
-```bash
-./client localhost:1234
-```
-
-#### AF_UNIX Socket
-
-```bash
-./client af_unix /tmp/somesocket
-```
 
 
 ### Building the client application on an Arduino board (here Arduino Nano 33 IoT)
