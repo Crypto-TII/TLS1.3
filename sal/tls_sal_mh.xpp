@@ -723,46 +723,28 @@ static void RSA_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 //              rsa_pkcs1_sha256 (for certificates), rsa_pss_rsae_sha256 (for
 //              CertificateVerify and certificates), and ecdsa_secp256r1_sha256."
 
-// Certificate Signature Verification
-bool SAL_certSignatureVerify(int sigAlg,octad *CERT,octad *SIG,octad *PUBKEY)
+
+// SAL signature verification
+bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
 {
-    bool res=false;
     switch (sigAlg) {
-        case 0x0403 :
-            return SECP256R1_ECDSA_VERIFY(32,CERT,SIG,PUBKEY); 
-        case 0x0503 :
-            return SECP384R1_ECDSA_VERIFY(48,CERT,SIG,PUBKEY);
-        case 0x0807 :
-            return Ed25519_VERIFY(CERT,SIG,PUBKEY);
         case 0x0401 :
-            return RSA_PKCS15_VERIFY(32,CERT,SIG,PUBKEY); 
+            return RSA_PKCS15_VERIFY(32,BUFF,SIG,PUBKEY);
+        case 0x0403 :
+            return SECP256R1_ECDSA_VERIFY(32,BUFF,SIG,PUBKEY); 
         case 0x0501 :
-            return RSA_PKCS15_VERIFY(48,CERT,SIG,PUBKEY); 
+            return RSA_PKCS15_VERIFY(48,BUFF,SIG,PUBKEY); 
+        case 0x0503 :
+            return SECP384R1_ECDSA_VERIFY(48,BUFF,SIG,PUBKEY);
         case 0x0601 :
-            return RSA_PKCS15_VERIFY(64,CERT,SIG,PUBKEY); 
+            return RSA_PKCS15_VERIFY(64,BUFF,SIG,PUBKEY); 
+        case 0x0804:
+            return RSA_PSS_RSAE_VERIFY(32,BUFF,SIG,PUBKEY);
+        case 0x0807:
+            return Ed25519_VERIFY(BUFF,SIG,PUBKEY);
         default:
             return false;
     }
-    return false;
-}
-
-// Transcript Signature Verification
-bool SAL_tlsSignatureVerify(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKEY)
-{ // probably need to support more cases
-    switch (sigAlg)
-    {
-    case 0x0804:
-        return RSA_PSS_RSAE_VERIFY(32,TRANS,SIG,PUBKEY);
-    case 0x0403:  
-        return SECP256R1_ECDSA_VERIFY(32,TRANS,SIG,PUBKEY);
-    case 0x0503:
-        return SECP384R1_ECDSA_VERIFY(48,TRANS,SIG,PUBKEY);
-    case 0x0807:
-        return Ed25519_VERIFY(TRANS,SIG,PUBKEY);
-    default :
-        return false;
-    }
-    return false;
 }
 
 // Form Transcript Signature 

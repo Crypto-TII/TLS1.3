@@ -556,7 +556,7 @@ ret getCheckServerCertificateChain(Socket &client,octad *IO,crypto *recv,unihash
 // Update Transcript hash
     SAL_hashProcessArray(trans_hash,IO->val,ptr);
 
-    r.err=checkCertChain(&CERTCHAIN,hostname,PUBKEY);
+    r.err=checkServerCertChain(&CERTCHAIN,hostname,PUBKEY);
 
     OCT_shift_left(IO,ptr);  // rewind to start
     r.val=CERTIFICATE;

@@ -190,20 +190,11 @@ extern void SAL_generateKeyPair(int group,octad *SK,octad *PK);
  */
 extern void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS);
 
-/**	@brief Verify a generic certificate signature
- *
-    @param sigAlg the signature type
-    @param CERT the input certificate that was signed
-    @param SIG the input signature
-    @param PUBKEY the public key used to verify the signature
-    @return true if signature is valid, else false
- */
-extern bool SAL_certSignatureVerify(int sigAlg,octad *CERT,octad *SIG,octad *PUBKEY);
 
-/**	@brief Verify a generic TLS transcript signature
+/**	@brief Verify a generic TLS signature
  *
     @param sigAlg the signature type
-    @param TRANS the input transcript hash that was signed
+    @param BUFF the input data hash that was signed
     @param SIG the input signature
     @param PUBKEY the public key used to verify the signature
     @return true if signature is valid, else false

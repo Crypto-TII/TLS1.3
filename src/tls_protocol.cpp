@@ -425,7 +425,7 @@ int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send
     if (gotacertrequest)
     {
 #ifdef HAVE_A_CLIENT_CERT
-        int kind=getClientKeyAndCertchain(nccsalgs,csigAlgs,&CLIENT_KEY,&CLIENT_CERTCHAIN);
+        int kind=getClientPrivateKeyandCertChain(nccsalgs,csigAlgs,&CLIENT_KEY,&CLIENT_CERTCHAIN);
         if (kind!=0)
         { // Yes, I can do that kind of signature
 #if VERBOSITY >= IO_PROTOCOL

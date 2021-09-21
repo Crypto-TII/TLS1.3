@@ -16,33 +16,16 @@
 #include "tls_logger.h"
 #include "tls_cacerts.h"
 
-// Standard Hash Types
-
-#define TLS_SHA256 32           /**< SHA256 hash length in bytes */
-#define TLS_SHA384 48           /**< SHA384 hash length in bytes */
-#define TLS_SHA512 64           /**< SHA512 hash length in bytes */
-
-
 using namespace std;
 
-/**	@brief Check Certificate Chain
+/**	@brief Check Certificate Chain for hostname, and extract public key
  *
 	@param CERTCHAIN the input certificate chain
     @param hostname the input Server name associated with the Certificate chain
     @param PUBKEY the Server's public key extracted from the Certificate chain 
 	@return 0 if certificate chain is OK, else returns negative failure reason
  */
-extern int checkCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY);  
-
-/**	@brief verify Server's signature on protocol transcript
- *
-	@param sigalg the algorithm used for digital signature
-    @param SCVSIG the input signature on the transcript
-    @param H the transcript hash 
-    @param CERTPK the Server's public key
-	@return true if signature is verified, else returns false
- */
-extern bool checkServerCertVerifier(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK);
+extern int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY);  
 
 /**	@brief Get Client private key and Certificate chain from .pem files
  *
@@ -52,15 +35,6 @@ extern bool checkServerCertVerifier(int sigalg,octad *SCVSIG,octad *H,octad *CER
     @param CERTCHAIN the Client's certificate chain
 	@return type of private key, ECC or RSA
  */
-extern int getClientKeyAndCertchain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN);
-
-/**	@brief Create Cert Verify message, as a digital signature on some TLS1.3 specific message+transcript hash
- *
-    @param sigAlg the signature algorithm
-    @param H a transcript hash to be signed
-    @param KEY the Client's private key
-    @param CCVSIG the output digital signature
- */
-extern void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG);
+extern int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN);
 
 #endif

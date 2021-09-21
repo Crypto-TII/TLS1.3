@@ -311,3 +311,163 @@ void deriveApplicationSecrets(int htype,octad *HS,octad *SFH,octad *CFH,octad *C
         SAL_hkdfExpandLabel(htype,RMS,hlen,&MS,&INFO,CFH);
     }
 }
+
+// Convert ECDSA signature to DER encoded form
+static void parse_in_ecdsa_sig(int sha,octad *CCVSIG)
+{ // parse ECDSA signature into DER encoded (r,s) form
+    char c[TLS_MAX_ECC_FIELD];
+    octad C={0,sizeof(c),c};
+    char d[TLS_MAX_ECC_FIELD];
+    octad D={0,sizeof(d),d};
+    int len,clen=sha;
+    bool cinc=false;
+    bool dinc=false;
+
+    C.len=D.len=clen;
+    for (int i=0;i<clen;i++)
+    {
+        C.val[i]=CCVSIG->val[i];
+        D.val[i]=CCVSIG->val[clen+i];
+    }
+
+    if (C.val[0]&0x80) cinc=true;
+    if (D.val[0]&0x80) dinc=true;
+
+    len=2*clen+4;
+    if (cinc) len++;    // -ve values need leading zero inserted
+    if (dinc) len++;
+
+    OCT_kill(CCVSIG);
+    OCT_append_byte(CCVSIG,0x30,1);  // ASN.1 SEQ
+    OCT_append_byte(CCVSIG,len,1);
+// C
+    OCT_append_byte(CCVSIG,0x02,1);  // ASN.1 INT type
+    if (cinc)
+    {
+        OCT_append_byte(CCVSIG,clen+1,1);
+        OCT_append_byte(CCVSIG,0,1);
+    } else {
+        OCT_append_byte(CCVSIG,clen,1);
+    }
+    OCT_append_octad(CCVSIG,&C);
+// D
+    OCT_append_byte(CCVSIG,0x02,1);  // ASN.1 INT type
+    if (dinc)
+    {
+        OCT_append_byte(CCVSIG,clen+1,1);
+        OCT_append_byte(CCVSIG,0,1);
+    } else {
+        OCT_append_byte(CCVSIG,clen,1);
+    }
+    OCT_append_octad(CCVSIG,&D);
+}
+
+// Create Client Cert Verify message, a digital signature using KEY on some TLS1.3 specific message+transcript hash
+void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
+{
+    char ccv[100+TLS_MAX_HASH];
+    octad CCV={0,sizeof(ccv),ccv};
+// create TLS1.3 message to be signed
+    OCT_append_byte(&CCV,32,64); // 64 spaces
+    OCT_append_string(&CCV,(char *)"TLS 1.3, client CertificateVerify");  // 33 chars
+    OCT_append_byte(&CCV,0,1);   // add 0 character
+    OCT_append_octad(&CCV,H);    // add Transcript Hash 
+
+    SAL_tlsSignature(sigAlg,KEY,&CCV,CCVSIG);
+
+// adjustment for ECDSA signatures
+    if (sigAlg==ECDSA_SECP256R1_SHA256)
+        parse_in_ecdsa_sig(TLS_SHA256,CCVSIG);
+    if (sigAlg==ECDSA_SECP384R1_SHA384)
+        parse_in_ecdsa_sig(TLS_SHA384,CCVSIG);
+
+    return;
+}
+
+// Convert DER encoded signature to ECDSA signature
+static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
+{ // parse out DER encoded (r,s) ECDSA signature into a single SIG 
+    ret rt;
+    int lzero,der,rlen,slen,Int,ptr=0;
+    int len=SCVSIG->len;
+    char r[TLS_MAX_ECC_FIELD];
+    octad R={0,sizeof(r),r};
+    char s[TLS_MAX_ECC_FIELD];
+    octad S={0,sizeof(s),s};
+
+    rt=parseByte(SCVSIG,ptr); der=rt.val;
+    if (rt.err || der!=0x30) return false;
+    rt=parseByte(SCVSIG,ptr); slen=rt.val;
+    if (rt.err || slen+2!=len) return false;
+
+// get R
+    rt=parseByte(SCVSIG,ptr); Int=rt.val;
+    if (rt.err || Int!=0x02) return false;
+    rt=parseByte(SCVSIG,ptr); rlen=rt.val;
+    if (rt.err) return false;
+    if (rlen==sha+1)
+    { // one too big
+        rlen--;
+        rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+        if (rt.err || lzero!=0) return false;
+    }
+    rt=parseoctad(&R,sha,SCVSIG,ptr); if (rt.err) return false;
+
+// get S
+    rt=parseByte(SCVSIG,ptr); Int=rt.val;
+    if (rt.err || Int!=0x02) return false;
+    rt=parseByte(SCVSIG,ptr); slen=rt.val;
+    if (rt.err || slen==sha+1)
+    { // one too big
+        slen--;
+        rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+        if (rt.err || lzero!=0) return false;
+    }
+    rt=parseoctad(&S,sha,SCVSIG,ptr); if (rt.err) return false;
+
+    if (rlen<sha || slen<sha) return false;
+
+    OCT_copy(SCVSIG,&R);
+    OCT_append_octad(SCVSIG,&S);
+    return true;
+}
+
+// check that SCVSIG is digital signature (using sigAlg algorithm) of some TLS1.3 specific message+transcript hash, 
+// as verified by Server Certificate public key CERTPK
+
+bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
+{
+// Server Certificate Verify
+    ret rt;
+    int lzero,sha;
+    char scv[100+TLS_MAX_HASH];
+    octad SCV={0,sizeof(scv),scv};
+    char r[TLS_MAX_ECC_FIELD];
+    octad R={0,sizeof(r),r};
+    char s[TLS_MAX_ECC_FIELD];
+    octad S={0,sizeof(s),s};
+    char sig[2*TLS_MAX_ECC_FIELD];
+    octad SIG={0,sizeof(sig),sig};
+
+// TLS1.3 message that was signed
+    OCT_append_byte(&SCV,32,64); // 64 spaces
+    OCT_append_string(&SCV,(char *)"TLS 1.3, server CertificateVerify");  // 33 chars
+    OCT_append_byte(&SCV,0,1);   // add 0 character
+    OCT_append_octad(&SCV,H);    // add Transcript Hash 
+
+// Special case processing required here for ECDSA signatures -  SCVSIG is modified
+    if (sigAlg==ECDSA_SECP256R1_SHA256) {
+        if (!parse_out_ecdsa_sig(TLS_SHA256,SCVSIG)) return false;
+    }
+    if (sigAlg==ECDSA_SECP384R1_SHA384) {
+        if (!parse_out_ecdsa_sig(TLS_SHA384,SCVSIG)) return false;
+    } 
+
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Certificate Signature = \n",NULL,0,SCVSIG);
+        logger((char *)"Public Key = \n",NULL,0,CERTPK);
+#endif
+
+    return SAL_tlsSignatureVerify(sigAlg,&SCV,SCVSIG,CERTPK);
+}
+

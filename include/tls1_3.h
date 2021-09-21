@@ -51,6 +51,12 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_AES_256 32          /**< AES256 key length in bytes */
 #define TLS_CHA_256 32          /**< IETF CHACHA20 key length in bytes */
 
+// Standard Hash Types
+
+#define TLS_SHA256 32           /**< SHA256 hash length in bytes */
+#define TLS_SHA384 48           /**< SHA384 hash length in bytes */
+#define TLS_SHA512 64           /**< SHA512 hash length in bytes */
+
 // Some maximum sizes for stack allocated memory. Handshake will fail if these sizes are exceeded! 
 
 #define TLS_MAX_HASH_STATE 768  /**< Maximum memory required to store hash function state */

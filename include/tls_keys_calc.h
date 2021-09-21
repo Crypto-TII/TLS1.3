@@ -11,6 +11,7 @@
 
 #include "tls1_3.h"
 #include "tls_sal.h"
+#include "tls_client_recv.h"
 
 // transcript hash support
 
@@ -144,5 +145,24 @@ extern bool checkVeriferData(int htype,octad *SF,octad *STS,octad *H);
     @param H the input partial transcript hash
  */
 extern void deriveVeriferData(int htype,octad *SF,octad *CTS,octad *H);
+
+/**	@brief verify Server's signature on protocol transcript
+ *
+	@param sigalg the algorithm used for digital signature
+    @param SCVSIG the input signature on the transcript
+    @param H the transcript hash 
+    @param CERTPK the Server's public key
+	@return true if signature is verified, else returns false
+ */
+extern bool checkServerCertVerifier(int sigalg,octad *SCVSIG,octad *H,octad *CERTPK);
+
+/**	@brief Create Cert Verify message, as a digital signature on some TLS1.3 specific message+transcript hash
+ *
+    @param sigAlg the signature algorithm
+    @param H a transcript hash to be signed
+    @param KEY the Client's private key
+    @param CCVSIG the output digital signature
+ */
+extern void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG);
 
 #endif
