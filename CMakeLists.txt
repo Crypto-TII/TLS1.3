@@ -6,28 +6,28 @@ cmake_minimum_required(VERSION 3.7)
 project(tiitls1.3)
 
 if (${SAL} MATCHES MIRACL)
-	configure_file(./sal/tls_sal_m.xpp ./src/tls_sal.cpp COPYONLY)
+	configure_file(./sal/tls_sal_m.xpp ./lib/tls_sal.cpp COPYONLY)
 endif ()
 if (${SAL} MATCHES MIRACL_TIILIB)
-	configure_file(./sal/tls_sal_mt.xpp ./src/tls_sal.cpp COPYONLY)
+	configure_file(./sal/tls_sal_mt.xpp ./lib/tls_sal.cpp COPYONLY)
 endif ()
 if (${SAL} MATCHES MIRACL_SODIUM)
-	configure_file(./sal/tls_sal_ms.xpp ./src/tls_sal.cpp COPYONLY)
+	configure_file(./sal/tls_sal_ms.xpp ./lib/tls_sal.cpp COPYONLY)
 endif ()
 
 set(SRC
-       ./src/tls_cert_chain.cpp
-       ./src/tls_client_recv.cpp
-       ./src/tls_client_send.cpp
-       ./src/tls_keys_calc.cpp
-       ./src/tls_sockets.cpp
-       ./src/tls_octads.cpp
-       ./src/tls_logger.cpp
-       ./src/tls_protocol.cpp
-       ./src/tls_cacerts.cpp
-       ./src/tls_tickets.cpp
-       ./src/tls_x509.cpp
-       ./src/tls_sal.cpp
+       ./lib/tls_cert_chain.cpp
+       ./lib/tls_client_recv.cpp
+       ./lib/tls_client_send.cpp
+       ./lib/tls_keys_calc.cpp
+       ./lib/tls_sockets.cpp
+       ./lib/tls_octads.cpp
+       ./lib/tls_logger.cpp
+       ./lib/tls_protocol.cpp
+       ./lib/tls_cacerts.cpp
+       ./lib/tls_tickets.cpp
+       ./lib/tls_x509.cpp
+       ./lib/tls_sal.cpp
         )
 
 # Add a library
@@ -37,21 +37,24 @@ target_include_directories(tiitls PUBLIC include)
 
 if (${SAL} MATCHES MIRACL)
 	target_include_directories(tiitls PUBLIC sal/miracl)
+        target_include_directories(tiitls PUBLIC sal/miracl/includes)
 endif ()
 
 if (${SAL} MATCHES MIRACL_SODIUM)
 	target_include_directories(tiitls PUBLIC sal/miracl)
+        target_include_directories(tiitls PUBLIC sal/miracl/includes)
 endif ()
 
 if (${SAL} MATCHES MIRACL_TIILIB)
 	target_include_directories(tiitls PUBLIC sal/miracl)
+        target_include_directories(tiitls PUBLIC sal/miracl/includes)
 	target_include_directories(tiitls PUBLIC sal/tii-cryptolib/src)
 endif ()
 
 
 # CMake instructions to build client app
 
-add_executable( client app/client.cpp ) 
+add_executable( client src/x86/client.cpp ) 
 
 target_link_libraries(client tiitls )
 
