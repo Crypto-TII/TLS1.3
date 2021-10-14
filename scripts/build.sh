@@ -7,36 +7,32 @@ if [[ ! -f CMakeLists.txt ]] ; then
     exit
 fi
 
-# Create temp folder to pull and build Miracl library
-mkdir .temp
-mkdir -p sal/miracl/includes
-cd .temp
-git clone https://github.com/miracl/core.git
-cd core/cpp
-python3 ./config64.py --options=2 --options=3 --options=8 --options=41 --options=43
-cd ../../../
+args=$@
 
-# Copy built library and includes to SAL
-cp .temp/core/cpp/core.a sal/miracl
-cp .temp/core/cpp/*.h sal/miracl/includes
+chkarg() {
+    for arg in $args
+    do
+        if [ $1 -eq $arg ];
+        then
+            return "0"
+        fi
+    done
+    return "1"
+}
 
-# Remove temp folder
-rm -rf .temp
-
-# Create temporary build folder
-mkdir .build
-cd .build
-
-# Build library and client application
-cmake -DSAL=MIRACL ..
-make
-
-# Create build folder and copy built artefacts
-mkdir -p ../build
-cp client ../build
-cp libtiitls.a ../build
-cd ../
-
-# Clean repo
-rm -rf .build
-rm -rf sal/miracl
+if chkarg "-1"
+then
+    echo "Building using Miracl"
+    sh ./scripts/build_m.sh
+elif chkarg "-2"
+then
+    echo "Building using LibSodium + Miracl"
+    sh ./scripts/build_s.sh
+else
+    echo "No arguments specified\n"
+    echo "Parameters:"
+    echo " -1\tMiracl"
+    echo " -2\tMiracl + LibSodium"   
+    echo " -3\tCustom Library" 
+    exit
+fi
