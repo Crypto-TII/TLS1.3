@@ -1,7 +1,7 @@
 
 // Set up and read/write sockets
 
-#include "tls_sockets.h"
+#include "tls_logger.h"
 
 #ifndef TLS_ARDUINO
 
@@ -83,9 +83,9 @@ int getIPaddress(char *ip,char *hostname)
 #endif
 
 // Send Octet
-void sendOctad(Socket &client,octad *B)
+void sendOctad(Socket *client,octad *B)
 {
-    client.write(B->val,B->len);
+    client->write(B->val,B->len);
 #if VERBOSITY >= IO_WIRE
 
     char w[4];
@@ -101,7 +101,7 @@ void sendOctad(Socket &client,octad *B)
 }
 
 // Send Octet length
-void sendLen(Socket &client,int len)
+void sendLen(Socket *client,int len)
 {
     char buff[2];
     octad B={0, sizeof(buff), buff};
@@ -127,7 +127,7 @@ void clearsoc(Socket &client,octad *IO)
 
 
 // get expected bytes
-int getBytes(Socket &client,char *b,int expected)
+int getBytes(Socket *client,char *b,int expected)
 {
     int n,more,i=0,len=expected;
 
@@ -138,10 +138,10 @@ int getBytes(Socket &client,char *b,int expected)
     {
         if (millis()>start+5000)
             return -1;
-        n=client.available();
+        n=client->available();
         if (n==0) continue;  // nothing there
         if (n>len) n=len;    // possibly more than I need right now
-        client.read((uint8_t *)&b[i],n);
+        client->read((uint8_t *)&b[i],n);
         i+=n;
         len-=n;
     }
@@ -149,7 +149,7 @@ int getBytes(Socket &client,char *b,int expected)
 #else
     while(len>0)
     {
-        more=client.read(&b[i],len);
+        more=client->read(&b[i],len);
         if (more<0) return -1;
         i+=more;
         len-=more;
@@ -172,7 +172,7 @@ int getBytes(Socket &client,char *b,int expected)
 }
 
 // Get 16-bit Integer from stream
-int getInt16(Socket &client)
+int getInt16(Socket *client)
 {
     char b[2];
     getBytes(client,b,2);
@@ -180,7 +180,7 @@ int getInt16(Socket &client)
 }
 
 // Get 24-bit Integer from stream
-int getInt24(Socket &client)
+int getInt24(Socket *client)
 {
     char b[3];
     getBytes(client,b,3);
@@ -188,7 +188,7 @@ int getInt24(Socket &client)
 }
 
 // Get one byte from stream
-int getByte(Socket &client)
+int getByte(Socket *client)
 {
     char b[1];
     getBytes(client,b,1);
@@ -196,7 +196,7 @@ int getByte(Socket &client)
 }
 
 // Get expected number of bytes into an octet
-int getOctad(Socket &client,octad *B,int expected)
+int getOctad(Socket *client,octad *B,int expected)
 {
     B->len=expected;
     return getBytes(client,B->val,expected);

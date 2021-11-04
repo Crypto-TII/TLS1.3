@@ -46,7 +46,7 @@ void logger(char *preamble,char *string,unsign32 info,octad *O)
             myprintf(string);
         else
         {
-            char w[10];
+            char w[16];
             sprintf(w,string,info);
             myprintf(w);
         }

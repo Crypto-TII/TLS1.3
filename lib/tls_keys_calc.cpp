@@ -3,45 +3,58 @@
 //
 
 #include "tls_keys_calc.h"
+#include "tls_logger.h"
+
+// Initialise transcript hash
+void initTranscriptHash(TLS_session *session)
+{
+    int hashtype=SAL_hashType(session->cipher_suite);
+    SAL_hashInit(hashtype,&session->tlshash);
+}
 
 // Add octad to transcript hash 
-void runningHash(octad *O,unihash *h)
+void runningHash(TLS_session *session,octad *O)
 {
-    SAL_hashProcessArray(h,O->val,O->len);
+    SAL_hashProcessArray(&session->tlshash,O->val,O->len);
 }
 
 // Output transcript hash 
-void transcriptHash(unihash *h,octad *O)
+void transcriptHash(TLS_session *session,octad *O)
 {
-    O->len=SAL_hashOutput(h,O->val); 
+    O->len=SAL_hashOutput(&session->tlshash,O->val); 
 }
 
 // special case handling for first clientHello after retry request
-void runningSyntheticHash(octad *O,octad *E,unihash *h)
+void runningSyntheticHash(TLS_session *session,octad *O,octad *E)
 {
-    int htype=h->htype; 
+    int htype=session->tlshash.htype; 
     unihash rhash;
     char hh[TLS_MAX_HASH];
     octad HH={0,sizeof(hh),hh};
 
     SAL_hashInit(htype,&rhash); 
  // RFC 8446 - "special synthetic message"
-    runningHash(O,&rhash);
-    runningHash(E,&rhash);
-    transcriptHash(&rhash,&HH);
+    SAL_hashProcessArray(&rhash,O->val,O->len);
+    SAL_hashProcessArray(&rhash,E->val,E->len);
+
+    //runningHash(O,&rhash);
+    //runningHash(E,&rhash);
+    HH.len=SAL_hashOutput(&rhash,HH.val);
     
     char t[4];
     t[0]=MESSAGE_HASH;
     t[1]=t[2]=0;
     t[3]=SAL_hashLen(htype);
-    SAL_hashProcessArray(h,t,4);
+    SAL_hashProcessArray(&session->tlshash,t,4);
     
-    runningHash(&HH,h);
+    runningHash(session,&HH);
 }
 
 // Initialise crypto context (Key,IV, Record number)
 void initCryptoContext(crypto *C)
 {
+    C->active=false;
+
     C->K.len = 0;
     C->K.max = TLS_MAX_KEY;
     C->K.val = C->k;
@@ -57,6 +70,7 @@ void initCryptoContext(crypto *C)
 // Fill a crypto context with new key/IV
 void updateCryptoContext(crypto *C,octad *K,octad *IV)
 { 
+    C->active=true;
     OCT_copy(&(C->K),K);
     OCT_copy(&(C->IV),IV);
     C->record=0;
@@ -134,10 +148,11 @@ void deriveUpdatedKeys(crypto *context,octad *TS)
     SAL_hkdfExpandLabel(htype,&(context->IV),12,TS,&INFO,NULL);
 // reset record number
     context->record=0;
+    context->active=true;
 }
 
 // Create a crypto context from an input raw Secret and an agreed cipher_suite 
-void createCryptoContext(int cipher_suite,octad *TS,crypto *context)
+static void createCryptoContext(int cipher_suite,octad *TS,crypto *context)
 {
     int key,htype=SAL_hashType(cipher_suite);
     if (cipher_suite==TLS_AES_128_GCM_SHA256)
@@ -163,20 +178,31 @@ void createCryptoContext(int cipher_suite,octad *TS,crypto *context)
     OCT_append_string(&INFO,(char *)"iv");
     SAL_hkdfExpandLabel(htype,&(context->IV),12,TS,&INFO,NULL);
 
+    context->active=true;
     context->suite=cipher_suite;
     context->record=0;
 }
 
+void createSendCryptoContext(TLS_session *session,octad *TS)
+{
+    createCryptoContext(session->cipher_suite,TS,&session->K_send);
+}
+
+void createRecvCryptoContext(TLS_session *session,octad *TS)
+{
+    createCryptoContext(session->cipher_suite,TS,&session->K_recv);
+}
+
 // recover Pre-Shared-Key from Resumption Master Secret
-void recoverPSK(int cipher_suite,octad *RMS,octad *NONCE,octad *PSK)
+void recoverPSK(TLS_session *session)
 {
     char info[16];
     octad INFO = {0,sizeof(info),info};
-    int htype=SAL_hashType(cipher_suite);
+    int htype=SAL_hashType(session->cipher_suite);
     int hlen=SAL_hashLen(htype);
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"resumption");
-    SAL_hkdfExpandLabel(htype,PSK,hlen,RMS, &INFO, NONCE);
+    SAL_hkdfExpandLabel(htype,&session->T.PSK,hlen,&session->RMS, &INFO, &session->T.NONCE);
 }
 
 // Key Schedule code
@@ -239,7 +265,7 @@ void deriveLaterSecrets(int htype,octad *ES,octad *H,octad *CETS,octad *EEMS)
 }
 
 // get Client and Server Handshake secrets for encrypting rest of handshake, from Shared secret SS and early secret ES
-void deriveHandshakeSecrets(int htype,octad *SS,octad *ES,octad *H,octad *HS,octad *CHTS,octad *SHTS)
+void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES,octad *H,octad *HS)
 {
     char ds[TLS_MAX_HASH];
     octad DS = {0,sizeof(ds),ds};       // Derived Secret
@@ -247,6 +273,7 @@ void deriveHandshakeSecrets(int htype,octad *SS,octad *ES,octad *H,octad *HS,oct
     octad EMH = {0,sizeof(emh),emh};    // Empty Hash
     char info[16];
     octad INFO = {0,sizeof(info),info};
+    int htype=SAL_hashType(session->cipher_suite);
     int hlen=SAL_hashLen(htype);
 
     SAL_hashNull(htype,&EMH);      // hash of ""
@@ -259,15 +286,15 @@ void deriveHandshakeSecrets(int htype,octad *SS,octad *ES,octad *H,octad *HS,oct
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"c hs traffic");
-    SAL_hkdfExpandLabel(htype,CHTS,hlen,HS,&INFO,H);
+    SAL_hkdfExpandLabel(htype,&session->CTS,hlen,HS,&INFO,H);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"s hs traffic");
-    SAL_hkdfExpandLabel(htype,SHTS,hlen,HS,&INFO,H);
+    SAL_hkdfExpandLabel(htype,&session->STS,hlen,HS,&INFO,H);
 }
 
 // Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
-void deriveApplicationSecrets(int htype,octad *HS,octad *SFH,octad *CFH,octad *CTS,octad *STS,octad *EMS,octad *RMS)
+void deriveApplicationSecrets(TLS_session *session,octad *HS,octad *SFH,octad *CFH,octad *EMS)
 {
     char ds[TLS_MAX_HASH];
     octad DS = {0,sizeof(ds),ds};
@@ -279,6 +306,7 @@ void deriveApplicationSecrets(int htype,octad *HS,octad *SFH,octad *CFH,octad *C
     octad ZK = {0,sizeof(zk),zk};
     char info[16];
     octad INFO = {0,sizeof(info),info};
+    int htype=SAL_hashType(session->cipher_suite);
     int hlen=SAL_hashLen(htype);
 
     OCT_append_byte(&ZK,0,hlen);           // 00..00  
@@ -292,11 +320,11 @@ void deriveApplicationSecrets(int htype,octad *HS,octad *SFH,octad *CFH,octad *C
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"c ap traffic");
-    SAL_hkdfExpandLabel(htype,CTS,hlen,&MS,&INFO,SFH);
+    SAL_hkdfExpandLabel(htype,&session->CTS,hlen,&MS,&INFO,SFH);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"s ap traffic");
-    SAL_hkdfExpandLabel(htype,STS,hlen,&MS,&INFO,SFH);
+    SAL_hkdfExpandLabel(htype,&session->STS,hlen,&MS,&INFO,SFH);
 
     if (EMS!=NULL)
     {
@@ -304,12 +332,10 @@ void deriveApplicationSecrets(int htype,octad *HS,octad *SFH,octad *CFH,octad *C
         OCT_append_string(&INFO,(char *)"exp master");
         SAL_hkdfExpandLabel(htype,EMS,hlen,&MS,&INFO,SFH);
     }
-    if (RMS!=NULL)
-    {
-        OCT_kill(&INFO);
-        OCT_append_string(&INFO,(char *)"res master");
-        SAL_hkdfExpandLabel(htype,RMS,hlen,&MS,&INFO,CFH);
-    }
+
+    OCT_kill(&INFO);
+    OCT_append_string(&INFO,(char *)"res master");
+    SAL_hkdfExpandLabel(htype,&session->RMS,hlen,&MS,&INFO,CFH);
 }
 
 // Convert ECDSA signature to DER encoded form

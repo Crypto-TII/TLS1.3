@@ -16,9 +16,9 @@
 
 /**	@brief Send Change Cipher Suite message 
  *
-	@param client the socket connection to the Server
+    @param session the TLS session structure
  */
-extern void sendCCCS(Socket &client);
+extern void sendCCCS(TLS_session *session);
 
 /**	@brief Add PreShared Key extension to under-construction Extensions Octet (omitting binder)
  *
@@ -146,28 +146,25 @@ extern int cipherSuites(octad *CS,int ncs,int *ciphers);
 
 /**	@brief Send a generic client message (as a single record) to the Server
  *
-	@param client the socket connection to the Server
+	@param session the TLS session structure
     @param rectype the record type
     @param version TLS version indication
-    @param send the cryptographic key under which the message is encrypted (or NULL if no encryption)
     @param CM the client message to be sent
     @param EXT extensions to be added (or NULL if there are none)
-    @param IO the workspace octad in which to construct the encrypted message
  */
-extern void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octad *CM,octad *EXT,octad *IO);
+extern void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT);
 
 /**	@brief Send a preshared key binder message to the Server
  *
-	@param client the socket connection to the Server
+	@param session the TLS session structure
     @param B workspace octad in which to construct binder message
     @param BND binding HMAC of truncated transcript hash
-    @param IO the workspace octad in which to construct the overall message
  */
-extern void sendBinder(Socket &client,octad *B,octad *BND,octad *IO);
+extern void sendBinder(TLS_session *session,octad *B,octad *BND);
 
 /**	@brief Prepare and send Client Hello message to the Server, appending prepared extensions
  *
-	@param client the socket connection to the Server
+	@param session the TLS session structure
     @param version TLS version indication
     @param CH workspace octad in which to build client Hello
     @param nsc the number of supported cipher-suites
@@ -175,59 +172,46 @@ extern void sendBinder(Socket &client,octad *B,octad *BND,octad *IO);
     @param CID random session ID (generated and used internally, and output here)
     @param EXTENSIONS pre-prepared extensions
     @param extra length of preshared key binder to be sent later
-    @param IO the workspace octad in which to construct the overall message
-    @pararm resume true if this hello is for handshae resumption
+    @param resume true if this hello is for handshae resumption
  */
-extern void sendClientHello(Socket &client,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,octad *IO,bool resume);
+extern void sendClientHello(TLS_session *session,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,bool resume);
 
 /**	@brief Prepare and send an Alert message to the Server
  *
-	@param client the socket connection to the Server
+	@param session the TLS session structure
     @param type the type of the Alert
     @param send the cryptographic key under which the alert message is encrypted (or NULL if no encryption)
  */
-extern void sendClientAlert(Socket &client,int type,crypto *send);
+extern void sendClientAlert(TLS_session *session,int type);
 
 /**	@brief Prepare and send a final handshake Verification message to the Server
  *
-	@param client the socket connection to the Server
-    @param send the cryptographic key under which the verification message is encrypted
-    @param h the current transcript hash up to this point
+	@param session the TLS session structure
     @param CHF the client verify data HMAC
-    @param IO the workspace octad in which to construct the overall message
  */
-extern void sendClientFinish(Socket &client,crypto *send,unihash *h,octad *CHF,octad *IO);
+extern void sendClientFinish(TLS_session *session,octad *CHF);
 
 /**	@brief Prepare and send client certificate message to the Server
  *
-	@param client the socket connection to the Server
-    @param send the cryptographic key under which the certificate message is encrypted
-    @param h the current transcript hash up to this point
+	@param session the TLS session structure
     @param CERTCHAIN the client certificate chain
-    @param IO the workspace octad in which to construct the overall message
  */
-extern void sendClientCertificateChain(Socket &client,crypto *send, unihash *h,octad *CERTCHAIN,octad *IO);
+extern void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN);
 
 /**	@brief Send client Certificate Verify message to the Server
  *
-	@param client the socket connection to the Server
-    @param send the cryptographic key under which the certificate message is encrypted
-    @param h the current transcript hash up to this point
+	@param session the TLS session structure
     @param sigAlg the client's digital signature algorithm
     @param CCVSIG the client's signature
-    @param IO the workspace octad in which to construct the overall message
  */
-extern void sendClientCertVerify(Socket &client,crypto *send, unihash *h, int sigAlg, octad *CCVSIG,octad *IO);
+extern void sendClientCertVerify(TLS_session *session, int sigAlg, octad *CCVSIG);
 
 
 /**	@brief Indicate End of Early Data in message to the Server
  *
-	@param client the socket connection to the Server
-    @param send the cryptographic key under which the  message is encrypted
-    @param h the current transcript hash up to this point
-    @param IO the workspace octad in which to construct the overall message
+	@param session the TLS session structure
  */
-extern void sendEndOfEarlyData(Socket &client,crypto *send,unihash *h,octad *IO);
+extern void sendEndOfEarlyData(TLS_session *session);
 
 /**	@brief Maps problem cause to Alert
  *

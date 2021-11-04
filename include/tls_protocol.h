@@ -16,33 +16,55 @@
 #include "tls_tickets.h"
 #include "tls_logger.h"
 
-/**	@brief TLS 1.3 full handshake
+/**	@brief initialise a TLS 1.3 session structure
  *
 	@param client the socket connection to the Server
     @param hostname the host name (URL) of the server
-    @param IO a workspace octad to buffer Server input
-    @param RMS a returned Resumption Master secret
-    @param K_send a crypto context for encrypting application traffic to the server
-    @param K_recv a crypto context for decrypting application traffic from the server
-    @param STS server application traffic secret - may be updated
-    @param CPB the client capabilities structure
-    @param cipher_suite the cipher_suite used for the handshake
-    @param favourite_group our preferred group, which may be updated on a handshake retry
+    @return an initialised TLS1.3 session structure
  */
-extern int TLS13_full(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send,crypto &K_recv,octad &STS,capabilities &CPB,int &cipher_suite,int &favourite_group);
+extern TLS_session TLS13_init_state(Socket *client,char *hostname);
 
-/**	@brief TLS 1.3 resumption handshake
+/**	@brief TLS 1.3 perform full handshake
  *
-	@param client the socket connection to the Server
-    @param hostname the host name (URL) of the server
-    @param IO a workspace octad to buffer Server input
-    @param RMS a returned Resumption Master secret
-    @param K_send a crypto context for encrypting application traffic to the server
-    @param K_recv a crypto context for decrypting application traffic from the server
-    @param STS server application traffic secret - may be updated
-    @param T a resumption ticket (or pre-shared key)
-    @param EARLY early data that can be immediately sent to the server (0-RTT data) 
+    @param session an initialised TLS session structure
+    @return 0 for failure, otherwise success
  */
-extern int TLS13_resume(Socket &client,char *hostname,octad &IO,octad &RMS,crypto &K_send,crypto &K_recv,octad &STS,ticket &T,octad &EARLY);
+extern int TLS13_full(TLS_session *session);
 
+/**	@brief TLS 1.3 perform resumption handshake
+ *
+    @param session an initialised TLS session structure
+    @param EARLY some early data to be transmitted
+    @return 0 for failure, otherwise success
+ */
+extern int TLS13_resume(TLS_session *session,octad *EARLY);
+
+/**	@brief TLS 1.3 forge connection
+ *
+    @param session an initialised TLS session structure
+    @param EARLY some early data to be transmitted
+    @return false for failure, true for success
+ */
+extern bool TLS13_connect(TLS_session *session,octad *EARLY);
+
+/**	@brief TLS 1.3 send data
+ *
+    @param session an initialised TLS session structure
+    @param DATA some data to be transmitted
+ */
+extern void TLS13_send(TLS_session *,octad *DATA);
+
+/**	@brief TLS 1.3 receive data
+ *
+    @param session an initialised TLS session structure
+    @param DATA that has been received
+    @return 0 for failure, otherwise success
+ */
+extern int TLS13_recv(TLS_session *,octad *DATA);
+
+/**	@brief TLS 1.3 end session, delete keys, clean up buffers
+ *
+    @param session an initialised TLS session structure
+ */
+extern void TLS13_clean(TLS_session *session);
 #endif

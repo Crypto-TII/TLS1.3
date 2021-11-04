@@ -6,12 +6,12 @@
 #include "tls_logger.h"
 
 // send Change Cipher Suite - helps get past middleboxes
-void sendCCCS(Socket &client)
+void sendCCCS(TLS_session *session)
 {
     char cccs[10];
     octad CCCS={0,sizeof(cccs),cccs};
     OCT_from_hex(&CCCS,(char *)"140303000101");
-    sendOctad(client,&CCCS);
+    sendOctad(session->sockptr,&CCCS);
 }
 
 // Functions to build clientHello Extensions based on our preferences/capabilities
@@ -177,7 +177,7 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
 // ALL Client to Server output goes via this function 
 // Send a client message CM|EXT (as a single record). AEAD encrypted if send!=NULL
 // May need to break up into multiple records??
-void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octad *CM,octad *EXT,octad *IO)
+void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT)
 {
     int reclen;
     char tag[TLS_TAG_SIZE];
@@ -185,38 +185,38 @@ void sendClientMessage(Socket &client,int rectype,int version,crypto *send,octad
 
     int rbytes=SAL_randomByte()%16; // random padding bytes
 
-    OCT_kill(IO);
+    OCT_kill(&session->IO);
     reclen=CM->len;
     if (EXT!=NULL) reclen+=EXT->len;
-    if (send==NULL)
+    if (!session->K_send.active)
     { // no encryption
-        OCT_append_byte(IO,rectype,1);
-        OCT_append_int(IO,version,2);
-        OCT_append_int(IO,reclen,2);
+        OCT_append_byte(&session->IO,rectype,1);
+        OCT_append_int(&session->IO,version,2);
+        OCT_append_int(&session->IO,reclen,2);
 
-        OCT_append_octad(IO,CM); // CM->len
-        if (EXT!=NULL) OCT_append_octad(IO,EXT);
+        OCT_append_octad(&session->IO,CM); // CM->len
+        if (EXT!=NULL) OCT_append_octad(&session->IO,EXT);
     } else { // encrypted, and sent disguised as application record
-        OCT_append_byte(IO,APPLICATION,1);
-        OCT_append_int(IO,TLS1_2,2);
+        OCT_append_byte(&session->IO,APPLICATION,1);
+        OCT_append_int(&session->IO,TLS1_2,2);
         reclen+=16+1+rbytes; // 16 for the TAG, 1 for the record type, + some random padding
-        OCT_append_int(IO,reclen,2);
+        OCT_append_int(&session->IO,reclen,2);
 
-        OCT_append_octad(IO,CM); 
-        if (EXT!=NULL) OCT_append_octad(IO,EXT);
-        OCT_append_byte(IO,rectype,1); // append and encrypt actual record type
+        OCT_append_octad(&session->IO,CM); 
+        if (EXT!=NULL) OCT_append_octad(&session->IO,EXT);
+        OCT_append_byte(&session->IO,rectype,1); // append and encrypt actual record type
 // add some random padding after this...
-        OCT_append_byte(IO,0,rbytes);
+        OCT_append_byte(&session->IO,0,rbytes);
 
-        SAL_aeadEncrypt(send,5,&IO->val[0],reclen-16,&IO->val[5],&TAG);
-        incrementCryptoContext(send);  // increment IV
-        OCT_append_octad(IO,&TAG);
+        SAL_aeadEncrypt(&session->K_send,5,&session->IO.val[0],reclen-16,&session->IO.val[5],&TAG);
+        incrementCryptoContext(&session->K_send);  // increment IV
+        OCT_append_octad(&session->IO,&TAG);
     }
-    sendOctad(client,IO);     // transmit it
+    sendOctad(session->sockptr,&session->IO);     // transmit it
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
-void sendClientHello(Socket &client,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,octad *IO,bool resume)
+void sendClientHello(TLS_session *session,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,bool resume)
 {
     char rn[32];
     octad RN = {0, sizeof(rn), rn};
@@ -246,11 +246,11 @@ void sendClientHello(Socket &client,int version,octad *CH,int nsc,int *ciphers,o
     OCT_append_int(CH,extlen,2);              // 2
 
 // transmit it
-    sendClientMessage(client,HSHAKE,version,NULL,CH,EXTENSIONS,IO);
+    sendClientMessage(session,HSHAKE,version,CH,EXTENSIONS);
 }
 
 // Send "binder",
-void sendBinder(Socket &client,octad *B,octad *BND,octad *IO)
+void sendBinder(TLS_session *session,octad *B,octad *BND)
 {
     int tlen2=0;
     OCT_kill(B);
@@ -258,19 +258,19 @@ void sendBinder(Socket &client,octad *B,octad *BND,octad *IO)
     OCT_append_int(B,tlen2,2);
     OCT_append_int(B,BND->len,1);
     OCT_append_octad(B,BND);
-    sendClientMessage(client,HSHAKE,TLS1_2,NULL,B,NULL,IO);
+    sendClientMessage(session,HSHAKE,TLS1_2,B,NULL);
 }
 
 // send client alert - might be encrypted if send!=NULL
-void sendClientAlert(Socket &client,int type,crypto *send)
+void sendClientAlert(TLS_session *session,int type)
 {
     char pt[2];
     octad PT={0,sizeof(pt),pt};
-    char buff[48];
-    octad BUFF={0,sizeof(buff),buff};
+    //char buff[48];
+    //octad BUFF={0,sizeof(buff),buff};
     OCT_append_byte(&PT,0x02,1);  // alerts are always fatal
     OCT_append_byte(&PT,type,1);  // alert type
-    sendClientMessage(client,ALERT,TLS1_2,send,&PT,NULL,&BUFF);
+    sendClientMessage(session,ALERT,TLS1_2,&PT,NULL);
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Alert sent to Server - ",NULL,0,NULL);
         logAlert(type);
@@ -278,7 +278,7 @@ void sendClientAlert(Socket &client,int type,crypto *send)
 }
 
 // Send final client handshake verification data
-void sendClientFinish(Socket &client,crypto *send,unihash *h,octad *CHF,octad *IO)
+void sendClientFinish(TLS_session *session,octad *CHF)
 {
     char pt[4];
     octad PT={0,sizeof(pt),pt};
@@ -286,13 +286,13 @@ void sendClientFinish(Socket &client,crypto *send,unihash *h,octad *CHF,octad *I
     OCT_append_byte(&PT,FINISHED,1);  // indicates handshake message "client finished" 
     OCT_append_int(&PT,CHF->len,3); // .. and its length 
 
-    runningHash(&PT,h);
-    runningHash(CHF,h);
-    sendClientMessage(client,HSHAKE,TLS1_2,send,&PT,CHF,IO);
+    runningHash(session,&PT);
+    runningHash(session,CHF);
+    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CHF);
 }
 
 /* Send Client Cert Verify */
-void sendClientCertVerify(Socket &client,crypto *send, unihash *h, int sigAlg, octad *CCVSIG,octad *IO)
+void sendClientCertVerify(TLS_session *session, int sigAlg, octad *CCVSIG)
 {
     char pt[10];
     octad PT={0,sizeof(pt),pt};
@@ -300,13 +300,13 @@ void sendClientCertVerify(Socket &client,crypto *send, unihash *h, int sigAlg, o
     OCT_append_int(&PT,4+CCVSIG->len,3);
     OCT_append_int(&PT,sigAlg,2);
     OCT_append_int(&PT,CCVSIG->len,2);
-    runningHash(&PT,h);
-    runningHash(CCVSIG,h);
-    sendClientMessage(client,HSHAKE,TLS1_2,send,&PT,CCVSIG,IO);
+    runningHash(session,&PT);
+    runningHash(session,CCVSIG);
+    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CCVSIG);
 }
 
 // Send Client Certificate 
-void sendClientCertificateChain(Socket &client,crypto *send, unihash *h,octad *CERTCHAIN,octad *IO)
+void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN)
 {
     char pt[10];
     octad PT={0,sizeof(pt),pt};
@@ -316,26 +316,26 @@ void sendClientCertificateChain(Socket &client,crypto *send, unihash *h,octad *C
         OCT_append_int(&PT,4,3);
         OCT_append_byte(&PT,0,1); // cert context
         OCT_append_int(&PT,0,3);  // zero length
-        runningHash(&PT,h);
+        runningHash(session,&PT);
     } else {
         OCT_append_int(&PT,4+CERTCHAIN->len,3);
         OCT_append_byte(&PT,0,1); // cert context
         OCT_append_int(&PT,CERTCHAIN->len,3);  // length of certificate chain
-        runningHash(&PT,h);
-        runningHash(CERTCHAIN,h);
+        runningHash(session,&PT);
+        runningHash(session,CERTCHAIN);
     }
-    sendClientMessage(client,HSHAKE,TLS1_2,send,&PT,CERTCHAIN,IO);
+    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CERTCHAIN);
 } 
 
 // if early data was accepted, send this to indicate early data is finished
-void sendEndOfEarlyData(Socket &client,crypto *send,unihash *h,octad *IO)
+void sendEndOfEarlyData(TLS_session *session)
 {
     char ed[4];
     octad ED={0,sizeof(ed),ed};
     OCT_append_byte(&ED,END_OF_EARLY_DATA,1);
     OCT_append_int(&ED,0,3);
-    runningHash(&ED,h);
-    sendClientMessage(client,HSHAKE,TLS1_2,send,&ED,NULL,IO);
+    runningHash(session,&ED);
+    sendClientMessage(session,HSHAKE,TLS1_2,&ED,NULL);
 }
 
 //

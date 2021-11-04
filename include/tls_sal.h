@@ -13,14 +13,6 @@
 
 #include "tls1_3.h"
 
-/**
- * @brief Universal Hash structure */
-typedef struct 
-{
-    char state[TLS_MAX_HASH_STATE];   /**< hash function state */
-    int htype;                        /**< The hash type (typically SHA256) */
-} unihash;
-
 /** @brief Return name of SAL provider
 *
     @return name of SAL provider

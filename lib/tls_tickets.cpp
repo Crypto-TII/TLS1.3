@@ -24,6 +24,8 @@ unsigned long millis()
 // Initialise a ticket. Also record the cipher-suite in use, and servers favourite key exchange group
 void initTicketContext(ticket *T)
 {
+    T->valid=false;
+
     T->NONCE.len = 0;
     T->NONCE.max = TLS_MAX_KEY;
     T->NONCE.val = T->nonce;
@@ -84,5 +86,6 @@ int parseTicket(octad *TICK,unsign32 birth,ticket *T)
         }
         if (r.err) return BAD_TICKET;
     }
+    T->valid=true;
     return 0;
 }

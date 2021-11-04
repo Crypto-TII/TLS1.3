@@ -1147,6 +1147,7 @@ if not selected(selection,40,ptr) :
     os.system(deltext+" testhpke.cpp")
     os.system(deltext+" testhtp.cpp")
     os.system(deltext+" testnhs.cpp")
+    os.system(deltext+" testdlthm.cpp")
 
     os.system(deltext+" config*.py")
     os.system(deltext+" benchtest_all.cpp")

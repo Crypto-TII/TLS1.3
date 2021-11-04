@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include "tls_octads.h"
+#include "tls_sockets.h"
 
 typedef uint8_t byte;            /**< 8-bit unsigned integer */
 typedef int8_t sign8 ;			/**< 8-bit signed integer */
@@ -37,9 +38,11 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Supported protocols
 #define TLS_HTTP_PROTOCOL 1  /**< Supported ALPN protocol */
 
+#ifdef TLS_ARDUINO
+#define POPULAR_ROOT_CERTS        /**< Define this to limit root CAs to most popular only */
+#endif
+
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
-//#define POPULAR_ROOT_CERTS        /**< Define this to limit root CAs to most popular only */
-//#define TLS_ARDUINO               /**< Define for Arduino-based implementation */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
@@ -120,7 +123,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define PSKWECDHE 0x01                  /**< Preshared Key with Diffie-Hellman key exchange mode */
 
 // connection modes
-#define TLS_FULL_HANDSHAKE  1           /**< Do Full Handshakee */
+#define TLS_FULL_HANDSHAKE  1           /**< Do Full Handshake */
 #define TLS_EXTERNAL_PSK  2             /**< Use external Pre-Shared Key */
 #define TLS_TICKET_RESUME  3            /**< Use ticket-based resumption */
 
@@ -197,6 +200,15 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 #define LOG_OUTPUT_TRUNCATION 2048       /**< Output Hex digits before truncation */
 
+#define TLS13_DISCONNECTED 0
+#define TLS13_CONNECTED 1
+
+// protocol returns..
+#define TLS_FAILURE 0
+#define TLS_SUCCESS 1
+#define TLS_RESUMPTION_REQUIRED 2
+#define TLS_EARLY_DATA_ACCEPTED 3
+
 /**
  * @brief function return structure */
 typedef struct 
@@ -230,6 +242,7 @@ typedef struct
  * @brief crypto context structure */
 typedef struct
 {
+    bool active;
     char k[TLS_MAX_KEY];    /**< AEAD cryptographic Key bytes */
     char iv[12];            /**< AEAD cryptographic IV bytes */
     octad K;                /**< Key as octad */
@@ -242,6 +255,7 @@ typedef struct
  * @brief ticket context structure */
 typedef struct 
 {
+    bool valid;                         /**< Is ticket valid? */
     char tick[TLS_MAX_TICKET_SIZE];     /**< Ticket bytes */
     char nonce[TLS_MAX_KEY];            /**< 32-byte nonce */
     char psk[TLS_MAX_HASH];             /**< pre-shared key */
@@ -270,6 +284,39 @@ typedef struct
     int nsac;                               /**< Number of supported signature algorithms for Certificates */
     int sigAlgsCert[TLS_MAX_SUPPORTED_SIGS]; /**< Supported signature algorithms for Certicates */
 } capabilities;
+
+/**
+ * @brief Universal Hash structure */
+typedef struct 
+{
+    char state[TLS_MAX_HASH_STATE];   /**< hash function state */
+    int htype;                        /**< The hash type (typically SHA256) */
+} unihash;
+
+/**
+ * @brief TLS1.3 session state */
+typedef struct 
+{
+    int session_status;     /**< Connection status */
+    Socket *sockptr;        /**< Pointer to socket */
+    char hostname[TLS_MAX_SERVER_NAME];     /**< Server name for connection */
+    capabilities CPB;       /**<  the supported crypto primitives */
+    int cipher_suite;       /**< agreed cipher suite */
+    int favourite_group;    /**< favourite key exchange group - may be changed on handshake retry */
+    crypto K_send;          /**< Sending Key */
+    crypto K_recv;          /**< Receiving Key */
+    octad RMS;              /**< Resumption Master Secret */
+    char rms[TLS_MAX_HASH];
+    octad STS;              /**< Server Traffic secret */
+    char sts[TLS_MAX_HASH];
+    octad CTS;              /**< Client Traffic secret */
+    char cts[TLS_MAX_HASH];
+    octad IO;               /**< Main IO buffer for this connection */
+    char io[TLS_MAX_IO_SIZE];
+    unihash tlshash;        /**< Transcript hash recorder */
+    ticket T;               /**< resumption ticket */
+} TLS_session;
+
 
 #endif
 

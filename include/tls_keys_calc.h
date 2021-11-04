@@ -14,20 +14,26 @@
 #include "tls_client_recv.h"
 
 // transcript hash support
+/**	@brief Initialise Transcript hash
+ *
+	@param session the TLS session structure
+ */
+extern void initTranscriptHash(TLS_session *session);
 
 /**	@brief Accumulate octad into ongoing hashing 
  *
+	@param session the TLS session structure
     @param O an octad to be included in hash
-    @param h a hashing context
+
  */
-extern void runningHash(octad *O,unihash *h);
+extern void runningHash(TLS_session *session,octad *O);
 
 /**	@brief Output current hash value
  *
-    @param h a hashing context
+	@param session the TLS session structure
     @param O an output octad containing current hash
  */
-extern void transcriptHash(unihash *h,octad *O);
+extern void transcriptHash(TLS_session *session,octad *O);
 
 /**	@brief Calculate special synthetic hash calculation for first clientHello after retry request (RFC 8446 section 4.4.1)
  *
@@ -36,7 +42,7 @@ extern void transcriptHash(unihash *h,octad *O);
     @param h a hashing context
 
  */
-extern void runningSyntheticHash(octad *O,octad *E,unihash *h);
+extern void runningSyntheticHash(TLS_session *session,octad *O,octad *E);
 
 /**	@brief Initiate a Crypto Context
  *
@@ -58,22 +64,26 @@ extern void updateCryptoContext(crypto *C,octad *K,octad *IV);
  */
 extern void incrementCryptoContext(crypto *C);
 
-/**	@brief Build a crypto context from an input raw Secret and an agreed cipher_suite 
- *
-    @param cipher_suite the chosen cipher suite
-    @param TS the input raw secret
-    @param context an AEAD encryption context
- */
-extern void createCryptoContext(int cipher_suite,octad *TS,crypto *context);
 
-/**	@brief Recover a pre-shared key from Resumption Master Secret and a nonce
+/**	@brief Build a crypto context for transmission from an input raw Secret and an agreed cipher_suite 
  *
-    @param cipher_suite the active cipher suite
-    @param RMS the input resumption master secret
-    @param NONCE the input nonce
-    @param PSK the output pre-shared key
+    @param session TLS session structure
+    @param TS the input raw secret
  */
-extern void recoverPSK(int cipher_suite,octad *RMS,octad *NONCE,octad *PSK);
+extern void createSendCryptoContext(TLS_session *session,octad *TS);
+
+/**	@brief Build a crypto context for reception from an input raw Secret and an agreed cipher_suite 
+ *
+    @param session TLS session structure
+    @param TS the input raw secret
+ */
+extern void createRecvCryptoContext(TLS_session *session,octad *TS);
+
+/**	@brief Recover pre-shared key from the Resumption Master Secret and store with ticket
+ *
+	@param session the TLS session structure
+ */
+extern void recoverPSK(TLS_session *);
 
 /**	@brief Extract Early Secret Key and Binder Key from Preshared Key (External or Resumption)
  *
@@ -97,28 +107,24 @@ extern void deriveLaterSecrets(int htype,octad *H,octad *ES,octad *CETS,octad *E
 
 /**	@brief Extract Handshake Secret from Shared Secret and Early Secret. Use Handshake Secret to extract Client and Server Handshake Traffic secrets 
  *
+ 	@param session the TLS session structure
     @param htype hash algorithm
     @param SS input Shared Secret
     @param ES the input early secret key
     @param H a partial transcript hash
     @param HS the output Handshake Secret
-    @param CHTS the output Client Handshake Traffic Secret
-    @param SHTS the output Server Handshake Traffic Secret
  */
-extern void deriveHandshakeSecrets(int htype,octad *SS,octad *ES, octad *H,octad *HS,octad *CHTS,octad *SHTS);
+extern void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES, octad *H,octad *HS);
 
 /**	@brief Extract Application Secret from Handshake Secret and Early Secret. Use Handshake Secret to extract Client and Server Application Traffic secrets 
  *
-    @param htype hash algorithm
+ 	@param session the TLS session structure   
     @param HS input Handshake Secret
     @param SFH an input partial transcript hash
     @param CFH an input partial transcript hash
-    @param CTS the output Client Application Traffic Secret
-    @param STS the output Server Application Traffic Secret
     @param EMS the output External Master Secret (or NULL if not required)
-    @param RMS the output Resumption Master Secret (or NULL if not required)
  */
-extern void deriveApplicationSecrets(int htype,octad *HS,octad *SFH,octad *CFH,octad *CTS,octad *STS,octad *EMS,octad *RMS);
+extern void deriveApplicationSecrets(TLS_session *session,octad *HS,octad *SFH,octad *CFH,octad *EMS);
 
 /**	@brief Perform a Key Update on a crypto context
  *

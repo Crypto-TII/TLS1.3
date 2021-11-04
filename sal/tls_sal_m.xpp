@@ -46,8 +46,8 @@ int SAL_ciphers(int *ciphers)
 int SAL_groups(int *groups)
 {
     int n=3;
-    groups[1]=X25519;
-    groups[0]=SECP256R1;
+    groups[0]=X25519;
+    groups[1]=SECP256R1;
     groups[2]=SECP384R1;
     return n;
 }

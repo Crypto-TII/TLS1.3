@@ -10,8 +10,10 @@
 #ifndef TLS_SOCKETS_H
 #define TLS_SOCKETS_H
 
+//#define TLS_ARDUINO            /**< Define for Arduino-based implementation */
+
 #include <string.h>
-#include "tls_logger.h"
+#include "tls_octads.h"
 
 #ifdef TLS_ARDUINO
 #include "tls_wifi.h"
@@ -68,23 +70,14 @@ private:
         int sock;
         struct sockaddr_un serv_addr;
         if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-        {
-#if VERBOSITY >= IO_APPLICATION
-            logger((char *)"\n Socket creation error \n", NULL, 0, NULL);
-#endif
-            return -1;
-        }
+            return -2;
 
         serv_addr.sun_family = AF_UNIX;
         strcpy(serv_addr.sun_path, socket_path);
 
         if (::connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-        {
-#if VERBOSITY >= IO_APPLICATION
-            logger((char *)"\nConnection Failed \n", NULL, 0, NULL);
-#endif
             return -1;
-        }
+      
         return sock;
     }
 
@@ -141,14 +134,14 @@ extern void clearsoc(Socket &client,octad *IO);
 	@param client the socket connection to the Server
     @param B the octet to be transmitted
  */
-extern void sendOctad(Socket &client,octad *B);
+extern void sendOctad(Socket *client,octad *B);
 
 /**	@brief send a 16-bit integer as an octet to Server
  *
 	@param client the socket connection to the Server
     @param len the 16-bit integer to be encoded as octet and transmitted
  */
-extern void sendLen(Socket &client,int len);
+extern void sendLen(Socket *client,int len);
 
 /**	@brief receive bytes over a socket sonnection
  *
@@ -157,28 +150,28 @@ extern void sendLen(Socket &client,int len);
     @param expected the number of bytes expected
     @return -1 on failure, 0 on success
  */
-extern int getBytes(Socket &client,char *b,int expected);
+extern int getBytes(Socket *client,char *b,int expected);
 
 /**	@brief receive 16-bit integer from a socket
  *
 	@param client the socket connection to the Server
     @return a 16-bit integer
  */
-extern int getInt16(Socket &client);
+extern int getInt16(Socket *client);
 
 /**	@brief receive 24-bit integer from a socket
  *
 	@param client the socket connection to the Server
     @return a 24-bit integer
  */
-extern int getInt24(Socket &client);
+extern int getInt24(Socket *client);
 
 /**	@brief receive a single byte from a socket
  *
 	@param client the socket connection to the Server
     @return a byte
  */
-extern int getByte(Socket &client);
+extern int getByte(Socket *client);
 
 /**	@brief receive an octet from a socket
  *
@@ -187,6 +180,6 @@ extern int getByte(Socket &client);
     @param expected the number of bytes expected
     @return -1 on failure, 0 on success
  */
-extern int getOctad(Socket &client,octad *B,int expected);
+extern int getOctad(Socket *client,octad *B,int expected);
 
 #endif
