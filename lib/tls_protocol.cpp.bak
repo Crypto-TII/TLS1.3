@@ -319,11 +319,13 @@ int TLS13_full(TLS_session *session)
 
 // 1. get encrypted extensions
     rtn=getServerEncryptedExtensions(session,&enc_ext_expt,&enc_ext_resp);   
+
 //
 //
 //  <------------------------------------------------- {Encrypted Extensions}
 //
 //
+
     if (badResponse(session,rtn)) 
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -729,11 +731,6 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
     int ciphers[1]; ciphers[0]=session->cipher_suite;     // Only allow one cipher suite
 // create and send Client Hello octad
     sendClientHello(session,TLS1_2,&CH,1,ciphers,&CID,&EXT,extra,false);  
-//
-//
-//   ----------------------------------------------------------> client Hello
-//
-//
     runningHash(session,&CH); 
     runningHash(session,&EXT);
 
@@ -769,20 +766,10 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
         logger((char *)"Sending Application Message\n\n",EARLY->val,0,NULL);
 #endif
         sendClientMessage(session,APPLICATION,TLS1_2,EARLY,NULL);
-//
-//
-//   ----------------------------------------------------------> (Early Data)
-//
-//
     }
 
 // Process Server Hello
     rtn=getServerHello(session,session->cipher_suite,kex,&CID,&COOK,&PK,pskid);
-//
-//
-//  <---------------------------------------------------------- server Hello
-//
-//
     runningHash(session,&session->IO); // Hashing Server Hello
     transcriptHash(session,&HH);       // HH = hash of clientHello+serverHello
 
@@ -839,11 +826,6 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
 #endif
 // 1. get encrypted extensions
     rtn=getServerEncryptedExtensions(session,&enc_ext_expt,&enc_ext_resp);
-//
-//
-//  <------------------------------------------------- {Encrypted Extensions}
-//
-//
     if (badResponse(session,rtn)) 
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -859,11 +841,6 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
 #endif
 // 2. get server finish
     rtn=getServerFinished(session,&FIN);   // Finished
-//
-//
-//  <------------------------------------------------------ {Server Finished}
-//
-//
     if (badResponse(session,rtn)) 
     {
 #if VERBOSITY >= IO_PROTOCOL
@@ -902,11 +879,7 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
 // create client verify data and send it to Server
     deriveVeriferData(hashtype,&CHF,&session->CTS,&TH);  
     sendClientFinish(session,&CHF);  
-//
-//
-//  {client Finished} ----------------------------------------------------->
-//
-//
+
 #if VERBOSITY >= IO_DEBUG
     logger((char *)"Server Data is verified\n",NULL,0,NULL);
     logger((char *)"Client Verify Data= ",NULL,0,&CHF); 
