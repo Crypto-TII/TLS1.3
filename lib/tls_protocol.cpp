@@ -168,7 +168,7 @@ int TLS13_full(TLS_session *session)
     }
     if (SAL_hashLen(hashtype)==0)
     {
-        sendClientAlert(session,UNEXPECTED_MESSAGE);
+        sendClientAlert(session,ILLEGAL_PARAMETER);
         logCipherSuite(session->cipher_suite);
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Cipher_suite not valid\n",NULL,0,NULL);
