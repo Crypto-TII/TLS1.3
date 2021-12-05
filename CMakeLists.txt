@@ -25,6 +25,7 @@ set(SRC
        ./lib/tls_logger.cpp
        ./lib/tls_protocol.cpp
        ./lib/tls_cacerts.cpp
+       ./lib/tls_client_cert.cpp
        ./lib/tls_tickets.cpp
        ./lib/tls_x509.cpp
        ./lib/tls_sal.cpp
