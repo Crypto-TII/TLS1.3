@@ -798,6 +798,15 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
         return TLS_FAILURE;
     }
 
+	if (pskid>0)
+	{ // pskid out-of-range (only one allowed)
+        sendClientAlert(session,ILLEGAL_PARAMETER);
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
+#endif
+        return TLS_FAILURE;
+	}
+
     if (badResponse(session,rtn)) 
     {
 #if VERBOSITY >= IO_PROTOCOL

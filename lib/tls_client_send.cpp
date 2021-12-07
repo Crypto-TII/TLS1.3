@@ -346,7 +346,7 @@ int alert_from_cause(int rtn)
     switch (rtn)
     {
     case NOT_TLS1_3:
-        return PROTOCOL_VERSION;
+        return ILLEGAL_PARAMETER;
     case ID_MISMATCH:
         return ILLEGAL_PARAMETER;
     case UNRECOGNIZED_EXT:
@@ -362,7 +362,7 @@ int alert_from_cause(int rtn)
     case AUTHENTICATION_FAILURE:
         return DECRYPT_ERROR;
     case BAD_RECORD:
-        return ILLEGAL_PARAMETER;
+        return DECODE_ERROR;
     case BAD_TICKET:
         return ILLEGAL_PARAMETER;
     case NOT_EXPECTED:
@@ -373,6 +373,12 @@ int alert_from_cause(int rtn)
         return CERTIFICATE_EXPIRED;
     case MEM_OVERFLOW:
         return DECODE_ERROR;
+	case FORBIDDEN_EXTENSION:
+		return ILLEGAL_PARAMETER;
+	case MAX_EXCEEDED:
+		return RECORD_OVERFLOW;
+	case EMPTY_CERT_CHAIN:
+		return DECODE_ERROR;
     default:
         return ILLEGAL_PARAMETER;    
     }

@@ -102,7 +102,7 @@ ret parseByte(octad *M,int &ptr)
 // returns record type, ALERT, APPLICATION or HSHAKE (or pseudo type TIMED_OUT)
 int getServerFragment(TLS_session *session)
 {
-    int i,rtn,left,pos;
+    int i,rtn,left,pos,rlen;
     char rh[5];
     octad RH={0,sizeof(rh),rh};
 
@@ -137,7 +137,7 @@ int getServerFragment(TLS_session *session)
     }
 
     if (RH.val[0]!=HSHAKE && RH.val[0]!=APPLICATION)
-        return BAD_RECORD;
+        return WRONG_MESSAGE;
 
     left=getInt16(session->sockptr);
     OCT_append_int(&RH,left,2);
@@ -151,17 +151,21 @@ int getServerFragment(TLS_session *session)
 //printf("Getting a fragment 3\n");
     if (!session->K_recv.active)
     { // not encrypted
-//printf("Not encrypted\n");
+		if (left>TLS_MAX_PLAIN_FRAG)
+			return MAX_EXCEEDED;
         getBytes(session->sockptr,&session->IO.val[pos],left);  // read in record body
         session->IO.len+=left;
         return HSHAKE;
     }
-    getBytes(session->sockptr,&session->IO.val[pos],left-16);  // read in record body
+	rlen=left-16; // plaintext record length
+	if (left>TLS_MAX_CIPHER_FRAG)
+		return MAX_EXCEEDED;
+    getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
 
-    session->IO.len+=(left-16);    
+    session->IO.len+=(rlen);    
     getOctad(session->sockptr,&TAG,16);        // read in correct TAG
 
-    rtn=SAL_aeadDecrypt(&session->K_recv,RH.len,RH.val,left-16,&session->IO.val[pos],&TAG);
+    rtn=SAL_aeadDecrypt(&session->K_recv,RH.len,RH.val,rlen,&session->IO.val[pos],&TAG);
     incrementCryptoContext(&session->K_recv); // update IV
     if (rtn<0)
     {
@@ -178,6 +182,10 @@ int getServerFragment(TLS_session *session)
         session->IO.len--; // remove it
         pad++;
     }
+	if ((lb==HSHAKE || lb==ALERT) && rlen==0)
+	{
+		return WRONG_MESSAGE;
+	}
     if (lb==HSHAKE)
     {
         return HSHAKE;
@@ -338,12 +346,17 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
 // Extract first byte to determine message type
 ret getWhatsNext(TLS_session *session)
 {
-    int ptr=0;
+    int nb,ptr=0;
     ret r;
 
     r=parseByteorPull(session,ptr); 
     if (r.err) return r; 
 
+	nb=r.val;
+	if (nb==END_OF_EARLY_DATA || nb==KEY_UPDATE) { // Servers MUST NOT send this.... KEY_UPDATE should not happen at this stage
+		r.err=WRONG_MESSAGE;
+		return r;
+	}
 //logger((char *)"IO= \n",NULL,0,IO);
 
     char b[1];
@@ -443,6 +456,19 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_expt *enc_ext_expt,ee_r
                 return r;
             }
             break;
+		case SIG_ALGS:
+		case SIG_ALGS_CERT:
+		case KEY_SHARE:
+		case PSK_MODE:
+		case PRESHARED_KEY:
+		case TLS_VER:
+		case COOKIE:
+		case PADDING:
+            r=parseInt16orPull(session,ptr); tlen=r.val; if (r.err) return r;
+            len-=2;  // length of extension
+            len-=tlen; ptr+=tlen; // skip over it
+            r.err=FORBIDDEN_EXTENSION;
+            return r;
         default:    // ignore all other extensions
             r=parseInt16orPull(session,ptr); tlen=r.val; if (r.err) return r;
             len-=2;  // length of extension
@@ -556,6 +582,13 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
         return r;
     }
     r=parseInt24orPull(session,ptr); len=r.val; if (r.err) return r;    // get length of certificate chain
+
+	if (len==0)
+	{
+		r.err=EMPTY_CERT_CHAIN;
+		return r;
+	}
+
     r=parseoctadorPullptr(session,&CERTCHAIN,len,ptr); if (r.err) return r; // get pointer to certificate chain
 
 // Update Transcript hash

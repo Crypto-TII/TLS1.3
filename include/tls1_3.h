@@ -97,6 +97,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_PSK_MODES 2             /**< Max preshared key modes */
 #define TLS_MAX_CIPHER_SUITES 5         /**< Max number of supported cipher suites */
 
+#define TLS_MAX_PLAIN_FRAG 16384		/**< Max Plaintext Fragment size */
+#define TLS_MAX_CIPHER_FRAG (16384+256) /**< Max Ciphertext Fragment size */
+
 // Cipher Suites 
 #define TLS_AES_128_GCM_SHA256 0x1301   /**< AES128/SHA256/GCM cipher suite - this is only one which MUST be implemented */
 #define TLS_AES_256_GCM_SHA384 0x1302   /**< AES256/SHA384/GCM cipher suite */
@@ -185,6 +188,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define CA_NOT_FOUND -13                /**< Certificate Authority not found */
 #define CERT_OUTOFDATE -14              /**< Certificate Expired */
 #define MEM_OVERFLOW -15                /**< Memory Overflow */
+#define FORBIDDEN_EXTENSION -16			/**< Forbidden Encrypted Extension */
+#define MAX_EXCEEDED -17				/**< Maximum record size exceeded */
+#define EMPTY_CERT_CHAIN -18            /**< Empty Certificate Message */
 
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */
@@ -196,6 +202,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define CERTIFICATE_EXPIRED 0x2D        /**< Certificate Expired */
 #define PROTOCOL_VERSION 0x46           /**< Wrong TLS version */
 #define DECODE_ERROR 0x32               /**< Decode error alert */
+#define RECORD_OVERFLOW 0x16            /**< Record Overflow */
 #define CLOSE_NOTIFY 0x00               /**< Orderly shut down of connection */
 
 #define LOG_OUTPUT_TRUNCATION 2048       /**< Output Hex digits before truncation */
