@@ -1,27 +1,27 @@
 
-			Allow early data	Extra Certs in Chain	Resumes
-www.bbc.co.uk			No			Yes		  Yes		
-www.protonmail.com		No			No		  Yes 	
-www.miracl.com			No			No                Yes
-www.facebook.com		No			No		  Yes
-tls13.ulfheim.net		No			No		  Yes
-tls13.cloudfare.com		No			No		  Yes
-www.google.com			No			No		  No	 (?)
-slack.com			No			No                Yes
-owasp.org			No			No                Yes
-mozilla.org			No			No		  Sometimes
-swifttls.org			Yes			No		  Yes
-tls13.1d.pw			No			Yes		  No
-realpython.com                  Yes			No		  Yes
-www.padok.fr                    Yes			No		  Yes
+			Allow early data	Extra Certs in Chain	Resumes		Server SSL Labs Report
+www.bbc.co.uk			No			Yes		  Yes			B
+www.protonmail.com		No			No		  Yes 			A+
+www.miracl.com			No			No                Yes			A+
+www.facebook.com		No			No		  Yes			B
+tls13.ulfheim.net		No			No		  Yes			A+
+tls13.cloudfare.com		No			No		  Yes			B
+www.google.com			No			No		  No	 (?)		B
+slack.com			No			No                Yes			A+
+owasp.org			No			No                Yes			A+		
+mozilla.org			No			No		  Sometimes		A
+swifttls.org			Yes			No		  Yes			A	
+tls13.1d.pw			No			Yes		  No			A
+realpython.com                  Yes			No		  Yes			B
+www.padok.fr                    Yes			No		  Yes			B
 
-www.fitbit.com			No			No		  No
-www.st.com			No			No		  Yes
-www.academia.edu		Terrible Cert Chain! X+X+W+Y+Z-> ca ? Yes No
-www.rsaconference.com		Yes			No		  Yes
-blog.knowbe4.com		Yes			No		  Yes
-ec.europa.eu			No			No		  No	  
-www.crowdsupply.com		No			No		  Yes	
-iscc2021.unipi.gr               Misconfigured cert chain ?		  No
-www.kinvaraskincare.com		Yes			No		  Yes
-www.bundledocs.com		No			No		  No (same failure as for mozilla.org?)
+www.fitbit.com			No			No		  No			A	
+www.st.com			No			No		  Yes			A
+www.academia.edu		Terrible Cert Chain! X+X+W+Y+Z-> ca ? Yes No			A+
+www.rsaconference.com		Yes			No		  Yes			B		
+blog.knowbe4.com		Yes			No		  Yes			B
+ec.europa.eu			No			No		  No			B
+www.crowdsupply.com		No			No		  Yes			A+
+iscc2021.unipi.gr               Misconfigured cert chain ?		  No			B
+www.kinvaraskincare.com		Yes			No		  Yes			A
+www.bundledocs.com		No			No		  No			A
