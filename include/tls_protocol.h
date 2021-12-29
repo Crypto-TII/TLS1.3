@@ -22,7 +22,13 @@
     @param hostname the host name (URL) of the server
     @return an initialised TLS1.3 session structure
  */
-extern TLS_session TLS13_init_state(Socket *client,char *hostname);
+extern TLS_session TLS13_start(Socket *client,char *hostname);
+
+/**	@brief terminate a session structure
+ *
+    @param session the session structure
+ */
+extern void TLS13_end(TLS_session *session);
 
 /**	@brief TLS 1.3 perform full handshake
  *

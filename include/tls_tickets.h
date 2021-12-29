@@ -33,4 +33,10 @@ extern int parseTicket(octad *TICK,unsign32 birth,ticket *T);
  */
 extern void initTicketContext(ticket *T);
 
+/**	@brief terminate a ticket structure
+ *
+    @param T the ticket structure
+ */
+extern void endTicketContext(ticket *T);
+
 #endif

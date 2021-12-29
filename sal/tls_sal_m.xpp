@@ -35,6 +35,10 @@ bool SAL_initLib()
     return true;
 }
 
+void SAL_endLib()
+{
+}
+
 int SAL_ciphers(int *ciphers)
 {
     int n=2;

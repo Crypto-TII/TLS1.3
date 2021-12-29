@@ -20,14 +20,6 @@ typedef int64_t sign64;			/**< 64-bit signed integer */
 typedef uint32_t unsign32 ;		/**< 32-bit unsigned integer */
 typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
-//using byte = uint8_t;			/**< 8-bit unsigned integer */
-//using sign8 = int8_t;			/**< 8-bit signed integer */
-//using sign16 = int16_t;			/**< 16-bit signed integer */
-//using sign32 = int32_t;			/**< 32-bit signed integer */
-//using sign64 = int64_t;			/**< 64-bit signed integer */
-//using unsign32 = uint32_t;		/**< 32-bit unsigned integer */
-//using unsign64 = uint64_t;		/**< 64-bit unsigned integer */
-
 // Terminal Output
 #define IO_NONE 0           /**< Run silently */
 #define IO_APPLICATION 1    /**< just print application traffic */
@@ -38,15 +30,20 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Supported protocols
 #define TLS_HTTP_PROTOCOL 1  /**< Supported ALPN protocol */
 
-#ifdef TLS_ARDUINO
-#define POPULAR_ROOT_CERTS        /**< Define this to limit root CAs to most popular only */
-#endif
+//#ifdef TLS_ARDUINO
+//#define POPULAR_ROOT_CERTS        /**< Define this to limit root CAs to most popular only */
+//#endif
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 #define TLS_PROTOCOL TLS_HTTP_PROTOCOL   /**< Selected application protocol */
+
+// Note that the IOBUFF is quite large, and therefore maybe better taken from the heap
+// on systems with a shallow stack. Define this to use the heap.
+
+#define IOBUFF_FROM_HEAP          /**< Get main IO buffer from heap, else stack */
 // *****************************************************************************
 
 // Encryption
@@ -73,15 +70,19 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_CLIENT_HELLO 256         /**< Max client hello size (less extensions) */
 #define TLS_MAX_EXT_LABEL 256            /**< Max external psk label size */
 
-#ifdef TLS_ARDUINO
-#define TLS_MAX_TICKET_SIZE 512         /**< maximum resumption ticket size */
-#define TLS_MAX_EXTENSIONS 512          /**< Max extensions size */
-#define TLS_MAX_IO_SIZE 4096             /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
-#else
+//#ifdef TLS_ARDUINO
+//#define TLS_MAX_TICKET_SIZE 512         /**< maximum resumption ticket size */
+//#define TLS_MAX_EXTENSIONS 512          /**< Max extensions size */
+//#define TLS_MAX_IO_SIZE 4096             /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+//#else
 #define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
+#ifdef IOBUFF_FROM_HEAP
+#define TLS_MAX_IO_SIZE 16384            /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+#else
 #define TLS_MAX_IO_SIZE 8192             /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
 #endif
+//#endif
 
 #define TLS_MAX_SIGNATURE_SIZE 512      /**< Max digital signature size in bytes  */
 #define TLS_MAX_PUB_KEY_SIZE 512        /**< Max public key size in bytes */
@@ -319,7 +320,9 @@ typedef struct
     octad CTS;              /**< Client Traffic secret */
     char cts[TLS_MAX_HASH];
     octad IO;               /**< Main IO buffer for this connection */
+#ifndef IOBUFF_FROM_HEAP
     char io[TLS_MAX_IO_SIZE];
+#endif
     unihash tlshash;        /**< Transcript hash recorder */
     ticket T;               /**< resumption ticket */
 } TLS_session;

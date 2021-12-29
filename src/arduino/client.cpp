@@ -42,6 +42,8 @@ void setup()
 {
     char* ssid = (char *)"eir79562322-2.4G";
     char* password =  (char *)"********";
+//    char* ssid = (char *)"TP-LINK_5B40F0";
+//    char* password =  (char *)"********";
     Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
     WiFi.begin(ssid, password);
@@ -52,15 +54,7 @@ void setup()
     Serial.print("\nWiFi connected with IP: ");
     Serial.println(WiFi.localIP());
 
-// Initialise Security Abstraction Layer
-    bool retn=SAL_initLib();
-    if (!retn)
-    {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
-#endif
-        return;
-    }
+
 
 #ifdef ESP32
     xTaskCreatePinnedToCore(
@@ -93,12 +87,24 @@ void loop() {
     octad RESP={0,sizeof(resp),resp};  // response
     Socket client;
     int port=443;
-    char* hostname = (char *)"www.bbc.co.uk";  // HTTPS TLS1.3 server
-    TLS_session state=TLS13_init_state(&client,hostname);
+    char* hostname = (char *)"tls13.cloudfare.com";  // HTTPS TLS1.3 server
+
+// Initialise Security Abstraction Layer
+    bool retn=SAL_initLib();
+    if (!retn)
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
+#endif
+        mydelay();
+        return;
+    }
+
+    TLS_session state=TLS13_start(&client,hostname);
     TLS_session *session=&state;
 
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"Hostname= ",hostname,0,NULL);
+    logger((char *)"\nHostname= ",hostname,0,NULL);
 #endif
 
     make_client_message(&GET,hostname);
@@ -112,20 +118,19 @@ void loop() {
         mydelay();
  		return;
     }
-#if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"\nAttempting full handshake\n",NULL,0,NULL);
-#endif
 
-    TLS13_connect(session,&GET);  // FULL handshake and connection to server
-    TLS13_recv(session,&RESP);    // Server response + ticket
+    bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
+    if (success) {
+        TLS13_recv(session,&RESP);    // Server response + ticket
 #if VERBOSITY >= IO_APPLICATION
-    logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+        logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 #endif
-    TLS13_clean(session);   // but leave ticket intact
+        TLS13_clean(session);   // but leave ticket intact
+    }
 // drop the connection..
     client.stop();
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"Connection closed\n",NULL,0,NULL);
+    logger((char *)"Connection closed\n\n",NULL,0,NULL);
 #endif
     delay(5000);
 
@@ -138,16 +143,18 @@ void loop() {
         mydelay();
  		return;
     }
-#if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"\nAttempting resumption\n",NULL,0,NULL);
-#endif
 
-    TLS13_connect(session,&GET);  // Resumption handshake and connection to server
-    TLS13_recv(session,&RESP);    // Server response + ticket
+    success=TLS13_connect(session,&GET);  // Resumption handshake and connection to server
+    if (success) {
+        TLS13_recv(session,&RESP);    // Server response + ticket
 #if VERBOSITY >= IO_APPLICATION
-    logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+        logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 #endif
-
+    } else {
+#if VERBOSITY >= IO_APPLICATION
+        logger((char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
+#endif
+    }
     client.stop();
 // drop the connection..
 #if VERBOSITY >= IO_PROTOCOL
@@ -157,9 +164,14 @@ void loop() {
 #ifdef ESP32
     Serial.print("Amount of unused stack memory ");     // useful information!
     Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    SAL_endLib();
     delay(5000);
     }
 #else
+    SAL_endLib();
     delay(5000);
 #endif
+    TLS13_end(session);
+    while (Serial.available() == 0) {}
+    Serial.read(); 
 }

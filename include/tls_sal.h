@@ -47,11 +47,16 @@ extern int SAL_sigs(int *sigAlgs);
 */
 extern int SAL_sigCerts(int *sigAlgsCert);
 
-/** @brief Initialise libraries
+/** @brief Initialise library for use
 *
     @return return true if successful, else false
 */
 extern bool SAL_initLib();
+
+/** @brief finish use of library
+*
+*/
+extern void SAL_endLib();
 
 /** @brief return hash type asspciated with a cipher suite
 *

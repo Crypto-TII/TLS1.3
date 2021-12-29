@@ -35,7 +35,33 @@ const char *mycert=(char *)
 "-----END CERTIFICATE-----\n";
 
 /*
-// My Arduino Nano 33 IoT self-signed Cert. Private key is on the board.
+// My first Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0.
+const char *mycert=(char *) 
+"-----BEGIN CERTIFICATE-----\n"
+"MIIBKzCB0aADAgECAgEBMAoGCCqGSM49BAMCMB0xGzAZBgNVBAMTEjAxMjM0NjI0QjIwMjYwRDdF\n"
+"RTAeFw0yMTExMTgxMTAwMDBaFw0yNjExMTgxMTAwMDBaMB0xGzAZBgNVBAMTEjAxMjM0NjI0QjIw\n"
+"MjYwRDdFRTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDOFj/SnArwqM15cZs/bXppfTuAxgMzB\n"
+"N3LS48xHSqpLhHlVnvOvWqyhE8v+ZX4Jzlo7Z9LGOG537EeldBeGjYijAjAAMAoGCCqGSM49BAMC\n"
+"A0kAMEYCIQC9O1l85YX1+9vZ0t/SHQ3zFH5e7Vc8XtrZ+mTtMc5riwIhAL/SektrG3C0JwII0VV5\n"
+"pSR9RRnuwo810km81P4S56/m\n"
+"-----END CERTIFICATE-----\n"
+*/
+
+/*
+// My second Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0.
+const char *mycert=(char *) 
+"-----BEGIN CERTIFICATE-----
+"MIIBKzCB0aADAgECAgEBMAoGCCqGSM49BAMCMB0xGzAZBgNVBAMTEjAxMjM2RDlBNkNDRUQ5RUNF\n"
+"RTAeFw0yMTEyMjgxMjAwMDBaFw0yNjEyMjgxMjAwMDBaMB0xGzAZBgNVBAMTEjAxMjM2RDlBNkND\n"
+"RUQ5RUNFRTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABBxL51SsKUIJ6Akw2IMsn3PMa5tm8kRT\n"
+"NDLBHfvIPZh05hoVnR3LO4+Ho91dMbN38tVM71opoTzPtIWrj5L6WI6jAjAAMAoGCCqGSM49BAMC\n"
+"A0kAMEYCIQDgqosqLRntTyehtDCuWcY6WP41sfwx1k78W6EkLpoDyQIhAPzxQawMjI9mLeePF6Kk\n"
+"BzPRSurX7+nLFDC6u3pfmEY8\n"
+"-----END CERTIFICATE-----\n"
+*/
+
+/*
+// My Arduino Nano 33 IoT self-signed Cert. Private key is on the board slot 0.
 const char *mycert=(char *) 
 "-----BEGIN CERTIFICATE-----\n"
 "MIIBKjCB0aADAgECAgEBMAoGCCqGSM49BAMCMB0xGzAZBgNVBAMTEjAxMjNBMDUz\n"

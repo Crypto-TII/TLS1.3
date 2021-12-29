@@ -241,7 +241,7 @@ int main(int argc, char const *argv[])
     }
 
 // create new session
-    TLS_session state=TLS13_init_state(&client,hostname);
+    TLS_session state=TLS13_start(&client,hostname);
     TLS_session *session=&state;
 
     HAVE_TICKET=true;
@@ -313,5 +313,6 @@ int main(int argc, char const *argv[])
     if (session->T.valid && !TICKET_FAILED)
         storeTicket(session);
 
+    TLS13_end(session);
     return 0;
 }

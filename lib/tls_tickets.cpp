@@ -47,6 +47,21 @@ void initTicketContext(ticket *T)
     T->origin=0;
 }
 
+void endTicketContext(ticket *T)
+{
+    OCT_kill(&T->NONCE);
+    OCT_kill(&T->PSK);
+    OCT_kill(&T->TICK);
+
+    T->lifetime=0;
+    T->age_obfuscator=0;
+    T->max_early_data=0;
+    T->birth=0;
+    T->cipher_suite=0;
+    T->favourite_group=0;
+    T->origin=0;
+}
+
 // Parse ticket data and birth time into a ticket structure 
 int parseTicket(octad *TICK,unsign32 birth,ticket *T)  
 {
