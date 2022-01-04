@@ -36,7 +36,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
-#define THIS_YEAR 2021            /**< Set to this year - crudely used to deprecate old certificates */
+#define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 #define TLS_PROTOCOL TLS_HTTP_PROTOCOL   /**< Selected application protocol */
 
@@ -77,6 +77,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 //#else
 #define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
+
 #ifdef IOBUFF_FROM_HEAP
 #define TLS_MAX_IO_SIZE 16384            /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
 #else
@@ -329,4 +330,3 @@ typedef struct
 
 
 #endif
-

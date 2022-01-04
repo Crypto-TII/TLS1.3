@@ -5,6 +5,25 @@
 #include "tls_protocol.h"
 #include "tls_wifi.h"
 
+int readLine(char *line) {
+  int i=0;
+  while (1) {
+    if (Serial.available()) {
+      char c = Serial.read();
+
+      if (c == '\r') {
+        // ignore
+        continue;
+      } else if (c == '\n') {
+        break;
+      }
+      line[i++] = c;
+    }
+  }
+  line[i]=0;
+  return i;
+}
+
 // Construct an HTML GET command
 void make_client_message(octad *GET,char *hostname)
 {
@@ -41,9 +60,9 @@ void myloop( void *pvParameters );
 void setup()
 {
     char* ssid = (char *)"eir79562322-2.4G";
-    char* password =  (char *)"********";
+    char* password =  (char *)"uzy987ru";
 //    char* ssid = (char *)"TP-LINK_5B40F0";
-//    char* password =  (char *)"********";
+//    char* password =  (char *)"31146678";
     Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
     WiFi.begin(ssid, password);
@@ -53,8 +72,6 @@ void setup()
     }
     Serial.print("\nWiFi connected with IP: ");
     Serial.println(WiFi.localIP());
-
-
 
 #ifdef ESP32
     xTaskCreatePinnedToCore(
@@ -87,7 +104,13 @@ void loop() {
     octad RESP={0,sizeof(resp),resp};  // response
     Socket client;
     int port=443;
-    char* hostname = (char *)"tls13.cloudfare.com";  // HTTPS TLS1.3 server
+    char hostname[128];
+    int len;
+    do {
+        Serial.print("Enter URL (e.g. www.bbc.co.uk) = ");
+        len=readLine(hostname);
+    } while (len==0);
+    //char* hostname = (char *)"tls13.cloudfare.com";  // HTTPS TLS1.3 server
 
 // Initialise Security Abstraction Layer
     bool retn=SAL_initLib();

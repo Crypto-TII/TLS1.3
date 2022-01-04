@@ -1,7 +1,7 @@
 
 # Configure the Arduino Nano RP2040
 
-This build is specifically for Arduino version of Raspberry Pi Pico (RP2040)
+This build is specifically for Arduino Nano version of Raspberry Pi Pico (RP2040)
 
 First the board needs to be initialised and locked. To do this install the ArduinoECCX08 library and run the ECCX08SelfSignedCert example program. 
 
@@ -10,11 +10,11 @@ First the board needs to be initialised and locked. To do this install the Ardui
 This program (a) locks the board, and (b) generates a self-signed X.509 certificate, with an associated private key hidden in Slot 0. Copy 
 the self-signed certificate and place it into tls_client_cert.cpp where indicated.
 
-Note that the ECC608A chip does a lot of the heavy crypto lifting, especially if the secp256r1 curve is used for certificate signatures.
+Note that the ECC608A chip does a lot of the heavy crypto lifting, especially if the secp256r1 curve is used for certificate signature verification.
 
 The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calculation. See the ECC608A documentation for more detail.
 
-# Building the client application on an Arduino board.
+# Building the client application on the Arduino Nano RP2040 board.
 
 1.	Create working directory directory with name tiitls
 2.	Copy in all from the cpp directory of https://github.com/miracl/core
@@ -28,5 +28,7 @@ The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calc
 10.	Drop the working directory into where the Arduino IDE expects it. 
 11.	(In the IDE select File->Preferences and find the Sketchbook location - its the libraries directory off that.)
 12.	Open the Arduino app, and look in File->Examples->tiitls, and look for the example "client"
-13.	Upload to the board and run it! Tools->Serial Monitor to see the output.
+13.	Upload to the board and run it. Open Tools->Serial Monitor to see the output. 
+14.	Enter URL (e.g. www.bbc.co.uk) when prompted, and press return. A full TLS1.3 handshake followed by a resumption is attempted.
+15.	Click on Clear Output and Send to repeat for a different URL.
 
