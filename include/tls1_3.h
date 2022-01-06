@@ -166,7 +166,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define CERTIFICATE 0x0b                /**< Certificate message */ 
 #define CERT_REQUEST 0x0d               /**< Certificate Request */
 #define CERT_VERIFY 0x0f                /**< Certificate Verify message */ 
-#define FINISHED 0x14                   /**< Handshae Finished message */
+#define FINISHED 0x14                   /**< Handshake Finished message */
 #define ENCRYPTED_EXTENSIONS 0x08       /**< Encrypted Extensions message */ 
 #define TICKET 0x04                     /**< Ticket message */ 
 #define KEY_UPDATE 0x18                 /**< Key Update message */

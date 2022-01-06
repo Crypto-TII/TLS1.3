@@ -1,7 +1,7 @@
 
 # Configure the Arduino Nano RP2040
 
-This build is specifically for Arduino Nano version of Raspberry Pi Pico (RP2040)
+This build is specifically for the Arduino Nano version of the Raspberry Pi Pico (RP2040)
 
 First the board needs to be initialised and locked. To do this install the ArduinoECCX08 library and run the ECCX08SelfSignedCert example program. 
 
@@ -22,8 +22,8 @@ The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calc
 4.	(If ever asked to overwrite a file, go ahead and overwrite it)
 5.	Copy in all of the TLS1.3 code from the lib/, include/, sal/ and src/arduino directories (but not from subdirectories)
 6.	Edit the file core.h to define CORE_ARDUINO (line 31)
-7.	Edit the file tls_sockets.h to define TLS_ARDUINO. Optionally set VERBOSITY in tls1_3.h to IO_DEBUG.
-8.	Edit the file client.cpp to set your wifi SSID and password (near line 45)
+7.	Edit the file tls_sockets.h to define TLS_ARDUINO (line 13). Optionally define VERBOSITY in tls1_3.h as IO_DEBUG.
+8.	Edit the file client.cpp to set your wifi SSID and password (near line 62)
 9.	Run py config.py, and select options 2,8,41 and 43. This creates the SAL (in this case using miracl + ECC608A hardware).
 10.	Drop the working directory into where the Arduino IDE expects it. 
 11.	(In the IDE select File->Preferences and find the Sketchbook location - its the libraries directory off that.)
