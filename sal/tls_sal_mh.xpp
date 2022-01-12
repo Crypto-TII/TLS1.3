@@ -425,6 +425,7 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;
     SS->len=MC_SS.len;
+    OCT_kill(SK);
 }
 
 // RSA 2048-bit PKCS1.5 signature verification

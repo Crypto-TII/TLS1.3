@@ -60,9 +60,9 @@ void myloop( void *pvParameters );
 void setup()
 {
     char* ssid = (char *)"eir79562322-2.4G";
-    char* password =  (char *)"uzy987ru";
+    char* password =  (char *)"********";
 //    char* ssid = (char *)"TP-LINK_5B40F0";
-//    char* password =  (char *)"31146678";
+//    char* password =  (char *)"********";
     Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
     WiFi.begin(ssid, password);

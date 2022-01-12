@@ -256,18 +256,8 @@ int main(int argc, char const *argv[])
         session->T.valid=true;
         removeTicket();  // delete any stored ticket - fall into resumption mode
     } else {
-// See if there is an ticket for this host, if so insert it into session
         if (!recoverTicket(session))
-        {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Ticket for this host not found\n",NULL,0,NULL);
-#endif
             HAVE_TICKET=false;
-        } else {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Resumption Ticket found\n",NULL,0,NULL);
-#endif
-        }
     }
 //    removeTicket();    // old tickets MAY be re-used, so don't remove
 

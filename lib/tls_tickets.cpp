@@ -104,3 +104,18 @@ int parseTicket(octad *TICK,unsign32 birth,ticket *T)
     T->valid=true;
     return 0;
 }
+
+// check a ticket exists, its good, and its not out-of-date
+bool ticket_still_good(ticket *T)
+{
+    unsign32 time_ticket_received,time_ticket_used;
+    unsign32 age;
+    if (T->lifetime<=0 || !T->valid)
+        return false;
+    time_ticket_received=T->birth;
+    time_ticket_used=(unsign32)millis();
+    age=time_ticket_used-time_ticket_received;
+    if (age>1000*T->lifetime)
+        return false;
+    return true;
+}

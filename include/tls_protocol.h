@@ -35,7 +35,7 @@ extern void TLS13_end(TLS_session *session);
     @param session an initialised TLS session structure
     @return 0 for failure, otherwise success
  */
-extern int TLS13_full(TLS_session *session);
+//extern int TLS13_full(TLS_session *session);
 
 /**	@brief TLS 1.3 perform resumption handshake
  *
@@ -43,7 +43,7 @@ extern int TLS13_full(TLS_session *session);
     @param EARLY some early data to be transmitted
     @return 0 for failure, otherwise success
  */
-extern int TLS13_resume(TLS_session *session,octad *EARLY);
+//extern int TLS13_resume(TLS_session *session,octad *EARLY);
 
 /**	@brief TLS 1.3 forge connection
  *
