@@ -103,14 +103,8 @@ void loop() {
     char resp[40];
     octad RESP={0,sizeof(resp),resp};  // response
     Socket client;
-    int port=443;
+    int len,port=443;
     char hostname[128];
-    int len;
-    do {
-        Serial.print("Enter URL (e.g. www.bbc.co.uk) = ");
-        len=readLine(hostname);
-    } while (len==0);
-    //char* hostname = (char *)"tls13.cloudfare.com";  // HTTPS TLS1.3 server
 
 // Initialise Security Abstraction Layer
     bool retn=SAL_initLib();
@@ -120,6 +114,76 @@ void loop() {
         logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
 #endif
         mydelay();
+        return;
+    }
+
+    Serial.print("Enter URL (e.g. www.bbc.co.uk) = ");
+    len=readLine(hostname);
+
+    if (len==0)
+    {
+        int i,ns,iterations;
+        int nt[20];
+        int start,elapsed;
+        Serial.print("\nCryptography by "); Serial.println(SAL_name());
+        ns=SAL_groups(nt);
+        Serial.println("SAL supported Key Exchange groups");
+        for (i=0;i<ns;i++ )
+        {
+            Serial.print("    ");
+            nameKeyExchange(nt[i]);
+
+            char sk[TLS_MAX_SECRET_KEY_SIZE];
+            octad SK={0,sizeof(sk),sk};
+            char pk[TLS_MAX_PUB_KEY_SIZE];
+            octad PK={0,sizeof(pk),pk};
+            char ss[TLS_MAX_PUB_KEY_SIZE];
+            octad SS={0,sizeof(ss),ss};
+
+            iterations=0;
+            start = millis();
+            do {
+                SAL_generateKeyPair(nt[i],&SK,&PK);
+                iterations++;
+                elapsed = (millis() - start);
+            } while (elapsed < 1000 || iterations < 4);
+            elapsed = elapsed / iterations;
+            Serial.print("        Key Generation (ms)= "); Serial.println(elapsed);
+
+            iterations=0;
+            start = millis();
+            do {
+                SAL_generateSharedSecret(nt[i],&SK,&PK,&SS);   
+                iterations++;
+                elapsed = (millis() - start);
+            } while (elapsed < 1000 || iterations < 4);
+            elapsed = elapsed / iterations;
+            Serial.print("        Shared Secret (ms)= "); Serial.println(elapsed);
+
+        }
+        ns=SAL_ciphers(nt);
+        Serial.println("SAL supported Cipher suites");
+        for (i=0;i<ns;i++ )
+        {
+            Serial.print("    ");
+            nameCipherSuite(nt[i]);
+        }
+        ns=SAL_sigs(nt);
+        Serial.println("SAL supported TLS signatures");
+        for (i=0;i<ns;i++ )
+        {
+            Serial.print("    ");
+            nameSigAlg(nt[i]);
+        }
+        ns=SAL_sigCerts(nt);
+        Serial.println("SAL supported Certificate signatures");
+        for (i=0;i<ns;i++ )
+        {
+            Serial.print("    ");
+            nameSigAlg(nt[i]);
+        }
+        while (Serial.available() == 0) {}
+        Serial.read(); 
         return;
     }
 
@@ -138,7 +202,8 @@ void loop() {
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Unable to access ",hostname,0,NULL);
 #endif
-        mydelay();
+        while (Serial.available() == 0) {}
+        Serial.read(); 
  		return;
     }
 
@@ -163,7 +228,8 @@ void loop() {
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Unable to access ",hostname,0,NULL);
 #endif
-        mydelay();
+        while (Serial.available() == 0) {}
+        Serial.read(); 
  		return;
     }
 

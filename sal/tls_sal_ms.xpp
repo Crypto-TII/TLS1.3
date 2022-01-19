@@ -31,7 +31,7 @@ csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware sou
 
 char* SAL_name()
 {
-    return (char *)"MIRACL Core and LibSodium"; 
+    return (char *)"MIRACL Core + LibSodium"; 
 }
 
 bool SAL_initLib()
@@ -369,7 +369,7 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;
     SS->len=MC_SS.len;
-    OCT_kill(SK);
+//    OCT_kill(SK);
 }
 
 // RSA 2048-bit PKCS1.5 signature verification

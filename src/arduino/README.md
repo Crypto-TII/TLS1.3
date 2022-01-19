@@ -30,5 +30,5 @@ The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calc
 12.	Open the Arduino app, and look in File->Examples->tiitls, and look for the example "client"
 13.	Upload to the board and run it. Open Tools->Serial Monitor to see the output. 
 14.	Enter URL (e.g. www.bbc.co.uk) when prompted, and press return. A full TLS1.3 handshake followed by a resumption is attempted.
-15.	Click on Clear Output and Send to repeat for a different URL.
+15.	Click on Clear Output and Send to repeat for a different URL (or click Send again to see SAL capabilities).
 

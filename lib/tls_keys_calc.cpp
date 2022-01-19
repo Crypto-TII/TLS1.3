@@ -152,7 +152,7 @@ void deriveUpdatedKeys(crypto *context,octad *TS)
 }
 
 // Create a crypto context from an input raw Secret and an agreed cipher_suite 
-static void createCryptoContext(int cipher_suite,octad *TS,crypto *context)
+void createCryptoContext(int cipher_suite,octad *TS,crypto *context)
 {
     int key,htype=SAL_hashType(cipher_suite);
     if (cipher_suite==TLS_AES_128_GCM_SHA256)
