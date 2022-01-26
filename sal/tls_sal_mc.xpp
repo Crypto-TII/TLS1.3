@@ -437,8 +437,6 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         //for (int i=0;i<GFP_X25519_BYTELEN;i++)
         //    printf("%02x",(uint8_t)SS->val[i]);
         //printf("\n");
-
-//        OCT_kill(SK);
     }
 
     if (group==SECP256R1) {
