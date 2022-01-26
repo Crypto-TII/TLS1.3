@@ -7,7 +7,7 @@
 static const char *http= (const char *)"687474702f312e31"; // http/1.1
 
 // Initialise TLS 1.3 session state
-TLS_session TLS13_init_state(Socket *sockptr,char *hostname)
+TLS_session TLS13_start(Socket *sockptr,char *hostname)
 {
     TLS_session state;
     state.sockptr=sockptr;                                  // pointer to socket
@@ -31,14 +31,24 @@ TLS_session TLS13_init_state(Socket *sockptr,char *hostname)
     state.CTS.val = state.cts;
     state.IO.len = 0;
     state.IO.max = TLS_MAX_IO_SIZE;
+#ifdef IOBUFF_FROM_HEAP
+    state.IO.val = (char *)malloc(TLS_MAX_IO_SIZE);
+#else
     state.IO.val = state.io;                                // main input/output buffer
+#endif
     state.favourite_group=state.CPB.supportedGroups[0];     // favourite key exchange group - may be changed on handshake retry
     initTicketContext(&state.T);                            // Resumption ticket - may be added to session state
     return state;
 }
 
+#define CLEAN_FULL_STACK \
+    OCT_kill(&CSK); OCT_kill(&PK); OCT_kill(&SS); OCT_kill(&CH); OCT_kill(&EXT); \
+    OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&HH); OCT_kill(&FH); OCT_kill(&TH); \
+    OCT_kill(&CID); OCT_kill(&COOK); OCT_kill(&SCVSIG); OCT_kill(&FIN); OCT_kill(&CHF); \
+    OCT_kill(&CETS); OCT_kill(&ALPN);
+
 // TLS1.3 full handshake - connect to server
-int TLS13_full(TLS_session *session)
+static int TLS13_full(TLS_session *session)
 {
     ret rtn;
     int i,pskid;
@@ -83,6 +93,10 @@ int TLS13_full(TLS_session *session)
     octad CETS={0,sizeof(cets),cets};   // Early traffic secret
     char alpn[8];
     octad ALPN={0,sizeof(alpn),alpn};         // ALPN
+
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Attempting Full Handshake\n",NULL,0,NULL);
+#endif
 
 #ifdef HAVE_A_CLIENT_CERT
     char client_key[TLS_MAX_MYCERT_SIZE];           
@@ -156,6 +170,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 
@@ -176,6 +192,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
     logCipherSuite(session->cipher_suite);
@@ -203,6 +221,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
             logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+            CLEAN_FULL_STACK
+            TLS13_clean(session);
             return TLS_FAILURE;
         }
 #if VERBOSITY >= IO_DEBUG
@@ -254,6 +274,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
             logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+            CLEAN_FULL_STACK
+            TLS13_clean(session);
             return TLS_FAILURE;
         }
         if (rtn.val==HANDSHAKE_RETRY)
@@ -265,6 +287,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
             logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+            CLEAN_FULL_STACK
+            TLS13_clean(session);
             return TLS_FAILURE;
         }
         if (cs_hrr!=session->cipher_suite)
@@ -276,6 +300,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+            CLEAN_FULL_STACK
+            TLS13_clean(session);
             return TLS_FAILURE;
         }
         resumption_required=true;
@@ -329,6 +355,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
     logEncExt(&enc_ext_expt,&enc_ext_resp);
@@ -343,6 +371,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 
@@ -360,6 +390,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
             logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+            CLEAN_FULL_STACK
+            TLS13_clean(session);
             return TLS_FAILURE;
         }
 
@@ -372,6 +404,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
             logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+            CLEAN_FULL_STACK
+            TLS13_clean(session);
             return TLS_FAILURE;
         }
     }
@@ -382,6 +416,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
     rtn=getCheckServerCertificateChain(session,&SS);
@@ -395,6 +431,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
     transcriptHash(session,&HH); // HH = hash of clientHello+serverHello+encryptedExtensions+CertChain
@@ -411,6 +449,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
     if (rtn.val!=CERT_VERIFY)
@@ -419,6 +459,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
     rtn=getServerCertVerify(session,&SCVSIG,sigalg);
@@ -432,6 +474,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 
@@ -450,6 +494,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 #if VERBOSITY >= IO_DEBUG
@@ -467,6 +513,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 
@@ -479,6 +527,8 @@ int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_FULL_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 #if VERBOSITY >= IO_DEBUG
@@ -557,16 +607,26 @@ int TLS13_full(TLS_session *session)
     logger((char *)"Server application traffic secret= ",NULL,0,&session->STS);
 #endif
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"FULL Handshake concluded\n",NULL,0,NULL);
+    logger((char *)"FULL Handshake succeeded\n",NULL,0,NULL);
     if (resumption_required) logger((char *)"... after handshake resumption\n",NULL,0,NULL);
 #endif
+
+    CLEAN_FULL_STACK
+    OCT_kill(&session->IO);  // clean up IO buffer
+
     if (resumption_required) return TLS_RESUMPTION_REQUIRED;
     return TLS_SUCCESS;
 }
 
+#define CLEAN_RESUMPTION_STACK \
+    OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&SS); OCT_kill(&CSK); OCT_kill(&PK); \
+    OCT_kill(&CH); OCT_kill(&EXT); OCT_kill(&HH); OCT_kill(&FH); OCT_kill(&TH); \
+    OCT_kill(&FIN); OCT_kill(&CHF); OCT_kill(&CETS); OCT_kill(&CID); OCT_kill(&COOK); \
+    OCT_kill(&BND); OCT_kill(&BL); OCT_kill(&PSK); OCT_kill(&BK); OCT_kill(&ALPN);
+
 // TLS1.3 fast resumption handshake (0RTT and 1RTT)
 // EARLY - First message from Client to Server (should ideally be sent as early data!)
-int TLS13_resume(TLS_session *session,octad *EARLY)
+static int TLS13_resume(TLS_session *session,octad *EARLY)
 {
     int hashtype,kex,pskid;
     ret rtn;
@@ -608,10 +668,6 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
     octad PSK={0,sizeof(psk),psk};      // Pre-shared key
     char bk[TLS_MAX_HASH];
     octad BK={0,sizeof(bk),bk};         // Binder key
-    char nonce[32];
-    octad NONCE={0,sizeof(nonce),nonce}; // ticket nonce
-    char etick[TLS_MAX_TICKET_SIZE];
-    octad ETICK={0,sizeof(etick),etick}; // ticket
     char alpn[8];
     octad ALPN={0,sizeof(alpn),alpn};         // ALPN
 
@@ -638,24 +694,16 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
     lifetime=session->T.lifetime;
     age_obfuscator=session->T.age_obfuscator;
     max_early_data=session->T.max_early_data;
-    OCT_copy(&ETICK,&session->T.TICK);
-    OCT_copy(&NONCE,&session->T.NONCE);
     OCT_copy(&PSK,&session->T.PSK);
     time_ticket_received=session->T.birth;
     session->cipher_suite=session->T.cipher_suite;
     session->favourite_group=session->T.favourite_group;
     origin=session->T.origin;
 
-    if (lifetime<0) 
-    {
-#if VERBOSITY >= IO_DEBUG
-        logger((char *)"Bad Ticket\n",NULL,0,NULL);
-#endif
 #if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
+        logger((char *)"Attempting Resumption Handshake\n",NULL,0,NULL);
 #endif
-        return TLS_FAILURE;
-    }
+
     logTicket(&session->T); // lifetime,age_obfuscator,max_early_data,&NONCE,&ETICK);
 
     if (max_early_data==0 || EARLY==NULL)
@@ -685,7 +733,6 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
     logger((char *)"Private key= ",NULL,0,&CSK);  
     logger((char *)"Client Public key= ",NULL,0,&PK);  
 #endif
-
 
 // Client Hello
 // First build client Hello extensions
@@ -723,9 +770,8 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
         logger((char *)"obfuscated age = ",(char *)"%x",age,NULL);
 #endif
     }
-    int extra=addPreSharedKeyExt(&EXT,age,&ETICK,SAL_hashLen(hashtype));
 
-
+    int extra=addPreSharedKeyExt(&EXT,age,&session->T.TICK,SAL_hashLen(hashtype));
     int ciphers[1]; ciphers[0]=session->cipher_suite;     // Only allow one cipher suite
 // create and send Client Hello octad
     sendClientHello(session,TLS1_2,&CH,1,ciphers,&CID,&EXT,extra,false);  
@@ -766,7 +812,6 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
     {
 #if VERBOSITY >= IO_APPLICATION
         logger((char *)"Sending some early data\n",NULL,0,NULL);
-        logger((char *)"Sending Application Message\n\n",EARLY->val,0,NULL);
 #endif
         sendClientMessage(session,APPLICATION,TLS1_2,EARLY,NULL);
 //
@@ -795,6 +840,8 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_RESUMPTION_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 
@@ -804,6 +851,8 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_RESUMPTION_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
 	}
 
@@ -813,6 +862,8 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
         logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
 #endif
         sendClientAlert(session,CLOSE_NOTIFY);
+        CLEAN_RESUMPTION_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
     logServerHello(session->cipher_suite,kex,pskid,&PK,&COOK);
@@ -826,6 +877,8 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_RESUMPTION_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 #if VERBOSITY >= IO_DEBUG
@@ -858,6 +911,8 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_RESUMPTION_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
     logEncExt(&enc_ext_expt,&enc_ext_resp);
@@ -878,6 +933,8 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_RESUMPTION_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 
@@ -905,6 +962,8 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
 #endif
+        CLEAN_RESUMPTION_STACK
+        TLS13_clean(session);
         return TLS_FAILURE;
     }
 
@@ -932,32 +991,42 @@ int TLS13_resume(TLS_session *session,octad *EARLY)
     logger((char *)"Server application traffic secret= ",NULL,0,&session->STS);
 #endif
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"RESUMPTION Handshake concluded\n",NULL,0,NULL);
-    if (enc_ext_resp.early_data) logger((char *)"Early data was accepted\n",NULL,0,NULL);
+    logger((char *)"RESUMPTION Handshake succeeded\n",NULL,0,NULL);
 #endif
-    if (enc_ext_resp.early_data) return TLS_EARLY_DATA_ACCEPTED;
+    CLEAN_RESUMPTION_STACK
+    OCT_kill(&session->IO);  // clean up IO buffer
+
+    if (enc_ext_resp.early_data)
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Application Message accepted as Early Data\n\n",EARLY->val,0,NULL);
+#endif
+        return TLS_EARLY_DATA_ACCEPTED;
+    }
     return TLS_SUCCESS;
 }
 
 // connect to server
-// first try resumption if session has a ticket attached
+// first try resumption if session has a good ticket attached
 bool TLS13_connect(TLS_session *session,octad *EARLY)
 {
     int rtn=0;
     bool early_went=false;
-    if (session->T.valid)
-    { // have a valid ticket? Try it.
+    if (ticket_still_good(&session->T))
+    { // have a good ticket? Try it.
         rtn=TLS13_resume(session,EARLY);
-        if (rtn==2) early_went=true;
+        if (rtn==TLS_EARLY_DATA_ACCEPTED) early_went=true;
     } else {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Resumption Ticket not found or invalid\n",NULL,0,NULL);
+#endif
         rtn=TLS13_full(session);
     }
     initTicketContext(&session->T); // clear out any ticket
+    
     if (rtn==0)  // failed to connect
-    {
-        TLS13_clean(session);       // clean up session 
         return false;
-    }
+    
     if (!early_went && EARLY!=NULL)
         TLS13_send(session,EARLY);  // didn't go early, so send it now
 
@@ -1013,18 +1082,23 @@ int TLS13_recv(TLS_session *session,octad *REC)
                 switch (nb)
                 {
                 case TICKET :   // keep last ticket
-#if VERBOSITY >= IO_PROTOCOL
-                    logger((char *)"Got a ticket ",NULL,0,NULL);
-#endif
                     r=parseoctadorPullptr(session,&TICK,len,ptr);    // just copy out pointer to this
                     nticks++;
                     rtn=parseTicket(&TICK,(unsign32)millis(),&session->T);       // extract into ticket structure T, and keep for later use  
-                    session->T.cipher_suite=session->cipher_suite;
-                    session->T.favourite_group=session->favourite_group;
-                    session->T.valid=true;
+                    if (rtn==BAD_TICKET) {
+                        session->T.valid=false;
 #if VERBOSITY >= IO_PROTOCOL
-                    logger((char *)"with lifetime (minutes)= ",(char *)"%d",session->T.lifetime/60,NULL);
+                        logger((char *)"Got a bad ticket ",NULL,0,NULL);
 #endif
+                    } else {
+                        session->T.cipher_suite=session->cipher_suite;
+                        session->T.favourite_group=session->favourite_group;
+                        session->T.valid=true;
+#if VERBOSITY >= IO_PROTOCOL
+                        logger((char *)"Got a ticket with lifetime (minutes)= ",(char *)"%d",session->T.lifetime/60,NULL);
+#endif
+                    }
+
                     if (ptr==session->IO.len) fin=true; // record finished
                     if (fin) break;
                     continue;
@@ -1105,4 +1179,13 @@ void TLS13_clean(TLS_session *session)
     OCT_kill(&session->RMS);
     initCryptoContext(&session->K_send);
     initCryptoContext(&session->K_recv);
+}
+
+void TLS13_end(TLS_session *session)
+{
+    TLS13_clean(session);
+    endTicketContext(&session->T);
+#ifdef IOBUFF_FROM_HEAP
+    free(session->IO.val);
+#endif
 }

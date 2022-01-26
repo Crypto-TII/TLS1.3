@@ -65,6 +65,14 @@ extern void updateCryptoContext(crypto *C,octad *K,octad *IV);
 extern void incrementCryptoContext(crypto *C);
 
 
+/**	@brief Create a crypto context from an input raw Secret and an agreed cipher_suite 
+ *
+    @param cipher the chosen cipher site
+    @param TS the input raw secret
+    @param context the output crypto conetext
+ */
+extern void createCryptoContext(int cipher,octad *TS,crypto *context);
+
 /**	@brief Build a crypto context for transmission from an input raw Secret and an agreed cipher_suite 
  *
     @param session TLS session structure

@@ -2,8 +2,12 @@
 // Linux version
 // ./client www.bbc.co.uk
 
+#include <time.h>
 #include "tls_sal.h"
 #include "tls_protocol.h"
+
+#define MIN_TIME 1.0
+#define MIN_ITERS 1000
 
 // Extract ticket from cookie file, and attach to session
 static void storeTicket(TLS_session *session)
@@ -158,8 +162,10 @@ int main(int argc, char const *argv[])
 
     if (strcmp(argv[ip],"-s")==0)
     { // interrogate SAL
-        int i,ns;
+        int i,ns,iterations;
         int nt[20];
+        clock_t start;
+        double elapsed;
         printf("Cryptography by %s\n",SAL_name());
         ns=SAL_groups(nt);
         printf("SAL supported Key Exchange groups\n");
@@ -167,6 +173,34 @@ int main(int argc, char const *argv[])
         {
             printf("    ");
             nameKeyExchange(nt[i]);
+
+            char sk[TLS_MAX_SECRET_KEY_SIZE];
+            octad SK={0,sizeof(sk),sk};
+            char pk[TLS_MAX_PUB_KEY_SIZE];
+            octad PK={0,sizeof(pk),pk};
+            char ss[TLS_MAX_PUB_KEY_SIZE];
+            octad SS={0,sizeof(ss),ss};
+
+            iterations=0;
+            start = clock();
+            do {
+                SAL_generateKeyPair(nt[i],&SK,&PK);
+                iterations++;
+                elapsed = (clock() - start) / (double)CLOCKS_PER_SEC;
+            } while (elapsed < MIN_TIME || iterations < MIN_ITERS);
+            elapsed = 1000.0 * elapsed / iterations;
+            printf("        Key Generation %8.2lf ms\n", elapsed);
+
+            iterations=0;
+            start = clock();
+            do {
+                SAL_generateSharedSecret(nt[i],&SK,&PK,&SS);   
+                iterations++;
+                elapsed = (clock() - start) / (double)CLOCKS_PER_SEC;
+            } while (elapsed < MIN_TIME || iterations < MIN_ITERS);
+            elapsed = 1000.0 * elapsed / iterations;
+            printf("        Shared Secret  %8.2lf ms\n", elapsed);
+
         }
         ns=SAL_ciphers(nt);
         printf("SAL supported Cipher suites\n");
@@ -241,7 +275,7 @@ int main(int argc, char const *argv[])
     }
 
 // create new session
-    TLS_session state=TLS13_init_state(&client,hostname);
+    TLS_session state=TLS13_start(&client,hostname);
     TLS_session *session=&state;
 
     HAVE_TICKET=true;
@@ -256,18 +290,8 @@ int main(int argc, char const *argv[])
         session->T.valid=true;
         removeTicket();  // delete any stored ticket - fall into resumption mode
     } else {
-// See if there is an ticket for this host, if so insert it into session
         if (!recoverTicket(session))
-        {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Ticket for this host not found\n",NULL,0,NULL);
-#endif
             HAVE_TICKET=false;
-        } else {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Resumption Ticket found\n",NULL,0,NULL);
-#endif
-        }
     }
 //    removeTicket();    // old tickets MAY be re-used, so don't remove
 
@@ -313,5 +337,6 @@ int main(int argc, char const *argv[])
     if (session->T.valid && !TICKET_FAILED)
         storeTicket(session);
 
+    TLS13_end(session);
     return 0;
 }

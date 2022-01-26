@@ -5,6 +5,25 @@
 #include "tls_protocol.h"
 #include "tls_wifi.h"
 
+int readLine(char *line) {
+  int i=0;
+  while (1) {
+    if (Serial.available()) {
+      char c = Serial.read();
+
+      if (c == '\r') {
+        // ignore
+        continue;
+      } else if (c == '\n') {
+        break;
+      }
+      line[i++] = c;
+    }
+  }
+  line[i]=0;
+  return i;
+}
+
 // Construct an HTML GET command
 void make_client_message(octad *GET,char *hostname)
 {
@@ -42,6 +61,8 @@ void setup()
 {
     char* ssid = (char *)"eir79562322-2.4G";
     char* password =  (char *)"********";
+//    char* ssid = (char *)"TP-LINK_5B40F0";
+//    char* password =  (char *)"********";
     Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
     WiFi.begin(ssid, password);
@@ -51,16 +72,6 @@ void setup()
     }
     Serial.print("\nWiFi connected with IP: ");
     Serial.println(WiFi.localIP());
-
-// Initialise Security Abstraction Layer
-    bool retn=SAL_initLib();
-    if (!retn)
-    {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
-#endif
-        return;
-    }
 
 #ifdef ESP32
     xTaskCreatePinnedToCore(
@@ -92,13 +103,95 @@ void loop() {
     char resp[40];
     octad RESP={0,sizeof(resp),resp};  // response
     Socket client;
-    int port=443;
-    char* hostname = (char *)"www.bbc.co.uk";  // HTTPS TLS1.3 server
-    TLS_session state=TLS13_init_state(&client,hostname);
+    int len,port=443;
+    char hostname[128];
+
+// Initialise Security Abstraction Layer
+    bool retn=SAL_initLib();
+    if (!retn)
+    {
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
+#endif
+        mydelay();
+        return;
+    }
+
+    Serial.print("Enter URL (e.g. www.bbc.co.uk) = ");
+    len=readLine(hostname);
+
+    if (len==0)
+    {
+        int i,ns,iterations;
+        int nt[20];
+        int start,elapsed;
+        Serial.print("\nCryptography by "); Serial.println(SAL_name());
+        ns=SAL_groups(nt);
+        Serial.println("SAL supported Key Exchange groups");
+        for (i=0;i<ns;i++ )
+        {
+            Serial.print("    ");
+            nameKeyExchange(nt[i]);
+
+            char sk[TLS_MAX_SECRET_KEY_SIZE];
+            octad SK={0,sizeof(sk),sk};
+            char pk[TLS_MAX_PUB_KEY_SIZE];
+            octad PK={0,sizeof(pk),pk};
+            char ss[TLS_MAX_PUB_KEY_SIZE];
+            octad SS={0,sizeof(ss),ss};
+
+            iterations=0;
+            start = millis();
+            do {
+                SAL_generateKeyPair(nt[i],&SK,&PK);
+                iterations++;
+                elapsed = (millis() - start);
+            } while (elapsed < 1000 || iterations < 4);
+            elapsed = elapsed / iterations;
+            Serial.print("        Key Generation (ms)= "); Serial.println(elapsed);
+
+            iterations=0;
+            start = millis();
+            do {
+                SAL_generateSharedSecret(nt[i],&SK,&PK,&SS);   
+                iterations++;
+                elapsed = (millis() - start);
+            } while (elapsed < 1000 || iterations < 4);
+            elapsed = elapsed / iterations;
+            Serial.print("        Shared Secret (ms)= "); Serial.println(elapsed);
+
+        }
+        ns=SAL_ciphers(nt);
+        Serial.println("SAL supported Cipher suites");
+        for (i=0;i<ns;i++ )
+        {
+            Serial.print("    ");
+            nameCipherSuite(nt[i]);
+        }
+        ns=SAL_sigs(nt);
+        Serial.println("SAL supported TLS signatures");
+        for (i=0;i<ns;i++ )
+        {
+            Serial.print("    ");
+            nameSigAlg(nt[i]);
+        }
+        ns=SAL_sigCerts(nt);
+        Serial.println("SAL supported Certificate signatures");
+        for (i=0;i<ns;i++ )
+        {
+            Serial.print("    ");
+            nameSigAlg(nt[i]);
+        }
+        while (Serial.available() == 0) {}
+        Serial.read(); 
+        return;
+    }
+
+    TLS_session state=TLS13_start(&client,hostname);
     TLS_session *session=&state;
 
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"Hostname= ",hostname,0,NULL);
+    logger((char *)"\nHostname= ",hostname,0,NULL);
 #endif
 
     make_client_message(&GET,hostname);
@@ -109,23 +202,23 @@ void loop() {
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Unable to access ",hostname,0,NULL);
 #endif
-        mydelay();
+        while (Serial.available() == 0) {}
+        Serial.read(); 
  		return;
     }
-#if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"\nAttempting full handshake\n",NULL,0,NULL);
-#endif
 
-    TLS13_connect(session,&GET);  // FULL handshake and connection to server
-    TLS13_recv(session,&RESP);    // Server response + ticket
+    bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
+    if (success) {
+        TLS13_recv(session,&RESP);    // Server response + ticket
 #if VERBOSITY >= IO_APPLICATION
-    logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+        logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 #endif
-    TLS13_clean(session);   // but leave ticket intact
+        TLS13_clean(session);   // but leave ticket intact
+    }
 // drop the connection..
     client.stop();
 #if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"Connection closed\n",NULL,0,NULL);
+    logger((char *)"Connection closed\n\n",NULL,0,NULL);
 #endif
     delay(5000);
 
@@ -135,19 +228,22 @@ void loop() {
 #if VERBOSITY >= IO_PROTOCOL
         logger((char *)"Unable to access ",hostname,0,NULL);
 #endif
-        mydelay();
+        while (Serial.available() == 0) {}
+        Serial.read(); 
  		return;
     }
-#if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"\nAttempting resumption\n",NULL,0,NULL);
-#endif
 
-    TLS13_connect(session,&GET);  // Resumption handshake and connection to server
-    TLS13_recv(session,&RESP);    // Server response + ticket
+    success=TLS13_connect(session,&GET);  // Resumption handshake and connection to server
+    if (success) {
+        TLS13_recv(session,&RESP);    // Server response + ticket
 #if VERBOSITY >= IO_APPLICATION
-    logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+        logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 #endif
-
+    } else {
+#if VERBOSITY >= IO_APPLICATION
+        logger((char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
+#endif
+    }
     client.stop();
 // drop the connection..
 #if VERBOSITY >= IO_PROTOCOL
@@ -157,9 +253,14 @@ void loop() {
 #ifdef ESP32
     Serial.print("Amount of unused stack memory ");     // useful information!
     Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    SAL_endLib();
     delay(5000);
     }
 #else
+    SAL_endLib();
     delay(5000);
 #endif
+    TLS13_end(session);
+    while (Serial.available() == 0) {}
+    Serial.read(); 
 }

@@ -84,10 +84,7 @@ ret parseByte(octad *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
     if (ptr+1>M->len) 
-    {
-//        printf("ptr= %d M->len= %d\n",ptr,M->len);
         return r;
-    }
     r.val=(unsigned int)(unsigned char)M->val[ptr++]; r.err=0;
     return r;
 }
@@ -183,13 +180,9 @@ int getServerFragment(TLS_session *session)
         pad++;
     }
 	if ((lb==HSHAKE || lb==ALERT) && rlen==0)
-	{
 		return WRONG_MESSAGE;
-	}
     if (lb==HSHAKE)
-    {
         return HSHAKE;
-    }
     if (lb==APPLICATION)
         return APPLICATION;
     if (lb==ALERT)
@@ -675,14 +668,13 @@ ret getServerHello(TLS_session *session,int &cipher,int &kex,octad *CID,octad *C
 
 // start parsing mandatory components
     int ptr=0;
-//printf("Got here 1\n");
     r=parseByteorPull(session,ptr); if (r.err) return r; // should be Server Hello
     if (r.val!=SERVER_HELLO)
     {
         r.err=BAD_HELLO;
         return r;
     }
-//printf("Got here 2\n");
+
     r=parseInt24orPull(session,ptr); left=r.val; if (r.err) return r;   // If not enough, pull in another fragment
     r=parseInt16orPull(session,ptr); svr=r.val; if (r.err) return r;
     left-=2;                // whats left in message

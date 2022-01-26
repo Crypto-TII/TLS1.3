@@ -54,6 +54,10 @@ bool SAL_initLib()
     return true;
 }
 
+void SAL_endLib()
+{
+}
+
 int SAL_ciphers(int *ciphers)
 {
     int n=2;
@@ -434,6 +438,7 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         //    printf("%02x",(uint8_t)SS->val[i]);
         //printf("\n");
 
+//        OCT_kill(SK);
     }
 
     if (group==SECP256R1) {

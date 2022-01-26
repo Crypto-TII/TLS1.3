@@ -33,4 +33,17 @@ extern int parseTicket(octad *TICK,unsign32 birth,ticket *T);
  */
 extern void initTicketContext(ticket *T);
 
+/**	@brief terminate a ticket structure
+ *
+    @param T the ticket structure
+ */
+extern void endTicketContext(ticket *T);
+
+/**	@brief Check that a ticket is still good, and not out-of-date 
+ *
+    @param T the ticket structure
+    @return true if ticket is still good
+ */
+extern bool ticket_still_good(ticket *T);
+
 #endif

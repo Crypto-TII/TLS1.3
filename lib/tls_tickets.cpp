@@ -47,6 +47,21 @@ void initTicketContext(ticket *T)
     T->origin=0;
 }
 
+void endTicketContext(ticket *T)
+{
+    OCT_kill(&T->NONCE);
+    OCT_kill(&T->PSK);
+    OCT_kill(&T->TICK);
+
+    T->lifetime=0;
+    T->age_obfuscator=0;
+    T->max_early_data=0;
+    T->birth=0;
+    T->cipher_suite=0;
+    T->favourite_group=0;
+    T->origin=0;
+}
+
 // Parse ticket data and birth time into a ticket structure 
 int parseTicket(octad *TICK,unsign32 birth,ticket *T)  
 {
@@ -88,4 +103,19 @@ int parseTicket(octad *TICK,unsign32 birth,ticket *T)
     }
     T->valid=true;
     return 0;
+}
+
+// check a ticket exists, its good, and its not out-of-date
+bool ticket_still_good(ticket *T)
+{
+    unsign32 time_ticket_received,time_ticket_used;
+    unsign32 age;
+    if (T->lifetime<=0 || !T->valid)
+        return false;
+    time_ticket_received=T->birth;
+    time_ticket_used=(unsign32)millis();
+    age=time_ticket_used-time_ticket_received;
+    if (age>1000*T->lifetime)
+        return false;
+    return true;
 }
