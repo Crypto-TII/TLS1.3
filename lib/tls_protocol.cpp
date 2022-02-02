@@ -20,22 +20,17 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
     state.CPB.nsac=SAL_sigCerts(state.CPB.sigAlgsCert);     // Get supported Certificate signing algorithms 
     initCryptoContext(&state.K_send);                       // Transmission key
     initCryptoContext(&state.K_recv);                       // Reception key
-    state.RMS.len = 0;
-    state.RMS.max = TLS_MAX_HASH;
-    state.RMS.val = state.rms;                              // Resumption Master secret
-    state.STS.len = 0;
-    state.STS.max = TLS_MAX_HASH;
-    state.STS.val = state.sts;                              // Server traffic secret
-    state.CTS.len = 0;
-    state.CTS.max = TLS_MAX_HASH;                           // Client traffic secret
-    state.CTS.val = state.cts;
-    state.IO.len = 0;
-    state.IO.max = TLS_MAX_IO_SIZE;
+
+	state.RMS={0,TLS_MAX_HASH,state.rms};					// Resumption Master secret
+	state.STS={0,TLS_MAX_HASH,state.sts};					// Server traffic secret
+	state.CTS={0,TLS_MAX_HASH,state.cts};					// Client traffic secret
+
 #ifdef IOBUFF_FROM_HEAP
-    state.IO.val = (char *)malloc(TLS_MAX_IO_SIZE);
+    state.IO= {0,TLS_MAX_IO_SIZE,(char *)malloc(TLS_MAX_IO_SIZE)};  // main input/output buffer
 #else
-    state.IO.val = state.io;                                // main input/output buffer
+	state.IO={0,TLS_MAX_IO_SIZE,state.io};
 #endif
+
     state.favourite_group=state.CPB.supportedGroups[0];     // favourite key exchange group - may be changed on handshake retry
     initTicketContext(&state.T);                            // Resumption ticket - may be added to session state
     return state;
