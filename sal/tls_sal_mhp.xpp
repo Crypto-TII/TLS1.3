@@ -19,7 +19,7 @@ extern "C" {
 #include "core.h"
 //#include "ecdh_NIST256.h"     // no longer needed!
 #include "ecdh_NIST384.h"
-#include "ecdh_C25519.h"
+//#include "ecdh_C25519.h"
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
 

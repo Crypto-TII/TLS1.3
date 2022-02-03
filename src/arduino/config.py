@@ -1000,6 +1000,11 @@ os.system(deltext+" client.cpp")
 
 # using miracl + ECC608a hardware
 os.system(copytext+" tls_sal_mh.xpp "+"tls_sal.cpp")
+# or.. $*$*$*$*
+# os.system(copytext+" tls_sal_mhp.xpp "+"tls_sal.cpp")
+# ..and copy x25519.S into project from  https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
+#
+
 os.system(deltext+" *.md")
 os.system(deltext+" *.xpp")
 os.system(deltext+" testx509.cpp")
