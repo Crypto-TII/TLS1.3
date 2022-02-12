@@ -87,6 +87,13 @@ extern void addALPNExt(octad *EXT,octad *AP);
  */  
 extern void addMFLExt(octad *EXT,int mode);
 
+/**	@brief Add Record Size Limit extension to under-construction Extensions Octet
+ *
+	@param EXT the extensions octad which is being built
+    @param size the demanded maximum fragment size
+ */  
+extern void addRSLExt(octad *EXT,int size);
+
 /**	@brief Add Preshared Key exchange modes extension to under-construction Extensions Octet
  *
 	@param EXT the extensions octad which is being built

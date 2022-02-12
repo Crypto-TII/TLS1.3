@@ -157,6 +157,9 @@ int getServerFragment(TLS_session *session)
 	rlen=left-16; // plaintext record length
 	if (left>TLS_MAX_CIPHER_FRAG)
 		return MAX_EXCEEDED;
+
+//printf("record length= %d\n",rlen);
+
     getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
 
     session->IO.len+=(rlen);    
@@ -423,6 +426,25 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_expt *enc_ext_expt,ee_r
                 return r;
             }
             break;
+
+		case RECORD_SIZE_LIMIT:
+
+//	printf("*****RECORD_SIZE_LIMIT EXTENSION RECEIVED*****\n");
+
+            r=parseInt16orPull(session,ptr); tlen=r.val; if (r.err) return r;
+            len-=2;
+			r=parseInt16orPull(session,ptr); mfl=r.val; if (r.err) return r;
+			len-=tlen;
+            if (tlen!=2 || mfl<64) {
+                r.err=UNRECOGNIZED_EXT;
+                return r;
+            } 
+//	printf("server max record = %d\n",mfl);
+
+			session->server_max_record=mfl;
+			break;
+
+
         case APP_PROTOCOL :
             r=parseInt16orPull(session,ptr); tlen=r.val; if (r.err) return r;
             len-=2;  // length of extension

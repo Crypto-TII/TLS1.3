@@ -13,6 +13,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
     state.sockptr=sockptr;                                  // pointer to socket
     strcpy(state.hostname,hostname);                        // server to connection with
     state.session_status=TLS13_DISCONNECTED;
+	state.server_max_record=0;
     state.cipher_suite=TLS_AES_128_GCM_SHA256;              // default cipher suite
     state.CPB.nsg=SAL_groups(state.CPB.supportedGroups);    // Get supported Key Exchange Groups in order of preference
     state.CPB.nsc=SAL_ciphers(state.CPB.ciphers);           // Get supported Cipher Suits
@@ -126,8 +127,11 @@ static int TLS13_full(TLS_session *session)
 
 // Client Hello
 // First build our preferred mix of client Hello extensions, based on our capabililities
-    addServerNameExt(&EXT,session->hostname); enc_ext_expt.server_name=true;  // Server Name extension - acknowledgement is expected
-    addSupportedGroupsExt(&EXT,session->CPB.nsg,session->CPB.supportedGroups);
+
+	
+	addServerNameExt(&EXT,session->hostname); enc_ext_expt.server_name=true;  // Server Name extension - acknowledgement is expected
+
+	addSupportedGroupsExt(&EXT,session->CPB.nsg,session->CPB.supportedGroups);
     addSigAlgsExt(&EXT,session->CPB.nsa,session->CPB.sigAlgs);
     addSigAlgsCertExt(&EXT,session->CPB.nsac,session->CPB.sigAlgsCert);
     addKeyShareExt(&EXT,session->favourite_group,&PK); // only sending one public key
@@ -136,11 +140,19 @@ static int TLS13_full(TLS_session *session)
 #endif
     addPSKModesExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
-    addMFLExt(&EXT,4);  enc_ext_expt.max_frag_length=true; // ask for smaller max fragment length of 4096 - server may not agree - but no harm in asking
+
+#ifdef CLIENT_MAX_RECORD
+	addRSLExt(&EXT,CLIENT_MAX_RECORD);                     // demand a fragment size limit
+#else
+    addMFLExt(&EXT,TLS_MAX_FRAG);  enc_ext_expt.max_frag_length=true; // ask for max fragment length - server may not agree - but no harm in asking
+#endif
     addPadding(&EXT,SAL_randomByte()%16);  // add some random padding (because I can)
 
 // create and send Client Hello octad
     sendClientHello(session,TLS1_0,&CH,session->CPB.nsc,session->CPB.ciphers,&CID,&EXT,0,false);  
+
+
+//logger((char *)"CH= ",NULL,0,&EXT);
 
 //
 //
@@ -240,7 +252,13 @@ static int TLS13_full(TLS_session *session)
 #endif
         addPSKModesExt(&EXT,pskMode);
         addVersionExt(&EXT,tlsVersion);
-        addMFLExt(&EXT,4);                      // ask for max fragment length of 4096
+
+#ifdef CLIENT_MAX_RECORD
+	    addRSLExt(&EXT,CLIENT_MAX_RECORD);                     // demand a fragment size limit
+#else
+		addMFLExt(&EXT,TLS_MAX_FRAG);	enc_ext_expt.max_frag_length=true; // ask nicely for max fragment length
+#endif
+
         addPadding(&EXT,SAL_randomByte()%16);  // add some random padding
         if (COOK.len!=0)
             addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR
@@ -742,10 +760,17 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 #endif
     addPSKModesExt(&EXT,pskMode);
     addVersionExt(&EXT,tlsVersion);
+
+
+#ifdef CLIENT_MAX_RECORD
+	addRSLExt(&EXT,CLIENT_MAX_RECORD);                     // demand a fragment size limit
+#else
     if (origin==TLS_FULL_HANDSHAKE)
     {
-        addMFLExt(&EXT,4); enc_ext_expt.max_frag_length=true; // ask for max fragment length of 4096 - for some reason openssl does not accept this for PSK
+        addMFLExt(&EXT,TLS_MAX_FRAG); enc_ext_expt.max_frag_length=true; // ask for max fragment length - for some reason openssl does not accept this for PSK
     }
+#endif
+
     addPadding(&EXT,SAL_randomByte()%16);      // add some random padding
     if (have_early_data)
     {

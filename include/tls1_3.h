@@ -44,6 +44,10 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // on systems with a shallow stack. Define this to use the heap.
 
 #define IOBUFF_FROM_HEAP          /**< Get main IO buffer from heap, else stack */
+
+// comment out if no max record size. In practise TLS1.3 doesn't seem to support this record_size_limit extension, so use with caution
+// #define CLIENT_MAX_RECORD 1024     /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IO_SIZE below */
+// Note that if this is not used, max_fragment_size extension is tried instead, see TLS_MAX_FRAG below
 // *****************************************************************************
 
 // Encryption
@@ -70,21 +74,17 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_CLIENT_HELLO 256         /**< Max client hello size (less extensions) */
 #define TLS_MAX_EXT_LABEL 256            /**< Max external psk label size */
 
-//#ifdef TLS_ARDUINO
-//#define TLS_MAX_TICKET_SIZE 512         /**< maximum resumption ticket size */
-//#define TLS_MAX_EXTENSIONS 512          /**< Max extensions size */
-//#define TLS_MAX_IO_SIZE 4096             /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
-//#else
 #define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
 
 #ifdef IOBUFF_FROM_HEAP
-#define TLS_MAX_IO_SIZE 16384            /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+#define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
 #else
-#define TLS_MAX_IO_SIZE 8192             /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+#define TLS_MAX_IO_SIZE (8192+256)       /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
 #endif
-//#endif
 
+// Max Frag length must be less than TLS_MAX_IO_SIZE
+#define TLS_MAX_FRAG 4					/**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
 #define TLS_MAX_SIGNATURE_SIZE 512      /**< Max digital signature size in bytes  */
 #define TLS_MAX_PUB_KEY_SIZE 512        /**< Max public key size in bytes */
 #define TLS_MAX_SECRET_KEY_SIZE 512     /**< Max private key size in bytes */
@@ -151,6 +151,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define MAX_FRAG_LENGTH 0x0001          /**< max fragmentation length extension */
 #define PADDING 0x0015                  /**< Padding extension */
 #define APP_PROTOCOL 0x0010             /**< Application Layer Protocol Negotiation (ALPN) */
+#define RECORD_SIZE_LIMIT 0x001c        /**< Record Size Limit */
 
 // record types 
 #define HSHAKE 0x16                     /**< Handshake record */
@@ -307,6 +308,7 @@ typedef struct
 typedef struct 
 {
     int session_status;     /**< Connection status */
+	int server_max_record;  /**< Server's max record size */
     Socket *sockptr;        /**< Pointer to socket */
     char hostname[TLS_MAX_SERVER_NAME];     /**< Server name for connection */
     capabilities CPB;       /**<  the supported crypto primitives */

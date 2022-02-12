@@ -110,12 +110,23 @@ void addPSKModesExt(octad *EXT,int mode)
     OCT_append_int(EXT,mode,1);
 }
 
-// indicate prefered maximum fragment length
+// indicate preferred maximum fragment length
 void addMFLExt(octad *EXT,int mode)
 {
-    OCT_append_int(EXT,MAX_FRAG_LENGTH,2);
-    OCT_append_int(EXT,1,2);
-    OCT_append_int(EXT,mode,1);
+	if (mode>0)
+	{
+		OCT_append_int(EXT,MAX_FRAG_LENGTH,2);
+		OCT_append_int(EXT,1,2);
+		OCT_append_int(EXT,mode,1);
+	}
+}
+
+// indicate preferred maximum record size
+void addRSLExt(octad *EXT,int size)
+{
+    OCT_append_int(EXT,RECORD_SIZE_LIMIT,2);
+    OCT_append_int(EXT,2,2);
+    OCT_append_int(EXT,size,2);
 }
 
 // add n padding bytes
