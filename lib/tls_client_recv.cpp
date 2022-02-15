@@ -99,7 +99,7 @@ ret parseByte(octad *M,int &ptr)
 // returns record type, ALERT, APPLICATION or HSHAKE (or pseudo type TIMED_OUT)
 int getServerFragment(TLS_session *session)
 {
-    int i,rtn,left,pos,rlen;
+    int i,rtn,left,pos,rlen,taglen;
     char rh[5];
     octad RH={0,sizeof(rh),rh};
 
@@ -154,7 +154,8 @@ int getServerFragment(TLS_session *session)
         session->IO.len+=left;
         return HSHAKE;
     }
-	rlen=left-16; // plaintext record length
+	taglen=session->K_recv.taglen;
+	rlen=left-taglen; // plaintext record length
 	if (left>TLS_MAX_CIPHER_FRAG)
 		return MAX_EXCEEDED;
 
@@ -163,11 +164,11 @@ int getServerFragment(TLS_session *session)
     getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
 
     session->IO.len+=(rlen);    
-    getOctad(session->sockptr,&TAG,16);        // read in correct TAG
+    getOctad(session->sockptr,&TAG,taglen);        // read in correct TAG
 
-    rtn=SAL_aeadDecrypt(&session->K_recv,RH.len,RH.val,rlen,&session->IO.val[pos],&TAG);
+    bool success=SAL_aeadDecrypt(&session->K_recv,RH.len,RH.val,rlen,&session->IO.val[pos],&TAG);
     incrementCryptoContext(&session->K_recv); // update IV
-    if (rtn<0)
+    if (!success)
     {
        return AUTHENTICATION_FAILURE;     // tag is wrong   
     }

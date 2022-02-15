@@ -72,6 +72,20 @@ extern int SAL_hashType(int cipher_suite);
 */
 extern int SAL_hashLen(int hash_type);
 
+/** @brief return key length associated with a cipher suite
+*
+    @param cipher_suite a TLS cipher suite
+    @return key length
+*/
+int SAL_aeadKeylen(int cipher_suite);
+
+/** @brief return authentication tag length associated with a cipher suite
+*
+    @param cipher_suite a TLS cipher suite
+    @return tag length
+*/
+int SAL_aeadTaglen(int cipher_suite);
+
 /** @brief get a random byte
 *
     @return a random byte
@@ -97,13 +111,12 @@ extern void SAL_hkdfExtract(int sha,octad *PRK,octad *SALT,octad *IKM);
 /**	@brief Special HKDF Expand function (for TLS)
  *
 	@param htype hash algorithm
-	@param OKM an expanded output Key
     @param olen is the desired length of the expanded key
+	@param OKM an expanded output Key
     @param PRK is the fixed length input key
-    @param Label is public label information
-    @param CTX is public context information
+    @param INFO is public label information
  */
-extern void SAL_hkdfExpandLabel(int htype,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX);
+extern void SAL_hkdfExpand(int htype, int olen, octad *OKM,octad *PRK, octad *INFO);
 
 /**	@brief simple HMAC function
  *
@@ -166,9 +179,9 @@ extern void SAL_aeadEncrypt(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt
     @param ctlen the ciphertext length
     @param ct the input ciphertext and output plaintext
     @param TAG the expected authentication tag
-    @return -1 if tag is wrong, else 0
+    @return false if tag is wrong, else true
  */
-extern int SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG);
+extern bool SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG);
 
 /**	@brief generate a public/private key pair in an approved group for a key exchange
  *

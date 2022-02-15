@@ -32,11 +32,6 @@ extern "C"
     #include <eddsa/eddsa.h>
 }
 
-// define hash algorithms
-#define TLS_SHA256_T 1
-#define TLS_SHA384_T 2
-#define TLS_SHA512_T 3
-
 using namespace core;
 
 csprng RNG;    // Global miracl core Crypto Strong RNG - could be a hardware source
@@ -121,6 +116,24 @@ int SAL_hashLen(int hash_type)
     return hlen;
 }
 
+int SAL_aeadKeylen(int cipher_suite)
+{
+    int klen=0;
+    if (cipher_suite==TLS_AES_128_GCM_SHA256) klen=16;
+    if (cipher_suite==TLS_AES_256_GCM_SHA384) klen=32;
+    if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256) klen=32;
+    return klen;
+}
+
+int SAL_aeadTaglen(int cipher_suite)
+{
+    int tlen=0;
+    if (cipher_suite==TLS_AES_128_GCM_SHA256) tlen=16;
+    if (cipher_suite==TLS_AES_256_GCM_SHA384) tlen=16;
+    if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256) tlen=16;
+    return tlen;
+}
+
 // convert TLS octad to MIRACL core octet
 static octet octad_to_octet(octad *x)
 {
@@ -151,39 +164,6 @@ void SAL_randomOctad(int len,octad *R)
     R->len=len;
 }
 
-// create expanded HKDF label LB from label and context
-static void hkdfLabel(octad *LB,int length,octad *Label,octad *CTX)
-{
-    OCT_append_int(LB,length,2);    // 2
-    OCT_append_byte(LB,(char)(6+Label->len),1);  // 1
-    OCT_append_string(LB,(char *)"tls13 ");   // 6
-    OCT_append_octad(LB,Label);  // Label->len
-    if (CTX!=NULL)
-    {
-        OCT_append_byte(LB, (char)(CTX->len), 1); // 1
-        OCT_append_octad(LB,CTX);   // CTX->len
-    } else {
-        OCT_append_byte(LB,0,1);   // 1
-    }
-}
-
-// HKDF extension for TLS1.3
-void SAL_hkdfExpandLabel(int htype,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX)
-{
-    int hlen=SAL_hashLen(htype);
-    char hl[TLS_MAX_HASH+24];
-    octad HL={0,sizeof(hl),hl};
-
-    octet MC_OKM=octad_to_octet(OKM); 
-    octet MC_PRK=octad_to_octet(PRK);
-
-    hkdfLabel(&HL,olen,Label,CTX);
-    octet MC_HL=octad_to_octet(&HL);
-    HKDF_Expand(MC_SHA2,hlen,&MC_OKM,olen,&MC_PRK,&MC_HL);
-    OKM->len=MC_OKM.len;
-    PRK->len=MC_PRK.len;
-}
-
 // HKDF - Extract secret from raw input
 void SAL_hkdfExtract(int htype,octad *PRK,octad *SALT,octad *IKM)
 {
@@ -196,6 +176,20 @@ void SAL_hkdfExtract(int htype,octad *PRK,octad *SALT,octad *IKM)
 
     IKM->len=MC_IKM.len;              // restore length
     SALT->len=MC_SALT.len;
+    PRK->len=MC_PRK.len;
+}
+
+void SAL_hkdfExpand(int htype, int olen, octad *OKM,octad *PRK, octad *INFO)
+{
+    int hlen=SAL_hashLen(htype);
+    octet MC_OKM=octad_to_octet(OKM); 
+    octet MC_INFO=octad_to_octet(INFO);
+    octet MC_PRK=octad_to_octet(PRK);
+
+    HKDF_Expand(MC_SHA2,hlen,&MC_OKM,olen,&MC_PRK,&MC_INFO);
+
+    OKM->len=MC_OKM.len;
+    INFO->len=MC_INFO.len;
     PRK->len=MC_PRK.len;
 }
 
@@ -310,7 +304,7 @@ void SAL_aeadEncrypt(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad 
     TAG->len=16;
 }
 
-int SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG)
+bool SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG)
 { // AEAD decryption
     if (recv->suite==TLS_CHACHA20_POLY1305_SHA256)
     {
@@ -320,17 +314,21 @@ int SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *
             constant[i]=recv->IV.val[i];
         for (int i=0;i<8;i++)
             iv[i]=recv->IV.val[4+i];
-        return chacha20_poly1305_aead_decrypt((uint8_t *)recv->K.val,iv,constant,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val);
+
+        if (chacha20_poly1305_aead_decrypt((uint8_t *)recv->K.val,iv,constant,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val)<0)
+		return false;
     }
     if (recv->suite==TLS_AES_128_GCM_SHA256)
     {
-        return aes128_gcm_decrypt((uint8_t *)recv->K.val,(uint8_t *)recv->IV.val,12,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val);
+        if (aes128_gcm_decrypt((uint8_t *)recv->K.val,(uint8_t *)recv->IV.val,12,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val)<0)
+	    return false;
     }
     if (recv->suite==TLS_AES_256_GCM_SHA384)
     {
-        return aes256_gcm_decrypt((uint8_t *)recv->K.val,(uint8_t *)recv->IV.val,12,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val);
+        if (aes256_gcm_decrypt((uint8_t *)recv->K.val,(uint8_t *)recv->IV.val,12,(uint8_t *)ct,(uint64_t)ctlen,(uint8_t *)hdr,(uint64_t)hdrlen,(uint8_t *)ct,(uint8_t *)TAG->val)<0)
+	    return false;
     }
-    return -1;
+    return true;
 }
 
 // generate a public/private key pair in an approved group for a key exchange

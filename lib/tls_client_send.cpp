@@ -190,7 +190,7 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
 // May need to break up into multiple records??
 void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT)
 {
-    int reclen;
+    int reclen,taglen;
     char tag[TLS_TAG_SIZE];
     octad TAG={0,sizeof(tag),tag};
 
@@ -210,7 +210,8 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
     } else { // encrypted, and sent disguised as application record
         OCT_append_byte(&session->IO,APPLICATION,1);
         OCT_append_int(&session->IO,TLS1_2,2);
-        reclen+=16+1+rbytes; // 16 for the TAG, 1 for the record type, + some random padding
+		taglen=session->K_send.taglen;
+        reclen+=taglen+1+rbytes; // 16 for the TAG, 1 for the record type, + some random padding
         OCT_append_int(&session->IO,reclen,2);
 
         OCT_append_octad(&session->IO,CM); 
@@ -219,7 +220,7 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
 // add some random padding after this...
         OCT_append_byte(&session->IO,0,rbytes);
 
-        SAL_aeadEncrypt(&session->K_send,5,&session->IO.val[0],reclen-16,&session->IO.val[5],&TAG);
+        SAL_aeadEncrypt(&session->K_send,5,&session->IO.val[0],reclen-taglen,&session->IO.val[5],&TAG);
         incrementCryptoContext(&session->K_send);  // increment IV
         OCT_append_octad(&session->IO,&TAG);
     }

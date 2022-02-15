@@ -65,6 +65,7 @@ void initCryptoContext(crypto *C)
 
     C->suite=TLS_AES_128_GCM_SHA256; // default
     C->record=0;
+	C->taglen=16;  // default
 }
 
 // Fill a crypto context with new key/IV
@@ -95,6 +96,31 @@ void incrementCryptoContext(crypto *C)
         C->IV.val[8+i]^=b[i];  // advance to new IV
 }
 
+// create expanded HKDF label LB from label and context
+static void hkdfLabel(octad *LB,int length,octad *Label,octad *CTX)
+{
+    OCT_append_int(LB,length,2);    // 2
+    OCT_append_byte(LB,(char)(6+Label->len),1);  // 1
+    OCT_append_string(LB,(char *)"tls13 ");   // 6
+    OCT_append_octad(LB,Label);  // Label->len
+    if (CTX!=NULL)
+    {
+        OCT_append_byte(LB, (char)(CTX->len), 1); // 1
+        OCT_append_octad(LB,CTX);   // CTX->len
+    } else {
+        OCT_append_byte(LB,0,1);   // 1
+    }
+}
+
+// HKDF extension for TLS1.3
+static void hkdfExpandLabel(int htype,octad *OKM,int olen,octad *PRK,octad *Label,octad *CTX)
+{
+    char hl[TLS_MAX_HASH+24];
+    octad HL={0,sizeof(hl),hl};
+    hkdfLabel(&HL,olen,Label,CTX);
+    SAL_hkdfExpand(htype,olen,OKM,PRK,&HL);
+}
+
 // create verification data
 void deriveVeriferData(int htype,octad *CF,octad *CHTS,octad *H)
 {
@@ -105,7 +131,7 @@ void deriveVeriferData(int htype,octad *CF,octad *CHTS,octad *H)
     int hlen=SAL_hashLen(htype);
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"finished");
-    SAL_hkdfExpandLabel(htype,&FK,hlen,CHTS,&INFO,NULL); 
+    hkdfExpandLabel(htype,&FK,hlen,CHTS,&INFO,NULL); 
     SAL_hmac(htype,CF,&FK,H);
 }
 
@@ -135,17 +161,17 @@ void deriveUpdatedKeys(crypto *context,octad *TS)
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"traffic upd");
-    SAL_hkdfExpandLabel(htype,&NTS,sha,TS,&INFO,NULL);
+    hkdfExpandLabel(htype,&NTS,sha,TS,&INFO,NULL);
 
     OCT_copy(TS,&NTS);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"key");
-    SAL_hkdfExpandLabel(htype,&(context->K),key,TS,&INFO,NULL);
+    hkdfExpandLabel(htype,&(context->K),key,TS,&INFO,NULL);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"iv");
-    SAL_hkdfExpandLabel(htype,&(context->IV),12,TS,&INFO,NULL);
+    hkdfExpandLabel(htype,&(context->IV),12,TS,&INFO,NULL);
 // reset record number
     context->record=0;
     context->active=true;
@@ -155,32 +181,24 @@ void deriveUpdatedKeys(crypto *context,octad *TS)
 void createCryptoContext(int cipher_suite,octad *TS,crypto *context)
 {
     int key,htype=SAL_hashType(cipher_suite);
-    if (cipher_suite==TLS_AES_128_GCM_SHA256)
-    {
-        key=TLS_AES_128;  // AES128
-    }
-    if (cipher_suite==TLS_AES_256_GCM_SHA384)
-    {
-        key=TLS_AES_256; // AES256
-    }
-    if (cipher_suite==TLS_CHACHA20_POLY1305_SHA256)
-    {
-        key=TLS_CHA_256; // IETF CHACHA20
-    }
+
+	key=SAL_aeadKeylen(cipher_suite);
+
     char info[8];
     octad INFO = {0,sizeof(info),info};
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"key");
-    SAL_hkdfExpandLabel(htype,&(context->K),key,TS,&INFO,NULL);
+    hkdfExpandLabel(htype,&(context->K),key,TS,&INFO,NULL);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"iv");
-    SAL_hkdfExpandLabel(htype,&(context->IV),12,TS,&INFO,NULL);
+    hkdfExpandLabel(htype,&(context->IV),12,TS,&INFO,NULL);
 
     context->active=true;
     context->suite=cipher_suite;
     context->record=0;
+	context->taglen=SAL_aeadTaglen(cipher_suite);
 }
 
 void createSendCryptoContext(TLS_session *session,octad *TS)
@@ -202,7 +220,7 @@ void recoverPSK(TLS_session *session)
     int hlen=SAL_hashLen(htype);
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"resumption");
-    SAL_hkdfExpandLabel(htype,&session->T.PSK,hlen,&session->RMS, &INFO, &session->T.NONCE);
+    hkdfExpandLabel(htype,&session->T.PSK,hlen,&session->RMS, &INFO, &session->T.NONCE);
 }
 
 // Key Schedule code
@@ -233,13 +251,13 @@ void deriveEarlySecrets(int htype,octad *PSK,octad *ES,octad *BKE,octad *BKR)
     {  // External Binder Key
         OCT_kill(&INFO);
         OCT_append_string(&INFO,(char *)"ext binder");
-        SAL_hkdfExpandLabel(htype,BKE,hlen,ES,&INFO,&EMH);
+        hkdfExpandLabel(htype,BKE,hlen,ES,&INFO,&EMH);
     }
     if (BKR!=NULL)
     { // Resumption Binder Key
         OCT_kill(&INFO);
         OCT_append_string(&INFO,(char *)"res binder");
-        SAL_hkdfExpandLabel(htype,BKR,hlen,ES,&INFO,&EMH);
+        hkdfExpandLabel(htype,BKR,hlen,ES,&INFO,&EMH);
     }
 }
 
@@ -254,13 +272,13 @@ void deriveLaterSecrets(int htype,octad *ES,octad *H,octad *CETS,octad *EEMS)
     {
         OCT_kill(&INFO);
         OCT_append_string(&INFO,(char *)"c e traffic");
-        SAL_hkdfExpandLabel(htype,CETS,hlen,ES,&INFO,H);
+        hkdfExpandLabel(htype,CETS,hlen,ES,&INFO,H);
     }
     if (EEMS!=NULL)
     {
         OCT_kill(&INFO);
         OCT_append_string(&INFO,(char *)"e exp master");
-        SAL_hkdfExpandLabel(htype,EEMS,hlen,ES,&INFO,H);
+        hkdfExpandLabel(htype,EEMS,hlen,ES,&INFO,H);
     }
 }
 
@@ -280,17 +298,17 @@ void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES,octad *H,oc
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"derived");
-    SAL_hkdfExpandLabel(htype,&DS,hlen,ES,&INFO,&EMH);  
+    hkdfExpandLabel(htype,&DS,hlen,ES,&INFO,&EMH);  
 
     SAL_hkdfExtract(htype,HS,&DS,SS);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"c hs traffic");
-    SAL_hkdfExpandLabel(htype,&session->CTS,hlen,HS,&INFO,H);
+    hkdfExpandLabel(htype,&session->CTS,hlen,HS,&INFO,H);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"s hs traffic");
-    SAL_hkdfExpandLabel(htype,&session->STS,hlen,HS,&INFO,H);
+    hkdfExpandLabel(htype,&session->STS,hlen,HS,&INFO,H);
 }
 
 // Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
@@ -314,38 +332,39 @@ void deriveApplicationSecrets(TLS_session *session,octad *HS,octad *SFH,octad *C
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"derived");
-    SAL_hkdfExpandLabel(htype,&DS,hlen,HS,&INFO,&EMH);   // Use handshake secret from above
+    hkdfExpandLabel(htype,&DS,hlen,HS,&INFO,&EMH);   // Use handshake secret from above
 
     SAL_hkdfExtract(htype,&MS,&DS,&ZK);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"c ap traffic");
-    SAL_hkdfExpandLabel(htype,&session->CTS,hlen,&MS,&INFO,SFH);
+    hkdfExpandLabel(htype,&session->CTS,hlen,&MS,&INFO,SFH);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"s ap traffic");
-    SAL_hkdfExpandLabel(htype,&session->STS,hlen,&MS,&INFO,SFH);
+    hkdfExpandLabel(htype,&session->STS,hlen,&MS,&INFO,SFH);
 
     if (EMS!=NULL)
     {
         OCT_kill(&INFO);
         OCT_append_string(&INFO,(char *)"exp master");
-        SAL_hkdfExpandLabel(htype,EMS,hlen,&MS,&INFO,SFH);
+        hkdfExpandLabel(htype,EMS,hlen,&MS,&INFO,SFH);
     }
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"res master");
-    SAL_hkdfExpandLabel(htype,&session->RMS,hlen,&MS,&INFO,CFH);
+    hkdfExpandLabel(htype,&session->RMS,hlen,&MS,&INFO,CFH);
 }
 
 // Convert ECDSA signature to DER encoded form
 static void parse_in_ecdsa_sig(int sha,octad *CCVSIG)
 { // parse ECDSA signature into DER encoded (r,s) form
+	int shalen=SAL_hashLen(sha);
     char c[TLS_MAX_ECC_FIELD];
     octad C={0,sizeof(c),c};
     char d[TLS_MAX_ECC_FIELD];
     octad D={0,sizeof(d),d};
-    int len,clen=sha;
+    int len,clen=shalen;
     bool cinc=false;
     bool dinc=false;
 
@@ -403,9 +422,9 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
 
 // adjustment for ECDSA signatures
     if (sigAlg==ECDSA_SECP256R1_SHA256)
-        parse_in_ecdsa_sig(TLS_SHA256,CCVSIG);
+        parse_in_ecdsa_sig(TLS_SHA256_T,CCVSIG);
     if (sigAlg==ECDSA_SECP384R1_SHA384)
-        parse_in_ecdsa_sig(TLS_SHA384,CCVSIG);
+        parse_in_ecdsa_sig(TLS_SHA384_T,CCVSIG);
 
     return;
 }
@@ -416,6 +435,7 @@ static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
     ret rt;
     int lzero,der,rlen,slen,Int,ptr=0;
     int len=SCVSIG->len;
+	int shalen=SAL_hashLen(sha);
     char r[TLS_MAX_ECC_FIELD];
     octad R={0,sizeof(r),r};
     char s[TLS_MAX_ECC_FIELD];
@@ -431,27 +451,27 @@ static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
     if (rt.err || Int!=0x02) return false;
     rt=parseByte(SCVSIG,ptr); rlen=rt.val;
     if (rt.err) return false;
-    if (rlen==sha+1)
+    if (rlen==shalen+1)
     { // one too big
         rlen--;
         rt=parseByte(SCVSIG,ptr); lzero=rt.val;
         if (rt.err || lzero!=0) return false;
     }
-    rt=parseoctad(&R,sha,SCVSIG,ptr); if (rt.err) return false;
+    rt=parseoctad(&R,shalen,SCVSIG,ptr); if (rt.err) return false;
 
 // get S
     rt=parseByte(SCVSIG,ptr); Int=rt.val;
     if (rt.err || Int!=0x02) return false;
     rt=parseByte(SCVSIG,ptr); slen=rt.val;
-    if (rt.err || slen==sha+1)
+    if (rt.err || slen==shalen+1)
     { // one too big
         slen--;
         rt=parseByte(SCVSIG,ptr); lzero=rt.val;
         if (rt.err || lzero!=0) return false;
     }
-    rt=parseoctad(&S,sha,SCVSIG,ptr); if (rt.err) return false;
+    rt=parseoctad(&S,shalen,SCVSIG,ptr); if (rt.err) return false;
 
-    if (rlen<sha || slen<sha) return false;
+    if (rlen<shalen || slen<shalen) return false;
 
     OCT_copy(SCVSIG,&R);
     OCT_append_octad(SCVSIG,&S);
@@ -483,10 +503,10 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
 
 // Special case processing required here for ECDSA signatures -  SCVSIG is modified
     if (sigAlg==ECDSA_SECP256R1_SHA256) {
-        if (!parse_out_ecdsa_sig(TLS_SHA256,SCVSIG)) return false;
+        if (!parse_out_ecdsa_sig(TLS_SHA256_T,SCVSIG)) return false;
     }
     if (sigAlg==ECDSA_SECP384R1_SHA384) {
-        if (!parse_out_ecdsa_sig(TLS_SHA384,SCVSIG)) return false;
+        if (!parse_out_ecdsa_sig(TLS_SHA384_T,SCVSIG)) return false;
     } 
 
 #if VERBOSITY >= IO_DEBUG

@@ -12,7 +12,7 @@
 #include "tls_octads.h"
 #include "tls_sockets.h"
 
-typedef uint8_t byte;            /**< 8-bit unsigned integer */
+typedef uint8_t byte;           /**< 8-bit unsigned integer */
 typedef int8_t sign8 ;			/**< 8-bit signed integer */
 typedef int16_t sign16;			/**< 16-bit signed integer */
 typedef int32_t sign32;			/**< 32-bit signed integer */
@@ -50,16 +50,11 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Note that if this is not used, max_fragment_size extension is tried instead, see TLS_MAX_FRAG below
 // *****************************************************************************
 
-// Encryption
-#define TLS_AES_128 16          /**< AES128 key length in bytes */
-#define TLS_AES_256 32          /**< AES256 key length in bytes */
-#define TLS_CHA_256 32          /**< IETF CHACHA20 key length in bytes */
-
 // Standard Hash Types
 
-#define TLS_SHA256 32           /**< SHA256 hash length in bytes */
-#define TLS_SHA384 48           /**< SHA384 hash length in bytes */
-#define TLS_SHA512 64           /**< SHA512 hash length in bytes */
+#define TLS_SHA256_T 1           /**< SHA256 hash  */
+#define TLS_SHA384_T 2           /**< SHA384 hash  */
+#define TLS_SHA512_T 3           /**< SHA512 hash  */
 
 // Some maximum sizes for stack allocated memory. Handshake will fail if these sizes are exceeded! 
 
@@ -106,11 +101,15 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_AES_128_GCM_SHA256 0x1301   /**< AES128/SHA256/GCM cipher suite - this is only one which MUST be implemented */
 #define TLS_AES_256_GCM_SHA384 0x1302   /**< AES256/SHA384/GCM cipher suite */
 #define TLS_CHACHA20_POLY1305_SHA256 0x1303 /**< CHACHA20/SHA256/POLY1305 cipher suite */
+#define TLS_AES_128_CCM_SHA256 0x1304   /**< AES/SHA256/CCM cipher suite - optional */
+#define TLS_AES_128_CCM_8_SHA256 0x1305 /**< AES/SHA256/CCM 8 cipher suite - optional */
 
 // Supported key exchange groups 
 #define X25519 0x001d                   /**< X25519 elliptic curve key exchange */
 #define SECP256R1 0x0017                /**< NIST SECP256R1 elliptic curve key exchange */
 #define SECP384R1 0x0018                /**< NIST SECP384R1 elliptic curve key exchange */
+#define SECP521R1 0x0019				/**< NIST SECP521R1 elliptic curve key exchange */
+#define X448 0x001e						/**< X448 elliptic curve key exchange */
 
 // Supported signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 
@@ -259,6 +258,7 @@ typedef struct
     octad IV;               /**< IV as octad */
     unsign32 record;        /**< current record number - to be incremented */
     int suite;              /**< Cipher Suite */
+	int taglen;				/**< Tag Length */
 } crypto;
 
 /**
