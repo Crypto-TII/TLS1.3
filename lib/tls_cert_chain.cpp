@@ -274,7 +274,7 @@ static int checkCertValidity(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOU
 	spt=getPublicKeyFromCert(SCERT,PUBKEY);
 
 #if VERBOSITY >= IO_DEBUG
-    logCertDetails((char *)"\nParsing Certificate\n",PUBKEY,spt,SSIG,sst,&ISSUER,&SUBJECT);
+    logCertDetails(PUBKEY,spt,SSIG,sst,&ISSUER,&SUBJECT);
 #endif
 
     if (spt.type==0)
@@ -354,7 +354,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 		} else {
 			return rtn;
 		}
-	
+	}
 
     if (!checkHostnameInCert(&SCERT,hostname))
     { // Check that certificate covers the server URL

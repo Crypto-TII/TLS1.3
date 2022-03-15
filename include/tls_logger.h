@@ -58,7 +58,6 @@ extern void logCert(octad *CERT);
 
 /**	@brief logging Certificate details
  *
-	@param txt preamble text
     @param PUBKEY the certificate public key octad
     @param pk the public key type
     @param SIG the signature on the certificate
@@ -66,7 +65,7 @@ extern void logCert(octad *CERT);
     @param ISSUER the (composite) certificate issuer
     @param SUBJECT the (composite) certificate subject
  */
-extern void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT);
+extern void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT);
 
 /**	@brief log client processing of a Server response
  *

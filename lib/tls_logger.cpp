@@ -246,9 +246,9 @@ void logCert(octad *CERT)
 
 
 // log certificate details
-void logCertDetails(char *txt,octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT)
+void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT)
 {
-    logger(txt,NULL,0,NULL);
+    logger((char *)"Parsing Certificate\n",NULL,0,NULL);
     logger((char *)"Signature on Certificate is ",NULL,0,SIG); 
     if (sg.type==X509_ECC)
     {
