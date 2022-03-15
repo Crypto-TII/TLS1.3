@@ -48,7 +48,7 @@ extern void logTicket(ticket *T);
 	@param e structure containing server expectations
 	@param r structure containing server responses
  */
-extern void logEncExt(ee_expt *e,ee_resp *r);
+extern void logEncExt(ee_status *e,ee_status *r);
 
 /**	@brief logging a Certificate in standard base 64 format
  *

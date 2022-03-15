@@ -80,12 +80,14 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 // Max Frag length must be less than TLS_MAX_IO_SIZE
 #define TLS_MAX_FRAG 4					/**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
+#define TLS_MAX_SERVER_PUB_KEY 512      /**< Max Server Public Key size */
 #define TLS_MAX_SIGNATURE_SIZE 512      /**< Max digital signature size in bytes  */
-#define TLS_MAX_PUB_KEY_SIZE 512        /**< Max public key size in bytes */
-#define TLS_MAX_SECRET_KEY_SIZE 512     /**< Max private key size in bytes */
+#define TLS_MAX_PUB_KEY_SIZE 136        /**< Max key exchange public key size in bytes */
+#define TLS_MAX_SHARED_SECRET_SIZE 66	/**< Max key exchange Shared secret size */
+#define TLS_MAX_SECRET_KEY_SIZE 64      /**< Max key exchange private key size in bytes */
 #define TLS_MAX_ECC_FIELD 66            /**< Max ECC field size in bytes */
-#define TLS_IV_SIZE 12                  /**< Max IV size in bytes */
-#define TLS_TAG_SIZE 16                 /**< Max HMAC tag length in bytes */    
+#define TLS_MAX_IV_SIZE 12                  /**< Max IV size in bytes */
+#define TLS_MAX_TAG_SIZE 16                 /**< Max HMAC tag length in bytes */    
 #define TLS_MAX_COOKIE 128              /**< Max Cookie size */    
 
 #define TLS_MAX_SERVER_NAME 128         /**< Max server name size in bytes */
@@ -104,14 +106,14 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_AES_128_CCM_SHA256 0x1304   /**< AES/SHA256/CCM cipher suite - optional */
 #define TLS_AES_128_CCM_8_SHA256 0x1305 /**< AES/SHA256/CCM 8 cipher suite - optional */
 
-// Supported key exchange groups 
+// Key exchange groups 
 #define X25519 0x001d                   /**< X25519 elliptic curve key exchange */
 #define SECP256R1 0x0017                /**< NIST SECP256R1 elliptic curve key exchange */
 #define SECP384R1 0x0018                /**< NIST SECP384R1 elliptic curve key exchange */
 #define SECP521R1 0x0019				/**< NIST SECP521R1 elliptic curve key exchange */
 #define X448 0x001e						/**< X448 elliptic curve key exchange */
 
-// Supported signature algorithms for TLS1.3 and Certs that we can handle 
+// Signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 
 #define ECDSA_SECP384R1_SHA384 0x0503   /**< Supported ECDSA Signature algorithm */
 #define RSA_PSS_RSAE_SHA256 0x0804      /**< Supported RSA Signature algorithm */ 
@@ -193,6 +195,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define FORBIDDEN_EXTENSION -16			/**< Forbidden Encrypted Extension */
 #define MAX_EXCEEDED -17				/**< Maximum record size exceeded */
 #define EMPTY_CERT_CHAIN -18            /**< Empty Certificate Message */
+#define SELF_SIGNED_CERT -20			/**< Self signed certificate */
 
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */
@@ -227,25 +230,14 @@ typedef struct
 } ret;
 
 /**
- * @brief server encrypted extensions responses */
+ * @brief server encrypted extensions expectations/responses */
 typedef struct 
 {
     bool early_data;    /**< true if early data accepted */
     bool alpn;          /**< true if ALPN accepted */
     bool server_name;   /**< true if server name accepted */
     bool max_frag_length;   /**< true if max frag length respected */
-} ee_resp;
-
-/**
- * @brief server encrypted extensions expectations */
-typedef struct 
-{
-    bool early_data;    /**< true if early data acceptance expected */
-    bool alpn;          /**< true if ALPN response expected */
-    bool server_name;   /**< true if server name extension response expected */
-    bool max_frag_length; /**< true if max frag length request made */
-} ee_expt;
-
+} ee_status;
 
 /**
  * @brief crypto context structure */
@@ -281,22 +273,6 @@ typedef struct
     int origin;                         /**< Origin of initial handshake - Full or PSK? */
 } ticket;
 
-/**
- * @brief Cryptographic capabilities of the client */
-typedef struct 
-{
-    int nsg;                            /**< Number of supported groups */
-    int supportedGroups[TLS_MAX_SUPPORTED_GROUPS];  /**< Supported groups */
-    int nsc;                            /**< Number of supported cipher suites */
-    int ciphers[TLS_MAX_CIPHER_SUITES]; /**< Supported cipher suites */
-    int nsa;                            /**< Number of supported signature algorithms for TLS 1.3 */
-    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];    /**< Supported signature algorithms for TLS1.3 */
-    int nsac;                               /**< Number of supported signature algorithms for Certificates */
-    int sigAlgsCert[TLS_MAX_SUPPORTED_SIGS]; /**< Supported signature algorithms for Certicates */
-} capabilities;
-
-/**
- * @brief Universal Hash structure */
 typedef struct 
 {
     char state[TLS_MAX_HASH_STATE];   /**< hash function state */
@@ -311,7 +287,6 @@ typedef struct
 	int server_max_record;  /**< Server's max record size */
     Socket *sockptr;        /**< Pointer to socket */
     char hostname[TLS_MAX_SERVER_NAME];     /**< Server name for connection */
-    capabilities CPB;       /**<  the supported crypto primitives */
     int cipher_suite;       /**< agreed cipher suite */
     int favourite_group;    /**< favourite key exchange group - may be changed on handshake retry */
     crypto K_send;          /**< Sending Key */

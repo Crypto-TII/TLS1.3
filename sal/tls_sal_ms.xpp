@@ -289,7 +289,7 @@ bool SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad 
         if (crypto_aead_chacha20poly1305_ietf_decrypt_detached((unsigned char*)ct,NULL,(unsigned char*)ct,(unsigned long long)ctlen,(unsigned char*)TAG->val,(unsigned char*)hdr,(unsigned long long)hdrlen,(unsigned char*)recv->iv,(unsigned char*)recv->k)<0)
 	    return false;
     } else { // its AES-GCM
-        char ctag[TLS_TAG_SIZE];   // calculated TAG
+        char ctag[TLS_MAX_TAG_SIZE];   // calculated TAG
         octad CTAG={0,sizeof(ctag),ctag};
         gcm g;
         GCM_init(&g,recv->K.len,recv->K.val,12,recv->IV.val);  // Decrypt with Key and IV

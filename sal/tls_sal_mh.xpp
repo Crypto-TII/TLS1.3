@@ -340,7 +340,7 @@ void SAL_aeadEncrypt(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad 
 bool SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG)
 { // AEAD decryption
   // its AES-GCM
-    char ctag[TLS_TAG_SIZE];   // calculated TAG
+    char ctag[TLS_MAX_TAG_SIZE];   // calculated TAG
     octad CTAG={0,sizeof(ctag),ctag};
     gcm g;
     GCM_init(&g,recv->K.len,recv->K.val,12,recv->IV.val);  // Decrypt with Key and IV

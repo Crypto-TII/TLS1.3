@@ -68,33 +68,33 @@ int parseTicket(octad *TICK,unsign32 birth,ticket *T)
     ret r;
     int ext,len,tmplen,ptr=0;
     if (TICK->len==0) return BAD_TICKET;
-    r=parseInt32(TICK,ptr);  if (r.err) return BAD_TICKET; T->lifetime=r.val;
-    r=parseInt32(TICK,ptr);  if (r.err) return BAD_TICKET; T->age_obfuscator=r.val;
-    r=parseByte(TICK,ptr); len=r.val;  if (r.err) return BAD_TICKET;
+    r=parseInt(TICK,4,ptr);  if (r.err) return BAD_TICKET; T->lifetime=r.val;
+    r=parseInt(TICK,4,ptr);  if (r.err) return BAD_TICKET; T->age_obfuscator=r.val;
+    r=parseInt(TICK,1,ptr); len=r.val;  if (r.err) return BAD_TICKET;
 
     r=parseoctad(&T->NONCE,len,TICK,ptr);  if (r.err) return BAD_TICKET;
-    r=parseInt16(TICK,ptr); len=r.val; if (r.err) return BAD_TICKET;
+    r=parseInt(TICK,2,ptr); len=r.val; if (r.err) return BAD_TICKET;
     r=parseoctad(&T->TICK,len,TICK,ptr);  if (r.err) return BAD_TICKET; // extract ticket
-    r=parseInt16(TICK,ptr); len=r.val; if (r.err) return BAD_TICKET;    // length of extensions
+    r=parseInt(TICK,2,ptr); len=r.val; if (r.err) return BAD_TICKET;    // length of extensions
 
     T->birth=birth;
     T->max_early_data=0;
     while (len>0)
     {
-        r=parseInt16(TICK,ptr); ext=r.val; if (r.err) return BAD_TICKET;
+        r=parseInt(TICK,2,ptr); ext=r.val; if (r.err) return BAD_TICKET;
         len-=2;
         switch (ext)
         {
         case EARLY_DATA :
             {
-                r=parseInt16(TICK,ptr); tmplen=r.val; if (tmplen!=4 || r.err) return BAD_TICKET;
+                r=parseInt(TICK,2,ptr); tmplen=r.val; if (tmplen!=4 || r.err) return BAD_TICKET;
                 len-=2;  // tmplen=4 - max_early data
-                r=parseInt32(TICK,ptr); T->max_early_data=r.val;
+                r=parseInt(TICK,4,ptr); T->max_early_data=r.val;
                 len-=tmplen;
                 break;
             }
        default :   // ignore other extensions  
-            r=parseInt16(TICK,ptr); tmplen=r.val;
+            r=parseInt(TICK,2,ptr); tmplen=r.val;
             len-=2;
             len-=tmplen; ptr+=tmplen;
             break;

@@ -45,7 +45,7 @@ static bool checkHostnameInCert(octad *CERT,char *hostname)
     return (bool)X509_find_alt_name(CERT,c,hostname);
 }
 
-static bool checkCertValidity(octad *CERT)
+static bool checkCertNotExpired(octad *CERT)
 {
     int len;
     int ic = X509_find_validity(CERT);
@@ -88,7 +88,7 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
         int ic = X509_find_issuer(&SC);
         createFullName(&OWNER,&SC,ic);
 
-        if (!checkCertValidity(&SC))
+        if (!checkCertNotExpired(&SC))
         { // Its expired!
             continue;
         }
@@ -243,6 +243,71 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
     return 0;
 }
 
+// Check certificate has not expired
+// Detach signature from certificate
+// Check if self-signed
+// Check signature and public keys are supported types
+// Check subject of this certificate is issuer of previous certificate in the chain
+// output signature and public key, and issuer of this certificate
+static int checkCertValidity(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER,pktype &spt,octad *PUBKEY)
+{
+    char subject[TLS_X509_MAX_FIELD];
+    octad SUBJECT={0,sizeof(subject),subject};
+    char issuer[TLS_X509_MAX_FIELD];  
+    octad ISSUER={0,sizeof(issuer),issuer};
+
+    sst=stripDownCert(SCERT,SSIG,&ISSUER,&SUBJECT);    // break down Cert and extract signature
+	if (!checkCertNotExpired(SCERT)) {
+#if VERBOSITY >= IO_DEBUG
+    logger((char *)"Certificate has expired\n",NULL,0,NULL);
+#endif
+		return  CERT_OUTOFDATE;
+	}
+    if (sst.type==0)
+    {
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Unrecognised Signature Type\n",NULL,0,NULL);
+#endif
+        return BAD_CERT_CHAIN;
+    }
+
+	spt=getPublicKeyFromCert(SCERT,PUBKEY);
+
+#if VERBOSITY >= IO_DEBUG
+    logCertDetails((char *)"\nParsing Certificate\n",PUBKEY,spt,SSIG,sst,&ISSUER,&SUBJECT);
+#endif
+
+    if (spt.type==0)
+    {
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Unrecognised Public key Type\n",NULL,0,NULL);
+#endif
+        return BAD_CERT_CHAIN;
+    }
+
+    if (OCT_compare(&ISSUER,&SUBJECT))
+    { //self-signed certificate
+#if VERBOSITY >= IO_PROTOCOL
+        logger((char *)"Self signed Cert\n",NULL,0,NULL);
+#endif
+		return SELF_SIGNED_CERT;   // not necessarily fatal
+	}
+
+	if (PREVIOUS_ISSUER->len!=0)
+	{ // there was one
+		if (!OCT_compare(PREVIOUS_ISSUER,&SUBJECT))
+		{ // Is subject of this cert the issuer of the previous cert?
+#if VERBOSITY >= IO_DEBUG
+        logger((char *)"Subject of this certificate is not issuer of prior certificate\n",NULL,0,NULL);
+#endif
+			return BAD_CERT_CHAIN;
+		}
+	}
+	OCT_copy(PREVIOUS_ISSUER,&ISSUER); // update issuer
+
+	return 0;
+}
+
 // extract server public key, and check validity of certificate chain
 // ensures that the hostname is valid.
 // Assumes simple chain Server Cert->Intermediate Cert->CA cert
@@ -251,7 +316,7 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
 int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 {
     ret r;
-    int len,c,ptr=0;
+    int rtn,len,c,ptr=0;
     pktype sst,ist,spt,ipt;
     char ssig[TLS_MAX_SIGNATURE_SIZE];  // signature on server certificate
     octad SSIG={0,sizeof(ssig),ssig};
@@ -264,23 +329,32 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     octad ICERT;  // signature on intermediate certificate
     ICERT.len=0;
 
-    char pk[TLS_MAX_PUB_KEY_SIZE];  // Public Key 
+    char pk[TLS_MAX_SERVER_PUB_KEY];  // Public Key 
     octad PK = {0, sizeof(pk), pk};
 
     char issuer[TLS_X509_MAX_FIELD];  
     octad ISSUER={0,sizeof(issuer),issuer};
-    char subject[TLS_X509_MAX_FIELD];
-    octad SUBJECT={0,sizeof(subject),subject};
 
 // Extract and process Server Cert
-    r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;// get length of first (server) certificate
+    r=parseInt(CERTCHAIN,3,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;// get length of first (server) certificate
     r=parseoctadptr(&SCERT,len,CERTCHAIN,ptr); if (r.err) return BAD_CERT_CHAIN;
 
-    r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;
+    r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;
     ptr+=len;   // skip certificate extensions
 
-    sst=stripDownCert(&SCERT,&SSIG,&ISSUER,&SUBJECT);    // extract signature
-    spt=getPublicKeyFromCert(&SCERT,PUBKEY);           // extract  public key
+// Check and parse Server Cert
+	rtn=checkCertValidity(&SCERT,sst,&SSIG,&ISSUER,spt,PUBKEY);
+	if (rtn != 0) {
+		if (rtn==SELF_SIGNED_CERT)
+		{
+			if (checkCertSig(sst,&SCERT,&SSIG,PUBKEY)) {
+				return 0;   // not fatal for development purposes
+			}
+			return BAD_CERT_CHAIN;
+		} else {
+			return rtn;
+		}
+	
 
     if (!checkHostnameInCert(&SCERT,hostname))
     { // Check that certificate covers the server URL
@@ -289,37 +363,12 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 #endif
         if (strcmp(hostname,"localhost")!=0) return BAD_CERT_CHAIN;
     }
-    if (!checkCertValidity(&SCERT))
-    {
-#if VERBOSITY >= IO_DEBUG
-        logger((char *)"Server Certificate has expired\n",NULL,0,NULL);
-#endif
-        return CERT_OUTOFDATE;
-    }
-
-    if (sst.type==0)
-    {
-#if VERBOSITY >= IO_DEBUG
-        logger((char *)"Unrecognised Signature Type\n",NULL,0,NULL);
-#endif
-        return BAD_CERT_CHAIN;
-    }
-#if VERBOSITY >= IO_DEBUG
-    logCertDetails((char *)"\nParsing Server certificate\n",PUBKEY,spt,&SSIG,sst,&ISSUER,&SUBJECT);
-#endif
-    if (OCT_compare(&ISSUER,&SUBJECT))
-    {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Warning - Self signed Cert\n",NULL,0,NULL);
-#endif
-        return 0;   // not fatal for development purposes
-    }
 
 // Extract and process Intermediate Cert
-    r=parseInt24(CERTCHAIN,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN; // get length of next certificate
+    r=parseInt(CERTCHAIN,3,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN; // get length of next certificate
     r=parseoctadptr(&ICERT,len,CERTCHAIN,ptr); if (r.err) return BAD_CERT_CHAIN;
 
-    r=parseInt16(CERTCHAIN,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;
+    r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;
     ptr+=len;   // skip certificate extensions
 
 #if VERBOSITY >= IO_PROTOCOL
@@ -327,21 +376,13 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
         logger((char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
 #endif
 
-    ist=stripDownCert(&ICERT,&ISIG,&ISSUER,&SUBJECT);
-    ipt=getPublicKeyFromCert(&ICERT,&PK);
+// Check and parse Intermediate Cert
+	rtn=checkCertValidity(&ICERT,ist,&ISIG,&ISSUER,ipt,&PK);
+	if (rtn != 0) {
+		return BAD_CERT_CHAIN;
+	}
 
-    if (!checkCertValidity(&ICERT))
-    {
-#if VERBOSITY >= IO_DEBUG
-        logger((char *)"Intermediate Certificate has expired\n",NULL,0,NULL);
-#endif
-        return CERT_OUTOFDATE;
-    }
-
-#if VERBOSITY >= IO_DEBUG
-    logCertDetails((char *)"Parsing Intermediate certificate\n",&PK,ipt,&ISIG,ist,&ISSUER,&SUBJECT);
-#endif
-    if (checkCertSig(sst,&SCERT,&SSIG,&PK)) {  // Check server cert signature with inter cert public key
+    if (checkCertSig(sst,&SCERT,&SSIG,&PK)) {  // Check intermediate signature on Server's certificate 
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Intermediate Certificate Chain sig is OK\n",NULL,0,NULL);
 #endif
@@ -350,14 +391,6 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
         logger((char *)"Intermediate Certificate Chain sig is NOT OK\n",NULL,0,NULL);
 #endif
         return BAD_CERT_CHAIN;
-    }
-
-    if (OCT_compare(&ISSUER,&SUBJECT))
-    {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Warning - Self signed Cert\n",NULL,0,NULL);
-#endif
-        return 0;   // not fatal for development purposes
     }
 
 // Find Root of Trust
@@ -373,7 +406,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
         return CA_NOT_FOUND;
     }
 
-    if (checkCertSig(ist,&ICERT,&ISIG,&PK)) {  // Check inter cert signature with root cert public key
+    if (checkCertSig(ist,&ICERT,&ISIG,&PK)) {  // Check signature on intermediate cert with root cert public key
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Root Certificate sig is OK\n",NULL,0,NULL);
 #endif

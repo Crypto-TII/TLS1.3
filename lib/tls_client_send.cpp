@@ -191,7 +191,7 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
 void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT)
 {
     int reclen,taglen;
-    char tag[TLS_TAG_SIZE];
+    char tag[TLS_MAX_TAG_SIZE];
     octad TAG={0,sizeof(tag),tag};
 
     int rbytes=SAL_randomByte()%16; // random padding bytes
@@ -228,15 +228,25 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
-void sendClientHello(TLS_session *session,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,bool resume)
+void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agreed,octad *CID,octad *EXTENSIONS,int extra,bool resume)
 {
     char rn[32];
     octad RN = {0, sizeof(rn), rn};
     char cs[2+TLS_MAX_CIPHER_SUITES*2];
     octad CS = {0, sizeof(cs), cs};
+	int nsc;
+	int ciphers[TLS_MAX_CIPHER_SUITES];
     int compressionMethods=0x0100;
     int total=8;
     int extlen=EXTENSIONS->len+extra;
+
+	nsc=SAL_ciphers(ciphers);  
+	if (already_agreed)
+	{ // cipher suite already agreed
+		nsc=1;
+		ciphers[0]=session->cipher_suite;
+	}
+
     total+=clientRandom(&RN);
     if (!resume)
         total+=sessionID(CID);  

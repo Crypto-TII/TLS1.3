@@ -25,37 +25,14 @@
  */
 extern ret parseoctad(octad *E,int len,octad *M,int &ptr);
 
-/**	@brief Parse out a 16-bit unsigned integer from a pointer into an octad 
+/**	@brief Parse out an unsigned integer from a pointer into an octad 
  *
     @param M the input octad
+	@param len the number of bytes in integer
     @param ptr a pointer into M, which advances after use
-	@return the 16-bit integer value, and an error flag
+	@return the integer value, and an error flag
  */
-extern ret parseInt16(octad *M,int &ptr);
-
-/**	@brief Parse out a 24-bit unsigned integer from a pointer into an octad 
- *
-    @param M the input octad
-    @param ptr a pointer into M, which advances after use
-	@return the 24-bit integer value, and an error flag
- */
-extern ret parseInt24(octad *M,int &ptr);
-
-/**	@brief Parse out a 32-bit unsigned integer from a pointer into an octad 
- *
-    @param M the input octad
-    @param ptr a pointer into M, which advances after use
-	@return the 32-bit integer value, and an error flag
- */
-extern ret parseInt32(octad *M,int &ptr);
-
-/**	@brief Parse out an unsigned byte from a pointer into an octad 
- *
-    @param M the input octad
-    @param ptr a pointer into M, which advances after use
-	@return the unsigned byte, and an error flag
- */
-extern ret parseByte(octad *M,int &ptr);
+extern ret parseInt(octad *M,int len,int &ptr);
 
 /**	@brief Return a pointer to an octad from a pointer into an octad 
  *
@@ -75,37 +52,14 @@ extern ret parseoctadptr(octad *E,int len,octad *M,int &ptr);
  */
 extern int getServerFragment(TLS_session *session);
 
-/**	@brief Parse out an unsigned byte from a pointer into an octad, if necessary pulling in a new fragment
+/**	@brief Parse out an unsigned integer from a pointer into an octad, if necessary pulling in a new fragment
  *
 	@param session the TLS session structure
+	@param len the number of bytes in integer
     @param ptr a pointer into IO, which advances after use
-	@return the unsigned byte, and an error flag
+	@return the unsigned integer, and an error flag
  */
-extern ret parseByteorPull(TLS_session *session,int &ptr);
-
-/**	@brief Parse out a 32-bit unsigned integer from a pointer into an octad, if necessary pulling in a new fragment
- *
-	@param session the TLS session structure
-    @param ptr a pointer into IO, which advances after use
-	@return the 32-bit integer value, and an error flag
- */
-extern ret parseInt32orPull(TLS_session *session,int &ptr);
-
-/**	@brief Parse out a 24-bit unsigned integer from a pointer into an octad, if necessary pulling in a new fragment
- *
-	@param session the TLS session structure
-    @param ptr a pointer into IO, which advances after use
-	@return the 24-bit integer value, and an error flag
- */
-extern ret parseInt24orPull(TLS_session *session,int &ptr);
-
-/**	@brief Parse out a 16-bit unsigned integer from a pointer into an octad, if necessary pulling in a new fragment
- *
-	@param session the TLS session structure
-    @param ptr a pointer into IO, which advances after use
-	@return the 16-bit integer value, and an error flag
- */
-extern ret parseInt16orPull(TLS_session *session,int &ptr);
+extern ret parseIntorPull(TLS_session *session,int len,int &ptr);
 
 /**	@brief Parse out an octad from a pointer into an octad, if necessary pulling in a new fragment
  *
@@ -149,7 +103,7 @@ extern ret getWhatsNext(TLS_session *session);
     @param enc_ext_resp ext structure containing server responses
 	@return response structure
  */
-extern ret getServerEncryptedExtensions(TLS_session *session,ee_expt *enc_ext_expt,ee_resp *enc_ext_resp);
+extern ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee_status *enc_ext_resp);
 
 /**	@brief Get Server proof that he owns the Certificate, by receiving and verifying its signature on transcript hash
  *
@@ -171,7 +125,6 @@ extern ret getServerFinished(TLS_session *session,octad *HFIN);
 /**	@brief Receive and parse initial Server Hello
  *
 	@param session the TLS session structure
-    @param cipher the agreed cipher suite
     @param kex key exchange data
     @param CID random session identity
     @param CK an output Cookie
@@ -179,7 +132,7 @@ extern ret getServerFinished(TLS_session *session,octad *HFIN);
     @param pskid indicates if a pre-shared key was accepted, otherwise -1
 	@return response structure
  */
-extern ret getServerHello(TLS_session *session,int &cipher,int &kex,octad *CID,octad *CK,octad *PK,int &pskid);
+extern ret getServerHello(TLS_session *session,/*int &cipher,*/int &kex,octad *CID,octad *CK,octad *PK,int &pskid);
 
 /**	@brief Receive and check certificate chain
  *

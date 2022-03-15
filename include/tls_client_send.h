@@ -174,14 +174,13 @@ extern void sendBinder(TLS_session *session,octad *B,octad *BND);
 	@param session the TLS session structure
     @param version TLS version indication
     @param CH workspace octad in which to build client Hello
-    @param nsc the number of supported cipher-suites
-    @param ciphers an array of supported cipher-suites
+	@param already_agreed true if cipher suite previously negotiated, else false
     @param CID random session ID (generated and used internally, and output here)
     @param EXTENSIONS pre-prepared extensions
     @param extra length of preshared key binder to be sent later
     @param resume true if this hello is for handshae resumption
  */
-extern void sendClientHello(TLS_session *session,int version,octad *CH,int nsc,int *ciphers,octad *CID,octad *EXTENSIONS,int extra,bool resume);
+extern void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agreed,octad *CID,octad *EXTENSIONS,int extra,bool resume);
 
 /**	@brief Prepare and send an Alert message to the Server
  *

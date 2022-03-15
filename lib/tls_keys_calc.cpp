@@ -441,32 +441,32 @@ static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
     char s[TLS_MAX_ECC_FIELD];
     octad S={0,sizeof(s),s};
 
-    rt=parseByte(SCVSIG,ptr); der=rt.val;
+    rt=parseInt(SCVSIG,1,ptr); der=rt.val;
     if (rt.err || der!=0x30) return false;
-    rt=parseByte(SCVSIG,ptr); slen=rt.val;
+    rt=parseInt(SCVSIG,1,ptr); slen=rt.val;
     if (rt.err || slen+2!=len) return false;
 
 // get R
-    rt=parseByte(SCVSIG,ptr); Int=rt.val;
+    rt=parseInt(SCVSIG,1,ptr); Int=rt.val;
     if (rt.err || Int!=0x02) return false;
-    rt=parseByte(SCVSIG,ptr); rlen=rt.val;
+    rt=parseInt(SCVSIG,1,ptr); rlen=rt.val;
     if (rt.err) return false;
     if (rlen==shalen+1)
     { // one too big
         rlen--;
-        rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+        rt=parseInt(SCVSIG,1,ptr); lzero=rt.val;
         if (rt.err || lzero!=0) return false;
     }
     rt=parseoctad(&R,shalen,SCVSIG,ptr); if (rt.err) return false;
 
 // get S
-    rt=parseByte(SCVSIG,ptr); Int=rt.val;
+    rt=parseInt(SCVSIG,1,ptr); Int=rt.val;
     if (rt.err || Int!=0x02) return false;
-    rt=parseByte(SCVSIG,ptr); slen=rt.val;
+    rt=parseInt(SCVSIG,1,ptr); slen=rt.val;
     if (rt.err || slen==shalen+1)
     { // one too big
         slen--;
-        rt=parseByte(SCVSIG,ptr); lzero=rt.val;
+        rt=parseInt(SCVSIG,1,ptr); lzero=rt.val;
         if (rt.err || lzero!=0) return false;
     }
     rt=parseoctad(&S,shalen,SCVSIG,ptr); if (rt.err) return false;

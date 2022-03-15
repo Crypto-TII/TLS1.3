@@ -14,11 +14,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
     strcpy(state.hostname,hostname);                        // server to connection with
     state.session_status=TLS13_DISCONNECTED;
 	state.server_max_record=0;
-    state.cipher_suite=TLS_AES_128_GCM_SHA256;              // default cipher suite
-    state.CPB.nsg=SAL_groups(state.CPB.supportedGroups);    // Get supported Key Exchange Groups in order of preference
-    state.CPB.nsc=SAL_ciphers(state.CPB.ciphers);           // Get supported Cipher Suits
-    state.CPB.nsa=SAL_sigs(state.CPB.sigAlgs);              // Get supported TLS1.3 signing algorithms 
-    state.CPB.nsac=SAL_sigCerts(state.CPB.sigAlgsCert);     // Get supported Certificate signing algorithms 
+    state.cipher_suite=0;//TLS_AES_128_GCM_SHA256;              // cipher suite
     initCryptoContext(&state.K_send);                       // Transmission key
     initCryptoContext(&state.K_recv);                       // Reception key
 
@@ -32,35 +28,96 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 	state.IO={0,TLS_MAX_IO_SIZE,state.io};
 #endif
 
-    state.favourite_group=state.CPB.supportedGroups[0];     // favourite key exchange group - may be changed on handshake retry
+    state.favourite_group=0;							    // default key exchage group
     initTicketContext(&state.T);                            // Resumption ticket - may be added to session state
     return state;
 }
 
 #define CLEAN_FULL_STACK \
-    OCT_kill(&CSK); OCT_kill(&PK); OCT_kill(&SS); OCT_kill(&CH); OCT_kill(&EXT); \
+    OCT_kill(&CSK); OCT_kill(&PK); OCT_kill(&SS); OCT_kill(&CH); OCT_kill(&EXT);  OCT_kill(&SPK); \
     OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&HH); OCT_kill(&FH); OCT_kill(&TH); \
     OCT_kill(&CID); OCT_kill(&COOK); OCT_kill(&SCVSIG); OCT_kill(&FIN); OCT_kill(&CHF); \
     OCT_kill(&CETS); OCT_kill(&ALPN);
+
+
+// build chosen set of extensions, and assert expectations of server responses
+// The User may want to change the mix of optional extensions
+static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status *expectations,bool resume)
+{
+	int ciphers[TLS_MAX_CIPHER_SUITES];
+	int nsc=SAL_ciphers(ciphers);  
+	int groups[TLS_MAX_SUPPORTED_GROUPS];
+	int nsg=SAL_groups(groups);
+	int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
+	int nsa=SAL_sigs(sigAlgs);
+	int sigAlgsCert[TLS_MAX_SUPPORTED_SIGS];
+	int nsac=SAL_sigCerts(sigAlgsCert);
+    char alpn[8];
+    octad ALPN={0,sizeof(alpn),alpn};         // ALPN
+    int tlsVersion=TLS1_3;
+    int pskMode=PSKWECDHE;
+#ifdef TLS_PROTOCOL
+#if TLS_PROTOCOL == TLS_HTTP_PROTOCOL
+    OCT_from_hex(&ALPN,(char *)http);
+#endif
+#endif
+
+	if (resume)
+	{
+		nsg=1;
+		groups[0]=session->favourite_group; // Only allow the group already agreed
+	}
+
+	OCT_kill(EXT);
+	addServerNameExt(EXT,session->hostname); expectations->server_name=true;  // Server Name extension - acknowledgement is expected
+	addSupportedGroupsExt(EXT,nsg,groups);
+	addKeyShareExt(EXT,session->favourite_group,PK); // only sending one public key
+#ifdef TLS_PROTOCOL
+	addALPNExt(EXT,&ALPN); expectations->alpn=true; // only supporting one application protocol
+#endif
+	addPSKModesExt(EXT,pskMode);
+	addVersionExt(EXT,tlsVersion);
+#ifdef CLIENT_MAX_RECORD
+	addRSLExt(EXT,CLIENT_MAX_RECORD);                     // demand a fragment size limit
+#else
+	addMFLExt(EXT,TLS_MAX_FRAG);  expectations->max_frag_length=true; // ask for max fragment length - server may not agree - but no harm in asking
+#endif
+	addPadding(EXT,SAL_randomByte()%16);  // add some random padding (because I can)
+
+	if (!resume)
+	{ // need signature related extensions for full handshake
+		addSigAlgsExt(EXT,nsa,sigAlgs);
+		addSigAlgsCertExt(EXT,nsac,sigAlgsCert);
+
+	} 
+}
 
 // TLS1.3 full handshake - connect to server
 static int TLS13_full(TLS_session *session)
 {
     ret rtn;
     int i,pskid;
-    int cs_hrr,kex,hashtype;
+    int kex,hashtype;
+	int nsa,nsc,nsg,nsac;
     bool ccs_sent=false;
     bool resumption_required=false;
     bool gotacertrequest=false;
     int nccsalgs=0;  // number of client certificate signature algorithms
     int csigAlgs[TLS_MAX_SUPPORTED_SIGS]; // acceptable client cert signature types
 
+	int ciphers[TLS_MAX_CIPHER_SUITES];
+	nsc=SAL_ciphers(ciphers);  
+	int groups[TLS_MAX_SUPPORTED_GROUPS];
+	nsg=SAL_groups(groups);
+
     char csk[TLS_MAX_SECRET_KEY_SIZE];   // clients key exchange secret key
     octad CSK = {0, sizeof(csk), csk};
-    char pk[TLS_MAX_PUB_KEY_SIZE];       // Server & Client Public Key (shared memory)
+    char pk[TLS_MAX_PUB_KEY_SIZE];       // Server & Client key exchange Public Key (shared memory)
     octad PK = {0, sizeof(pk), pk};
-    char ss[TLS_MAX_PUB_KEY_SIZE];
-    octad SS = {0, sizeof(ss), ss};      // Shared Secret and Server's Cert Public Key (shared memory)
+    char ss[TLS_MAX_SHARED_SECRET_SIZE]; // key exchange Shared Secret 
+    octad SS = {0, sizeof(ss), ss};      
+	char spk[TLS_MAX_SERVER_PUB_KEY];    // servers public key
+	octad SPK={0,sizeof(spk),spk};
     char ch[TLS_MAX_CLIENT_HELLO];       // Client Hello
     octad CH = {0, sizeof(ch), ch};
     char ext[TLS_MAX_EXTENSIONS];
@@ -109,12 +166,9 @@ static int TLS13_full(TLS_session *session)
 #endif
 #endif
 
-    int tlsVersion=TLS1_3;
-    int pskMode=PSKWECDHE;
-    ee_resp enc_ext_resp={false,false,false,false};  // encrypted extensions expectations
-    ee_expt enc_ext_expt={false,false,false,false};  // encrypted extensions responses
-    
-    session->favourite_group=session->CPB.supportedGroups[0]; // only sending one key share in our favourite group
+    ee_status enc_ext_resp={false,false,false,false};  // encrypted extensions expectations
+    ee_status enc_ext_expt={false,false,false,false};  // encrypted extensions responses
+    session->favourite_group=groups[0]; // only sending one key share - so choose first in our list
 //
 // Generate key pair in favourite group
 //
@@ -127,32 +181,10 @@ static int TLS13_full(TLS_session *session)
 
 // Client Hello
 // First build our preferred mix of client Hello extensions, based on our capabililities
-
-	
-	addServerNameExt(&EXT,session->hostname); enc_ext_expt.server_name=true;  // Server Name extension - acknowledgement is expected
-
-	addSupportedGroupsExt(&EXT,session->CPB.nsg,session->CPB.supportedGroups);
-    addSigAlgsExt(&EXT,session->CPB.nsa,session->CPB.sigAlgs);
-    addSigAlgsCertExt(&EXT,session->CPB.nsac,session->CPB.sigAlgsCert);
-    addKeyShareExt(&EXT,session->favourite_group,&PK); // only sending one public key
-#ifdef TLS_PROTOCOL
-    addALPNExt(&EXT,&ALPN); enc_ext_expt.alpn=true; // only supporting one application protocol
-#endif
-    addPSKModesExt(&EXT,pskMode);
-    addVersionExt(&EXT,tlsVersion);
-
-#ifdef CLIENT_MAX_RECORD
-	addRSLExt(&EXT,CLIENT_MAX_RECORD);                     // demand a fragment size limit
-#else
-    addMFLExt(&EXT,TLS_MAX_FRAG);  enc_ext_expt.max_frag_length=true; // ask for max fragment length - server may not agree - but no harm in asking
-#endif
-    addPadding(&EXT,SAL_randomByte()%16);  // add some random padding (because I can)
+	buildExtensions(session,&EXT,&PK,&enc_ext_expt,false);
 
 // create and send Client Hello octad
-    sendClientHello(session,TLS1_0,&CH,session->CPB.nsc,session->CPB.ciphers,&CID,&EXT,0,false);  
-
-
-//logger((char *)"CH= ",NULL,0,&EXT);
+    sendClientHello(session,TLS1_0,&CH,false,&CID,&EXT,0,false);  
 
 //
 //
@@ -165,18 +197,14 @@ static int TLS13_full(TLS_session *session)
 #endif
 
 // Process Server Hello response
-    rtn=getServerHello(session,session->cipher_suite,kex,&CID,&COOK,&PK,pskid);
+    rtn=getServerHello(session,kex,&CID,&COOK,&PK,pskid);
 //
 //
 //  <--------------------------------- server Hello (or helloRetryRequest?)
 //
 //
-
     if (badResponse(session,rtn)) 
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -184,9 +212,9 @@ static int TLS13_full(TLS_session *session)
 
 // Find cipher-suite chosen by Server
     hashtype=0;
-    for (i=0;i<session->CPB.nsc;i++)
+    for (i=0;i<nsc;i++)
     {
-        if (session->cipher_suite==session->CPB.ciphers[i])
+        if (session->cipher_suite==ciphers[i])
             hashtype=SAL_hashType(session->cipher_suite);
     }
     if (SAL_hashLen(hashtype)==0)
@@ -217,7 +245,7 @@ static int TLS13_full(TLS_session *session)
     if (rtn.val==HANDSHAKE_RETRY)  // Was serverHello an helloRetryRequest?
     {
         runningSyntheticHash(session,&CH,&EXT); // RFC 8446 section 4.4.1
-        runningHash(session,&session->IO);     // Hash of helloRetryRequest
+        runningHash(session,&session->IO);      // Hash of helloRetryRequest
 
         if (kex==session->favourite_group)
         { // its the same one I chose !?
@@ -238,35 +266,20 @@ static int TLS13_full(TLS_session *session)
 
 // Repair clientHello by supplying public key of Server's preferred key exchange algorithm
 // build new client Hello extensions
-        OCT_kill(&EXT);
-        addServerNameExt(&EXT,session->hostname); 
-        addSupportedGroupsExt(&EXT,session->CPB.nsg,session->CPB.supportedGroups);
-        addSigAlgsExt(&EXT,session->CPB.nsa,session->CPB.sigAlgs);
-        addSigAlgsCertExt(&EXT,session->CPB.nsac,session->CPB.sigAlgsCert);
+
 // generate new key pair in new server selected group 
         session->favourite_group=kex;
         SAL_generateKeyPair(session->favourite_group,&CSK,&PK); 
-        addKeyShareExt(&EXT,session->favourite_group,&PK);  // Public Key Share in new group
-#ifdef TLS_PROTOCOL
-        addALPNExt(&EXT,&ALPN); // only supporting one application protocol
-#endif
-        addPSKModesExt(&EXT,pskMode);
-        addVersionExt(&EXT,tlsVersion);
 
-#ifdef CLIENT_MAX_RECORD
-	    addRSLExt(&EXT,CLIENT_MAX_RECORD);                     // demand a fragment size limit
-#else
-		addMFLExt(&EXT,TLS_MAX_FRAG);	enc_ext_expt.max_frag_length=true; // ask nicely for max fragment length
-#endif
+		buildExtensions(session,&EXT,&PK,&enc_ext_expt,false);
 
-        addPadding(&EXT,SAL_randomByte()%16);  // add some random padding
         if (COOK.len!=0)
             addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR
         sendCCCS(session);  // send Client Cipher Change
         ccs_sent=true;
 
 // create and send new Client Hello octad
-        sendClientHello(session,TLS1_2,&CH,session->CPB.nsc,session->CPB.ciphers,&CID,&EXT,0,true);
+        sendClientHello(session,TLS1_2,&CH,false,&CID,&EXT,0,true);
 //
 //
 //  ---------------------------------------------------> Resend Client Hello
@@ -276,7 +289,7 @@ static int TLS13_full(TLS_session *session)
 #if VERBOSITY >= IO_DEBUG
         logger((char *)"Client Hello re-sent\n",NULL,0,NULL);
 #endif
-        rtn=getServerHello(session,cs_hrr,kex,&CID,&COOK,&PK,pskid);
+        rtn=getServerHello(session,kex,&CID,&COOK,&PK,pskid);
 //
 //
 //  <---------------------------------------------------------- server Hello
@@ -284,9 +297,6 @@ static int TLS13_full(TLS_session *session)
 //
         if (badResponse(session,rtn)) 
         {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
             CLEAN_FULL_STACK
             TLS13_clean(session);
             return TLS_FAILURE;
@@ -299,19 +309,6 @@ static int TLS13_full(TLS_session *session)
             sendClientAlert(session,UNEXPECTED_MESSAGE);
 #if VERBOSITY >= IO_PROTOCOL
             logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
-            CLEAN_FULL_STACK
-            TLS13_clean(session);
-            return TLS_FAILURE;
-        }
-        if (cs_hrr!=session->cipher_suite)
-        { // Server cannot change cipher_suite at this stage
-#if VERBOSITY >= IO_DEBUG
-            logger((char *)"Server selected different cipher suite\n",NULL,0,NULL); 
-#endif
-            sendClientAlert(session,ILLEGAL_PARAMETER); 
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
 #endif
             CLEAN_FULL_STACK
             TLS13_clean(session);
@@ -365,9 +362,6 @@ static int TLS13_full(TLS_session *session)
 //
     if (badResponse(session,rtn)) 
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -381,9 +375,6 @@ static int TLS13_full(TLS_session *session)
     rtn=getWhatsNext(session);  // get message type
     if (badResponse(session,rtn)) 
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -400,9 +391,6 @@ static int TLS13_full(TLS_session *session)
 //
         if (badResponse(session,rtn))
         {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
             CLEAN_FULL_STACK
             TLS13_clean(session);
             return TLS_FAILURE;
@@ -414,9 +402,6 @@ static int TLS13_full(TLS_session *session)
         rtn=getWhatsNext(session);  // get message type
         if (badResponse(session,rtn)) 
         {
-#if VERBOSITY >= IO_PROTOCOL
-            logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
             CLEAN_FULL_STACK
             TLS13_clean(session);
             return TLS_FAILURE;
@@ -433,7 +418,7 @@ static int TLS13_full(TLS_session *session)
         TLS13_clean(session);
         return TLS_FAILURE;
     }
-    rtn=getCheckServerCertificateChain(session,&SS);
+    rtn=getCheckServerCertificateChain(session,&SPK);
 //
 //
 //  <---------------------------------------------------------- {Certificate}
@@ -441,9 +426,6 @@ static int TLS13_full(TLS_session *session)
 //
     if (badResponse(session,rtn))     
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -459,9 +441,6 @@ static int TLS13_full(TLS_session *session)
     rtn=getWhatsNext(session);  // get message type
     if (badResponse(session,rtn))
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -484,9 +463,6 @@ static int TLS13_full(TLS_session *session)
 //
     if (badResponse(session,rtn)) 
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -498,7 +474,7 @@ static int TLS13_full(TLS_session *session)
     logger((char *)"Server Certificate Signature= ",NULL,0,&SCVSIG);
 #endif
     logSigAlg(sigalg);
-    if (!checkServerCertVerifier(sigalg,&SCVSIG,&HH,&SS))
+    if (!checkServerCertVerifier(sigalg,&SCVSIG,&HH,&SPK))
     {
         sendClientAlert(session,DECRYPT_ERROR);
 #if VERBOSITY >= IO_DEBUG
@@ -523,9 +499,6 @@ static int TLS13_full(TLS_session *session)
 //
     if (badResponse(session,rtn))
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Full Handshake failed\n",NULL,0,NULL);
-#endif
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -641,13 +614,13 @@ static int TLS13_full(TLS_session *session)
 // EARLY - First message from Client to Server (should ideally be sent as early data!)
 static int TLS13_resume(TLS_session *session,octad *EARLY)
 {
-    int hashtype,kex,pskid;
+    int hashtype,kex,pskid,nsc,nsa,nsg,nsac;
     ret rtn;
     char es[TLS_MAX_HASH];               // Early Secret
     octad ES = {0,sizeof(es),es};
     char hs[TLS_MAX_HASH];               // Handshake Secret
     octad HS = {0,sizeof(hs),hs};
-    char ss[TLS_MAX_PUB_KEY_SIZE];
+    char ss[TLS_MAX_SHARED_SECRET_SIZE];
     octad SS = {0, sizeof(ss), ss};      // Shared Secret
     char csk[TLS_MAX_SECRET_KEY_SIZE];   
     octad CSK = {0, sizeof(csk), csk};   // clients key exchange secret key
@@ -692,16 +665,14 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 
 // NOTE: MAX_TICKET_SIZE and MAX_EXTENSIONS are increased to support much larger tickets issued when client certificate authentication required
 
-    int tlsVersion=TLS1_3;
-    int pskMode=PSKWECDHE;
     unsign32 time_ticket_received,time_ticket_used;
     int origin,lifetime=0;
     unsign32 age,age_obfuscator=0;
     unsign32 max_early_data=0;
     bool have_early_data=true;       // Hope to send client message as early data
     bool external_psk=false;
-    ee_resp enc_ext_resp={false,false,false,false};  // encrypted extensions expectations
-    ee_expt enc_ext_expt={false,false,false,false};  // encrypted extensions responses
+    ee_status enc_ext_resp={false,false,false,false};  // encrypted extensions expectations
+    ee_status enc_ext_expt={false,false,false,false};  // encrypted extensions responses
 
 // Extract Ticket parameters
     lifetime=session->T.lifetime;
@@ -748,30 +719,10 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 #endif
 
 // Client Hello
-// First build client Hello extensions
-    OCT_kill(&EXT);
-    addServerNameExt(&EXT,session->hostname); enc_ext_expt.server_name=true;
-    int groups[1]; groups[0]=session->favourite_group;    // Only allow one group
-    addSupportedGroupsExt(&EXT,1,groups);  
-// Signature algorithms not needed for resumption, so smaller clientHello
-    addKeyShareExt(&EXT,session->favourite_group,&PK); // only sending one public key 
-#ifdef TLS_PROTOCOL
-    addALPNExt(&EXT,&ALPN); enc_ext_expt.alpn=true;// only supporting one application protocol
-#endif
-    addPSKModesExt(&EXT,pskMode);
-    addVersionExt(&EXT,tlsVersion);
+// First build standard client Hello extensions
 
-
-#ifdef CLIENT_MAX_RECORD
-	addRSLExt(&EXT,CLIENT_MAX_RECORD);                     // demand a fragment size limit
-#else
-    if (origin==TLS_FULL_HANDSHAKE)
-    {
-        addMFLExt(&EXT,TLS_MAX_FRAG); enc_ext_expt.max_frag_length=true; // ask for max fragment length - for some reason openssl does not accept this for PSK
-    }
-#endif
-
-    addPadding(&EXT,SAL_randomByte()%16);      // add some random padding
+	buildExtensions(session,&EXT,&PK,&enc_ext_expt,true);	
+	
     if (have_early_data)
     {
         addEarlyDataExt(&EXT); enc_ext_expt.early_data=true;                 // try sending client message as early data if allowed
@@ -792,9 +743,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     }
 
     int extra=addPreSharedKeyExt(&EXT,age,&session->T.TICK,SAL_hashLen(hashtype));
-    int ciphers[1]; ciphers[0]=session->cipher_suite;     // Only allow one cipher suite
+
 // create and send Client Hello octad
-    sendClientHello(session,TLS1_2,&CH,1,ciphers,&CID,&EXT,extra,false);  
+    sendClientHello(session,TLS1_2,&CH,true,&CID,&EXT,extra,false);  
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -842,7 +793,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     }
 
 // Process Server Hello
-    rtn=getServerHello(session,session->cipher_suite,kex,&CID,&COOK,&PK,pskid);
+    rtn=getServerHello(session,kex,&CID,&COOK,&PK,pskid);
 //
 //
 //  <---------------------------------------------------------- server Hello
@@ -878,9 +829,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 
     if (badResponse(session,rtn)) 
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
-#endif
         sendClientAlert(session,CLOSE_NOTIFY);
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
@@ -928,9 +876,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 //
     if (badResponse(session,rtn)) 
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
-#endif
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -950,9 +895,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 //
     if (badResponse(session,rtn)) 
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Resumption Handshake failed\n",NULL,0,NULL);
-#endif
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -1097,8 +1039,8 @@ int TLS13_recv(TLS_session *session,octad *REC)
         {
             while (1)
             {
-                r=parseByteorPull(session,ptr); nb=r.val; if (r.err) return r.err;
-                r=parseInt24orPull(session,ptr); len=r.val; if (r.err) return r.err;   // message length
+                r=parseIntorPull(session,1,ptr); nb=r.val; if (r.err) return r.err;
+                r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r.err;   // message length
                 switch (nb)
                 {
                 case TICKET :   // keep last ticket
@@ -1131,7 +1073,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
 #endif
                         return BAD_RECORD;
                     }
-                    r=parseByteorPull(session,ptr); kur=r.val; if (r.err) break;
+                    r=parseIntorPull(session,1,ptr); kur=r.val; if (r.err) break;
                     if (kur==0)
                     {
                         deriveUpdatedKeys(&session->K_recv,&session->STS);  // reset record number

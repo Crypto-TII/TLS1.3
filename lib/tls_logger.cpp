@@ -155,7 +155,7 @@ void logSigAlg(int sigAlg)
 }
 
 // log Encrypted Extensions Responses
-void logEncExt(ee_expt *expected,ee_resp *received)
+void logEncExt(ee_status *expected,ee_status *received)
 {
 #if VERBOSITY >= IO_PROTOCOL
     if (expected->early_data)
@@ -168,32 +168,36 @@ void logEncExt(ee_expt *expected,ee_resp *received)
         }
     }
 #endif
-    if (expected->alpn && !received->alpn)
-    {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Warning - ALPN extension NOT acknowledged by server\n",NULL,0,NULL);
-#endif
-    } else {
 #if VERBOSITY >= IO_DEBUG
-        logger((char *)"ALPN extension acknowledged by server\n",NULL,0,NULL);
-#endif
-    }
+    if (expected->alpn)
+	{
+		if (received->alpn)
+		{
+			 logger((chr *)"ALPN extension acknowledged by server\n",NULL,0,NULL);
+        
+		} else {
+			logger((char *)"Warning - ALPN extension NOT acknowledged by server\n",NULL,0,NULL);
+		}
+	}
 
-#if VERBOSITY >= IO_DEBUG
-    if (expected->server_name && !received->server_name)
-    {
-        logger ((char *)"Server Name NOT acknowledged\n",NULL,0,NULL);
-    } else {
-        logger ((char *)"Server Name acknowledged\n",NULL,0,NULL);
-    }
-#endif
-#if VERBOSITY >= IO_DEBUG
-    if (expected->max_frag_length && !received->max_frag_length)
-    {
-        logger ((char *)"Max frag length request NOT acknowledged\n",NULL,0,NULL);
-    } else {
-        logger ((char *)"Max frag length request acknowledged\n",NULL,0,NULL);
-    }
+    if (expected->server_name)
+	{
+		if (received->server_name)
+		{
+			logger ((char *)"Server Name acknowledged\n",NULL,0,NULL);
+		} else {
+			logger ((char *)"Server Name NOT acknowledged\n",NULL,0,NULL);
+		}
+	}
+    if (expected->max_frag_length)
+	{
+		if (received->max_frag_length)
+		{
+			logger ((char *)"Max frag length request acknowledged\n",NULL,0,NULL);
+		} else {
+			logger ((char *)"Max frag length request NOT acknowledged\n",NULL,0,NULL);
+		}
+	}
 #endif
 }
 

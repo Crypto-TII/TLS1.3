@@ -285,7 +285,7 @@ int main(int argc, char const *argv[])
         OCT_copy(&session->T.PSK,&PSK);
         session->T.max_early_data=1024;
         session->T.cipher_suite=TLS_AES_128_GCM_SHA256;
-        session->T.favourite_group=session->CPB.supportedGroups[0];
+        session->T.favourite_group=X25519;
         session->T.origin=TLS_EXTERNAL_PSK;
         session->T.valid=true;
         removeTicket();  // delete any stored ticket - fall into resumption mode
