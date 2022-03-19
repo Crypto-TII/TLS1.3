@@ -24,8 +24,10 @@ void myprintf(char *s)
 // if O is not null, output octad in hex.
 // undefine LOGGER in tls1_3.h to save space
 
-void logger(char *preamble,char *string,unsign32 info,octad *O)
+void logger(int logit,char *preamble,char *string,unsign32 info,octad *O)
 {
+	if (logit>VERBOSITY) return;
+
 #if VERBOSITY>IO_NONE    
 
     myprintf(preamble);
@@ -59,97 +61,105 @@ void logger(char *preamble,char *string,unsign32 info,octad *O)
 
 void nameCipherSuite(int cipher_suite)
 {
+#if VERBOSITY >= IO_DEBUG
     switch (cipher_suite)
     {
     case TLS_AES_128_GCM_SHA256:
-        logger((char *)"TLS_AES_128_GCM_SHA256\n",NULL,0,NULL);
+        logger(IO_DEBUG,(char *)"TLS_AES_128_GCM_SHA256\n",NULL,0,NULL);
         break;
     case TLS_AES_256_GCM_SHA384:
-        logger((char *)"TLS_AES_256_GCM_SHA384\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"TLS_AES_256_GCM_SHA384\n",NULL,0,NULL);   
         break;
     case TLS_CHACHA20_POLY1305_SHA256:
-        logger((char *)"TLS_CHACHA20_POLY1305_SHA256\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"TLS_CHACHA20_POLY1305_SHA256\n",NULL,0,NULL);   
         break;
     default:
-        logger((char *)"Non-standard\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"Non-standard\n",NULL,0,NULL);   
         break;
     }
+#endif
 }
 
 void logCipherSuite(int cipher_suite)
 {
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Cipher Suite is ",NULL,0,NULL);
+    logger(IO_DEBUG,(char *)"Cipher Suite is ",NULL,0,NULL);
     nameCipherSuite(cipher_suite);
 #endif
 }
 
 void nameKeyExchange(int kex)
 {
+#if VERBOSITY >= IO_DEBUG
     switch (kex)
     {
     case X25519:
-        logger((char *)"X25519\n",NULL,0,NULL);
+        logger(IO_DEBUG,(char *)"X25519\n",NULL,0,NULL);
         break;
     case SECP256R1:
-        logger((char *)"SECP256R1\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"SECP256R1\n",NULL,0,NULL);   
         break;
     case SECP384R1:
-        logger((char *)"SECP384R1\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"SECP384R1\n",NULL,0,NULL);   
         break;
     default:
-        logger((char *)"Non-standard\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"Non-standard\n",NULL,0,NULL);   
         break;
     }
+#endif
 }
 
 void logKeyExchange(int kex)
 {
-    logger((char *)"Key Exchange Group is ",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
+    logger(IO_DEBUG,(char *)"Key Exchange Group is ",NULL,0,NULL);
     nameKeyExchange(kex);
+#endif
 }
 
 void nameSigAlg(int sigAlg)
 {
+#if VERBOSITY >= IO_DEBUG
     switch (sigAlg)
     {
     case ECDSA_SECP256R1_SHA256:
-        logger((char *)"ECDSA_SECP256R1_SHA256\n",NULL,0,NULL);
+        logger(IO_DEBUG,(char *)"ECDSA_SECP256R1_SHA256\n",NULL,0,NULL);
         break;
     case RSA_PSS_RSAE_SHA256:
-        logger((char *)"RSA_PSS_RSAE_SHA256\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"RSA_PSS_RSAE_SHA256\n",NULL,0,NULL);   
         break;
     case RSA_PKCS1_SHA256:
-        logger((char *)"RSA_PKCS1_SHA256\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"RSA_PKCS1_SHA256\n",NULL,0,NULL);   
         break;
     case ECDSA_SECP384R1_SHA384:
-        logger((char *)"ECDSA_SECP384R1_SHA384\n",NULL,0,NULL);
+        logger(IO_DEBUG,(char *)"ECDSA_SECP384R1_SHA384\n",NULL,0,NULL);
         break;
     case RSA_PSS_RSAE_SHA384:
-        logger((char *)"RSA_PSS_RSAE_SHA384\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"RSA_PSS_RSAE_SHA384\n",NULL,0,NULL);   
         break;
     case RSA_PKCS1_SHA384:
-        logger((char *)"RSA_PKCS1_SHA384\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"RSA_PKCS1_SHA384\n",NULL,0,NULL);   
         break;
     case RSA_PSS_RSAE_SHA512:
-        logger((char *)"RSA_PSS_RSAE_SHA512\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"RSA_PSS_RSAE_SHA512\n",NULL,0,NULL);   
         break;
     case RSA_PKCS1_SHA512:
-        logger((char *)"RSA_PKCS1_SHA512\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"RSA_PKCS1_SHA512\n",NULL,0,NULL);   
         break;
     case ED25519:
-        logger((char *)"ED25519\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"ED25519\n",NULL,0,NULL);   
         break;
     default:
-        logger((char *)"Non-standard\n",NULL,0,NULL);   
+        logger(IO_DEBUG,(char *)"Non-standard\n",NULL,0,NULL);   
         break;
     }
+#endif
 }
 
 void logSigAlg(int sigAlg)
 {
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Signature Algorithm is ",NULL,0,NULL);
+    logger(IO_DEBUG,(char *)"Signature Algorithm is ",NULL,0,NULL);
     nameSigAlg(sigAlg);
 #endif
 }
@@ -162,9 +172,9 @@ void logEncExt(ee_status *expected,ee_status *received)
     {
         if (received->early_data)
         {
-            logger((char *)"Early Data Accepted\n",NULL,0,NULL);
+            logger(IO_PROTOCOL,(char *)"Early Data Accepted\n",NULL,0,NULL);
         } else {
-            logger((char *)"Early Data was NOT Accepted\n",NULL,0,NULL);
+            logger(IO_PROTOCOL,(char *)"Early Data was NOT Accepted\n",NULL,0,NULL);
         }
     }
 #endif
@@ -173,10 +183,10 @@ void logEncExt(ee_status *expected,ee_status *received)
 	{
 		if (received->alpn)
 		{
-			 logger((chr *)"ALPN extension acknowledged by server\n",NULL,0,NULL);
+			 logger(IO_DEBUG,(char *)"ALPN extension acknowledged by server\n",NULL,0,NULL);
         
 		} else {
-			logger((char *)"Warning - ALPN extension NOT acknowledged by server\n",NULL,0,NULL);
+			logger(IO_DEBUG,(char *)"Warning - ALPN extension NOT acknowledged by server\n",NULL,0,NULL);
 		}
 	}
 
@@ -184,18 +194,18 @@ void logEncExt(ee_status *expected,ee_status *received)
 	{
 		if (received->server_name)
 		{
-			logger ((char *)"Server Name acknowledged\n",NULL,0,NULL);
+			logger(IO_DEBUG,(char *)"Server Name acknowledged\n",NULL,0,NULL);
 		} else {
-			logger ((char *)"Server Name NOT acknowledged\n",NULL,0,NULL);
+			logger(IO_DEBUG,(char *)"Server Name NOT acknowledged\n",NULL,0,NULL);
 		}
 	}
     if (expected->max_frag_length)
 	{
 		if (received->max_frag_length)
 		{
-			logger ((char *)"Max frag length request acknowledged\n",NULL,0,NULL);
+			logger(IO_DEBUG,(char *)"Max frag length request acknowledged\n",NULL,0,NULL);
 		} else {
-			logger ((char *)"Max frag length request NOT acknowledged\n",NULL,0,NULL);
+			logger(IO_DEBUG,(char *)"Max frag length request NOT acknowledged\n",NULL,0,NULL);
 		}
 	}
 #endif
@@ -208,14 +218,14 @@ void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK)
     logger((char *)"Parsing serverHello\n",NULL,0,NULL);
     logCipherSuite(cipher_suite);
     logKeyExchange(kex);
-    if (pskid>=0) logger((char *)"PSK Identity= ",(char *)"%d",pskid,NULL);
+    if (pskid>=0) logger(IO_DEBUG,(char *)"PSK Identity= ",(char *)"%d",pskid,NULL);
     if (PK->len>0) {
-        logger((char *)"Server Public Key= ",NULL,0,PK);//OCT_output(PK);
+        logger(IO_DEBUG,(char *)"Server Public Key= ",NULL,0,PK);//OCT_output(PK);
     }
     if (CK->len>0) {
-        logger((char *)"Cookie= ",NULL,0,CK); //OCT_output(CK);
+        logger(IO_DEBUG,(char *)"Cookie= ",NULL,0,CK); //OCT_output(CK);
     }
-    logger((char *)"\n",NULL,0,NULL);
+    logger(IO_DEBUG,(char *)"\n",NULL,0,NULL);
 #endif
 }
 
@@ -223,13 +233,13 @@ void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK)
 void logTicket(ticket *T)
 {
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"\nParsing Ticket\n",NULL,0,NULL);
-    logger((char *)"Ticket = ",NULL,0,&T->TICK); 
+    logger(IO_DEBUG,(char *)"\nParsing Ticket\n",NULL,0,NULL);
+    logger(IO_DEBUG,(char *)"Ticket = ",NULL,0,&T->TICK); 
     unsign32 minutes=T->lifetime/60;
-    logger((char *)"life time in minutes = ",(char *)"%d",T->lifetime,NULL);
-    logger((char *)"Pre-Shared Key = ",NULL,0,&T->PSK); 
-    logger((char *)"max_early_data = ",(char *)"%d",T->max_early_data,NULL);
-    logger((char *)"\n",NULL,0,NULL);
+    logger(IO_DEBUG,(char *)"life time in minutes = ",(char *)"%d",T->lifetime,NULL);
+    logger(IO_DEBUG,(char *)"Pre-Shared Key = ",NULL,0,&T->PSK); 
+    logger(IO_DEBUG,(char *)"max_early_data = ",(char *)"%d",T->max_early_data,NULL);
+    logger(IO_DEBUG,(char *)"\n",NULL,0,NULL);
 #endif
 }
 
@@ -238,50 +248,54 @@ void logTicket(ticket *T)
 void logCert(octad *CERT)
 {
     char b[5004];
-    logger((char *)"-----BEGIN CERTIFICATE----- \n",NULL,0,NULL);
+    logger(IO_DEBUG,(char *)"-----BEGIN CERTIFICATE----- \n",NULL,0,NULL);
+#if VERBOSITY >= IO_DEBUG
     OCT_output_base64(CERT,5000,b);
-    logger((char *)"",b,0,NULL);
-    logger((char *)"-----END CERTIFICATE----- \n",NULL,0,NULL);
+#endif
+    logger(IO_DEBUG,(char *)"",b,0,NULL);
+    logger(IO_DEBUG,(char *)"-----END CERTIFICATE----- \n",NULL,0,NULL);
 }
 
 
 // log certificate details
 void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT)
 {
-    logger((char *)"Parsing Certificate\n",NULL,0,NULL);
-    logger((char *)"Signature on Certificate is ",NULL,0,SIG); 
+#if VERBOSITY >= IO_DEBUG
+    logger(IO_DEBUG,(char *)"Parsing Certificate\n",NULL,0,NULL);
+    logger(IO_DEBUG,(char *)"Signature on Certificate is ",NULL,0,SIG); 
     if (sg.type==X509_ECC)
     {
-        logger((char *)"ECC signature ",NULL,0,NULL);
+        logger(IO_DEBUG,(char *)"ECC signature ",NULL,0,NULL);
         if (sg.curve==USE_NIST256)
-            logger((char *)"Curve is SECP256R1\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Curve is SECP256R1\n",NULL,0,NULL);
         if (sg.curve==USE_NIST384)
-            logger((char *)"Curve is SECP384R1\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Curve is SECP384R1\n",NULL,0,NULL);
         if (sg.curve==USE_NIST521)
-            logger((char *)"Curve is SECP521R1\n",NULL,0,NULL);
-        if (sg.hash == X509_H256) logger((char *)"Hashed with SHA256\n",NULL,0,NULL);
-        if (sg.hash == X509_H384) logger((char *)"Hashed with SHA384\n",NULL,0,NULL);
-        if (sg.hash == X509_H512) logger((char *)"Hashed with SHA512\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Curve is SECP521R1\n",NULL,0,NULL);
+        if (sg.hash == X509_H256) logger(IO_DEBUG,(char *)"Hashed with SHA256\n",NULL,0,NULL);
+        if (sg.hash == X509_H384) logger(IO_DEBUG,(char *)"Hashed with SHA384\n",NULL,0,NULL);
+        if (sg.hash == X509_H512) logger(IO_DEBUG,(char *)"Hashed with SHA512\n",NULL,0,NULL);
     }
     if (sg.type==X509_RSA)
-        logger((char *)"RSA signature of length ",(char *)"%d",sg.curve,NULL);
+        logger(IO_DEBUG,(char *)"RSA signature of length ",(char *)"%d",sg.curve,NULL);
 
-    logger((char *)"Public key from Certificate is ",NULL,0,PUBKEY); 
+    logger(IO_DEBUG,(char *)"Public key from Certificate is ",NULL,0,PUBKEY); 
     if (pk.type==X509_ECC)
     {
-        logger((char *)"ECC public key ",NULL,0,NULL);
+        logger(IO_DEBUG,(char *)"ECC public key ",NULL,0,NULL);
         if (pk.curve==USE_NIST256)
-            logger((char *)"Curve is SECP256R1\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Curve is SECP256R1\n",NULL,0,NULL);
         if (pk.curve==USE_NIST384)
-            logger((char *)"Curve is SECP384R1\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Curve is SECP384R1\n",NULL,0,NULL);
         if (pk.curve==USE_NIST521)
-            logger((char *)"Curve is SECP521R1\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Curve is SECP521R1\n",NULL,0,NULL);
     }
     if (pk.type==X509_RSA)
-        logger((char *)"Certificate public key is RSA of length ",(char *)"%d",pk.curve,NULL);
+        logger(IO_DEBUG,(char *)"Certificate public key is RSA of length ",(char *)"%d",pk.curve,NULL);
     
-    logger((char *)"Issuer is  ",(char *)ISSUER->val,0,NULL);
-    logger((char *)"Subject is ",(char *)SUBJECT->val,0,NULL);
+    logger(IO_DEBUG,(char *)"Issuer is  ",(char *)ISSUER->val,0,NULL);
+    logger(IO_DEBUG,(char *)"Subject is ",(char *)SUBJECT->val,0,NULL);
+#endif
 }
 
 // log alert
@@ -291,88 +305,88 @@ void logAlert(int detail)
     switch (detail)
     {
     case 0 :
-        logger((char *)"Close notify\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Close notify\n",NULL,0,NULL);
         break;
     case 10 :
-        logger((char *)"Unexpected Message\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Unexpected Message\n",NULL,0,NULL);
         break;
     case 20 :
-        logger((char *)"Bad record mac\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Bad record mac\n",NULL,0,NULL);
         break;
     case 22 :
-        logger((char *)"Record overflow\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Record overflow\n",NULL,0,NULL);
         break;
     case 40 :
-        logger((char *)"Handshake Failure (not TLS1.3?)\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Handshake Failure (not TLS1.3?)\n",NULL,0,NULL);
         break;
     case 42 :
-        logger((char *)"Bad certificate\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Bad certificate\n",NULL,0,NULL);
         break;
     case 43 :
-        logger((char *)"Unsupported certificate\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Unsupported certificate\n",NULL,0,NULL);
         break;
     case 44 :
-        logger((char *)"Certificate revoked\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Certificate revoked\n",NULL,0,NULL);
         break;
     case 45 :
-        logger((char *)"Certificate expired\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Certificate expired\n",NULL,0,NULL);
         break;
     case 46 :
-        logger((char *)"Certificate unknown\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Certificate unknown\n",NULL,0,NULL);
         break;
     case 47 :
-        logger((char *)"Illegal parameter\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Illegal parameter\n",NULL,0,NULL);
         break;
     case 48 :
-        logger((char *)"Unknown CA\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Unknown CA\n",NULL,0,NULL);
         break;
     case 49 :
-        logger((char *)"Access denied\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Access denied\n",NULL,0,NULL);
         break;
     case 50 :
-        logger((char *)"Decode error (memory overflow?)\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Decode error (memory overflow?)\n",NULL,0,NULL);
         break;
     case 51 :
-        logger((char *)"Decrypt error\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Decrypt error\n",NULL,0,NULL);
         break;
     case 70 :
-        logger((char *)"Protocol version\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Protocol version\n",NULL,0,NULL);
         break;
     case 71 :
-        logger((char *)"Insufficient security\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Insufficient security\n",NULL,0,NULL);
         break;
     case 80 :
-        logger((char *)"Internal error\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Internal error\n",NULL,0,NULL);
         break;
     case 86 :
-        logger((char *)"Inappropriate fallback\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Inappropriate fallback\n",NULL,0,NULL);
         break;
     case 90 :
-        logger((char *)"User cancelled\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"User cancelled\n",NULL,0,NULL);
         break;
     case 109 :
-        logger((char *)"Missing Extension\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Missing Extension\n",NULL,0,NULL);
         break;
     case 110 :
-        logger((char *)"Unsupported Extension\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Unsupported Extension\n",NULL,0,NULL);
         break;
     case 112 :
-        logger((char *)"Unrecognised name\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Unrecognised name\n",NULL,0,NULL);
         break;
     case 113 :
-        logger((char *)"Bad certificate status response\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Bad certificate status response\n",NULL,0,NULL);
         break;
     case 115 :
-        logger((char *)"Unknown PSK identity \n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Unknown PSK identity \n",NULL,0,NULL);
         break;
     case 116 :
-        logger((char *)"Certificate required\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Certificate required\n",NULL,0,NULL);
         break;
     case 120 :
-        logger((char *)"No application protocol\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"No application protocol\n",NULL,0,NULL);
         break;
     default:
-        logger((char *)"Unrecognised alert\n",NULL,0,NULL);
+        logger(IO_PROTOCOL,(char *)"Unrecognised alert\n",NULL,0,NULL);
         break;
     }
 #endif
@@ -389,47 +403,47 @@ void logServerResponse(ret r)
         switch (rtn)
         { 
         case NOT_TLS1_3:
-            logger((char *)"Not TLS1.3\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Not TLS1.3\n",NULL,0,NULL);
             break;
         case BAD_CERT_CHAIN:
-            logger((char *)"Bad Certificate Chain\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Bad Certificate Chain\n",NULL,0,NULL);
             break;
         case ID_MISMATCH:
-            logger((char *)"Identity Mismatch\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Identity Mismatch\n",NULL,0,NULL);
             break;
         case UNRECOGNIZED_EXT:
-            logger((char *)"Unrecognised Extension\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Unrecognised Extension\n",NULL,0,NULL);
             break;
         case BAD_HELLO:
-            logger((char *)"Malformed Hello\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Malformed Hello\n",NULL,0,NULL);
             break;
         case WRONG_MESSAGE:
-            logger((char *)"Message received out-of-order\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Message received out-of-order\n",NULL,0,NULL);
             break;
         case MISSING_REQUEST_CONTEXT:
-            logger((char *)"Missing Request Context\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Missing Request Context\n",NULL,0,NULL);
             break;
         case AUTHENTICATION_FAILURE:
-            logger((char *)"Authentication Failure\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Authentication Failure\n",NULL,0,NULL);
             break;
         case BAD_RECORD:
-            logger((char *)"Malformed Record received (max size exceeded?)\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Malformed Record received (max size exceeded?)\n",NULL,0,NULL);
             break;
         case BAD_TICKET:
-            logger((char *)"Malformed Ticket received\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Malformed Ticket received\n",NULL,0,NULL);
             break;
         default:
-            logger((char *)"Unknown Error\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Unknown Error\n",NULL,0,NULL);
             break;
         }
     } else { // server response requiring client action 
         switch (rtn)
         {
         case TIMED_OUT :
-            logger((char *)"Time Out\n",NULL,0,NULL);
+            logger(IO_DEBUG,(char *)"Time Out\n",NULL,0,NULL);
             break;
         case ALERT :
-            logger((char *)"Alert received from server\n",NULL,0,NULL);  // received an alert 
+            logger(IO_DEBUG,(char *)"Alert received from server\n",NULL,0,NULL);  // received an alert 
             break;
         default: break;
         }

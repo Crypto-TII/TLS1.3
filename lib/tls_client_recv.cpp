@@ -104,9 +104,7 @@ int getServerFragment(TLS_session *session)
     OCT_append_int(&RH,left,2);
     if (left+pos>session->IO.max)
     { // this commonly happens with big records of application data from server
-#if VERBOSITY >= IO_DEBUG
-    logger((char *)"Record received of length= ",(char *)"%d",left+pos,NULL);
-#endif
+		logger(IO_DEBUG,(char *)"Record received of length= ",(char *)"%d",left+pos,NULL);
         return MEM_OVERFLOW;   // record is too big - memory overflow
     }
 //printf("Getting a fragment 3\n");
@@ -222,9 +220,7 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
     logServerResponse(r);
 	if (r.err != 0)
 	{
-#if VERBOSITY >= IO_PROTOCOL
-       logger((char *)"Handshake failed\n",NULL,0,NULL);
-#endif
+       logger(IO_PROTOCOL,(char *)"Handshake failed\n",NULL,0,NULL);
 	}
     if (r.err<0)
     { // send an alert to the Server, and abort
@@ -233,9 +229,7 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
     }
     if (r.err==ALERT)
     { // received an alert from the Server - abort
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"*** Alert received - ",NULL,0,NULL);
-#endif
+        logger(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
         logAlert(r.val);
         return true;
     }
@@ -405,10 +399,8 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     SAL_hashProcessArray(&session->tlshash,session->IO.val,ptr);
 
     OCT_shift_left(&session->IO,ptr);  // Shift octad left - rewind to start 
-#if VERBOSITY >= IO_DEBUG
     if (unexp>0)    
-        logger((char *)"Unrecognized extensions received\n",NULL,0,NULL);
-#endif
+        logger(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
     r.val=nb;
     return r;
 }
@@ -420,7 +412,7 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
     int i,nb,ext,len,tlen,ptr=0;
     int unexp=0;
 
-    r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r;         // message length 
+    r=parseIntorPull(session,3,ptr); if (r.err) return r;         // message length 
     r=parseIntorPull(session,1,ptr); nb=r.val; if (r.err) return r;
     if (nb!=0x00) {
         r.err= MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
@@ -474,10 +466,8 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
         r.err=UNRECOGNIZED_EXT;
         return r;
     } 
-#if VERBOSITY >= IO_DEBUG
     if (unexp>0)    
-        logger((char *)"Unrecognized extensions received\n",NULL,0,NULL);
-#endif
+        logger(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
     r.val=CERT_REQUEST;
     return r;
 }
@@ -491,10 +481,7 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
     CERTCHAIN.len=0;
 
     r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r;         // message length   
-    
-#if VERBOSITY >= IO_DEBUG
-    logger((char *)"Certificate Chain Length= ",(char *)"%d",len,NULL);
-#endif
+    logger(IO_DEBUG,(char *)"Certificate Chain Length= ",(char *)"%d",len,NULL);
 
     r=parseIntorPull(session,1,ptr); nb=r.val; if (r.err) return r;
     if (nb!=0x00) {
@@ -528,7 +515,7 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
     ret r;
     int nb,len,ptr=0;
 
-    r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r; // message length    
+    r=parseIntorPull(session,3,ptr); if (r.err) return r; // message length    
 
     OCT_kill(SCVSIG);
     r=parseIntorPull(session,2,ptr); sigalg=r.val; if (r.err) return r; // may for example be 0804 - RSA-PSS-RSAE-SHA256

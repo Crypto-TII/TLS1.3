@@ -131,9 +131,7 @@ int main(int argc, char const *argv[])
     bool retn=SAL_initLib();
     if (!retn)
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
-#endif
+        logger(IO_PROTOCOL,(char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
         exit(EXIT_FAILURE);
     }
 
@@ -253,10 +251,7 @@ int main(int argc, char const *argv[])
             port = 443;
         }
     }
-
-#if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"Hostname= ",hostname,0,NULL);
-#endif
+    logger(IO_PROTOCOL,(char *)"Hostname= ",hostname,0,NULL);
 
     make_client_message(&GET,hostname);
 
@@ -268,9 +263,7 @@ int main(int argc, char const *argv[])
 
     if (!client.connect(hostname,port))
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Unable to access ",hostname,0,NULL);
-#endif
+        logger(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
  		exit(EXIT_FAILURE);
     }
 
@@ -308,25 +301,18 @@ int main(int argc, char const *argv[])
             client.connect(hostname,port);
             if (!TLS13_connect(session,&GET)) // try again, this time fall back to a FULL handshake
             {  
-#if VERBOSITY >= IO_APPLICATION
-        logger((char *)"TLS Handshake failed\n",NULL,0,NULL);
-#endif
+				logger(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
                 exit(EXIT_FAILURE);
             }
         } else {
-#if VERBOSITY >= IO_APPLICATION
-        logger((char *)"TLS Handshake failed\n",NULL,0,NULL);
-#endif
+			logger(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
             exit(EXIT_FAILURE);
         }
     }
 
 // Get server response, may attach resumption ticket to session
     int rtn=TLS13_recv(session,&RESP);
-
-#if VERBOSITY >= IO_APPLICATION
-    logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-#endif
+    logger(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 
     if (rtn<0)
         sendClientAlert(session,alert_from_cause(rtn));

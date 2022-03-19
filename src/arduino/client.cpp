@@ -110,9 +110,7 @@ void loop() {
     bool retn=SAL_initLib();
     if (!retn)
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
-#endif
+        logger(IO_PROTOCOL,(char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
         mydelay();
         return;
     }
@@ -189,19 +187,14 @@ void loop() {
 
     TLS_session state=TLS13_start(&client,hostname);
     TLS_session *session=&state;
-
-#if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"\nHostname= ",hostname,0,NULL);
-#endif
+    logger(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
 
     make_client_message(&GET,hostname);
 
 // make connection using full handshake...
     if (!client.connect(hostname,port))
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Unable to access ",hostname,0,NULL);
-#endif
+        logger((IO_PROTOCOL, *)"Unable to access ",hostname,0,NULL);
         while (Serial.available() == 0) {}
         Serial.read(); 
  		return;
@@ -210,24 +203,18 @@ void loop() {
     bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
     if (success) {
         TLS13_recv(session,&RESP);    // Server response + ticket
-#if VERBOSITY >= IO_APPLICATION
-        logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-#endif
+        logger(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
         TLS13_clean(session);   // but leave ticket intact
     }
 // drop the connection..
     client.stop();
-#if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"Connection closed\n\n",NULL,0,NULL);
-#endif
+    logger(IO_PROTOCOL,(char *)"Connection closed\n\n",NULL,0,NULL);
     delay(5000);
 
 // try to resume connection using...
     if (!client.connect(hostname,port))
     {
-#if VERBOSITY >= IO_PROTOCOL
-        logger((char *)"Unable to access ",hostname,0,NULL);
-#endif
+        logger(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
         while (Serial.available() == 0) {}
         Serial.read(); 
  		return;
@@ -236,19 +223,13 @@ void loop() {
     success=TLS13_connect(session,&GET);  // Resumption handshake and connection to server
     if (success) {
         TLS13_recv(session,&RESP);    // Server response + ticket
-#if VERBOSITY >= IO_APPLICATION
-        logger((char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-#endif
+        logger(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
     } else {
-#if VERBOSITY >= IO_APPLICATION
-        logger((char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
-#endif
+        logger(IO_APPLICATION,(char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
     }
     client.stop();
 // drop the connection..
-#if VERBOSITY >= IO_PROTOCOL
-    logger((char *)"Connection closed\n",NULL,0,NULL);
-#endif
+    logger(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
 
 #ifdef ESP32
     Serial.print("Amount of unused stack memory ");     // useful information!

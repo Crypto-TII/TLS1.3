@@ -39,6 +39,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 #define TLS_PROTOCOL TLS_HTTP_PROTOCOL   /**< Selected application protocol */
+#define ALLOW_SELF_SIGNED		  /**< allow self-signed server cert */
 
 // Note that the IOBUFF is quite large, and therefore maybe better taken from the heap
 // on systems with a shallow stack. Define this to use the heap.

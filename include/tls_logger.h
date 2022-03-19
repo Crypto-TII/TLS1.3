@@ -20,12 +20,13 @@ extern void myprintf(char *s);
 
 /**	@brief basic logging function
  *
+	@param logit logging level
 	@param preamble a string to be output
     @param string another string, or a format specifier for info, or NULL
     @param info an integer to be output
     @param O an octad to be output (or NULL)
  */
-extern void logger(char *preamble,char *string,unsign32 info,octad *O);
+extern void logger(int logit,char *preamble,char *string,unsign32 info,octad *O);
 
 /**	@brief logging the Server hello
  *
