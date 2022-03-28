@@ -61,8 +61,6 @@ static bool checkCertNotExpired(octad *CERT)
 
 static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
 {
-    char ca[TLS_X509_MAX_FIELD];
-    octad CA={0,sizeof(ca),ca};
     char owner[TLS_X509_MAX_FIELD];
     octad OWNER={0,sizeof(owner),owner};
     //char sc[TLS_MAX_ROOT_CERT_SIZE];  // server certificate

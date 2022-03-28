@@ -39,13 +39,10 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
     OCT_kill(&CID); OCT_kill(&COOK); OCT_kill(&SCVSIG); OCT_kill(&FIN); OCT_kill(&CHF); \
     OCT_kill(&CETS); OCT_kill(&ALPN);
 
-
 // build chosen set of extensions, and assert expectations of server responses
 // The User may want to change the mix of optional extensions
 static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status *expectations,bool resume)
 {
-	int ciphers[TLS_MAX_CIPHER_SUITES];
-	int nsc=SAL_ciphers(ciphers);  
 	int groups[TLS_MAX_SUPPORTED_GROUPS];
 	int nsg=SAL_groups(groups);
 	int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
@@ -252,7 +249,7 @@ static int TLS13_full(TLS_session *session)
 		buildExtensions(session,&EXT,&PK,&enc_ext_expt,false);
 
         if (COOK.len!=0)
-            addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR
+            addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR ... so send it back in an extension
         sendCCCS(session);  // send Client Cipher Change
         ccs_sent=true;
 
@@ -649,10 +646,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     {
         addEarlyDataExt(&EXT); enc_ext_expt.early_data=true;                 // try sending client message as early data if allowed
     }
-    if (external_psk)
-    { // Its an external pre-shared key
-        age=0;
-    } else {
+    age=0;
+    if (!external_psk)
+    { // Its NOT an external pre-shared key
         time_ticket_used=(unsign32)millis();
         age=time_ticket_used-time_ticket_received; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
         logger(IO_DEBUG,(char *)"Ticket age= ",(char *)"%x",age,NULL);

@@ -97,6 +97,21 @@ int SAL_hashType(int cipher_suite)
     return htype;
 }
 
+// return hashtype from signature algorithm
+int SAL_hashTypeSig(int sigAlg)
+{
+    int htype=0;  
+    if (sigAlg==ECDSA_SECP256R1_SHA256) htype=TLS_SHA256_T;
+    if (sigAlg==ECDSA_SECP384R1_SHA384) htype=TLS_SHA384_T;
+    if (sigAlg==RSA_PSS_RSAE_SHA256) htype=TLS_SHA256_T;
+    if (sigAlg==RSA_PSS_RSAE_SHA384) htype=TLS_SHA384_T;
+    if (sigAlg==RSA_PSS_RSAE_SHA512) htype=TLS_SHA512_T;
+    if (sigAlg==RSA_PKCS1_SHA256) htype=TLS_SHA256_T;
+    if (sigAlg==RSA_PKCS1_SHA384) htype=TLS_SHA384_T;
+    if (sigAlg==RSA_PKCS1_SHA512) htype=TLS_SHA512_T;
+    return htype;
+}
+
 // return hash length from hash type
 int SAL_hashLen(int hash_type)
 {

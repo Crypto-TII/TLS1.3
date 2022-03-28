@@ -136,14 +136,12 @@ int getServerFragment(TLS_session *session)
     }
 // get record ending - encodes real (disguised) record type. Could be an Alert.
     int lb=0;
-    int pad=0;
     lb=session->IO.val[session->IO.len-1]; 
     session->IO.len--; // remove it
     while (lb==0 && session->IO.len>0)
     { // could be zero padding
         lb=session->IO.val[session->IO.len-1];   // need to track back through zero padding for this....
         session->IO.len--; // remove it
-        pad++;
     }
 	if ((lb==HSHAKE || lb==ALERT) && rlen==0)
 		return WRONG_MESSAGE;
@@ -289,7 +287,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     if (r.err) return r;
     nb=r.val;
 
-    r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r;         // message length    
+    r=parseIntorPull(session,3,ptr); if (r.err) return r;         // message length    
 
     enc_ext_resp->early_data=false;
     enc_ext_resp->alpn=false;
@@ -326,7 +324,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
             }
             break;
         case MAX_FRAG_LENGTH :
-            r=parseIntorPull(session,1,ptr); mfl=r.val; if (r.err) return r; // ideally this should the same as requested by client
+            r=parseIntorPull(session,1,ptr); if (r.err) return r; // ideally this should the same as requested by client
             len-=tlen;                                       // but server may have ignored this request... :( so we ignore this response 
             if (tlen!=1) {
                 r.err=UNRECOGNIZED_EXT;
@@ -536,8 +534,14 @@ ret getServerFinished(TLS_session *session,octad *HFIN)
     ret r;
     int nb,len,ptr=0;
 
-    r=getWhatsNext(session); 
+    r=getWhatsNext(session); nb=r.val;
     if (r.err) return r;
+
+    if (nb!=FINISHED)
+    {        
+        r.err=WRONG_MESSAGE;
+        return r;
+    }
 
     r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r;         // message length    
 

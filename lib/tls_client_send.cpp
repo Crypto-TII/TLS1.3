@@ -274,9 +274,8 @@ void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agr
 // Send "binder",
 void sendBinder(TLS_session *session,octad *B,octad *BND)
 {
-    int tlen2=0;
+    int tlen2=BND->len+1;
     OCT_kill(B);
-    tlen2+=BND->len+1;
     OCT_append_int(B,tlen2,2);
     OCT_append_int(B,BND->len,1);
     OCT_append_octad(B,BND);

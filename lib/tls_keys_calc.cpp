@@ -157,7 +157,7 @@ void deriveUpdatedKeys(crypto *context,octad *TS)
     htype=SAL_hashType(context->suite);
     sha=SAL_hashLen(htype);
 
-    key=context->K.len; // depends on key length
+    key=SAL_aeadKeylen(context->suite); // depends on key length
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"traffic upd");
@@ -421,10 +421,8 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     SAL_tlsSignature(sigAlg,KEY,&CCV,CCVSIG);
 
 // adjustment for ECDSA signatures
-    if (sigAlg==ECDSA_SECP256R1_SHA256)
-        parse_in_ecdsa_sig(TLS_SHA256_T,CCVSIG);
-    if (sigAlg==ECDSA_SECP384R1_SHA384)
-        parse_in_ecdsa_sig(TLS_SHA384_T,CCVSIG);
+    if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384)
+        parse_in_ecdsa_sig(SAL_hashTypeSig(sigAlg),CCVSIG);
 
     return;
 }
@@ -463,7 +461,8 @@ static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
     rt=parseInt(SCVSIG,1,ptr); Int=rt.val;
     if (rt.err || Int!=0x02) return false;
     rt=parseInt(SCVSIG,1,ptr); slen=rt.val;
-    if (rt.err || slen==shalen+1)
+    if (rt.err) return false;
+    if (slen==shalen+1)
     { // one too big
         slen--;
         rt=parseInt(SCVSIG,1,ptr); lzero=rt.val;
@@ -502,16 +501,10 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
     OCT_append_octad(&SCV,H);    // add Transcript Hash 
 
 // Special case processing required here for ECDSA signatures -  SCVSIG is modified
-    if (sigAlg==ECDSA_SECP256R1_SHA256) {
-        if (!parse_out_ecdsa_sig(TLS_SHA256_T,SCVSIG)) return false;
+    if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384) {
+        if (!parse_out_ecdsa_sig(SAL_hashTypeSig(sigAlg),SCVSIG)) return false;
     }
-    if (sigAlg==ECDSA_SECP384R1_SHA384) {
-        if (!parse_out_ecdsa_sig(TLS_SHA384_T,SCVSIG)) return false;
-    } 
-
-    logger(IO_DEBUG,(char *)"Certificate Signature = \n",NULL,0,SCVSIG);
-    logger(IO_DEBUG,(char *)"Public Key = \n",NULL,0,CERTPK);
-
+    logger(IO_DEBUG,(char *)"Certificate Signature = ",NULL,0,SCVSIG);
     return SAL_tlsSignatureVerify(sigAlg,&SCV,SCVSIG,CERTPK);
 }
 

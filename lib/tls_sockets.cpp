@@ -180,6 +180,7 @@ int getInt16(Socket *client)
 }
 
 // Get 24-bit Integer from stream
+/*
 int getInt24(Socket *client)
 {
     char b[3];
@@ -194,7 +195,7 @@ int getByte(Socket *client)
     getBytes(client,b,1);
     return (int)(unsigned char)b[0];
 }
-
+*/
 // Get expected number of bytes into an octet
 int getOctad(Socket *client,octad *B,int expected)
 {

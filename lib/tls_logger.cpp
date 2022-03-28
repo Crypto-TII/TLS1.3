@@ -215,7 +215,7 @@ void logEncExt(ee_status *expected,ee_status *received)
 void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK)
 {
 #if VERBOSITY >= IO_DEBUG
-    logger((char *)"Parsing serverHello\n",NULL,0,NULL);
+    logger(IO_DEBUG,(char *)"Parsing serverHello\n",NULL,0,NULL);
     logCipherSuite(cipher_suite);
     logKeyExchange(kex);
     if (pskid>=0) logger(IO_DEBUG,(char *)"PSK Identity= ",(char *)"%d",pskid,NULL);
@@ -236,7 +236,7 @@ void logTicket(ticket *T)
     logger(IO_DEBUG,(char *)"\nParsing Ticket\n",NULL,0,NULL);
     logger(IO_DEBUG,(char *)"Ticket = ",NULL,0,&T->TICK); 
     unsign32 minutes=T->lifetime/60;
-    logger(IO_DEBUG,(char *)"life time in minutes = ",(char *)"%d",T->lifetime,NULL);
+    logger(IO_DEBUG,(char *)"life time in minutes = ",(char *)"%d",minutes,NULL);
     logger(IO_DEBUG,(char *)"Pre-Shared Key = ",NULL,0,&T->PSK); 
     logger(IO_DEBUG,(char *)"max_early_data = ",(char *)"%d",T->max_early_data,NULL);
     logger(IO_DEBUG,(char *)"\n",NULL,0,NULL);
