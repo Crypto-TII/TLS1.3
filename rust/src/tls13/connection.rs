@@ -20,9 +20,9 @@ pub struct SESSION {
     status: usize,     // Connection status 
     server_max_record: usize,  // Server's max record size 
     sockptr: TcpStream,        // Pointer to socket 
-    hlen: usize,
+    pub hlen: usize,
     iolen: usize,
-    hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
+    pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
     cipher_suite: usize,       // agreed cipher suite 
     favourite_group: usize,    // favourite key exchange group 
     k_send: keys::CRYPTO,          // Sending Key 
@@ -32,7 +32,7 @@ pub struct SESSION {
     cts: [u8;MAX_HASH], // Client Traffic secret                
     io: [u8;MAX_IO],    // Main IO buffer for this connection 
     tlshash: UNIHASH,         // Transcript hash recorder 
-    t: TICKET                 // resumption ticket    
+    pub t: TICKET                 // resumption ticket    
 }
 
 impl SESSION {
@@ -825,21 +825,43 @@ impl SESSION {
         r.val=CERTIFICATE as usize;
         return r;
     }
+// clean up buffers, kill crypto keys
+    fn clean(&mut self) {
+// clean up buffers, kill crypto keys
+        for i in 0..self.iolen {
+            self.io[i]=0;
+        }
+        for i in 0..MAX_HASH {
+            self.cts[i]=0;
+            self.sts[i]=0;
+            self.rms[i]=0
+        }
+        self.k_send.clear();
+        self.k_recv.clear();
+    }
 
-    pub fn tls_resume(&mut self,early: &[u8]) -> usize {
+    fn clean_io(&mut self) {
+        for i in 0..self.iolen {
+            self.io[i]=0;
+        }        
+    }
+
+    pub fn tls_resume(&mut self,early: Option<&[u8]>) -> usize {
         let mut expected=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
         let mut response=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
-        let mut have_early_data=true;
+        let mut have_early_data=false;
         logger::logger(IO_PROTOCOL,"Attempting Resumption Handshake\n",0,None);
         logger::log_ticket(&self.t); 
+
         let mut ext:[u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         let mut ch: [u8; MAX_CLIENT_HELLO] = [0; MAX_CLIENT_HELLO]; 
         let mut csk: [u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
         let mut pk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
         let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
         let mut cid: [u8;32]=[0;32];
+        let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
 
- // Extract Ticket parameters
+// Extract Ticket parameters
         let lifetime=self.t.lifetime;
         let age_obfuscator=self.t.age_obfuscator;
         let max_early_data=self.t.max_early_data;
@@ -847,6 +869,12 @@ impl SESSION {
         self.cipher_suite=self.t.cipher_suite;
         self.favourite_group=self.t.favourite_group;
         let origin=self.t.origin;
+
+        if max_early_data>0 {
+            if let Some(_) = early {
+                have_early_data=true; // early data allowed - and I have some
+            }
+        }
 
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
@@ -859,6 +887,8 @@ impl SESSION {
         let mut bk:[u8;MAX_HASH]=[0;MAX_HASH]; let bk_s=&mut bk[0..hlen];
         let mut es:[u8;MAX_HASH]=[0;MAX_HASH]; let es_s=&mut es[0..hlen];
         let mut bnd:[u8;MAX_HASH]=[0;MAX_HASH]; let bnd_s=&mut bnd[0..hlen];
+        let mut cets:[u8;MAX_HASH]=[0;MAX_HASH]; let cets_s=&mut cets[0..hlen];
+        let mut chf:[u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
         let mut psk:[u8;MAX_HASH]=[0;MAX_HASH]; 
         for i in 0..hlen {
             psk[i]=self.t.psk[i];
@@ -883,13 +913,16 @@ impl SESSION {
         let mut sklen=sal::secret_key_size(self.favourite_group);   // may change on a handshake retry
         let mut pklen=sal::public_key_size(self.favourite_group);
         let mut sslen=sal::shared_secret_size(self.favourite_group);
-        sal::generate_key_pair(self.favourite_group,&mut csk[0..sklen],&mut pk[0..pklen]);
-        logger::logger(IO_DEBUG,"Private Key= ",0,Some(&csk[0..sklen]));
-        logger::logger(IO_DEBUG,"Client Public Key= ",0,Some(&pk[0..pklen]));
+        let pk_s=&mut pk[0..pklen];
+        let csk_s=&mut csk[0..sklen];
+        let ss_s=&mut ss[0..sslen];
+        sal::generate_key_pair(self.favourite_group,csk_s,pk_s);
+        logger::logger(IO_DEBUG,"Private Key= ",0,Some(csk_s));
+        logger::logger(IO_DEBUG,"Client Public Key= ",0,Some(pk_s));
 
 // Client Hello
 // First build standard client Hello extensions
-	    let mut extlen=self.build_extensions(&mut ext,&pk[0..pklen],&mut expected,true);
+	    let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,true);
         if have_early_data {
             extlen=extensions::add_early_data(&mut ext,extlen); expected.early_data=true;                 // try sending client message as early data if allowed
         }
@@ -906,11 +939,6 @@ impl SESSION {
 
 // create and send Client Hello octad
         let chlen=self.send_client_hello(TLS1_2,&mut ch,true,&mut cid,&ext[0..extlen],extra,false);  
-//
-//
-//   ----------------------------------------------------------> client Hello
-//
-//
 // extract slices..
 
         self.running_hash(&ch[0..chlen]); 
@@ -925,7 +953,130 @@ impl SESSION {
         logger::logger(IO_DEBUG,"BND= ",0,Some(bnd_s));
         logger::logger(IO_DEBUG,"Sending Binders\n",0,None);   // only sending one
 
+        if have_early_data {
+            self.send_cccs();
+        }
 
+        keys::derive_later_secrets(htype,es_s,hh_s,Some(cets_s),None);   // Get Client Early Traffic Secret from transcript hash and ES
+        logger::logger(IO_DEBUG,"Client Early Traffic Secret= ",0,Some(cets_s)); 
+        self.k_send.init(self.cipher_suite,cets_s);
+
+
+// if its allowed, send client message as (encrypted!) early data
+        if have_early_data {
+            logger::logger(IO_APPLICATION,"Sending some early data\n",0,None);
+            if let Some(searly) = early {
+                self.send_message(APPLICATION,TLS1_2,searly,None);
+            }
+        }
+// Process Server Hello
+        let mut kex=0;
+        let mut pskid:isize=-1;
+        let mut cklen=0;
+        let mut rtn = self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,pk_s,&mut pskid);
+  
+        self.running_hash_io();         // Hashing Server Hello
+        self.transcript_hash(hh_s);     // HH = hash of clientHello+serverHello
+
+        if pskid<0 { // Ticket rejected by Server (as out of date??)
+            logger::logger(IO_PROTOCOL,"Ticket rejected by server\n",0,None);
+            self.send_client_alert(CLOSE_NOTIFY);
+            logger::logger(IO_PROTOCOL,"Resumption Handshake failed\n",0,None);
+            self.clean();
+            return TLS_FAILURE;
+        }
+
+	    if pskid>0 { // pskid out-of-range (only one allowed)
+            self.send_client_alert(ILLEGAL_PARAMETER);
+            logger::logger(IO_PROTOCOL,"Resumption Handshake failed\n",0,None);
+            self.clean();
+            return TLS_FAILURE;
+	    }
+        if self.bad_response(&rtn) {
+            self.send_client_alert(CLOSE_NOTIFY);
+            self.clean();
+            return TLS_FAILURE;
+        }   
+        logger::log_server_hello(self.cipher_suite,kex,pskid,pk_s,&cookie[0..cklen]);
+
+        if rtn.val==HANDSHAKE_RETRY || kex!=self.favourite_group { // should not happen
+            self.send_client_alert(UNEXPECTED_MESSAGE);
+            logger::logger(IO_DEBUG,"No change possible as result of HRR\n",0,None); 
+            logger::logger(IO_PROTOCOL,"Resumption Handshake failed\n",0,None);
+            self.clean();
+            return TLS_FAILURE;
+        }
+        logger::logger(IO_DEBUG,"serverHello= ",0,Some(&self.io[0..self.iolen])); 
+
+// Generate Shared secret SS from Client Secret Key and Server's Public Key
+        sal::generate_shared_secret(kex,csk_s,pk_s,ss_s); 
+        logger::logger(IO_DEBUG,"Shared Secret= ",0,Some(ss_s));
+
+        self.derive_handshake_secrets(ss_s,es_s,hh_s,hs_s); 
+        self.create_recv_crypto_context();
+
+        logger::logger(IO_DEBUG,"Handshake Secret= ",0,Some(hs_s));
+        logger::logger(IO_DEBUG,"Client handshake traffic secret= ",0,Some(&self.cts[0..hlen]));
+        logger::logger(IO_DEBUG,"Server handshake traffic secret= ",0,Some(&self.sts[0..hlen]));
+
+        let mut rtn=self.get_server_encrypted_extensions(&expected,&mut response);
+
+        if self.bad_response(&rtn) {
+            self.clean();
+            return TLS_FAILURE;
+        }
+        logger::log_enc_ext(&expected,&response);
+        logger::logger(IO_DEBUG,"Encrypted extensions processed\n",0,None);
+
+        let mut fnlen=0;
+        let mut fin:[u8;MAX_HASH]=[0;MAX_HASH];
+        rtn=self.get_server_finished(&mut fin,&mut fnlen);
+        let fin_s=&fin[0..fnlen];
+        if self.bad_response(&rtn) {
+            self.clean();
+            return TLS_FAILURE;
+        }
+
+// Now indicate End of Early Data, encrypted with 0-RTT keys
+        self.transcript_hash(hh_s); // hash of clientHello+serverHello+encryptedExtension+serverFinish
+        if response.early_data {
+            self.send_end_early_data();     // Should only be sent if server has accepted Early data - see encrypted extensions!
+            logger::logger(IO_DEBUG,"Send End of Early Data \n",0,None);
+        }
+        self.transcript_hash(th_s); // hash of clientHello+serverHello+encryptedExtension+serverFinish+EndOfEarlyData
+        logger::logger(IO_DEBUG,"Transcript Hash (CH+SH+EE+SF+ED) = ",0,Some(th_s)); 
+
+// Switch to handshake keys
+        self.create_send_crypto_context();
+        if !keys::check_verifier_data(htype,fin_s,&self.sts[0..hlen],fh_s) {
+            self.send_client_alert(DECRYPT_ERROR);
+            logger::logger(IO_DEBUG,"Server Data is NOT verified\n",0,None);
+            logger::logger(IO_PROTOCOL,"Resumption Handshake failed\n",0,None);
+            self.clean();
+            return TLS_FAILURE;
+        }
+
+        keys::derive_verifier_data(htype,chf_s,&self.cts[0..hlen],th_s);
+        self.send_client_finish(chf_s);
+        logger::logger(IO_DEBUG,"Server Data is verified\n",0,None);
+        logger::logger(IO_DEBUG,"Client Verify Data= ",0,Some(chf_s)); 
+
+        self.transcript_hash(fh_s); // hash of clientHello+serverHello+encryptedExtension+serverFinish+EndOfEarlyData+clientFinish
+
+// calculate traffic and application keys from handshake secret and transcript hashes, and store in session
+        self.derive_application_secrets(hs_s,hh_s,fh_s,None);
+        self.create_send_crypto_context();
+        self.create_recv_crypto_context();
+
+        logger::logger(IO_DEBUG,"Client application traffic secret= ",0,Some(&self.cts[0..hlen]));
+        logger::logger(IO_DEBUG,"Server application traffic secret= ",0,Some(&self.sts[0..hlen]));
+        logger::logger(IO_PROTOCOL,"RESUMPTION Handshake succeeded\n",0,None);
+        self.clean_io();
+
+        if response.early_data {
+            logger::logger(IO_PROTOCOL,"Application Message accepted as Early Data\n\n",-1,early);
+            return TLS_EARLY_DATA_ACCEPTED;
+        }
         return TLS_SUCCESS;
     }
 
@@ -967,6 +1118,7 @@ impl SESSION {
         let mut cklen=0;
         let mut rtn = self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,&mut pk[0..pklen],&mut pskid);
         if self.bad_response(&rtn) {
+            self.clean();
             return TLS_FAILURE;
         }
         // Find cipher-suite chosen by Server
@@ -982,6 +1134,7 @@ impl SESSION {
             logger::log_cipher_suite(self.cipher_suite);
             logger::logger(IO_DEBUG,"Cipher Suite not valid\n",0,None);
             logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
+            self.clean();
             return TLS_FAILURE;
         }
         logger::log_cipher_suite(self.cipher_suite);
@@ -1004,6 +1157,7 @@ impl SESSION {
                 self.send_client_alert(ILLEGAL_PARAMETER);
                 logger::logger(IO_DEBUG,"No change as result of HRR\n",0,None);
                 logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
+                self.clean();
                 return TLS_FAILURE;
             }
             logger::logger(IO_DEBUG,"Server Hello Retry Request= ",0,Some(&self.io[0..self.iolen]));
@@ -1024,12 +1178,14 @@ impl SESSION {
 // get new server hello
             rtn=self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,&mut pk[0..pklen],&mut pskid);
             if self.bad_response(&rtn) {
+                self.clean();
                 return TLS_FAILURE;
             }
             if rtn.val==HANDSHAKE_RETRY {
                 logger::logger(IO_DEBUG,"A second Handshake Retry Request?\n",0,None);
                 self.send_client_alert(UNEXPECTED_MESSAGE);
                 logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
+                self.clean();
                 return TLS_FAILURE;
             }
             resumption_required=true;
@@ -1054,12 +1210,14 @@ impl SESSION {
         let mut rtn=self.get_server_encrypted_extensions(&expected,&mut response);
 
         if self.bad_response(&rtn) {
+            self.clean();
             return TLS_FAILURE;
         }
         logger::log_enc_ext(&expected,&response);
         logger::logger(IO_DEBUG,"Encrypted extensions processed\n",0,None);
         rtn=self.get_whats_next();
         if self.bad_response(&rtn) {
+            self.clean();
             return TLS_FAILURE;
         }
         let mut nccsalgs=0;
@@ -1069,22 +1227,26 @@ impl SESSION {
             gotacertrequest=true;
             rtn=self.get_certificate_request(&mut nccsalgs,&mut csigalgs);
             if self.bad_response(&rtn) {
+                self.clean();
                 return TLS_FAILURE;
             }
             logger::logger(IO_PROTOCOL,"Certificate Request received\n",0,None);
             rtn=self.get_whats_next();
             if self.bad_response(&rtn) {
+                self.clean();
                 return TLS_FAILURE;
             }
         }
         if rtn.val != CERTIFICATE as usize {
             self.send_client_alert(alert_from_cause(WRONG_MESSAGE));
             logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
+            self.clean();
             return TLS_FAILURE;
         }
         let mut spklen=0;
         rtn=self.get_check_server_certificatechain(&mut spk,&mut spklen);
         if self.bad_response(&rtn) {
+            self.clean();
             return TLS_FAILURE;
         }
         let spk_s=&spk[0..spklen];
@@ -1093,17 +1255,20 @@ impl SESSION {
         logger::logger(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(hh_s));  
         rtn=self.get_whats_next();
         if self.bad_response(&rtn) {
+            self.clean();
             return TLS_FAILURE;
         }
         if rtn.val != CERT_VERIFY as usize {
             self.send_client_alert(alert_from_cause(WRONG_MESSAGE));
             logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
+            self.clean();
             return TLS_FAILURE;
         }
         let mut siglen=0;
         let mut sigalg=0;
         rtn=self.get_server_cert_verify(&mut scvsig,&mut siglen,&mut sigalg);
         if self.bad_response(&rtn) {
+            self.clean();
             return TLS_FAILURE;
         }
         let scvsig_s=&mut scvsig[0..siglen];
@@ -1115,6 +1280,7 @@ impl SESSION {
             self.send_client_alert(DECRYPT_ERROR);
             logger::logger(IO_DEBUG,"Server Cert Verification failed\n",0,None);
             logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
+            self.clean();
             return TLS_FAILURE;
         }
         logger::logger(IO_DEBUG,"Server Cert Verification OK\n",0,None);
@@ -1124,12 +1290,14 @@ impl SESSION {
         rtn=self.get_server_finished(&mut fin,&mut fnlen);
         let fin_s=&fin[0..fnlen];
         if self.bad_response(&rtn) {
+            self.clean();
             return TLS_FAILURE;
         }
         if !keys::check_verifier_data(hash_type,fin_s,&self.sts[0..hlen],fh_s) {
             self.send_client_alert(DECRYPT_ERROR);
             logger::logger(IO_DEBUG,"Server Data is NOT verified\n",0,None);
             logger::logger(IO_DEBUG,"Full Handshake failed\n",0,None);
+            self.clean();
             return TLS_FAILURE;
         }
         logger::logger(IO_DEBUG,"\nServer Data is verified\n",0,None);
@@ -1177,11 +1345,39 @@ impl SESSION {
         logger::logger(IO_DEBUG,"Client application traffic secret= ",0,Some(&self.cts[0..hlen]));
         logger::logger(IO_DEBUG,"Server application traffic secret= ",0,Some(&self.sts[0..hlen]));
         logger::logger(IO_PROTOCOL,"FULL Handshake succeeded\n",0,None);
+        self.clean_io();
         if resumption_required { 
             logger::logger(IO_PROTOCOL,"... after handshake resumption\n",0,None);
             return TLS_RESUMPTION_REQUIRED;
         }
         return TLS_SUCCESS;
+    }
+
+// connect to server
+// first try resumption if session has a good ticket attached
+    pub fn connect(&mut self,early: Option<&[u8]>) -> bool {
+        let mut rtn:usize;
+        let mut early_went=false;
+        if self.t.still_good() { // have a good ticket? Try it.
+            rtn=self.tls_resume(early);
+            if rtn==TLS_EARLY_DATA_ACCEPTED { 
+                early_went=true;
+            }
+        } else {
+            logger::logger(IO_PROTOCOL,"Resumption Ticket not found or invalid\n",0,None);
+            rtn=self.tls_full();
+        }
+        self.t.clear(); // clear out any ticket
+    
+        if rtn==0 {  // failed to connect
+            return false;
+        }
+        if !early_went {
+            if  let Some(searly) = early {
+                self.send(searly);  // didn't go early, so send it now
+            }
+        }
+        return true;   // exiting with live session, ready to receive fresh ticket
     }
 
 // send a message post-handshake

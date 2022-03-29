@@ -735,7 +735,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     }
     logServerHello(session->cipher_suite,kex,pskid,&PK,&COOK);
 
-    if (rtn.val==HANDSHAKE_RETRY)
+    if (rtn.val==HANDSHAKE_RETRY || kex!=session->favourite_group)
     { // should not happen
         sendClientAlert(session,UNEXPECTED_MESSAGE);
         logger(IO_DEBUG,(char *)"No change possible as result of HRR\n",NULL,0,NULL); 

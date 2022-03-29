@@ -45,6 +45,29 @@ impl TICKET {
             origin: 0
         }
     }
+
+    pub fn clear(&mut self) {
+        self.valid=false;
+        self.tklen=0;
+        self.nnlen=0;
+        self.age_obfuscator=0;
+        self.max_early_data=0;
+        self.birth=0;
+        self.lifetime=0;
+        self.cipher_suite=0;
+        self.favourite_group=0;
+        self.origin=0;
+        for i in 0..MAX_TICKET_SIZE {
+            self.tick[i]=0;
+        }
+        for i in 0..MAX_KEY {
+            self.nonce[i]=0;
+        }
+        for i in 0..MAX_HASH {
+            self.psk[i]=0;
+        }
+    }
+
     pub fn create(&mut self,birth: usize,tickdata: &[u8]) -> isize {
         if tickdata.len() == 0 {
             return BAD_TICKET;

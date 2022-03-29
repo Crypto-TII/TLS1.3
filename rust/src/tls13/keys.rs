@@ -30,8 +30,6 @@ pub fn hkdf_expand_label(htype: usize,okm: &mut [u8],prk: &[u8],label: &[u8],ctx
     sal::hkdf_expand(htype,okm,prk,&hl[0..len]);
 }
 
-
-
 // Key Schedule code
 // Get Early Secret ES and optional Binder Key (either External or Resumption)
 pub fn derive_early_secrets(htype: usize,psk: Option<&[u8]>,es: &mut [u8],bke: Option<&mut [u8]>,bkr: Option<&mut [u8]>)
@@ -54,6 +52,20 @@ pub fn derive_early_secrets(htype: usize,psk: Option<&[u8]>,es: &mut [u8],bke: O
     }
     if let Some(sbkr) = bkr {
         hkdf_expand_label(htype,&mut sbkr[0..hlen],es,rb.as_bytes(),Some(&emh[0..hlen]));
+    }
+}
+
+// Get Later Secrets (Client Early Traffic Secret CETS and Early Exporter Master Secret EEMS) - requires partial transcript hash H
+pub fn derive_later_secrets(htype: usize,es: &[u8],h: &[u8], cets: Option<&mut [u8]>, eems: Option<&mut [u8]>) 
+{
+    let hlen=sal::hash_len(htype);
+    let ct="c e traffic";
+    let em="e exp master";
+    if let Some(scets) = cets {
+        hkdf_expand_label(htype,scets,es,ct.as_bytes(),Some(h));
+    }
+    if let Some(seems) = eems {
+        hkdf_expand_label(htype,seems,es,em.as_bytes(),Some(h));
     }
 }
 
@@ -80,16 +92,30 @@ impl CRYPTO {
     pub fn init(&mut self,cipher_suite: usize,ts: &[u8])
     {
         let htype=sal::hash_type(cipher_suite);
+        let hlen=sal::hash_len(htype);
         let klen=sal::aead_key_len(cipher_suite);
         let kyt="key";
         let ivt="iv";
-        hkdf_expand_label(htype,&mut self.k[0..klen],ts,kyt.as_bytes(),None);
-        hkdf_expand_label(htype,&mut self.iv[0..12],ts,ivt.as_bytes(),None);
+        hkdf_expand_label(htype,&mut self.k[0..klen],&ts[0..hlen],kyt.as_bytes(),None);
+        hkdf_expand_label(htype,&mut self.iv[0..12],&ts[0..hlen],ivt.as_bytes(),None);
 
         self.active=true;
         self.suite=cipher_suite;
         self.record=0;
         self.taglen=sal::aead_tag_len(cipher_suite);
+    }
+
+    pub fn clear(&mut self) {
+        self.active=false;
+        self.record=0;
+        self.suite=0;
+        self.taglen=0;
+        for i in 0..MAX_KEY {
+            self.k[i]=0;
+        }
+        for i in 0..MAX_IV_SIZE {
+            self.iv[i]=0;
+        }
     }
 
     pub fn is_active(&mut self) -> bool {

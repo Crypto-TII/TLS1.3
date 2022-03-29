@@ -1,9 +1,15 @@
 mod tls13;
 mod config;
 
+use std::fs;
+use std::fs::File;
+use std::io::Write;
+use std::io::{BufRead, BufReader};
 use std::net::{TcpStream};
 use tls13::connection::SESSION;
 use tls13::logger;
+use tls13::sal;
+use tls13::utils;
 use config::*;
 use std::env;
 
@@ -30,6 +36,31 @@ fn make_client_message(get: &mut[u8],host: &str) -> usize {
     get[ptr]=0x0d; get[ptr+1]=0x0a; ptr+=2;
     get[ptr]=0x0d; get[ptr+1]=0x0a; ptr+=2;
     return ptr;
+}
+
+fn store_ticket(s: &SESSION) {
+    let mut fp = File::create("cookie.txt").unwrap(); //expect("Unable to create file for ticket");
+    for i in 0..s.hlen {
+        write!(&mut fp,"{:02X}",s.hostname[i]);
+    }
+    writeln!(&mut fp);
+    for i in 0..s.t.tklen {
+        write!(&mut fp,"{:02X}",s.t.tick[i]);
+    }
+    writeln!(&mut fp);
+    let htype=sal::hash_type(s.t.cipher_suite);
+    let hlen=sal::hash_len(htype);
+    for i in 0..hlen {
+        write!(&mut fp,"{:02X}",s.t.psk[i]);
+    }
+    writeln!(&mut fp);
+    writeln!(&mut fp,"{:016X}",s.t.age_obfuscator).unwrap();
+    writeln!(&mut fp,"{:016X}",s.t.max_early_data);
+    writeln!(&mut fp,"{:016X}",s.t.birth);
+    writeln!(&mut fp,"{:016X}",s.t.lifetime);
+    writeln!(&mut fp,"{:016X}",s.t.cipher_suite);
+    writeln!(&mut fp,"{:016X}",s.t.favourite_group);
+    writeln!(&mut fp,"{:016X}",s.t.origin);
 }
 
 fn main() {
@@ -73,10 +104,33 @@ fn main() {
                 session.recv(&mut resp,&mut rplen);
                 logger::logger(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
             }
+            store_ticket(&session);
         },
         Err(_e) => {
             logger::logger(IO_PROTOCOL,"Failed to connect\n",0,None);
         }
     }
+
+   let file = File::open("cookie.txt").unwrap();
+   let mut reader = BufReader::new(file);
+
+    let mut line = String::new();
+    let mut len = reader.read_line(&mut line).unwrap();
+    println!("{} {}",len,&line[0..len-1]);
+    let myline=&line[0..len-1];
+    let mut hname:[u8;256]=[0;256];
+    let hlen=utils::decode_hex(&mut hname,myline);
+    line.clear();
+    //len = reader.read_line(&mut line).unwrap();
+    //println!("{} {}",len,&line[0..len-1]);
+
+    // Read the file line by line using the lines() iterator from std::io::BufRead.
+    
+ //   for (index, line) in reader.lines().enumerate() {
+ //       let line = line.unwrap(); // Ignore errors.
+ //       // Show the line and its number.
+ //       println!("{}. {}", index + 1, line);
+ //   }
+
 }
 
