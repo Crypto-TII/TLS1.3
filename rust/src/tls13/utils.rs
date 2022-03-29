@@ -73,6 +73,16 @@ pub fn decode_hex(x: &mut[u8],s: &str) -> usize {
     return i;
 }
 
+pub fn decode_hex_num(s: &str) -> usize {
+    let mut buf:[u8;16]=[0;16];
+    let mut len=decode_hex(&mut buf,s);
+    let mut n=0;
+    for i in 0..len {
+        n=n*256+buf[i] as usize; 
+    }
+    return n;
+}
+
 pub fn printbinary(array: &[u8]) {
     for i in 0..array.len() {
         print!("{:02X}", array[i])
