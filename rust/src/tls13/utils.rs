@@ -75,7 +75,7 @@ pub fn decode_hex(x: &mut[u8],s: &str) -> usize {
 
 pub fn decode_hex_num(s: &str) -> usize {
     let mut buf:[u8;16]=[0;16];
-    let mut len=decode_hex(&mut buf,s);
+    let len=decode_hex(&mut buf,s);
     let mut n=0;
     for i in 0..len {
         n=n*256+buf[i] as usize; 

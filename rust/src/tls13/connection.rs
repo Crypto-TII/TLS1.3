@@ -19,7 +19,7 @@ use crate::tls13::ticket::TICKET;
 pub struct SESSION {
     status: usize,     // Connection status 
     server_max_record: usize,  // Server's max record size 
-    sockptr: TcpStream,        // Pointer to socket 
+    pub sockptr: TcpStream,        // Pointer to socket 
     pub hlen: usize,
     iolen: usize,
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
@@ -243,7 +243,7 @@ impl SESSION {
             self.k_send.increment_crypto_context(); //increment iv
             ptr=utils::append_bytes(&mut self.io,ptr,&tag[0..taglen]);
         }
-        self.sockptr.write(&self.io[0..ptr]);
+        self.sockptr.write(&self.io[0..ptr]).unwrap();
     }   
 
     pub fn send_client_hello(&mut self,version:usize,ch: &mut [u8],already_agreed: bool,cid: &mut [u8],ext: &[u8],extra: usize,resume: bool) -> usize {
@@ -321,7 +321,7 @@ impl SESSION {
 // send Change Cipher Suite - helps get past middleboxes
     pub fn send_cccs(&mut self) {
         let cccs:[u8;6]=[0x14,0x03,0x03,0x00,0x01,0x01];
-        self.sockptr.write(&cccs);
+        self.sockptr.write(&cccs).unwrap();
     }
 
     pub fn send_end_early_data(&mut self) {
@@ -826,7 +826,7 @@ impl SESSION {
         return r;
     }
 // clean up buffers, kill crypto keys
-    fn clean(&mut self) {
+    pub fn clean(&mut self) {
 // clean up buffers, kill crypto keys
         for i in 0..self.iolen {
             self.io[i]=0;
@@ -862,13 +862,13 @@ impl SESSION {
         let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
 
 // Extract Ticket parameters
-        let lifetime=self.t.lifetime;
+        //let lifetime=self.t.lifetime;
         let age_obfuscator=self.t.age_obfuscator;
         let max_early_data=self.t.max_early_data;
         let time_ticket_received=self.t.birth;
         self.cipher_suite=self.t.cipher_suite;
         self.favourite_group=self.t.favourite_group;
-        let origin=self.t.origin;
+        //let origin=self.t.origin;
 
         if max_early_data>0 {
             if let Some(_) = early {
@@ -897,7 +897,7 @@ impl SESSION {
         let mut bl:[u8;MAX_HASH+3]=[0;MAX_HASH+3];
 
         self.init_transcript_hash();
-        let mut external_psk=false;
+        let external_psk:bool;
         if time_ticket_received==0 && age_obfuscator==0 { // its an external PSK
             external_psk=true;
             keys::derive_early_secrets(htype,Some(psk_s),es_s,Some(bk_s),None);
@@ -910,9 +910,9 @@ impl SESSION {
         logger::logger(IO_DEBUG,"Early Secret= ",0,Some(es_s));
 
 // Generate key pair in favourite group - use same favourite group that worked before for this server - so should be no HRR
-        let mut sklen=sal::secret_key_size(self.favourite_group);   // may change on a handshake retry
-        let mut pklen=sal::public_key_size(self.favourite_group);
-        let mut sslen=sal::shared_secret_size(self.favourite_group);
+        let sklen=sal::secret_key_size(self.favourite_group);   // may change on a handshake retry
+        let pklen=sal::public_key_size(self.favourite_group);
+        let sslen=sal::shared_secret_size(self.favourite_group);
         let pk_s=&mut pk[0..pklen];
         let csk_s=&mut csk[0..sklen];
         let ss_s=&mut ss[0..sslen];
@@ -1019,13 +1019,14 @@ impl SESSION {
         logger::logger(IO_DEBUG,"Client handshake traffic secret= ",0,Some(&self.cts[0..hlen]));
         logger::logger(IO_DEBUG,"Server handshake traffic secret= ",0,Some(&self.sts[0..hlen]));
 
-        let mut rtn=self.get_server_encrypted_extensions(&expected,&mut response);
+        rtn=self.get_server_encrypted_extensions(&expected,&mut response);
 
         if self.bad_response(&rtn) {
             self.clean();
             return TLS_FAILURE;
         }
         logger::log_enc_ext(&expected,&response);
+        self.transcript_hash(fh_s);
         logger::logger(IO_DEBUG,"Encrypted extensions processed\n",0,None);
 
         let mut fnlen=0;
@@ -1356,7 +1357,7 @@ impl SESSION {
 // connect to server
 // first try resumption if session has a good ticket attached
     pub fn connect(&mut self,early: Option<&[u8]>) -> bool {
-        let mut rtn:usize;
+        let rtn:usize;
         let mut early_went=false;
         if self.t.still_good() { // have a good ticket? Try it.
             rtn=self.tls_resume(early);
@@ -1392,7 +1393,7 @@ impl SESSION {
 
     pub fn recv(&mut self,mess: &mut [u8], mslen: &mut usize) -> isize {
         let mut fin=false;
-        let mut kind:isize=0;
+        let mut kind:isize;
         loop {
             logger::logger(IO_PROTOCOL,"Waiting for Server input \n",0,None);
             let mut ptr=0;

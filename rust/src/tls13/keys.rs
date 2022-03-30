@@ -58,7 +58,6 @@ pub fn derive_early_secrets(htype: usize,psk: Option<&[u8]>,es: &mut [u8],bke: O
 // Get Later Secrets (Client Early Traffic Secret CETS and Early Exporter Master Secret EEMS) - requires partial transcript hash H
 pub fn derive_later_secrets(htype: usize,es: &[u8],h: &[u8], cets: Option<&mut [u8]>, eems: Option<&mut [u8]>) 
 {
-    let hlen=sal::hash_len(htype);
     let ct="c e traffic";
     let em="e exp master";
     if let Some(scets) = cets {

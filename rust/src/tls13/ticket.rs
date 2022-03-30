@@ -3,7 +3,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::utils::RET;
-use crate::tls13::logger;
 
 pub fn millis() -> usize {
     return SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis() as usize;    

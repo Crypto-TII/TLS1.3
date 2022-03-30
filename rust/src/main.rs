@@ -5,7 +5,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
-use std::net::{TcpStream};
+use std::net::{Shutdown, TcpStream};
 use tls13::connection::SESSION;
 use tls13::logger;
 use tls13::sal;
@@ -38,42 +38,101 @@ fn make_client_message(get: &mut[u8],host: &str) -> usize {
     return ptr;
 }
 
-fn store_ticket(s: &SESSION) {
-    let mut fp = File::create("cookie.txt").unwrap(); //expect("Unable to create file for ticket");
+fn store_ticket(s: &SESSION,fname: &str) {
+    let mut fp = File::create(fname).unwrap(); //expect("Unable to create file for ticket");
     for i in 0..s.hlen {
-        write!(&mut fp,"{}",s.hostname[i] as char);
+        write!(&mut fp,"{}",s.hostname[i] as char).unwrap();
     }
-    writeln!(&mut fp);
+    writeln!(&mut fp).unwrap();
     for i in 0..s.t.tklen {
-        write!(&mut fp,"{:02X}",s.t.tick[i]);
+        write!(&mut fp,"{:02X}",s.t.tick[i]).unwrap();
     }
-    writeln!(&mut fp);
+    writeln!(&mut fp).unwrap();
     for i in 0..s.t.nnlen {
-        write!(&mut fp,"{:02X}",s.t.nonce[i]);
+        write!(&mut fp,"{:02X}",s.t.nonce[i]).unwrap();
     }
-    writeln!(&mut fp);
+    writeln!(&mut fp).unwrap();
     let htype=sal::hash_type(s.t.cipher_suite);
     let hlen=sal::hash_len(htype);
     for i in 0..hlen {
-        write!(&mut fp,"{:02X}",s.t.psk[i]);
+        write!(&mut fp,"{:02X}",s.t.psk[i]).unwrap();
     }
-    writeln!(&mut fp);
+    writeln!(&mut fp).unwrap();
     writeln!(&mut fp,"{:016X}",s.t.age_obfuscator).unwrap();
-    writeln!(&mut fp,"{:016X}",s.t.max_early_data);
-    writeln!(&mut fp,"{:016X}",s.t.birth);
-    writeln!(&mut fp,"{:016X}",s.t.lifetime);
-    writeln!(&mut fp,"{:016X}",s.t.cipher_suite);
-    writeln!(&mut fp,"{:016X}",s.t.favourite_group);
-    writeln!(&mut fp,"{:016X}",s.t.origin);
+    writeln!(&mut fp,"{:016X}",s.t.max_early_data).unwrap();
+    writeln!(&mut fp,"{:016X}",s.t.birth).unwrap();
+    writeln!(&mut fp,"{:016X}",s.t.lifetime).unwrap();
+    writeln!(&mut fp,"{:016X}",s.t.cipher_suite).unwrap();
+    writeln!(&mut fp,"{:016X}",s.t.favourite_group).unwrap();
+    writeln!(&mut fp,"{:016X}",s.t.origin).unwrap();
 }
 
-fn recover_ticket(s: &mut SESSION) {
-    let file = File::open("cookie.txt").unwrap();
-    let mut reader = BufReader::new(file); 
-    let mut line = String::new();
-    let mut len = reader.read_line(&mut line).unwrap();
-    let myline=&line[0..len];
+fn recover_ticket(s: &mut SESSION,fname: &str) -> bool {
+    match File::open(fname) {
+        Ok(file) => {
+            let mut reader = BufReader::new(file); 
+            let mut line = String::new();
+            let mut len = reader.read_line(&mut line).unwrap();
+            let mut myline=&line[0..len-1];
+            if myline.as_bytes() != &s.hostname[0..s.hlen] {
+                return false; // not a ticket for this website
+            }
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            s.t.tklen=utils::decode_hex(&mut s.t.tick,myline);
+
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            s.t.nnlen=utils::decode_hex(&mut s.t.nonce,myline);
+
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            utils::decode_hex(&mut s.t.psk,myline);
+   
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            s.t.age_obfuscator=utils::decode_hex_num(myline);
     
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            s.t.max_early_data=utils::decode_hex_num(myline);
+
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            s.t.birth=utils::decode_hex_num(myline);
+
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            s.t.lifetime=utils::decode_hex_num(myline);
+
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            s.t.cipher_suite=utils::decode_hex_num(myline);
+
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            s.t.favourite_group=utils::decode_hex_num(myline);
+
+            line.clear();
+            len = reader.read_line(&mut line).unwrap();
+            myline=&line[0..len-1];
+            s.t.origin=utils::decode_hex_num(myline);
+       },
+       Err(_e) => {
+            return false;
+       }
+    }
+    s.t.valid=true;
+    return true;
 }
 
 fn main() {
@@ -105,11 +164,46 @@ fn main() {
 
     match TcpStream::connect(&fullhost) {
         Ok(stream) => {
+            
             logger::logger(IO_PROTOCOL,"Successfully connected to server\n",0,None);
             let mut get:[u8;256]=[0;256];
             let mut resp:[u8;256]=[0;256];
             let gtlen=make_client_message(&mut get,&host);
             let mut session=SESSION::new(stream,&host);
+
+            let mut have_ticket=true;
+            let mut ticket_failed=false;
+            if !recover_ticket(&mut session,"cookie.txt") {
+                have_ticket=false;
+            }
+            if !session.connect(Some(&mut get[0..gtlen])) {
+                if have_ticket {
+                    ticket_failed=true;
+                    fs::remove_file("cookie.txt");
+                    session.sockptr.shutdown(Shutdown::Both);
+                    session.sockptr=TcpStream::connect(&fullhost).unwrap();
+                    if !session.connect(Some(&mut get[0..gtlen])) {
+                        logger::logger(IO_APPLICATION,"TLS Handshake failed\n",0,None);
+                        return;
+                    } 
+                } else {
+                    logger::logger(IO_APPLICATION,"TLS Handshake failed\n",0,None);
+                    return;
+                }
+            } 
+            let mut rplen=0;
+            let rtn=session.recv(&mut resp,&mut rplen);
+            logger::logger(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
+            if rtn<0 {
+                session.send_client_alert(alert_from_cause(rtn));
+            } else {
+                session.send_client_alert(CLOSE_NOTIFY);
+            }
+            if session.t.valid && !ticket_failed {
+                store_ticket(&session,"cookie.txt");
+            }
+            session.clean();
+/*
             let r=session.tls_full();
             if r!=TLS_FAILURE {
                 session.send(&get[0..gtlen]);
@@ -118,121 +212,16 @@ fn main() {
                 logger::logger(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
             }
 
-    
-
-            store_ticket(&session);
-    let file = File::open("cookie.txt").unwrap();
-    let mut reader = BufReader::new(file);
-
-    let mut line = String::new();
-    let mut len = reader.read_line(&mut line).unwrap();
-    let mut myline=&line[0..len-1];
-    println!("{} {}",myline.len(),myline);
-    println!("{} ",session.hlen);
-    if myline.as_bytes() == &session.hostname[0..session.hlen] {
-        println!("They are the same");
-    }
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    let tklen=utils::decode_hex(&mut session.t.tick,myline);
-    for i in 0..session.t.tklen {
-        print!("{:02X}",session.t.tick[i]);
-    }
-    println!("");
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    session.t.nnlen=utils::decode_hex(&mut session.t.nonce,myline);
-    for i in 0..session.t.nnlen {
-        print!("{:02X}",session.t.nonce[i]);
-    }
-    println!("");
-    let htype=sal::hash_type(session.t.cipher_suite);
-    let hlen=sal::hash_len(htype);
-
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    utils::decode_hex(&mut session.t.psk,myline);
-    for i in 0..hlen {
-        print!("{:02X}",session.t.psk[i]);
-    }    
-    println!("");
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    let mut num=utils::decode_hex_num(myline);
-    print!("{:X}",num);
-    println!("");     
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    num=utils::decode_hex_num(myline);
-    print!("{:X}",num);
-    println!("");
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    num=utils::decode_hex_num(myline);
-    print!("{:X}",num);
-    println!("");
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    num=utils::decode_hex_num(myline);
-    print!("{:X}",num);
-    println!("");
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    num=utils::decode_hex_num(myline);
-    print!("{:X}",num);
-    println!("");
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    num=utils::decode_hex_num(myline);
-    print!("{:X}",num);
-    println!("");
-    line.clear();
-    len = reader.read_line(&mut line).unwrap();
-    myline=&line[0..len-1];
-    //println!("{}",myline);
-    num=utils::decode_hex_num(myline);
-    print!("{:X}",num);
-    println!("");
+            store_ticket(&session,"cookie.txt");
+            session.t.clear();
+            recover_ticket(&mut session,"cookie.txt"); */
         },
         Err(_e) => {
             logger::logger(IO_PROTOCOL,"Failed to connect\n",0,None);
-        }
-    }
-/*
-    let file = File::open("cookie.txt").unwrap();
-    let mut reader = BufReader::new(file);
+        } 
+    } 
 
-    let mut line = String::new();
-    let mut len = reader.read_line(&mut line).unwrap();
-    let myline=&line[0..len];
-    println!("{} {}",len,myline);
-    println!("{} {}",session.hlen,session.hostname);
-
-    let mut hname:[u8;256]=[0;256];
-    //let hlen=utils::decode_hex(&mut hname,myline);
-    line.clear();
-    //len = reader.read_line(&mut line).unwrap();
-    //println!("{} {}",len,&line[0..len-1]);
-*/
-    // Read the file line by line using the lines() iterator from std::io::BufRead.
+ // Read the file line by line using the lines() iterator from std::io::BufRead.
     
  //   for (index, line) in reader.lines().enumerate() {
  //       let line = line.unwrap(); // Ignore errors.
