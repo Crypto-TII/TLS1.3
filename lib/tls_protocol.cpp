@@ -41,7 +41,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 
 // build chosen set of extensions, and assert expectations of server responses
 // The User may want to change the mix of optional extensions
-static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status *expectations,bool resume)
+static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status *expectations,int mode)
 {
 	int groups[TLS_MAX_SUPPORTED_GROUPS];
 	int nsg=SAL_groups(groups);
@@ -59,8 +59,8 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 #endif
 #endif
 
-	if (resume)
-	{
+	if (mode!=0)
+	{  // resumption
 		nsg=1;
 		groups[0]=session->favourite_group; // Only allow the group already agreed
 	}
@@ -77,11 +77,14 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 #ifdef CLIENT_MAX_RECORD
 	addRSLExt(EXT,CLIENT_MAX_RECORD);                     // demand a fragment size limit
 #else
-	addMFLExt(EXT,TLS_MAX_FRAG);  expectations->max_frag_length=true; // ask for max fragment length - server may not agree - but no harm in asking
+	if (mode!=2)
+	{
+		addMFLExt(EXT,TLS_MAX_FRAG);  expectations->max_frag_length=true; // ask for max fragment length - server may not agree - but no harm in asking
+	}
 #endif
 	addPadding(EXT,SAL_randomByte()%16);  // add some random padding (because I can)
 
-	if (!resume)
+	if (mode==0) // full handshake
 	{ // need signature related extensions for full handshake
 		addSigAlgsExt(EXT,nsa,sigAlgs);
 		addSigAlgsCertExt(EXT,nsac,sigAlgsCert);
@@ -173,7 +176,7 @@ static int TLS13_full(TLS_session *session)
 
 // Client Hello
 // First build our preferred mix of client Hello extensions, based on our capabililities
-	buildExtensions(session,&EXT,&PK,&enc_ext_expt,false);
+	buildExtensions(session,&EXT,&PK,&enc_ext_expt,0);
 
 // create and send Client Hello octad
     sendClientHello(session,TLS1_0,&CH,false,&CID,&EXT,0,false);  
@@ -208,7 +211,7 @@ static int TLS13_full(TLS_session *session)
     }
     if (SAL_hashLen(hashtype)==0)
     {
-        sendClientAlert(session,ILLEGAL_PARAMETER);
+        sendAlert(session,ILLEGAL_PARAMETER);
         logCipherSuite(session->cipher_suite);
         logger(IO_DEBUG,(char *)"Cipher_suite not valid\n",NULL,0,NULL);
         logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
@@ -230,7 +233,7 @@ static int TLS13_full(TLS_session *session)
 
         if (kex==session->favourite_group)
         { // its the same one I chose !?
-            sendClientAlert(session,ILLEGAL_PARAMETER);
+            sendAlert(session,ILLEGAL_PARAMETER);
             logger(IO_DEBUG,(char *)"No change as result of HRR\n",NULL,0,NULL);   
             logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
             CLEAN_FULL_STACK
@@ -246,7 +249,7 @@ static int TLS13_full(TLS_session *session)
         session->favourite_group=kex;
         SAL_generateKeyPair(session->favourite_group,&CSK,&PK); 
 
-		buildExtensions(session,&EXT,&PK,&enc_ext_expt,false);
+		buildExtensions(session,&EXT,&PK,&enc_ext_expt,0);
 
         if (COOK.len!=0)
             addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR ... so send it back in an extension
@@ -276,7 +279,7 @@ static int TLS13_full(TLS_session *session)
         if (rtn.val==HANDSHAKE_RETRY)
         { // only one retry allowed
             logger(IO_DEBUG,(char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
-            sendClientAlert(session,UNEXPECTED_MESSAGE);
+            sendAlert(session,UNEXPECTED_MESSAGE);
             logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
             CLEAN_FULL_STACK
             TLS13_clean(session);
@@ -366,7 +369,7 @@ static int TLS13_full(TLS_session *session)
 
     if (rtn.val!=CERTIFICATE)
     {
-        sendClientAlert(session,alert_from_cause(WRONG_MESSAGE));
+        sendAlert(session,alert_from_cause(WRONG_MESSAGE));
         logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
         CLEAN_FULL_STACK
         TLS13_clean(session);
@@ -400,7 +403,7 @@ static int TLS13_full(TLS_session *session)
     }
     if (rtn.val!=CERT_VERIFY)
     {
-        sendClientAlert(session,alert_from_cause(WRONG_MESSAGE));
+        sendAlert(session,alert_from_cause(WRONG_MESSAGE));
         logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
         CLEAN_FULL_STACK
         TLS13_clean(session);
@@ -426,7 +429,7 @@ static int TLS13_full(TLS_session *session)
     logSigAlg(sigalg);
     if (!checkServerCertVerifier(sigalg,&SCVSIG,&HH,&SPK))
     {
-        sendClientAlert(session,DECRYPT_ERROR);
+        sendAlert(session,DECRYPT_ERROR);
         logger(IO_DEBUG,(char *)"Server Cert Verification failed\n",NULL,0,NULL);
         logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
         CLEAN_FULL_STACK
@@ -451,7 +454,7 @@ static int TLS13_full(TLS_session *session)
 
     if (!checkVeriferData(hashtype,&FIN,&session->STS,&FH))
     {
-        sendClientAlert(session,DECRYPT_ERROR);
+        sendAlert(session,DECRYPT_ERROR);
         logger(IO_DEBUG,(char *)"Server Data is NOT verified\n",NULL,0,NULL);
         logger(IO_DEBUG,(char *)"Full Handshake failed\n",NULL,0,NULL);
         CLEAN_FULL_STACK
@@ -596,8 +599,8 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     unsign32 max_early_data=0;
     bool have_early_data=true;       // Hope to send client message as early data
     bool external_psk=false;
-    ee_status enc_ext_resp={false,false,false,false};  // encrypted extensions expectations
-    ee_status enc_ext_expt={false,false,false,false};  // encrypted extensions responses
+    ee_status enc_ext_resp={false,false,false,false};  // encrypted extensions responses 
+    ee_status enc_ext_expt={false,false,false,false};  // encrypted extensions expectations
 
 // Extract Ticket parameters
     lifetime=session->T.lifetime;
@@ -620,7 +623,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     hashtype=SAL_hashType(session->cipher_suite);
     initTranscriptHash(session);
 
-    if (time_ticket_received==0 && age_obfuscator==0)
+    if (origin==TLS_EXTERNAL_PSK)
     { // its an external PSK
         external_psk=true;
         deriveEarlySecrets(hashtype,&PSK,&ES,&BK,NULL);
@@ -640,7 +643,10 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 // Client Hello
 // First build standard client Hello extensions
 
-	buildExtensions(session,&EXT,&PK,&enc_ext_expt,true);	
+	int resmode=1;
+	if (origin==TLS_EXTERNAL_PSK)
+		resmode=2;
+	buildExtensions(session,&EXT,&PK,&enc_ext_expt,resmode);	
 	
     if (have_early_data)
     {
@@ -710,7 +716,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     if (pskid<0)
     { // Ticket rejected by Server (as out of date??)
         logger(IO_PROTOCOL,(char *)"Ticket rejected by server\n",NULL,0,NULL);
-        sendClientAlert(session,CLOSE_NOTIFY);
+        sendAlert(session,CLOSE_NOTIFY);
         logger(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
@@ -719,7 +725,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 
 	if (pskid>0)
 	{ // pskid out-of-range (only one allowed)
-        sendClientAlert(session,ILLEGAL_PARAMETER);
+        sendAlert(session,ILLEGAL_PARAMETER);
         logger(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
@@ -728,7 +734,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 
     if (badResponse(session,rtn)) 
     {
-        sendClientAlert(session,CLOSE_NOTIFY);
+        sendAlert(session,CLOSE_NOTIFY);
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -737,7 +743,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 
     if (rtn.val==HANDSHAKE_RETRY || kex!=session->favourite_group)
     { // should not happen
-        sendClientAlert(session,UNEXPECTED_MESSAGE);
+        sendAlert(session,UNEXPECTED_MESSAGE);
         logger(IO_DEBUG,(char *)"No change possible as result of HRR\n",NULL,0,NULL); 
         logger(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         CLEAN_RESUMPTION_STACK
@@ -802,7 +808,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     createSendCryptoContext(session,&session->CTS);
     if (!checkVeriferData(hashtype,&FIN,&session->STS,&FH))
     {
-        sendClientAlert(session,DECRYPT_ERROR);
+        sendAlert(session,DECRYPT_ERROR);
         logger(IO_DEBUG,(char *)"Server Data is NOT verified\n",NULL,0,NULL);
         logger(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         CLEAN_RESUMPTION_STACK

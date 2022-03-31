@@ -12,32 +12,34 @@ pub fn logger(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
     if logit>VERBOSITY {
         return;
     }
-    print!("{}",preamble);
-    if let Some(sbytes) = bytes {
-        let mut len=sbytes.len();
-        if info<0 {
-            for i in 0..len {
-                print!("{}",sbytes[i] as char);
+    if VERBOSITY > IO_NONE {
+        print!("{}",preamble);
+        if let Some(sbytes) = bytes {
+            let mut len=sbytes.len();
+            if info<0 {
+                for i in 0..len {
+                    print!("{}",sbytes[i] as char);
+                }
+            } else {
+                let mut truncated=false;
+                if len>LOG_OUTPUT_TRUNCATION {
+                    len=LOG_OUTPUT_TRUNCATION;
+                    truncated=true;
+                }
+                utils::printbinary(&sbytes[0..len]);
+                if truncated {
+                    print!(" (truncated)");
+                }
+                println!();
             }
-        } else {
-            let mut truncated=false;
-            if len>LOG_OUTPUT_TRUNCATION {
-                len=LOG_OUTPUT_TRUNCATION;
-                truncated=true;
-            }
-            utils::printbinary(&sbytes[0..len]);
-            if truncated {
-                print!(" (truncated)");
-            }
-            println!();
         }
-    }
-    if info>0 {
-        println!("{}",info);
+        if info>0 {
+            println!("{}",info);
+        }
     }
 }
 
-pub fn log_cipher_suite(cipher_suite: usize) {
+pub fn log_cipher_suite(cipher_suite: u16) {
     logger(IO_DEBUG,"Cipher Suite is ",0,None);
     match cipher_suite {
         AES_128_GCM_SHA256 => logger(IO_DEBUG,"AES_128_GCM_SHA256\n",0,None),
@@ -47,7 +49,7 @@ pub fn log_cipher_suite(cipher_suite: usize) {
     }
 }
 
-pub fn log_sig_alg(sigalg: usize) {
+pub fn log_sig_alg(sigalg: u16) {
     match sigalg {
         ECDSA_SECP256R1_SHA256 => logger(IO_DEBUG,"ECDSA_SECP256R1_SHA256\n",0,None),
         RSA_PSS_RSAE_SHA256 => logger(IO_DEBUG,"RSA_PSS_RSAE_SHA256\n",0,None),
@@ -61,7 +63,7 @@ pub fn log_sig_alg(sigalg: usize) {
     }     
 }
 
-pub fn log_key_exchange(kex: usize) {
+pub fn log_key_exchange(kex: u16) {
     logger(IO_DEBUG,"Key Exchange Group is ",0,None);
     match kex {
         X25519 => logger(IO_DEBUG,"x25519\n",0,None),
@@ -71,7 +73,7 @@ pub fn log_key_exchange(kex: usize) {
     }
 }
 
-pub fn log_server_hello(cipher_suite: usize,kex: usize,pskid: isize,pk: &[u8],ck: &[u8]) {
+pub fn log_server_hello(cipher_suite: u16,kex: u16,pskid: isize,pk: &[u8],ck: &[u8]) {
     logger(IO_DEBUG,"Parsing Server Hello\n",0,None);
     log_cipher_suite(cipher_suite);
     log_key_exchange(kex);
@@ -93,7 +95,7 @@ pub fn log_ticket(t: &TICKET) {
     logger(IO_DEBUG,"Ticket = ",0,Some(&t.tick[0..t.tklen])); 
     let minutes=t.lifetime/60;
     logger(IO_DEBUG,"life time in minutes = ",minutes as isize,None);
-    logger(IO_DEBUG,"Pre-Shared Key = ",0,Some(&t.psk[0..hlen])); 
+    logger(IO_DEBUG,"Pre-Shared Key = ",0,Some(&t.psk[0..t.psklen])); 
     logger(IO_DEBUG,"max_early_data = ",t.max_early_data as isize,None);
     logger(IO_DEBUG,"\n",0,None);
 }
@@ -175,8 +177,7 @@ pub fn log_cert_details(pubkey: &[u8],pkt: &PKTYPE,sig: &[u8],sgt: &PKTYPE,issue
 }
 
 
-pub fn log_alert(detail: usize) {
-    logger(IO_PROTOCOL,"*** Alert received - ",0,None);
+pub fn log_alert(detail: u8) {
     match detail {
         0  => logger(IO_PROTOCOL,"Close notify\n",0,None),
         10 => logger(IO_PROTOCOL,"Unexpected Message\n",0,None),

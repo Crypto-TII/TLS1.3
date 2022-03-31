@@ -99,6 +99,8 @@ static void bad_input()
     printf("Example:- client www.bbc.co.uk\n");
 }
 
+void print_kex(
+
 int main(int argc, char const *argv[])
 {
     char get[256];
@@ -315,9 +317,9 @@ int main(int argc, char const *argv[])
     logger(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 
     if (rtn<0)
-        sendClientAlert(session,alert_from_cause(rtn));
+        sendAlert(session,alert_from_cause(rtn));
     else
-        sendClientAlert(session,CLOSE_NOTIFY);
+        sendAlert(session,CLOSE_NOTIFY);
 
 // If session collected a Ticket, store it somewhere for next time
     if (session->T.valid && !TICKET_FAILED)

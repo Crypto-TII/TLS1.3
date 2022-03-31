@@ -61,23 +61,21 @@ void logger(int logit,char *preamble,char *string,unsign32 info,octad *O)
 
 void nameCipherSuite(int cipher_suite)
 {
-#if VERBOSITY >= IO_DEBUG
     switch (cipher_suite)
     {
     case TLS_AES_128_GCM_SHA256:
-        logger(IO_DEBUG,(char *)"TLS_AES_128_GCM_SHA256\n",NULL,0,NULL);
+		myprintf((char *)"TLS_AES_128_GCM_SHA256\n");
         break;
     case TLS_AES_256_GCM_SHA384:
-        logger(IO_DEBUG,(char *)"TLS_AES_256_GCM_SHA384\n",NULL,0,NULL);   
+        myprintf((char *)"TLS_AES_256_GCM_SHA384\n");   
         break;
     case TLS_CHACHA20_POLY1305_SHA256:
-        logger(IO_DEBUG,(char *)"TLS_CHACHA20_POLY1305_SHA256\n",NULL,0,NULL);   
+        myprintf((char *)"TLS_CHACHA20_POLY1305_SHA256\n");   
         break;
     default:
-        logger(IO_DEBUG,(char *)"Non-standard\n",NULL,0,NULL);   
+        myprintf((char *)"Non-standard\n");   
         break;
     }
-#endif
 }
 
 void logCipherSuite(int cipher_suite)
@@ -90,23 +88,21 @@ void logCipherSuite(int cipher_suite)
 
 void nameKeyExchange(int kex)
 {
-#if VERBOSITY >= IO_DEBUG
     switch (kex)
     {
     case X25519:
-        logger(IO_DEBUG,(char *)"X25519\n",NULL,0,NULL);
+        myprintf((char *)"X25519\n");
         break;
     case SECP256R1:
-        logger(IO_DEBUG,(char *)"SECP256R1\n",NULL,0,NULL);   
+        myprintf((char *)"SECP256R1\n");   
         break;
     case SECP384R1:
-        logger(IO_DEBUG,(char *)"SECP384R1\n",NULL,0,NULL);   
+        myprintf((char *)"SECP384R1\n");   
         break;
     default:
-        logger(IO_DEBUG,(char *)"Non-standard\n",NULL,0,NULL);   
+        myprintf((char *)"Non-standard\n");   
         break;
     }
-#endif
 }
 
 void logKeyExchange(int kex)
@@ -119,41 +115,39 @@ void logKeyExchange(int kex)
 
 void nameSigAlg(int sigAlg)
 {
-#if VERBOSITY >= IO_DEBUG
     switch (sigAlg)
     {
     case ECDSA_SECP256R1_SHA256:
-        logger(IO_DEBUG,(char *)"ECDSA_SECP256R1_SHA256\n",NULL,0,NULL);
+        myprintf((char *)"ECDSA_SECP256R1_SHA256\n");
         break;
     case RSA_PSS_RSAE_SHA256:
-        logger(IO_DEBUG,(char *)"RSA_PSS_RSAE_SHA256\n",NULL,0,NULL);   
+        myprintf((char *)"RSA_PSS_RSAE_SHA256\n");   
         break;
     case RSA_PKCS1_SHA256:
-        logger(IO_DEBUG,(char *)"RSA_PKCS1_SHA256\n",NULL,0,NULL);   
+        myprintf((char *)"RSA_PKCS1_SHA256\n");   
         break;
     case ECDSA_SECP384R1_SHA384:
-        logger(IO_DEBUG,(char *)"ECDSA_SECP384R1_SHA384\n",NULL,0,NULL);
+        myprintf((char *)"ECDSA_SECP384R1_SHA384\n");
         break;
     case RSA_PSS_RSAE_SHA384:
-        logger(IO_DEBUG,(char *)"RSA_PSS_RSAE_SHA384\n",NULL,0,NULL);   
+        myprintf((char *)"RSA_PSS_RSAE_SHA384\n");   
         break;
     case RSA_PKCS1_SHA384:
-        logger(IO_DEBUG,(char *)"RSA_PKCS1_SHA384\n",NULL,0,NULL);   
+        myprintf((char *)"RSA_PKCS1_SHA384\n");   
         break;
     case RSA_PSS_RSAE_SHA512:
-        logger(IO_DEBUG,(char *)"RSA_PSS_RSAE_SHA512\n",NULL,0,NULL);   
+        myprintf((char *)"RSA_PSS_RSAE_SHA512\n");   
         break;
     case RSA_PKCS1_SHA512:
-        logger(IO_DEBUG,(char *)"RSA_PKCS1_SHA512\n",NULL,0,NULL);   
+        myprintf((char *)"RSA_PKCS1_SHA512\n");   
         break;
     case ED25519:
-        logger(IO_DEBUG,(char *)"ED25519\n",NULL,0,NULL);   
+        myprintf((char *)"ED25519\n");   
         break;
     default:
-        logger(IO_DEBUG,(char *)"Non-standard\n",NULL,0,NULL);   
+        myprintf((char *)"Non-standard\n");   
         break;
     }
-#endif
 }
 
 void logSigAlg(int sigAlg)

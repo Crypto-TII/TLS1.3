@@ -13,6 +13,11 @@ use tls13::utils;
 use config::*;
 use std::env;
 
+use std::time::Instant;
+
+const MIN_ITERS: isize = 10;
+const MIN_TIME: isize = 1;
+
 extern crate mcore;
 
 fn make_client_message(get: &mut[u8],host: &str) -> usize {
@@ -52,9 +57,7 @@ fn store_ticket(s: &SESSION,fname: &str) {
         write!(&mut fp,"{:02X}",s.t.nonce[i]).unwrap();
     }
     writeln!(&mut fp).unwrap();
-    let htype=sal::hash_type(s.t.cipher_suite);
-    let hlen=sal::hash_len(htype);
-    for i in 0..hlen {
+    for i in 0..s.t.psklen {
         write!(&mut fp,"{:02X}",s.t.psk[i]).unwrap();
     }
     writeln!(&mut fp).unwrap();
@@ -90,7 +93,7 @@ fn recover_ticket(s: &mut SESSION,fname: &str) -> bool {
             line.clear();
             len = reader.read_line(&mut line).unwrap();
             myline=&line[0..len-1];
-            utils::decode_hex(&mut s.t.psk,myline);
+            s.t.psklen=utils::decode_hex(&mut s.t.psk,myline);
    
             line.clear();
             len = reader.read_line(&mut line).unwrap();
@@ -115,12 +118,12 @@ fn recover_ticket(s: &mut SESSION,fname: &str) -> bool {
             line.clear();
             len = reader.read_line(&mut line).unwrap();
             myline=&line[0..len-1];
-            s.t.cipher_suite=utils::decode_hex_num(myline);
+            s.t.cipher_suite=utils::decode_hex_num(myline) as u16;
 
             line.clear();
             len = reader.read_line(&mut line).unwrap();
             myline=&line[0..len-1];
-            s.t.favourite_group=utils::decode_hex_num(myline);
+            s.t.favourite_group=utils::decode_hex_num(myline) as u16;
 
             line.clear();
             len = reader.read_line(&mut line).unwrap();
@@ -135,17 +138,155 @@ fn recover_ticket(s: &mut SESSION,fname: &str) -> bool {
     return true;
 }
 
+fn bad_input()
+{
+    println!("Incorrect Usage");
+    println!("client <hostname>, or");
+    println!("client <flags>");
+    println!("(hostname may be localhost)");
+    println!("(port defaults to 443, or 4433 on localhost)");
+    println!("Resumption automatically attempted if recent ticket found");
+    println!("Valid flags:- ");
+    println!("    /p <n> (where <n> is preshared key label shared with localhost)");
+    println!("    /r remove stored ticket");
+    println!("    /s show SAL capabilities");
+    println!("Example:- client www.bbc.co.uk");
+}
+
+fn name_ciphers(cipher_suite: u16) {
+    match cipher_suite {
+        AES_128_GCM_SHA256 => println!("TLS_AES_128_GCM_SHA256"),
+        AES_256_GCM_SHA384 => println!("TLS_AES_256_GCM_SHA384"),   
+        CHACHA20_POLY1305_SHA256 => println!("TLS_CHACHA20_POLY1305_SHA256"),  
+        _ => println!("Non-standard")
+    }
+}
+
+fn name_group(group: u16) {
+    match group {
+        X25519 => println!("X25519"),
+        SECP256R1 => println!("SECP256R1"),   
+        SECP384R1 => println!("SECP384R1"),   
+        _ => println!("Non-standard")
+    }
+}
+
+fn name_signature(sigalg: u16) {
+    match sigalg {
+        ECDSA_SECP256R1_SHA256 => println!("ECDSA_SECP256R1_SHA256"),
+        RSA_PSS_RSAE_SHA256 => println!("RSA_PSS_RSAE_SHA256"),
+        RSA_PKCS1_SHA256 => println!("RSA_PKCS1_SHA256"),
+        ECDSA_SECP384R1_SHA384 => println!("ECDSA_SECP384R1_SHA384"),
+        RSA_PSS_RSAE_SHA384 => println!("RSA_PSS_RSAE_SHA384"),
+        RSA_PKCS1_SHA384 => println!("RSA_PKCS1_SHA384"),
+        RSA_PSS_RSAE_SHA512 => println!("RSA_PSS_RSAE_SHA512"),
+        RSA_PKCS1_SHA512 => println!("RSA_PKCS1_SHA512"),
+        _ => println!("Non-standard")        
+    }
+}
+
+fn remove_ticket() {       
+    match fs::remove_file("cookie.txt") {
+        Ok(_) => return,
+        Err(_e) => return
+    }
+}
+
 fn main() {
     let mut args: Vec<String> = env::args().collect();
 
-    if args.len()>2 || args.len()<1 {
+    if args.len()<2 {
         logger::logger(IO_PROTOCOL,"Command line error\n",0,None);
+        bad_input();
         return;
+    }
+
+    if !tls13::sal::init() {
+        logger::logger(IO_PROTOCOL,"SAL failed to start\n",0,None);
+        return;
+    }
+
+    if args[1].as_str() == "/r" {
+        println!("Ticket removed");
+        remove_ticket();
+        return;
+    }
+    if args[1].as_str() == "/s" {
+        let mut nt:[u16;20]=[0;20];
+        println!("Cryptography by {}",sal::name());
+        println!("SAL supported Key Exchange groups");
+        let ns=sal::groups(&mut nt);
+        for i in 0..ns {
+            print!("    ");
+            name_group(nt[i]);
+            let mut csk: [u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
+            let mut pk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+            let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
+            let sklen=sal::secret_key_size(nt[i]);   // may change on a handshake retry
+            let pklen=sal::public_key_size(nt[i]);
+            let sslen=sal::shared_secret_size(nt[i]);
+
+            let start = Instant::now();
+            let mut iterations = 0;
+            let mut dur = 0 as u64;
+            while dur < (MIN_TIME as u64) * 1000 || iterations < MIN_ITERS {
+                sal::generate_key_pair(nt[i],&mut csk[0..sklen],&mut pk[0..pklen]);
+                iterations += 1;
+                let elapsed = start.elapsed();
+                dur = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
+            }
+            let duration = (dur as f64) / (iterations as f64);
+            println!("        Key Generation {:0.2} ms", duration);
+
+            let start = Instant::now();
+            let mut iterations = 0;
+            let mut dur = 0 as u64;
+            while dur < (MIN_TIME as u64) * 1000 || iterations < MIN_ITERS {
+                sal::generate_shared_secret(nt[i],&csk[0..sklen],&pk[0..pklen],&mut ss[0..sslen]);
+                iterations += 1;
+                let elapsed = start.elapsed();
+                dur = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
+            }
+            let duration = (dur as f64) / (iterations as f64);
+            println!("        Shared Secret {:0.2} ms", duration);
+        }
+        println!("SAL supported Cipher suites");
+        let ns=sal::ciphers(&mut nt);
+        for i in 0..ns {
+            print!("    ");
+            name_ciphers(nt[i]);
+        }
+        println!("SAL supported TLS Signatures");
+        let ns=sal::sigs(&mut nt);
+        for i in 0..ns {
+            print!("    ");
+            name_signature(nt[i]);
+        }
+        println!("SAL supported Certificate Signatures");
+        let ns=sal::sig_certs(&mut nt);
+        for i in 0..ns {
+            print!("    ");
+            name_signature(nt[i]);
+        }
+        return
+    }
+
+    let mut have_psk=false;
+    let mut psk:[u8;16]=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]; // fake a pre-shared key
+    
+    if args[1].as_str() == "/p" { // psk label is in args[2]
+        println!("PSK mode selected");
+        have_psk=true;
+    }
+
+    let mut localhost=false;
+    if args.len()==1 || have_psk {
+        localhost=true;
     }
 
     let host:&str;
     let fullhost:&str;
-    if args.len()==1 {
+    if localhost {
         host="localhost";
         fullhost="localhost:4433";
     } else {
@@ -155,11 +296,6 @@ fn main() {
         args[1].push_str(port);
         fullhost = &args[1].as_str();
         host=&fullhost[0..hlen];
-    }
-
-    if !tls13::sal::init() {
-        logger::logger(IO_PROTOCOL,"SAL failed to start\n",0,None);
-        return;
     }
 
     match TcpStream::connect(&fullhost) {
@@ -173,14 +309,33 @@ fn main() {
 
             let mut have_ticket=true;
             let mut ticket_failed=false;
-            if !recover_ticket(&mut session,"cookie.txt") {
-                have_ticket=false;
+            if have_psk {     
+                let pl=args[2].as_bytes();  // Insert a special ticket into session 
+                for i in 0..pl.len() {
+                    session.t.tick[i]=pl[i];
+                }
+                session.t.tklen=pl.len();
+
+                for i in 0..16 {
+                    session.t.psk[i]=psk[i];
+                }
+                session.t.psklen=16;
+                session.t.max_early_data=1024;
+                session.t.cipher_suite=AES_128_GCM_SHA256;
+                session.t.favourite_group=X25519;
+                session.t.origin=EXTERNAL_PSK;
+                session.t.valid=true;
+                remove_ticket(); // delete any stored ticket - fall into resumption mode
+            } else {
+                if !recover_ticket(&mut session,"cookie.txt") {
+                    have_ticket=false;
+                }
             }
             if !session.connect(Some(&mut get[0..gtlen])) {
                 if have_ticket {
                     ticket_failed=true;
-                    fs::remove_file("cookie.txt");
-                    session.sockptr.shutdown(Shutdown::Both);
+                    remove_ticket();
+                    session.sockptr.shutdown(Shutdown::Both).unwrap();
                     session.sockptr=TcpStream::connect(&fullhost).unwrap();
                     if !session.connect(Some(&mut get[0..gtlen])) {
                         logger::logger(IO_APPLICATION,"TLS Handshake failed\n",0,None);
@@ -195,9 +350,9 @@ fn main() {
             let rtn=session.recv(&mut resp,&mut rplen);
             logger::logger(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
             if rtn<0 {
-                session.send_client_alert(alert_from_cause(rtn));
+                session.send_alert(alert_from_cause(rtn));
             } else {
-                session.send_client_alert(CLOSE_NOTIFY);
+                session.send_alert(CLOSE_NOTIFY);
             }
             if session.t.valid && !ticket_failed {
                 store_ticket(&session,"cookie.txt");

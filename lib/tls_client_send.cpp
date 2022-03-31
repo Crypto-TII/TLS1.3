@@ -283,7 +283,7 @@ void sendBinder(TLS_session *session,octad *B,octad *BND)
 }
 
 // send client alert - might be encrypted if send!=NULL
-void sendClientAlert(TLS_session *session,int type)
+void sendAlert(TLS_session *session,int type)
 {
     char pt[2];
     octad PT={0,sizeof(pt),pt};

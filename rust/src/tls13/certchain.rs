@@ -100,7 +100,7 @@ fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bo
 
 // Check signature on Certificate given signature type and public key
 fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    let mut sigalg=0;
+    let mut sigalg:u16=0;
     if st.kind==x509::ECC && st.hash==x509::H256 && st.curve==x509::USE_NIST256 {
         sigalg=ECDSA_SECP256R1_SHA256;
     }
@@ -123,7 +123,7 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return res;
 }
 
-pub fn get_client_credentials(csigalgs: &[usize],privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> usize {
+pub fn get_client_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
     let mut sc:[u8;MAX_MYCERT_SIZE]=[0;MAX_MYCERT_SIZE];
 // first get certificate chain
     let nccsalgs=csigalgs.len();
@@ -141,7 +141,7 @@ pub fn get_client_credentials(csigalgs: &[usize],privkey: &mut [u8],sklen: &mut 
     let sclen=decode_b64(&b,&mut sc);
     let pk=x509::extract_private_key(&sc[0..sclen],privkey);
     *sklen=sclen;
-    let mut kind=0;
+    let mut kind:u16=0;
     if pk.kind==x509::ECC {
         if pk.curve==x509::USE_NIST256 {
             kind=ECDSA_SECP256R1_SHA256;  // as long as this is a client capability

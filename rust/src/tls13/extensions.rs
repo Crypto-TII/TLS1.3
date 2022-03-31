@@ -1,11 +1,11 @@
 use crate::tls13::utils;
 use crate::config;
 
-pub fn cipher_suites(cs: &mut [u8],nsc:usize,ciphers: &[usize]) -> usize {
+pub fn cipher_suites(cs: &mut [u8],nsc:usize,ciphers: &[u16]) -> usize {
     let mut ptr=0;
     ptr=utils::append_int(cs,ptr,2*nsc,2);
     for i in 0..nsc {
-        ptr=utils::append_int(cs,ptr,ciphers[i],2);
+        ptr=utils::append_int(cs,ptr,ciphers[i] as usize,2);
     }
     return ptr;
 }
@@ -25,50 +25,50 @@ pub fn add_server_name(ext: &mut [u8],ptr: usize,name: &[u8],len: usize) -> usiz
 }
 
 // Build Supported Groups Extension
-pub fn add_supported_groups(ext: &mut [u8],ptr: usize, nsg: usize, groups: &[usize]) -> usize {
+pub fn add_supported_groups(ext: &mut [u8],ptr: usize, nsg: usize, groups: &[u16]) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,config::SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
     nptr=utils::append_int(ext,nptr,2*nsg+2,2);        // Total length
     nptr=utils::append_int(ext,nptr,2*nsg,2);          // Number of entries
     for i in 0..nsg {
-        nptr=utils::append_int(ext,nptr,groups[i],2);
+        nptr=utils::append_int(ext,nptr,groups[i] as usize,2);
     }
     return nptr;
 }
 
 // Build Signature algorithms Extension
-pub fn add_supported_sigs(ext: &mut [u8],ptr: usize, nsa: usize, sig_algs: &[usize]) -> usize {
+pub fn add_supported_sigs(ext: &mut [u8],ptr: usize, nsa: usize, sig_algs: &[u16]) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,config::SIG_ALGS,2); // This extension is SUPPORTED GROUPS(0x0a)
     nptr=utils::append_int(ext,nptr,2*nsa+2,2);        // Total length
     nptr=utils::append_int(ext,nptr,2*nsa,2);          // Number of entries
     for i in 0..nsa {
-        nptr=utils::append_int(ext,nptr,sig_algs[i],2);
+        nptr=utils::append_int(ext,nptr,sig_algs[i] as usize,2);
     }
     return nptr;
 }
 
 // Build Signature algorithms Cert Extension
-pub fn add_supported_sigcerts(ext: &mut [u8],ptr: usize, nsac: usize, sig_alg_certs: &[usize]) -> usize {
+pub fn add_supported_sigcerts(ext: &mut [u8],ptr: usize, nsac: usize, sig_alg_certs: &[u16]) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,config::SIG_ALGS_CERT,2); // This extension is SUPPORTED GROUPS(0x0a)
     nptr=utils::append_int(ext,nptr,2*nsac+2,2);        // Total length
     nptr=utils::append_int(ext,nptr,2*nsac,2);          // Number of entries
     for i in 0..nsac {
-        nptr=utils::append_int(ext,nptr,sig_alg_certs[i],2);
+        nptr=utils::append_int(ext,nptr,sig_alg_certs[i] as usize,2);
     }
     return nptr;
 }
 
 // Add Client Key Share extension
 // Offer just one public key
-pub fn add_key_share(ext: &mut [u8],ptr: usize,alg: usize,pk: &[u8]) -> usize {
+pub fn add_key_share(ext: &mut [u8],ptr: usize,alg: u16,pk: &[u8]) -> usize {
     let mut nptr=ptr;
     let tlen=pk.len()+4;
     nptr=utils::append_int(ext,nptr,config::KEY_SHARE,2); // This extension is KEY_SHARE(0x0033)
     nptr=utils::append_int(ext,nptr,tlen+2,2);
     nptr=utils::append_int(ext,nptr,tlen,2);
-    nptr=utils::append_int(ext,nptr,alg,2);
+    nptr=utils::append_int(ext,nptr,alg as usize,2);
     nptr=utils::append_int(ext,nptr,pk.len(),2);
     nptr=utils::append_bytes(ext,nptr,pk);
     return nptr;

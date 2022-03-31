@@ -110,6 +110,8 @@ bool ticket_still_good(ticket *T)
 {
     unsign32 time_ticket_received,time_ticket_used;
     unsign32 age;
+	if (T->origin==TLS_EXTERNAL_PSK) return true;
+
     if (T->lifetime<=0 || !T->valid)
         return false;
     time_ticket_received=T->birth;

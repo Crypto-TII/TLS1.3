@@ -222,7 +222,7 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
 	}
     if (r.err<0)
     { // send an alert to the Server, and abort
-        sendClientAlert(session,alert_from_cause(r.err));
+        sendAlert(session,alert_from_cause(r.err));
         return true;
     }
     if (r.err==ALERT)

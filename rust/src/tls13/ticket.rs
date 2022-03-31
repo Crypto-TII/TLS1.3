@@ -17,16 +17,18 @@ pub struct TICKET {
     pub psk:[u8;MAX_HASH],           // pre-shared key 
     pub tklen: usize,
     pub nnlen: usize,
+    pub psklen: usize,
     pub age_obfuscator: usize,           // ticket age obfuscator - 0 for external PSK 
     pub max_early_data: usize,           // Maximum early data allowed for this ticket
     pub birth: usize,                    // Birth time of this ticket  
     pub lifetime: usize,                 // ticket lifetime         
-    pub cipher_suite: usize,             // Cipher suite used 
-    pub favourite_group: usize,          // the server's favourite group 
+    pub cipher_suite: u16,             // Cipher suite used 
+    pub favourite_group: u16,          // the server's favourite group 
     pub origin: usize                    // Origin of initial handshake - Full or PSK? 
 } 
 
 impl TICKET {
+/*
     pub fn new() -> TICKET {
         TICKET {
             valid: false,
@@ -44,11 +46,12 @@ impl TICKET {
             origin: 0
         }
     }
-
+*/
     pub fn clear(&mut self) {
         self.valid=false;
         self.tklen=0;
         self.nnlen=0;
+        self.psklen=0;
         self.age_obfuscator=0;
         self.max_early_data=0;
         self.birth=0;
@@ -110,6 +113,9 @@ impl TICKET {
     }
 
     pub fn still_good(&self) -> bool {
+        if self.origin==EXTERNAL_PSK {
+            return true;
+        }
         if self.lifetime==0 || !self.valid {
             return false;
         }

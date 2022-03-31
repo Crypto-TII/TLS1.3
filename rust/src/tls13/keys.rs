@@ -39,14 +39,18 @@ pub fn derive_early_secrets(htype: usize,psk: Option<&[u8]>,es: &mut [u8],bke: O
     let eb="ext binder";
     let rb="res binder";
     let hlen=sal::hash_len(htype);
-    if let Some(spsk) = psk {
-        emh[0..hlen].clone_from_slice(&spsk[0..hlen]);
-    } else {
-        emh[0..hlen].clone_from_slice(&zk[0..hlen]);
-    }
-    sal::hkdf_extract(htype,es,Some(&zk[0..hlen]),&emh[0..hlen]);
-    sal::hash_null(htype,&mut emh);
+    let zk_s=&zk[0..hlen];
 
+    let mut len=hlen;
+    if let Some(spsk) = psk {
+        len=spsk.len();
+        emh[0..len].clone_from_slice(&spsk[0..len]);
+    } else {
+        emh[0..len].clone_from_slice(zk_s);
+    }
+    sal::hkdf_extract(htype,es,Some(zk_s),&emh[0..len]);
+
+    sal::hash_null(htype,&mut emh);
     if let Some(sbke) = bke {
         hkdf_expand_label(htype,&mut sbke[0..hlen],es,eb.as_bytes(),Some(&emh[0..hlen]));
     }
@@ -73,7 +77,7 @@ pub struct CRYPTO {
     pub k: [u8;MAX_KEY], // AEAD cryptographic Key bytes     
     pub iv: [u8;MAX_IV_SIZE],            // AEAD cryptographic IV bytes 
     pub record: usize,          // current record number - to be incremented 
-    pub suite: usize,           // Cipher Suite 
+    pub suite: u16,           // Cipher Suite 
 	pub taglen: usize		    //Tag Length 
 }
 
@@ -88,7 +92,7 @@ impl CRYPTO {
             taglen: 0
         }
     }
-    pub fn init(&mut self,cipher_suite: usize,ts: &[u8])
+    pub fn init(&mut self,cipher_suite: u16,ts: &[u8])
     {
         let htype=sal::hash_type(cipher_suite);
         let hlen=sal::hash_len(htype);
@@ -209,7 +213,7 @@ fn parse_in_ecdsa_sig(htype: usize,ccvsig: &mut [u8]) -> usize {
     return ptr;
 }
 
-pub fn create_client_cert_verifier(sigalg: usize,h: &[u8],key: &[u8],ccvsig: &mut [u8]) -> usize {
+pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut [u8]) -> usize {
     let mut ptr=0;
     let txt="TLS 1.3, client CertificateVerify";
     let mut ccv:[u8;100+MAX_HASH]=[0;100+MAX_HASH];
@@ -269,7 +273,7 @@ fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
     return 2*hlen; // length of signature
 }
 
-pub fn check_server_cert_verifier(sigalg: usize,scvsig: &mut [u8],h: &[u8],certpk: &[u8]) -> bool {
+pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk: &[u8]) -> bool {
     let mut scv:[u8;100+MAX_HASH]=[0;100+MAX_HASH];
     let mut ptr=0;
     ptr=utils::append_byte(&mut scv,ptr,32,64); // 64 spaces

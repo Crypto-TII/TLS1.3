@@ -6,22 +6,22 @@ pub const DISCONNECTED: usize = 0;
 pub const CONNECTED: usize = 1;
 
 // Cipher Suites 
-pub const AES_128_GCM_SHA256: usize = 0x1301;       // AES128/SHA256/GCM cipher suite
-pub const AES_256_GCM_SHA384: usize =  0x1302;      // AES256/SHA384/GCM cipher suite 
-pub const CHACHA20_POLY1305_SHA256: usize = 0x1303; // CHACHA20/SHA256/POLY1305 cipher suite 
-pub const AES_128_CCM_SHA256: usize = 0x1304;       // AES/SHA256/CCM cipher suite - optional 
-pub const AES_128_CCM_8_SHA256: usize = 0x1305;     // AES/SHA256/CCM 8 cipher suite - optional 
+pub const AES_128_GCM_SHA256: u16 = 0x1301;       // AES128/SHA256/GCM cipher suite
+pub const AES_256_GCM_SHA384: u16 =  0x1302;      // AES256/SHA384/GCM cipher suite 
+pub const CHACHA20_POLY1305_SHA256: u16 = 0x1303; // CHACHA20/SHA256/POLY1305 cipher suite 
+//pub const AES_128_CCM_SHA256: u16 = 0x1304;       // AES/SHA256/CCM cipher suite - optional 
+//pub const AES_128_CCM_8_SHA256: u16 = 0x1305;     // AES/SHA256/CCM 8 cipher suite - optional 
 
 
 // Signature algorithms for TLS1.3 and Certs that we can handle 
-pub const ECDSA_SECP256R1_SHA256: usize = 0x0403;   // Supported ECDSA Signature algorithm 
-pub const ECDSA_SECP384R1_SHA384: usize = 0x0503;   // Supported ECDSA Signature algorithm 
-pub const RSA_PSS_RSAE_SHA256: usize = 0x0804;      // Supported RSA Signature algorithm  
-pub const RSA_PSS_RSAE_SHA384: usize = 0x0805;      // Supported RSA Signature algorithm 
-pub const RSA_PSS_RSAE_SHA512: usize = 0x0806;      // Supported RSA Signature algorithm 
-pub const RSA_PKCS1_SHA256: usize = 0x0401;         // Supported RSA Signature algorithm 
-pub const RSA_PKCS1_SHA384: usize = 0x0501;         // Supported RSA Signature algorithm 
-pub const RSA_PKCS1_SHA512: usize = 0x0601;         // Supported RSA Signature algorithm 
+pub const ECDSA_SECP256R1_SHA256: u16 = 0x0403;   // Supported ECDSA Signature algorithm 
+pub const ECDSA_SECP384R1_SHA384: u16 = 0x0503;   // Supported ECDSA Signature algorithm 
+pub const RSA_PSS_RSAE_SHA256: u16 = 0x0804;      // Supported RSA Signature algorithm  
+pub const RSA_PSS_RSAE_SHA384: u16 = 0x0805;      // Supported RSA Signature algorithm 
+pub const RSA_PSS_RSAE_SHA512: u16 = 0x0806;      // Supported RSA Signature algorithm 
+pub const RSA_PKCS1_SHA256: u16 = 0x0401;         // Supported RSA Signature algorithm 
+pub const RSA_PKCS1_SHA384: u16 = 0x0501;         // Supported RSA Signature algorithm 
+pub const RSA_PKCS1_SHA512: u16 = 0x0601;         // Supported RSA Signature algorithm 
 //pub const ED25519: usize = 0x0807;                  // Ed25519 EdDSA Signature algorithm 
 
 // Maximum sizes for stack arrays
@@ -76,11 +76,11 @@ pub const END_OF_EARLY_DATA: u8 = 0x05;          // End of Early Data message
 pub const HANDSHAKE_RETRY: usize = 0x102;        // Handshake retry 
 
 // Key exchange groups
-pub const X25519: usize = 0x001d;
-pub const SECP256R1: usize = 0x0017;
-pub const SECP384R1: usize = 0x0018;
-pub const SECP521R1: usize = 0x0019;
-pub const X448: usize = 0x001e;
+pub const X25519: u16 = 0x001d;
+pub const SECP256R1: u16 = 0x0017;
+pub const SECP384R1: u16 = 0x0018;
+//pub const SECP521R1: u16 = 0x0019;
+//pub const X448: u16 = 0x001e;
 
 // TLS versions
 pub const TLS1_0:usize = 0x0301;                   // TLS 1.0 version 

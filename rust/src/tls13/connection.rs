@@ -23,8 +23,8 @@ pub struct SESSION {
     pub hlen: usize,
     iolen: usize,
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
-    cipher_suite: usize,       // agreed cipher suite 
-    favourite_group: usize,    // favourite key exchange group 
+    cipher_suite: u16,       // agreed cipher suite 
+    favourite_group: u16,    // favourite key exchange group 
     k_send: keys::CRYPTO,          // Sending Key 
     k_recv: keys::CRYPTO,          // Receiving Key 
     rms: [u8;MAX_HASH], // Resumption Master Secret         
@@ -53,7 +53,7 @@ impl SESSION {
             cts: [0;MAX_HASH],   
             io: [0;MAX_IO],
             tlshash:{UNIHASH{state:[0;MAX_HASH_STATE],htype:0}},
-            t: {TICKET{valid: false,tick: [0;MAX_TICKET_SIZE],nonce: [0;MAX_KEY],psk : [0;MAX_HASH],tklen: 0,nnlen: 0,age_obfuscator: 0,max_early_data: 0,birth: 0,lifetime: 0,cipher_suite: 0,favourite_group: 0,origin: 0}}
+            t: {TICKET{valid: false,tick: [0;MAX_TICKET_SIZE],nonce: [0;MAX_KEY],psk : [0;MAX_HASH],psklen: 0,tklen: 0,nnlen: 0,age_obfuscator: 0,max_early_data: 0,birth: 0,lifetime: 0,cipher_suite: 0,favourite_group: 0,origin: 0}}
         }; 
         let dst=host.as_bytes();
         this.hlen=dst.len();
@@ -202,6 +202,7 @@ impl SESSION {
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
         keys::hkdf_expand_label(htype,&mut self.t.psk[0..hlen],&self.rms[0..hlen],rs.as_bytes(),Some(&self.t.nonce[0..self.t.nnlen]));
+        self.t.psklen=hlen;
     }
 
     fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>) {
@@ -253,7 +254,7 @@ impl SESSION {
         let mut ptr=0;
         let cm=0x0100;
         let extlen=ext.len()+extra;
-        let mut ciphers: [usize;MAX_CIPHER_SUITES] = [0;MAX_CIPHER_SUITES];
+        let mut ciphers: [u16;MAX_CIPHER_SUITES] = [0;MAX_CIPHER_SUITES];
         let mut nsc=sal::ciphers(&mut ciphers);
         if already_agreed { // cipher suite already agreed
             nsc=1;
@@ -299,11 +300,11 @@ impl SESSION {
             logger::logger(IO_PROTOCOL,"Handshake Failed\n",0,None);
         }
         if r.err<0 {
-            self.send_client_alert(alert_from_cause(r.err));
+            self.send_alert(alert_from_cause(r.err));
             return true;
         }
         if r.err == ALERT as isize {
-            logger::log_alert(r.val);
+            logger::log_alert(r.val as u8);
             return true;
         }
         if r.err != 0 {
@@ -312,9 +313,11 @@ impl SESSION {
         return false;
     }
 
-    pub fn send_client_alert(&mut self,kind: u8) {
+    pub fn send_alert(&mut self,kind: u8) {
         let pt: [u8;2]=[0x02,kind];
         self.send_message(ALERT,TLS1_2,&pt[0..2],None);
+        logger::logger(IO_PROTOCOL,"Alert sent to Server - ",0,None);
+        logger::log_alert(kind);
     }
 
 
@@ -354,12 +357,12 @@ impl SESSION {
     }
 
 // Send Client Cert Verify 
-    fn send_client_cert_verify(&mut self, sigalg: usize,ccvsig: &[u8]) { 
+    fn send_client_cert_verify(&mut self, sigalg: u16,ccvsig: &[u8]) { 
         let mut pt:[u8;8]=[0;8];
         let mut ptr=0;
         ptr=utils::append_byte(&mut pt,ptr,CERT_VERIFY,1); // indicates handshake message "certificate verify"
         ptr=utils::append_int(&mut pt,ptr,4+ccvsig.len(),3); // .. and its length
-        ptr=utils::append_int(&mut pt,ptr,sigalg,2);
+        ptr=utils::append_int(&mut pt,ptr,sigalg as usize,2);
         ptr=utils::append_int(&mut pt,ptr,ccvsig.len(),2);
         self.running_hash(&pt[0..ptr]);
         self.running_hash(ccvsig);
@@ -377,19 +380,21 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(chf));
     }
 
-    pub fn build_extensions(&self,ext: &mut [u8],pk: &[u8],expected: &mut EESTATUS,resume: bool) -> usize {
+// build chosen set of extensions, and assert expectations of server responses
+// The User may want to change the mix of optional extensions
+    pub fn build_extensions(&self,ext: &mut [u8],pk: &[u8],expected: &mut EESTATUS,mode: usize) -> usize {
         let psk_mode=PSKWECDHE;
         let tls_version=TLS1_3;
         let http="http/1.1";
         let alpn=http.as_bytes();
-        let mut groups:[usize;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
-        let mut sig_algs:[usize;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
-        let mut sig_alg_certs:[usize;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
+        let mut groups:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
+        let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
+        let mut sig_alg_certs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut nsg=sal::groups(&mut groups);
         let nsa=sal::sigs(&mut sig_algs);
         let nsac=sal::sig_certs(&mut sig_alg_certs);
         let mut extlen=0;
-        if resume {
+        if mode!=0 {
             nsg=1;
             groups[0]=self.favourite_group;
         }
@@ -404,20 +409,22 @@ impl SESSION {
         if SET_RECORD_LIMIT {
             extensions::add_rsl(ext,extlen,CLIENT_MAX_RECORD);
         } else {
-            extlen=extensions::add_mfl(ext,extlen,MAX_FRAG); expected.max_frag_len=true;
+            if mode!=2 {
+                extlen=extensions::add_mfl(ext,extlen,MAX_FRAG); expected.max_frag_len=true;
+            }
         }
         extlen=extensions::add_padding(ext,extlen,(sal::random_byte()%16) as usize);
-        if !resume { // need some signature related extensions for full handshake
+        if mode==0 { // need some signature related extensions for full handshake
             extlen=extensions::add_supported_sigs(ext,extlen,nsa,&sig_algs);
             extlen=extensions::add_supported_sigcerts(ext,extlen,nsac,&sig_alg_certs);            
         }
         return extlen;
     }
 
-    fn get_server_cert_verify(&mut self,scvsig: &mut [u8],siglen: &mut usize,sigalg: &mut usize) -> RET {
+    fn get_server_cert_verify(&mut self,scvsig: &mut [u8],siglen: &mut usize,sigalg: &mut u16) -> RET {
         let mut ptr=0;
         let mut r=self.parse_int_pull(3,&mut ptr); if r.err!=0 {return r;}
-        r=self.parse_int_pull(2,&mut ptr); *sigalg=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(2,&mut ptr); *sigalg=r.val as u16; if r.err!=0 {return r;}
         r=self.parse_int_pull(2,&mut ptr); let len=r.val; if r.err!=0 {return r;}
         r=self.parse_bytes_pull(&mut scvsig[0..len],&mut ptr); if r.err!=0 {return r;}
         *siglen=len;
@@ -427,7 +434,7 @@ impl SESSION {
         return r;
     }
 
-    fn get_certificate_request(&mut self, nalgs: &mut usize,sigalgs: &mut [usize]) -> RET {
+    fn get_certificate_request(&mut self, nalgs: &mut usize,sigalgs: &mut [u16]) -> RET {
         let mut ptr=0;
         let mut unexp=0;
         let mut r=self.parse_int_pull(3,&mut ptr); if r.err!=0 {return r;}
@@ -450,7 +457,7 @@ impl SESSION {
                     for i in 0..algs {
                         r=self.parse_int_pull(2,&mut ptr); if r.err!=0 {return r;}
                         if i<MAX_SUPPORTED_SIGS {
-                            sigalgs[i]=r.val;
+                            sigalgs[i]=r.val as u16;
                         }
                         len-=2;
                     }
@@ -575,7 +582,7 @@ impl SESSION {
     }
 
 // Get (unencrypted) Server Hello
-    fn get_server_hello(&mut self,kex: &mut usize,cid: &[u8],cookie: &mut [u8],cklen:&mut usize,pk: &mut [u8],pskid: &mut isize) -> RET {
+    fn get_server_hello(&mut self,kex: &mut u16,cid: &[u8],cookie: &mut [u8],cklen:&mut usize,pk: &mut [u8],pskid: &mut isize) -> RET {
         let mut hrr: [u8; HRR.len()/2]=[0;HRR.len()/2];
         let mut srn: [u8;32]=[0;32];
         let mut sid: [u8;32]=[0;32];
@@ -608,7 +615,7 @@ impl SESSION {
             r.err=ID_MISMATCH;
             return r;
         }
-        r=self.parse_int_pull(2,&mut ptr); let cipher=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(2,&mut ptr); let cipher=r.val as u16; if r.err!=0 {return r;}
         left-=2;
 	    if self.cipher_suite!=0 { // don't allow a change after initial assignment
 		    if cipher!=self.cipher_suite
@@ -639,7 +646,7 @@ impl SESSION {
             extlen-=tmplen;
             match ext {
                 KEY_SHARE => {
-                    r=self.parse_int_pull(2,&mut ptr); *kex=r.val; if r.err!=0 {break;}
+                    r=self.parse_int_pull(2,&mut ptr); *kex=r.val as u16; if r.err!=0 {break;}
                     if !retry { // its not a retry request
                         r=self.parse_int_pull(2,&mut ptr); let pklen=r.val; if r.err!=0 || pklen!=pk.len() {break;}
                         r=self.parse_bytes_pull(pk,&mut ptr);
@@ -868,7 +875,7 @@ impl SESSION {
         let time_ticket_received=self.t.birth;
         self.cipher_suite=self.t.cipher_suite;
         self.favourite_group=self.t.favourite_group;
-        //let origin=self.t.origin;
+        let origin=self.t.origin;
 
         if max_early_data>0 {
             if let Some(_) = early {
@@ -890,15 +897,16 @@ impl SESSION {
         let mut cets:[u8;MAX_HASH]=[0;MAX_HASH]; let cets_s=&mut cets[0..hlen];
         let mut chf:[u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
         let mut psk:[u8;MAX_HASH]=[0;MAX_HASH]; 
-        for i in 0..hlen {
+ 
+        for i in 0..self.t.psklen {
             psk[i]=self.t.psk[i];
         }
-        let psk_s=&mut psk[0..hlen];
+        let psk_s=&mut psk[0..self.t.psklen];
         let mut bl:[u8;MAX_HASH+3]=[0;MAX_HASH+3];
 
         self.init_transcript_hash();
         let external_psk:bool;
-        if time_ticket_received==0 && age_obfuscator==0 { // its an external PSK
+        if origin==EXTERNAL_PSK { //time_ticket_received==0 && age_obfuscator==0 { // its an external PSK
             external_psk=true;
             keys::derive_early_secrets(htype,Some(psk_s),es_s,Some(bk_s),None);
         } else {
@@ -922,12 +930,16 @@ impl SESSION {
 
 // Client Hello
 // First build standard client Hello extensions
-	    let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,true);
+        let mut resmode=1;
+        if origin==EXTERNAL_PSK {
+            resmode=2;
+        }
+	    let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,resmode);
         if have_early_data {
             extlen=extensions::add_early_data(&mut ext,extlen); expected.early_data=true;                 // try sending client message as early data if allowed
         }
         let mut age=0;
-        if !external_psk { // Its an external pre-shared key
+        if !external_psk { // Its NOT an external pre-shared key
             let time_ticket_used=ticket::millis();
             age=time_ticket_used-time_ticket_received; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
             logger::logger(IO_DEBUG,"Ticket age= ",age as isize,None);
@@ -974,33 +986,33 @@ impl SESSION {
         let mut pskid:isize=-1;
         let mut cklen=0;
         let mut rtn = self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,pk_s,&mut pskid);
-  
+
         self.running_hash_io();         // Hashing Server Hello
         self.transcript_hash(hh_s);     // HH = hash of clientHello+serverHello
 
         if pskid<0 { // Ticket rejected by Server (as out of date??)
             logger::logger(IO_PROTOCOL,"Ticket rejected by server\n",0,None);
-            self.send_client_alert(CLOSE_NOTIFY);
+            self.send_alert(CLOSE_NOTIFY);
             logger::logger(IO_PROTOCOL,"Resumption Handshake failed\n",0,None);
             self.clean();
             return TLS_FAILURE;
         }
 
 	    if pskid>0 { // pskid out-of-range (only one allowed)
-            self.send_client_alert(ILLEGAL_PARAMETER);
+            self.send_alert(ILLEGAL_PARAMETER);
             logger::logger(IO_PROTOCOL,"Resumption Handshake failed\n",0,None);
             self.clean();
             return TLS_FAILURE;
 	    }
         if self.bad_response(&rtn) {
-            self.send_client_alert(CLOSE_NOTIFY);
+            self.send_alert(CLOSE_NOTIFY);
             self.clean();
             return TLS_FAILURE;
         }   
         logger::log_server_hello(self.cipher_suite,kex,pskid,pk_s,&cookie[0..cklen]);
 
         if rtn.val==HANDSHAKE_RETRY || kex!=self.favourite_group { // should not happen
-            self.send_client_alert(UNEXPECTED_MESSAGE);
+            self.send_alert(UNEXPECTED_MESSAGE);
             logger::logger(IO_DEBUG,"No change possible as result of HRR\n",0,None); 
             logger::logger(IO_PROTOCOL,"Resumption Handshake failed\n",0,None);
             self.clean();
@@ -1050,7 +1062,7 @@ impl SESSION {
 // Switch to handshake keys
         self.create_send_crypto_context();
         if !keys::check_verifier_data(htype,fin_s,&self.sts[0..hlen],fh_s) {
-            self.send_client_alert(DECRYPT_ERROR);
+            self.send_alert(DECRYPT_ERROR);
             logger::logger(IO_DEBUG,"Server Data is NOT verified\n",0,None);
             logger::logger(IO_PROTOCOL,"Resumption Handshake failed\n",0,None);
             self.clean();
@@ -1082,8 +1094,8 @@ impl SESSION {
     }
 
     pub fn tls_full(&mut self) -> usize {
-        let mut groups:[usize;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
-        let mut ciphers:[usize;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
+        let mut groups:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
+        let mut ciphers:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
         let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
         let _nsg=sal::groups(&mut groups);
         let nsc=sal::ciphers(&mut ciphers);
@@ -1109,7 +1121,7 @@ impl SESSION {
         let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
         let mut spk: [u8; MAX_SERVER_PUB_KEY]=[0;MAX_SERVER_PUB_KEY];
 // add chosen extensions
-        let mut extlen=self.build_extensions(&mut ext,&pk[0..pklen],&mut expected,false);
+        let mut extlen=self.build_extensions(&mut ext,&pk[0..pklen],&mut expected,0);
 // build and transmit client hello
         let mut chlen=self.send_client_hello(TLS1_0,&mut ch,false,&mut cid,&ext[0..extlen],0,false);
         logger::logger(IO_DEBUG,"Client Hello sent\n",0,None);
@@ -1131,7 +1143,7 @@ impl SESSION {
         }
         let hlen=sal::hash_len(hash_type);
         if hlen == 0 {
-            self.send_client_alert(ILLEGAL_PARAMETER);
+            self.send_alert(ILLEGAL_PARAMETER);
             logger::log_cipher_suite(self.cipher_suite);
             logger::logger(IO_DEBUG,"Cipher Suite not valid\n",0,None);
             logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
@@ -1155,7 +1167,7 @@ impl SESSION {
             self.running_synthetic_hash(&ch[0..chlen],&ext[0..extlen]);
             self.running_hash_io();
             if kex==self.favourite_group { // Its the same again
-                self.send_client_alert(ILLEGAL_PARAMETER);
+                self.send_alert(ILLEGAL_PARAMETER);
                 logger::logger(IO_DEBUG,"No change as result of HRR\n",0,None);
                 logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
                 self.clean();
@@ -1167,7 +1179,7 @@ impl SESSION {
             pklen=sal::public_key_size(self.favourite_group);
             sslen=sal::shared_secret_size(self.favourite_group);
             sal::generate_key_pair(self.favourite_group,&mut csk[0..sklen],&mut pk[0..pklen]);
-            extlen=self.build_extensions(&mut ext,&pk[0..pklen],&mut expected,false);
+            extlen=self.build_extensions(&mut ext,&pk[0..pklen],&mut expected,0);
             if cklen!=0 { // there was a cookie in the HRR ... so send it back in an extension
                 extlen=extensions::add_cookie(&mut ext,extlen,&cookie[0..cklen]);
             }
@@ -1184,7 +1196,7 @@ impl SESSION {
             }
             if rtn.val==HANDSHAKE_RETRY {
                 logger::logger(IO_DEBUG,"A second Handshake Retry Request?\n",0,None);
-                self.send_client_alert(UNEXPECTED_MESSAGE);
+                self.send_alert(UNEXPECTED_MESSAGE);
                 logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
                 self.clean();
                 return TLS_FAILURE;
@@ -1222,7 +1234,7 @@ impl SESSION {
             return TLS_FAILURE;
         }
         let mut nccsalgs=0;
-        let mut csigalgs:[usize;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
+        let mut csigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut gotacertrequest=false;
         if rtn.val == CERT_REQUEST as usize {
             gotacertrequest=true;
@@ -1239,7 +1251,7 @@ impl SESSION {
             }
         }
         if rtn.val != CERTIFICATE as usize {
-            self.send_client_alert(alert_from_cause(WRONG_MESSAGE));
+            self.send_alert(alert_from_cause(WRONG_MESSAGE));
             logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
             self.clean();
             return TLS_FAILURE;
@@ -1260,13 +1272,13 @@ impl SESSION {
             return TLS_FAILURE;
         }
         if rtn.val != CERT_VERIFY as usize {
-            self.send_client_alert(alert_from_cause(WRONG_MESSAGE));
+            self.send_alert(alert_from_cause(WRONG_MESSAGE));
             logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
             self.clean();
             return TLS_FAILURE;
         }
         let mut siglen=0;
-        let mut sigalg=0;
+        let mut sigalg:u16=0;
         rtn=self.get_server_cert_verify(&mut scvsig,&mut siglen,&mut sigalg);
         if self.bad_response(&rtn) {
             self.clean();
@@ -1278,7 +1290,7 @@ impl SESSION {
         logger::logger(IO_DEBUG,"Server Certificate Signature = ",0,Some(scvsig_s));
         logger::log_sig_alg(sigalg);
         if !keys::check_server_cert_verifier(sigalg,scvsig_s,hh_s,spk_s) {
-            self.send_client_alert(DECRYPT_ERROR);
+            self.send_alert(DECRYPT_ERROR);
             logger::logger(IO_DEBUG,"Server Cert Verification failed\n",0,None);
             logger::logger(IO_PROTOCOL,"Full Handshake failed\n",0,None);
             self.clean();
@@ -1295,7 +1307,7 @@ impl SESSION {
             return TLS_FAILURE;
         }
         if !keys::check_verifier_data(hash_type,fin_s,&self.sts[0..hlen],fh_s) {
-            self.send_client_alert(DECRYPT_ERROR);
+            self.send_alert(DECRYPT_ERROR);
             logger::logger(IO_DEBUG,"Server Data is NOT verified\n",0,None);
             logger::logger(IO_DEBUG,"Full Handshake failed\n",0,None);
             self.clean();
@@ -1470,7 +1482,7 @@ impl SESSION {
             }
             if kind==ALERT as isize {
                 logger::logger(IO_PROTOCOL,"*** Alert received - ",0,None);
-                logger::log_alert(self.io[1] as usize);
+                logger::log_alert(self.io[1]);
                 return kind;
             }
         }

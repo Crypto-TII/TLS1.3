@@ -26,6 +26,10 @@ static mut CSPRNG:RAND = RAND {
     pool: [0; 32]
 };
 
+pub fn name() -> &'static str {
+    return "MIRACL Core";
+}
+
 pub fn init() -> bool {
     let mut raw: [u8; 100] = [0; 100];
 
@@ -53,7 +57,7 @@ pub fn random_bytes(len: usize,rn: &mut [u8]){
     }
 }
 
-pub fn secret_key_size(group: usize) -> usize {
+pub fn secret_key_size(group: u16) -> usize {
     if group==config::X25519 {
     	return 32;
     }
@@ -66,7 +70,7 @@ pub fn secret_key_size(group: usize) -> usize {
     return 0;
 }
 
-pub fn public_key_size(group: usize) -> usize {
+pub fn public_key_size(group: u16) -> usize {
     if group==config::X25519 {
     	return 32;
     }
@@ -79,7 +83,7 @@ pub fn public_key_size(group: usize) -> usize {
     return 0;
 }
 
-pub fn shared_secret_size(group: usize) -> usize {
+pub fn shared_secret_size(group: u16) -> usize {
     if group==config::X25519 {
     	return 32;
     }
@@ -92,14 +96,14 @@ pub fn shared_secret_size(group: usize) -> usize {
     return 0;
 }
 
-pub fn ciphers(ciphers: &mut [usize]) -> usize {
+pub fn ciphers(ciphers: &mut [u16]) -> usize {
     let n=2;
     ciphers[0]=config::AES_128_GCM_SHA256;
     ciphers[1]=config::AES_256_GCM_SHA384;
     return n;
 }
 
-pub fn groups(groups: &mut [usize]) -> usize {
+pub fn groups(groups: &mut [u16]) -> usize {
     let n=3;
     groups[0]=config::X25519;
     groups[1]=config::SECP256R1;
@@ -107,7 +111,7 @@ pub fn groups(groups: &mut [usize]) -> usize {
     return n;
 }
 
-pub fn sigs(sig_algs: &mut [usize]) -> usize {
+pub fn sigs(sig_algs: &mut [u16]) -> usize {
     let n=3;
     sig_algs[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs[1]=config::RSA_PSS_RSAE_SHA256;
@@ -115,7 +119,7 @@ pub fn sigs(sig_algs: &mut [usize]) -> usize {
     return n;
 }
 
-pub fn sig_certs(sig_algs_cert: &mut [usize]) -> usize {
+pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
     let n=5;
     sig_algs_cert[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs_cert[1]=config::RSA_PKCS1_SHA256;
@@ -126,7 +130,7 @@ pub fn sig_certs(sig_algs_cert: &mut [usize]) -> usize {
 }
 
 // return hashtype from cipher_suite
-pub fn hash_type(cipher_suite: usize) -> usize {
+pub fn hash_type(cipher_suite: u16) -> usize {
     let mut htype=0;  
     if cipher_suite==config::AES_128_GCM_SHA256 {htype=config::SHA256_T;}
     if cipher_suite==config::AES_256_GCM_SHA384 {htype=config::SHA384_T;}
@@ -135,7 +139,7 @@ pub fn hash_type(cipher_suite: usize) -> usize {
 }
 
 // return hashtype from signature algorithm
-pub fn hash_type_sig(sigalg: usize) -> usize {
+pub fn hash_type_sig(sigalg: u16) -> usize {
     let mut htype=0;  
     if sigalg==config::ECDSA_SECP256R1_SHA256 {htype=config::SHA256_T;}
     if sigalg==config::ECDSA_SECP384R1_SHA384 {htype=config::SHA384_T;}
@@ -157,7 +161,7 @@ pub fn hash_len(hash_type: usize) -> usize {
     return hlen;
 }
 
-pub fn aead_key_len(cipher_suite:usize) -> usize {
+pub fn aead_key_len(cipher_suite:u16) -> usize {
     let mut klen=0;
     if cipher_suite==config::AES_128_GCM_SHA256 {
         klen=16;
@@ -171,7 +175,7 @@ pub fn aead_key_len(cipher_suite:usize) -> usize {
     return klen;
 }
 
-pub fn aead_tag_len(cipher_suite:usize) -> usize {
+pub fn aead_tag_len(cipher_suite:u16) -> usize {
     let mut tlen=0;
     if cipher_suite==config::AES_128_GCM_SHA256 {
         tlen=16;
@@ -315,7 +319,7 @@ pub fn aead_decrypt(recv: &keys::CRYPTO,hdr: &[u8],ct: &mut [u8],tag: &[u8]) -> 
     return true;
 }
 
-pub fn generate_key_pair(group: usize,csk: &mut [u8],pk: &mut [u8]) {
+pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
     if group==config::X25519 {
         use mcore::c25519::ecdh;
         random_bytes(32,csk);
@@ -338,7 +342,7 @@ pub fn generate_key_pair(group: usize,csk: &mut [u8],pk: &mut [u8]) {
 }
 
 // generate shared secret SS from secret key SK and public key PK
-pub fn generate_shared_secret(group: usize,sk: &[u8],pk: &[u8],ss: &mut [u8])
+pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
 {
     if group==config::X25519 {
         use mcore::c25519::ecdh;
@@ -551,7 +555,7 @@ pub fn rsa_pss_rsae_sign(hlen:usize,key:&[u8],mess: &[u8],sig: &mut [u8]) -> usi
 //              rsa_pkcs1_sha256 (for certificates), rsa_pss_rsae_sha256 (for
 //              CertificateVerify and certificates), and ecdsa_secp256r1_sha256."
 // SAL signature verification
-pub fn tls_signature_verify(sigalg: usize,buff: &[u8],sig: &[u8], pubkey: &[u8]) -> bool {
+pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -> bool {
     match sigalg {
         config::RSA_PKCS1_SHA256 => {return rsa_pkcs15_verify(32,buff,sig,pubkey);},
         config::ECDSA_SECP256R1_SHA256 => {return secp256r1_ecdsa_verify(32,buff,sig,pubkey);}, 
@@ -564,7 +568,7 @@ pub fn tls_signature_verify(sigalg: usize,buff: &[u8],sig: &[u8], pubkey: &[u8])
 }
 
 // Form Transcript Signature 
-pub fn tls_signature(sigalg: usize,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usize { // probably need to support more cases
+pub fn tls_signature(sigalg: u16,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usize { // probably need to support more cases
     match sigalg {
         config:: RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_sign(32,key,trans,sig);},
         config:: ECDSA_SECP256R1_SHA256 => {return secp256r1_ecdsa_sign(32,key,trans,sig);},
