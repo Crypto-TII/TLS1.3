@@ -504,7 +504,7 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
     if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384) {
         if (!parse_out_ecdsa_sig(SAL_hashTypeSig(sigAlg),SCVSIG)) return false;
     }
-    logger(IO_DEBUG,(char *)"Certificate Signature = ",NULL,0,SCVSIG);
+    log(IO_DEBUG,(char *)"Certificate Signature = ",NULL,0,SCVSIG);
     return SAL_tlsSignatureVerify(sigAlg,&SCV,SCVSIG,CERTPK);
 }
 

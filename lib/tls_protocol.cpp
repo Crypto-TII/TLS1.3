@@ -147,7 +147,7 @@ static int TLS13_full(TLS_session *session)
     char alpn[8];
     octad ALPN={0,sizeof(alpn),alpn};         // ALPN
 
-    logger(IO_PROTOCOL,(char *)"Attempting Full Handshake\n",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Attempting Full Handshake\n",NULL,0,NULL);
 
 #ifdef HAVE_A_CLIENT_CERT
     char client_key[TLS_MAX_MYCERT_SIZE];           
@@ -171,8 +171,8 @@ static int TLS13_full(TLS_session *session)
 // Generate key pair in favourite group
 //
     SAL_generateKeyPair(session->favourite_group,&CSK,&PK);   
-    logger(IO_DEBUG,(char *)"Private key= ",NULL,0,&CSK);
-    logger(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&PK);
+    log(IO_DEBUG,(char *)"Private key= ",NULL,0,&CSK);
+    log(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&PK);
 
 // Client Hello
 // First build our preferred mix of client Hello extensions, based on our capabililities
@@ -186,7 +186,7 @@ static int TLS13_full(TLS_session *session)
 //   ----------------------------------------------------------> client Hello
 //
 //    
-    logger(IO_DEBUG,(char *)"Client Hello sent\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Client Hello sent\n",NULL,0,NULL);
 
 // Process Server Hello response
     rtn=getServerHello(session,kex,&CID,&COOK,&PK,pskid);
@@ -213,15 +213,15 @@ static int TLS13_full(TLS_session *session)
     {
         sendAlert(session,ILLEGAL_PARAMETER);
         logCipherSuite(session->cipher_suite);
-        logger(IO_DEBUG,(char *)"Cipher_suite not valid\n",NULL,0,NULL);
-        logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Cipher_suite not valid\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
     }
     logCipherSuite(session->cipher_suite);
     deriveEarlySecrets(hashtype,NULL,&ES,NULL,NULL);   // Early Secret
-    logger(IO_DEBUG,(char *)"Early Secret= ",NULL,0,&ES);
+    log(IO_DEBUG,(char *)"Early Secret= ",NULL,0,&ES);
 
 // Initialise Transcript Hash
 // For Transcript hash we must use cipher-suite hash function
@@ -234,13 +234,13 @@ static int TLS13_full(TLS_session *session)
         if (kex==session->favourite_group)
         { // its the same one I chose !?
             sendAlert(session,ILLEGAL_PARAMETER);
-            logger(IO_DEBUG,(char *)"No change as result of HRR\n",NULL,0,NULL);   
-            logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+            log(IO_DEBUG,(char *)"No change as result of HRR\n",NULL,0,NULL);   
+            log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
             CLEAN_FULL_STACK
             TLS13_clean(session);
             return TLS_FAILURE;
         }
-        logger(IO_DEBUG,(char *)"Server HelloRetryRequest= ",NULL,0,&session->IO);
+        log(IO_DEBUG,(char *)"Server HelloRetryRequest= ",NULL,0,&session->IO);
 
 // Repair clientHello by supplying public key of Server's preferred key exchange algorithm
 // build new client Hello extensions
@@ -263,7 +263,7 @@ static int TLS13_full(TLS_session *session)
 //  ---------------------------------------------------> Resend Client Hello
 //
 //
-        logger(IO_DEBUG,(char *)"Client Hello re-sent\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Client Hello re-sent\n",NULL,0,NULL);
         rtn=getServerHello(session,kex,&CID,&COOK,&PK,pskid);
 //
 //
@@ -278,9 +278,9 @@ static int TLS13_full(TLS_session *session)
         }
         if (rtn.val==HANDSHAKE_RETRY)
         { // only one retry allowed
-            logger(IO_DEBUG,(char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
+            log(IO_DEBUG,(char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
             sendAlert(session,UNEXPECTED_MESSAGE);
-            logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
             CLEAN_FULL_STACK
             TLS13_clean(session);
             return TLS_FAILURE;
@@ -292,12 +292,12 @@ static int TLS13_full(TLS_session *session)
     runningHash(session,&EXT);
     runningHash(session,&session->IO);  // Hashing Server Hello
     transcriptHash(session,&HH);        // HH = hash of clientHello+serverHello
-    logger(IO_DEBUG,(char *)"Server Hello= ",NULL,0,&session->IO); 
+    log(IO_DEBUG,(char *)"Server Hello= ",NULL,0,&session->IO); 
     logServerHello(session->cipher_suite,kex,pskid,&PK,&COOK);
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
     SAL_generateSharedSecret(kex,&CSK,&PK,&SS);
-    logger(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
+    log(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
 
@@ -306,13 +306,13 @@ static int TLS13_full(TLS_session *session)
     createSendCryptoContext(session,&session->CTS);
     createRecvCryptoContext(session,&session->STS);
 
-    logger(IO_DEBUG,(char *)"Handshake Secret= ",NULL,0,&HS);
-    logger(IO_DEBUG,(char *)"Client handshake traffic secret= ",NULL,0,&session->CTS);
-    logger(IO_DEBUG,(char *)"Client handshake key= ",NULL,0,&(session->K_send.K));
-    logger(IO_DEBUG,(char *)"Client handshake iv= ",NULL,0,&(session->K_send.IV));
-    logger(IO_DEBUG,(char *)"Server handshake traffic secret= ",NULL,0,&session->STS);
-    logger(IO_DEBUG,(char *)"Server handshake key= ",NULL,0,&(session->K_recv.K));
-    logger(IO_DEBUG,(char *)"Server handshake iv= ",NULL,0,&(session->K_recv.IV));
+    log(IO_DEBUG,(char *)"Handshake Secret= ",NULL,0,&HS);
+    log(IO_DEBUG,(char *)"Client handshake traffic secret= ",NULL,0,&session->CTS);
+    log(IO_DEBUG,(char *)"Client handshake key= ",NULL,0,&(session->K_send.K));
+    log(IO_DEBUG,(char *)"Client handshake iv= ",NULL,0,&(session->K_send.IV));
+    log(IO_DEBUG,(char *)"Server handshake traffic secret= ",NULL,0,&session->STS);
+    log(IO_DEBUG,(char *)"Server handshake key= ",NULL,0,&(session->K_recv.K));
+    log(IO_DEBUG,(char *)"Server handshake iv= ",NULL,0,&(session->K_recv.IV));
 
 // Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
@@ -332,7 +332,7 @@ static int TLS13_full(TLS_session *session)
         return TLS_FAILURE;
     }
     logEncExt(&enc_ext_expt,&enc_ext_resp);
-    logger(IO_DEBUG,(char *)"Encrypted Extensions Processed\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Encrypted Extensions Processed\n",NULL,0,NULL);
 // 2. get certificate request (maybe..) and certificate chain, check it, get Server public key
     rtn=getWhatsNext(session);  // get message type
     if (badResponse(session,rtn)) 
@@ -357,7 +357,7 @@ static int TLS13_full(TLS_session *session)
             TLS13_clean(session);
             return TLS_FAILURE;
         }
-        logger(IO_PROTOCOL,(char *)"Certificate Request received\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Certificate Request received\n",NULL,0,NULL);
         rtn=getWhatsNext(session);  // get message type
         if (badResponse(session,rtn)) 
         {
@@ -370,7 +370,7 @@ static int TLS13_full(TLS_session *session)
     if (rtn.val!=CERTIFICATE)
     {
         sendAlert(session,alert_from_cause(WRONG_MESSAGE));
-        logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -388,8 +388,8 @@ static int TLS13_full(TLS_session *session)
         return TLS_FAILURE;
     }
     transcriptHash(session,&HH); // HH = hash of clientHello+serverHello+encryptedExtensions+CertChain
-    logger(IO_DEBUG,(char *)"Certificate Chain is valid\n",NULL,0,NULL);
-    logger(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+CT) = ",NULL,0,&HH); 
+    log(IO_DEBUG,(char *)"Certificate Chain is valid\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+CT) = ",NULL,0,&HH); 
 
 // 3. get verifier signature
     int sigalg;
@@ -404,7 +404,7 @@ static int TLS13_full(TLS_session *session)
     if (rtn.val!=CERT_VERIFY)
     {
         sendAlert(session,alert_from_cause(WRONG_MESSAGE));
-        logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -423,20 +423,20 @@ static int TLS13_full(TLS_session *session)
     }
 
     transcriptHash(session,&FH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify
-    logger(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV) = ",NULL,0,&FH);
-    logger(IO_DEBUG,(char *)"Server Certificate Signature= ",NULL,0,&SCVSIG);
+    log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV) = ",NULL,0,&FH);
+    log(IO_DEBUG,(char *)"Server Certificate Signature= ",NULL,0,&SCVSIG);
 
     logSigAlg(sigalg);
     if (!checkServerCertVerifier(sigalg,&SCVSIG,&HH,&SPK))
     {
         sendAlert(session,DECRYPT_ERROR);
-        logger(IO_DEBUG,(char *)"Server Cert Verification failed\n",NULL,0,NULL);
-        logger(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Server Cert Verification failed\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
     }
-    logger(IO_DEBUG,(char *)"Server Cert Verification OK\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Server Cert Verification OK\n",NULL,0,NULL);
 
 // 4. get Server Finished
     rtn=getServerFinished(session,&FIN);
@@ -455,13 +455,13 @@ static int TLS13_full(TLS_session *session)
     if (!checkVeriferData(hashtype,&FIN,&session->STS,&FH))
     {
         sendAlert(session,DECRYPT_ERROR);
-        logger(IO_DEBUG,(char *)"Server Data is NOT verified\n",NULL,0,NULL);
-        logger(IO_DEBUG,(char *)"Full Handshake failed\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Server Data is NOT verified\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Full Handshake failed\n",NULL,0,NULL);
         CLEAN_FULL_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
     }
-    logger(IO_DEBUG,(char *)"\nServer Data is verified\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"\nServer Data is verified\n",NULL,0,NULL);
     if (!ccs_sent)
         sendCCCS(session);  // send Client Cipher Change (if not already sent)
     transcriptHash(session,&HH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify+serverFinish
@@ -474,7 +474,7 @@ static int TLS13_full(TLS_session *session)
         int kind=getClientPrivateKeyandCertChain(nccsalgs,csigAlgs,&CLIENT_KEY,&CLIENT_CERTCHAIN);
         if (kind!=0)
         { // Yes, I can do that kind of signature
-            logger(IO_PROTOCOL,(char *)"Client is authenticating\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Client is authenticating\n",NULL,0,NULL);
             sendClientCertificateChain(session,&CLIENT_CERTCHAIN);
 //
 //
@@ -499,7 +499,7 @@ static int TLS13_full(TLS_session *session)
     } else {
         OCT_copy(&TH,&HH);
     }
-    logger(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]) = ",NULL,0,&TH);
+    log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]) = ",NULL,0,&TH);
 
 // create client verify data
 // .... and send it to Server
@@ -510,9 +510,9 @@ static int TLS13_full(TLS_session *session)
 //  {client Finished} ----------------------------------------------------->
 //
 //
-    logger(IO_DEBUG,(char *)"Client Verify Data= ",NULL,0,&CHF); 
+    log(IO_DEBUG,(char *)"Client Verify Data= ",NULL,0,&CHF); 
     transcriptHash(session,&FH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify+serverFinish(+clientCertChain+clientCertVerify)+clientFinish
-    logger(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]+CF) = ",NULL,0,&FH);
+    log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]+CF) = ",NULL,0,&FH);
 
 // calculate traffic and application keys from handshake secret and transcript hashes
     deriveApplicationSecrets(session,&HS,&HH,&FH,NULL);
@@ -520,10 +520,10 @@ static int TLS13_full(TLS_session *session)
     createSendCryptoContext(session,&session->CTS);
     createRecvCryptoContext(session,&session->STS);
 
-    logger(IO_DEBUG,(char *)"Client application traffic secret= ",NULL,0,&session->CTS);
-    logger(IO_DEBUG,(char *)"Server application traffic secret= ",NULL,0,&session->STS);
-    logger(IO_PROTOCOL,(char *)"FULL Handshake succeeded\n",NULL,0,NULL);
-    if (resumption_required) logger(IO_PROTOCOL,(char *)"... after handshake resumption\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Client application traffic secret= ",NULL,0,&session->CTS);
+    log(IO_DEBUG,(char *)"Server application traffic secret= ",NULL,0,&session->STS);
+    log(IO_PROTOCOL,(char *)"FULL Handshake succeeded\n",NULL,0,NULL);
+    if (resumption_required) log(IO_PROTOCOL,(char *)"... after handshake resumption\n",NULL,0,NULL);
 
     CLEAN_FULL_STACK
     OCT_kill(&session->IO);  // clean up IO buffer
@@ -612,7 +612,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     session->favourite_group=session->T.favourite_group;
     origin=session->T.origin;
 
-    logger(IO_PROTOCOL,(char *)"Attempting Resumption Handshake\n",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Attempting Resumption Handshake\n",NULL,0,NULL);
     logTicket(&session->T); // lifetime,age_obfuscator,max_early_data,&NONCE,&ETICK);
 
     if (max_early_data==0 || EARLY==NULL)
@@ -631,14 +631,14 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         external_psk=false;
         deriveEarlySecrets(hashtype,&PSK,&ES,NULL,&BK);   // compute early secret and Binder Key from PSK
     }
-    logger(IO_DEBUG,(char *)"PSK= ",NULL,0,&PSK); 
-    logger(IO_DEBUG,(char *)"Binder Key= ",NULL,0,&BK); 
-    logger(IO_DEBUG,(char *)"Early Secret= ",NULL,0,&ES);
+    log(IO_DEBUG,(char *)"PSK= ",NULL,0,&PSK); 
+    log(IO_DEBUG,(char *)"Binder Key= ",NULL,0,&BK); 
+    log(IO_DEBUG,(char *)"Early Secret= ",NULL,0,&ES);
 
 // Generate key pair in favourite group - use same favourite group that worked before for this server - so should be no HRR
     SAL_generateKeyPair(session->favourite_group,&CSK,&PK);
-    logger(IO_DEBUG,(char *)"Private key= ",NULL,0,&CSK);  
-    logger(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&PK);  
+    log(IO_DEBUG,(char *)"Private key= ",NULL,0,&CSK);  
+    log(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&PK);  
 
 // Client Hello
 // First build standard client Hello extensions
@@ -657,9 +657,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     { // Its NOT an external pre-shared key
         time_ticket_used=(unsign32)millis();
         age=time_ticket_used-time_ticket_received; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
-        logger(IO_DEBUG,(char *)"Ticket age= ",(char *)"%x",age,NULL);
+        log(IO_DEBUG,(char *)"Ticket age= ",(char *)"%x",age,NULL);
         age+=age_obfuscator;
-        logger(IO_DEBUG,(char *)"obfuscated age = ",(char *)"%x",age,NULL);
+        log(IO_DEBUG,(char *)"obfuscated age = ",(char *)"%x",age,NULL);
     }
 
     int extra=addPreSharedKeyExt(&EXT,age,&session->T.TICK,SAL_hashLen(hashtype));
@@ -675,26 +675,26 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     runningHash(session,&EXT);
 
     transcriptHash(session,&HH);            // HH = hash of Truncated clientHello
-    logger(IO_DEBUG,(char *)"Client Hello sent\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Client Hello sent\n",NULL,0,NULL);
 
     deriveVeriferData(hashtype,&BND,&BK,&HH);
     sendBinder(session,&BL,&BND);
     runningHash(session,&BL);
     transcriptHash(session,&HH);            // HH = hash of full clientHello
 
-    logger(IO_DEBUG,(char *)"BND= ",NULL,0,&BND);
-    logger(IO_DEBUG,(char *)"Sending Binders\n",NULL,0,NULL);   // only sending one
+    log(IO_DEBUG,(char *)"BND= ",NULL,0,&BND);
+    log(IO_DEBUG,(char *)"Sending Binders\n",NULL,0,NULL);   // only sending one
 
     if (have_early_data)
         sendCCCS(session);
 
     deriveLaterSecrets(hashtype,&ES,&HH,&CETS,NULL);   // Get Client Early Traffic Secret from transcript hash and ES
-    logger(IO_DEBUG,(char *)"Client Early Traffic Secret= ",NULL,0,&CETS); 
+    log(IO_DEBUG,(char *)"Client Early Traffic Secret= ",NULL,0,&CETS); 
     createSendCryptoContext(session,&CETS);
 // if its allowed, send client message as (encrypted!) early data
     if (have_early_data)
     {
-        logger(IO_APPLICATION,(char *)"Sending some early data\n",NULL,0,NULL);
+        log(IO_APPLICATION,(char *)"Sending some early data\n",NULL,0,NULL);
         sendClientMessage(session,APPLICATION,TLS1_2,EARLY,NULL);
 //
 //
@@ -715,9 +715,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 
     if (pskid<0)
     { // Ticket rejected by Server (as out of date??)
-        logger(IO_PROTOCOL,(char *)"Ticket rejected by server\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Ticket rejected by server\n",NULL,0,NULL);
         sendAlert(session,CLOSE_NOTIFY);
-        logger(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -726,7 +726,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 	if (pskid>0)
 	{ // pskid out-of-range (only one allowed)
         sendAlert(session,ILLEGAL_PARAMETER);
-        logger(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -744,24 +744,24 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     if (rtn.val==HANDSHAKE_RETRY || kex!=session->favourite_group)
     { // should not happen
         sendAlert(session,UNEXPECTED_MESSAGE);
-        logger(IO_DEBUG,(char *)"No change possible as result of HRR\n",NULL,0,NULL); 
-        logger(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"No change possible as result of HRR\n",NULL,0,NULL); 
+        log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
     }
-    logger(IO_DEBUG,(char *)"serverHello= ",NULL,0,&session->IO); 
+    log(IO_DEBUG,(char *)"serverHello= ",NULL,0,&session->IO); 
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
     SAL_generateSharedSecret(kex,&CSK,&PK,&SS);
-    logger(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
+    log(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
 
     deriveHandshakeSecrets(session,&SS,&ES,&HH,&HS); 
     createRecvCryptoContext(session,&session->STS);
 
-    logger(IO_DEBUG,(char *)"Handshake Secret= ",NULL,0,&HS);
-    logger(IO_DEBUG,(char *)"Client handshake traffic secret= ",NULL,0,&session->CTS);
-    logger(IO_DEBUG,(char *)"Server handshake traffic secret= ",NULL,0,&session->STS);
+    log(IO_DEBUG,(char *)"Handshake Secret= ",NULL,0,&HS);
+    log(IO_DEBUG,(char *)"Client handshake traffic secret= ",NULL,0,&session->CTS);
+    log(IO_DEBUG,(char *)"Server handshake traffic secret= ",NULL,0,&session->STS);
 
 // 1. get encrypted extensions
     rtn=getServerEncryptedExtensions(session,&enc_ext_expt,&enc_ext_resp);
@@ -778,7 +778,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     }
     logEncExt(&enc_ext_expt,&enc_ext_resp);
     transcriptHash(session,&FH); // hash of clientHello+serverHello+encryptedExtension
-    logger(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE) = ",NULL,0,&FH); 
+    log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE) = ",NULL,0,&FH); 
 
 // 2. get server finish
     rtn=getServerFinished(session,&FIN);   // Finished
@@ -799,18 +799,18 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     if (enc_ext_resp.early_data)
     {
         sendEndOfEarlyData(session);     // Should only be sent if server has accepted Early data - see encrypted extensions!
-        logger(IO_DEBUG,(char *)"Send End of Early Data \n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Send End of Early Data \n",NULL,0,NULL);
     }
     transcriptHash(session,&TH); // hash of clientHello+serverHello+encryptedExtension+serverFinish+EndOfEarlyData
-    logger(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SF+ED) = ",NULL,0,&TH); 
+    log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SF+ED) = ",NULL,0,&TH); 
 
 // Switch to handshake keys
     createSendCryptoContext(session,&session->CTS);
     if (!checkVeriferData(hashtype,&FIN,&session->STS,&FH))
     {
         sendAlert(session,DECRYPT_ERROR);
-        logger(IO_DEBUG,(char *)"Server Data is NOT verified\n",NULL,0,NULL);
-        logger(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Server Data is NOT verified\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         CLEAN_RESUMPTION_STACK
         TLS13_clean(session);
         return TLS_FAILURE;
@@ -824,8 +824,8 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 //  {client Finished} ----------------------------------------------------->
 //
 //
-    logger(IO_DEBUG,(char *)"Server Data is verified\n",NULL,0,NULL);
-    logger(IO_DEBUG,(char *)"Client Verify Data= ",NULL,0,&CHF); 
+    log(IO_DEBUG,(char *)"Server Data is verified\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Client Verify Data= ",NULL,0,&CHF); 
 
     transcriptHash(session,&FH); // hash of clientHello+serverHello+encryptedExtension+serverFinish+EndOfEarlyData+clientFinish
 
@@ -834,16 +834,16 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     createSendCryptoContext(session,&session->CTS);
     createRecvCryptoContext(session,&session->STS);
 
-    logger(IO_DEBUG,(char *)"Client application traffic secret= ",NULL,0,&session->CTS);
-    logger(IO_DEBUG,(char *)"Server application traffic secret= ",NULL,0,&session->STS);
-    logger(IO_PROTOCOL,(char *)"RESUMPTION Handshake succeeded\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Client application traffic secret= ",NULL,0,&session->CTS);
+    log(IO_DEBUG,(char *)"Server application traffic secret= ",NULL,0,&session->STS);
+    log(IO_PROTOCOL,(char *)"RESUMPTION Handshake succeeded\n",NULL,0,NULL);
 
     CLEAN_RESUMPTION_STACK
     OCT_kill(&session->IO);  // clean up IO buffer
 
     if (enc_ext_resp.early_data)
     {
-        logger(IO_PROTOCOL,(char *)"Application Message accepted as Early Data\n\n",EARLY->val,0,NULL);
+        log(IO_PROTOCOL,(char *)"Application Message accepted as Early Data\n\n",EARLY->val,0,NULL);
         return TLS_EARLY_DATA_ACCEPTED;
     }
     return TLS_SUCCESS;
@@ -860,7 +860,7 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
         rtn=TLS13_resume(session,EARLY);
         if (rtn==TLS_EARLY_DATA_ACCEPTED) early_went=true;
     } else {
-        logger(IO_PROTOCOL,(char *)"Resumption Ticket not found or invalid\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Resumption Ticket not found or invalid\n",NULL,0,NULL);
         rtn=TLS13_full(session);
     }
     initTicketContext(&session->T); // clear out any ticket
@@ -877,7 +877,7 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
 // send a message post-handshake
 void TLS13_send(TLS_session *state,octad *GET)
 {
-    logger(IO_APPLICATION,(char *)"Sending Application Message\n\n",GET->val,0,NULL);
+    log(IO_APPLICATION,(char *)"Sending Application Message\n\n",GET->val,0,NULL);
     sendClientMessage(state,APPLICATION,TLS1_2,GET,NULL);
 }
 
@@ -898,14 +898,14 @@ int TLS13_recv(TLS_session *session,octad *REC)
     nticks=0; // number of tickets received
     while (1)
     {
-        logger(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
         OCT_kill(&session->IO); ptr=0;
         type=getServerFragment(session);  // get first fragment to determine type
         if (type<0)
             return type;   // its an error
         if (type==TIMED_OUT)
         {
-            logger(IO_PROTOCOL,(char *)"TIME_OUT\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"TIME_OUT\n",NULL,0,NULL);
             return TIMED_OUT;
         }
         if (type==HSHAKE)
@@ -922,12 +922,12 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     rtn=parseTicket(&TICK,(unsign32)millis(),&session->T);       // extract into ticket structure T, and keep for later use  
                     if (rtn==BAD_TICKET) {
                         session->T.valid=false;
-                        logger(IO_PROTOCOL,(char *)"Got a bad ticket ",NULL,0,NULL);
+                        log(IO_PROTOCOL,(char *)"Got a bad ticket ",NULL,0,NULL);
                     } else {
                         session->T.cipher_suite=session->cipher_suite;
                         session->T.favourite_group=session->favourite_group;
                         session->T.valid=true;
-                        logger(IO_PROTOCOL,(char *)"Got a ticket with lifetime (minutes)= ",(char *)"%d",session->T.lifetime/60,NULL);
+                        log(IO_PROTOCOL,(char *)"Got a ticket with lifetime (minutes)= ",(char *)"%d",session->T.lifetime/60,NULL);
                     }
 
                     if (ptr==session->IO.len) fin=true; // record finished
@@ -937,27 +937,27 @@ int TLS13_recv(TLS_session *session,octad *REC)
                case KEY_UPDATE :
                     if (len!=1)
                     {
-                        logger(IO_PROTOCOL,(char *)"Something wrong\n",NULL,0,NULL);
+                        log(IO_PROTOCOL,(char *)"Something wrong\n",NULL,0,NULL);
                         return BAD_RECORD;
                     }
                     r=parseIntorPull(session,1,ptr); kur=r.val; if (r.err) break;
                     if (kur==0)
                     {
                         deriveUpdatedKeys(&session->K_recv,&session->STS);  // reset record number
-                        logger(IO_PROTOCOL,(char *)"KEYS UPDATED\n",NULL,0,NULL);
+                        log(IO_PROTOCOL,(char *)"KEYS UPDATED\n",NULL,0,NULL);
                     }
                     if (kur==1)
                     {
                         deriveUpdatedKeys(&session->K_recv,&session->STS);
-                        logger(IO_PROTOCOL,(char *)"Key update notified - client should do the same (?) \n",NULL,0,NULL);
-                        logger(IO_PROTOCOL,(char *)"KEYS UPDATED\n",NULL,0,NULL);
+                        log(IO_PROTOCOL,(char *)"Key update notified - client should do the same (?) \n",NULL,0,NULL);
+                        log(IO_PROTOCOL,(char *)"KEYS UPDATED\n",NULL,0,NULL);
                     }
                     if (ptr==session->IO.len) fin=true; // record finished
                     if (fin) break;
                     continue;
 
                 default:
-                    logger(IO_PROTOCOL,(char *)"Unsupported Handshake message type ",(char *)"%x",nb,NULL);
+                    log(IO_PROTOCOL,(char *)"Unsupported Handshake message type ",(char *)"%x",nb,NULL);
                     fin=true;
                     break;            
                 }
@@ -972,7 +972,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
         }
         if (type==ALERT)
         {
-            logger(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
             logAlert(session->IO.val[1]);
             return type;    // Alert received
         }
@@ -983,7 +983,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
         recoverPSK(session); // recover PSK using NONCE and RMS, and store it with ticket
         session->T.origin=TLS_FULL_HANDSHAKE;
     } else {
-        logger(IO_PROTOCOL,(char *)"No ticket provided \n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"No ticket provided \n",NULL,0,NULL);
     }
 
     return type;

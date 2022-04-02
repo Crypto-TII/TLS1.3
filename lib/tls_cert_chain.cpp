@@ -144,23 +144,23 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 
     if (sigAlg == 0)
     {
-        logger(IO_DEBUG,(char *)"Unable to check cert signature\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Unable to check cert signature\n",NULL,0,NULL);
         return false;
     }
 
-    logger(IO_DEBUG,(char *)"Signature  = ",NULL,0,SIG);
-    logger(IO_DEBUG,(char *)"Public key = ",NULL,0,PUBKEY);
-    logger(IO_DEBUG,(char *)"Checking Signature on Cert \n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Signature  = ",NULL,0,SIG);
+    log(IO_DEBUG,(char *)"Public key = ",NULL,0,PUBKEY);
+    log(IO_DEBUG,(char *)"Checking Signature on Cert \n",NULL,0,NULL);
     logSigAlg(sigAlg);
 
     res=SAL_tlsSignatureVerify(sigAlg,CERT,SIG,PUBKEY); 
 
     if (res)
     {
-        logger(IO_DEBUG,(char *)"Cert Signature Verification succeeded \n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Cert Signature Verification succeeded \n",NULL,0,NULL);
         return true;
     } else {
-        logger(IO_DEBUG,(char *)"Cert Signature Verification Failed\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Cert Signature Verification Failed\n",NULL,0,NULL);
         return false;
     }
 }
@@ -249,12 +249,12 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
     sst=stripDownCert(SCERT,SSIG,&ISSUER,&SUBJECT);    // break down Cert and extract signature
 	if (!checkCertNotExpired(SCERT)) {
 
-    logger(IO_DEBUG,(char *)"Certificate has expired\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Certificate has expired\n",NULL,0,NULL);
 		return  CERT_OUTOFDATE;
 	}
     if (sst.type==0)
     {
-        logger(IO_DEBUG,(char *)"Unrecognised Signature Type\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Unrecognised Signature Type\n",NULL,0,NULL);
         return BAD_CERT_CHAIN;
     }
 
@@ -263,13 +263,13 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
 
     if (spt.type==0)
     {
-        logger(IO_DEBUG,(char *)"Unrecognised Public key Type\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Unrecognised Public key Type\n",NULL,0,NULL);
         return BAD_CERT_CHAIN;
     }
 
     if (OCT_compare(&ISSUER,&SUBJECT))
     { //self-signed certificate
-        logger(IO_PROTOCOL,(char *)"Self signed Cert\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Self signed Cert\n",NULL,0,NULL);
 		return SELF_SIGNED_CERT;   // not necessarily fatal
 	}
 
@@ -277,7 +277,7 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
 	{ // there was one
 		if (!OCT_compare(PREVIOUS_ISSUER,&SUBJECT))
 		{ // Is subject of this cert the issuer of the previous cert?
-			logger(IO_DEBUG,(char *)"Subject of this certificate is not issuer of prior certificate\n",NULL,0,NULL);
+			log(IO_DEBUG,(char *)"Subject of this certificate is not issuer of prior certificate\n",NULL,0,NULL);
 			return BAD_CERT_CHAIN;
 		}
 	}
@@ -335,7 +335,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 
     if (!checkHostnameInCert(&SERVER_CERT,hostname))
     { // Check that certificate covers the server URL
-        logger(IO_DEBUG,(char *)"Hostname not found in certificate\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Hostname not found in certificate\n",NULL,0,NULL);
         if (strcmp(hostname,"localhost")!=0) return BAD_CERT_CHAIN;
     }
 
@@ -354,7 +354,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     ptr+=len;   // skip certificate extensions
 
     if (ptr<=CERTCHAIN->len)
-        logger(IO_PROTOCOL,(char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
 
 // Check and parse Intermediate Cert
 	rtn=parseCert(&INTER_CERT,ist,&INTER_SIG,&ISSUER,ipt,&PK);
@@ -363,24 +363,24 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 	}
 
     if (!checkCertSig(sst,&SERVER_CERT,&SERVER_SIG,&PK)) {  // Check intermediate signature on Server's certificate 
-        logger(IO_DEBUG,(char *)"Server Certificate sig is NOT OK\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Server Certificate sig is NOT OK\n",NULL,0,NULL);
         return BAD_CERT_CHAIN;
     }
-    logger(IO_DEBUG,(char *)"Server Certificate sig is OK\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Server Certificate sig is OK\n",NULL,0,NULL);
 
 // Find Root of Trust
 // Find root certificate public key
     if (!findRootCA(&ISSUER,ist,&PK)) {
-        logger(IO_DEBUG,(char *)"Root Certificate not found\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Root Certificate not found\n",NULL,0,NULL);
         return CA_NOT_FOUND;
     }       
-    logger(IO_DEBUG,(char *)"\nPublic Key from root cert= ",NULL,0,&PK);
+    log(IO_DEBUG,(char *)"\nPublic Key from root cert= ",NULL,0,&PK);
 
     if (!checkCertSig(ist,&INTER_CERT,&INTER_SIG,&PK)) {  // Check signature on intermediate cert with root cert public key
-        logger(IO_DEBUG,(char *)"Root Certificate sig is NOT OK\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Root Certificate sig is NOT OK\n",NULL,0,NULL);
         return BAD_CERT_CHAIN;
     }
-    logger(IO_DEBUG,(char *)"Root Certificate sig is OK\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Root Certificate sig is OK\n",NULL,0,NULL);
 
     return 0;
 }

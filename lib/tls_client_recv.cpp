@@ -104,7 +104,7 @@ int getServerFragment(TLS_session *session)
     OCT_append_int(&RH,left,2);
     if (left+pos>session->IO.max)
     { // this commonly happens with big records of application data from server
-		logger(IO_DEBUG,(char *)"Record received of length= ",(char *)"%d",left+pos,NULL);
+		log(IO_DEBUG,(char *)"Record received of length= ",(char *)"%d",left+pos,NULL);
         return MEM_OVERFLOW;   // record is too big - memory overflow
     }
 //printf("Getting a fragment 3\n");
@@ -218,7 +218,7 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
     logServerResponse(r);
 	if (r.err != 0)
 	{
-       logger(IO_PROTOCOL,(char *)"Handshake failed\n",NULL,0,NULL);
+       log(IO_PROTOCOL,(char *)"Handshake failed\n",NULL,0,NULL);
 	}
     if (r.err<0)
     { // send an alert to the Server, and abort
@@ -227,7 +227,7 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
     }
     if (r.err==ALERT)
     { // received an alert from the Server - abort
-        logger(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
         logAlert(r.val);
         return true;
     }
@@ -265,7 +265,7 @@ ret getWhatsNext(TLS_session *session)
 		r.err=WRONG_MESSAGE;
 		return r;
 	}
-//logger((char *)"IO= \n",NULL,0,IO);
+//log((char *)"IO= \n",NULL,0,IO);
 
     char b[1];
     b[0]=r.val;
@@ -398,7 +398,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 
     OCT_shift_left(&session->IO,ptr);  // Shift octad left - rewind to start 
     if (unexp>0)    
-        logger(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
     r.val=nb;
     return r;
 }
@@ -465,7 +465,7 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
         return r;
     } 
     if (unexp>0)    
-        logger(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
     r.val=CERT_REQUEST;
     return r;
 }
@@ -479,7 +479,7 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
     CERTCHAIN.len=0;
 
     r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r;         // message length   
-    logger(IO_DEBUG,(char *)"Certificate Chain Length= ",(char *)"%d",len,NULL);
+    log(IO_DEBUG,(char *)"Certificate Chain Length= ",(char *)"%d",len,NULL);
 
     r=parseIntorPull(session,1,ptr); nb=r.val; if (r.err) return r;
     if (nb!=0x00) {

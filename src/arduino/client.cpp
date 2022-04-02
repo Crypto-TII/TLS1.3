@@ -41,6 +41,80 @@ void mydelay()
     while (1) delay(1000);
 }
 
+static void nameGroup(int kex)
+{
+    switch(kex) {
+    case X25519:
+        printf("X25519\n");
+        break;
+    case SECP256R1:
+        printf("SECP256R1\n");   
+        break;
+    case SECP384R1:
+        printf("SECP384R1\n");   
+        break;
+    default:
+        printf("Non-standard\n");   
+        break;
+    }
+}
+
+static void nameCipher(int cipher_suite)
+{
+    switch (cipher_suite)
+    {
+    case TLS_AES_128_GCM_SHA256:
+		printf("TLS_AES_128_GCM_SHA256\n");
+        break;
+    case TLS_AES_256_GCM_SHA384:
+        printf("TLS_AES_256_GCM_SHA384\n");   
+        break;
+    case TLS_CHACHA20_POLY1305_SHA256:
+        printf("TLS_CHACHA20_POLY1305_SHA256\n");   
+        break;
+    default:
+        printf("Non-standard\n");   
+        break;
+    }
+}
+
+static void nameSigAlg(int sigAlg)
+{
+    switch (sigAlg)
+    {
+    case ECDSA_SECP256R1_SHA256:
+        printf("ECDSA_SECP256R1_SHA256\n");
+        break;
+    case RSA_PSS_RSAE_SHA256:
+        printf("RSA_PSS_RSAE_SHA256\n");   
+        break;
+    case RSA_PKCS1_SHA256:
+        printf("RSA_PKCS1_SHA256\n");   
+        break;
+    case ECDSA_SECP384R1_SHA384:
+        printf("ECDSA_SECP384R1_SHA384\n");
+        break;
+    case RSA_PSS_RSAE_SHA384:
+        printf("RSA_PSS_RSAE_SHA384\n");   
+        break;
+    case RSA_PKCS1_SHA384:
+        printf("RSA_PKCS1_SHA384\n");   
+        break;
+    case RSA_PSS_RSAE_SHA512:
+        printf("RSA_PSS_RSAE_SHA512\n");   
+        break;
+    case RSA_PKCS1_SHA512:
+        printf("RSA_PKCS1_SHA512\n");   
+        break;
+    case ED25519:
+        printf("ED25519\n");   
+        break;
+    default:
+        printf("Non-standard\n");   
+        break;
+    }
+}
+
 // Try for a full handshake - disconnect - try to resume connection - repeat
 #ifdef ESP32
 #if CONFIG_FREERTOS_UNICORE
@@ -110,7 +184,7 @@ void loop() {
     bool retn=SAL_initLib();
     if (!retn)
     {
-        logger(IO_PROTOCOL,(char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
         mydelay();
         return;
     }
@@ -129,7 +203,7 @@ void loop() {
         for (i=0;i<ns;i++ )
         {
             Serial.print("    ");
-            nameKeyExchange(nt[i]);
+            nameGroup(nt[i]);
 
             char sk[TLS_MAX_SECRET_KEY_SIZE];
             octad SK={0,sizeof(sk),sk};
@@ -164,7 +238,7 @@ void loop() {
         for (i=0;i<ns;i++ )
         {
             Serial.print("    ");
-            nameCipherSuite(nt[i]);
+            nameCipher(nt[i]);
         }
         ns=SAL_sigs(nt);
         Serial.println("SAL supported TLS signatures");
@@ -187,14 +261,14 @@ void loop() {
 
     TLS_session state=TLS13_start(&client,hostname);
     TLS_session *session=&state;
-    logger(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
+    log(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
 
     make_client_message(&GET,hostname);
 
 // make connection using full handshake...
     if (!client.connect(hostname,port))
     {
-        logger((IO_PROTOCOL, *)"Unable to access ",hostname,0,NULL);
+        log((IO_PROTOCOL, *)"Unable to access ",hostname,0,NULL);
         while (Serial.available() == 0) {}
         Serial.read(); 
  		return;
@@ -203,18 +277,18 @@ void loop() {
     bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
     if (success) {
         TLS13_recv(session,&RESP);    // Server response + ticket
-        logger(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+        log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
         TLS13_clean(session);   // but leave ticket intact
     }
 // drop the connection..
     client.stop();
-    logger(IO_PROTOCOL,(char *)"Connection closed\n\n",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Connection closed\n\n",NULL,0,NULL);
     delay(5000);
 
 // try to resume connection using...
     if (!client.connect(hostname,port))
     {
-        logger(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
+        log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
         while (Serial.available() == 0) {}
         Serial.read(); 
  		return;
@@ -223,13 +297,13 @@ void loop() {
     success=TLS13_connect(session,&GET);  // Resumption handshake and connection to server
     if (success) {
         TLS13_recv(session,&RESP);    // Server response + ticket
-        logger(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+        log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
     } else {
-        logger(IO_APPLICATION,(char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
+        log(IO_APPLICATION,(char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
     }
     client.stop();
 // drop the connection..
-    logger(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
 
 #ifdef ESP32
     Serial.print("Amount of unused stack memory ");     // useful information!

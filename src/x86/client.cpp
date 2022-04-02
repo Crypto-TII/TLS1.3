@@ -99,6 +99,80 @@ static void bad_input()
     printf("Example:- client www.bbc.co.uk\n");
 }
 
+static void nameGroup(int kex)
+{
+    switch(kex) {
+    case X25519:
+        printf("X25519\n");
+        break;
+    case SECP256R1:
+        printf("SECP256R1\n");   
+        break;
+    case SECP384R1:
+        printf("SECP384R1\n");   
+        break;
+    default:
+        printf("Non-standard\n");   
+        break;
+    }
+}
+
+static void nameCipher(int cipher_suite)
+{
+    switch (cipher_suite)
+    {
+    case TLS_AES_128_GCM_SHA256:
+		printf("TLS_AES_128_GCM_SHA256\n");
+        break;
+    case TLS_AES_256_GCM_SHA384:
+        printf("TLS_AES_256_GCM_SHA384\n");   
+        break;
+    case TLS_CHACHA20_POLY1305_SHA256:
+        printf("TLS_CHACHA20_POLY1305_SHA256\n");   
+        break;
+    default:
+        printf("Non-standard\n");   
+        break;
+    }
+}
+
+static void nameSigAlg(int sigAlg)
+{
+    switch (sigAlg)
+    {
+    case ECDSA_SECP256R1_SHA256:
+        printf("ECDSA_SECP256R1_SHA256\n");
+        break;
+    case RSA_PSS_RSAE_SHA256:
+        printf("RSA_PSS_RSAE_SHA256\n");   
+        break;
+    case RSA_PKCS1_SHA256:
+        printf("RSA_PKCS1_SHA256\n");   
+        break;
+    case ECDSA_SECP384R1_SHA384:
+        printf("ECDSA_SECP384R1_SHA384\n");
+        break;
+    case RSA_PSS_RSAE_SHA384:
+        printf("RSA_PSS_RSAE_SHA384\n");   
+        break;
+    case RSA_PKCS1_SHA384:
+        printf("RSA_PKCS1_SHA384\n");   
+        break;
+    case RSA_PSS_RSAE_SHA512:
+        printf("RSA_PSS_RSAE_SHA512\n");   
+        break;
+    case RSA_PKCS1_SHA512:
+        printf("RSA_PKCS1_SHA512\n");   
+        break;
+    case ED25519:
+        printf("ED25519\n");   
+        break;
+    default:
+        printf("Non-standard\n");   
+        break;
+    }
+}
+
 int main(int argc, char const *argv[])
 {
     char get[256];
@@ -131,7 +205,7 @@ int main(int argc, char const *argv[])
     bool retn=SAL_initLib();
     if (!retn)
     {
-        logger(IO_PROTOCOL,(char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Security Abstraction Layer failed to start\n",NULL,0,NULL);
         exit(EXIT_FAILURE);
     }
 
@@ -170,7 +244,7 @@ int main(int argc, char const *argv[])
         for (i=0;i<ns;i++ )
         {
             printf("    ");
-            nameKeyExchange(nt[i]);
+            nameGroup(nt[i]);
 
             char sk[TLS_MAX_SECRET_KEY_SIZE];
             octad SK={0,sizeof(sk),sk};
@@ -205,7 +279,7 @@ int main(int argc, char const *argv[])
         for (i=0;i<ns;i++ )
         {
             printf("    ");
-            nameCipherSuite(nt[i]);
+            nameCipher(nt[i]);
         }
         ns=SAL_sigs(nt);
         printf("SAL supported TLS signatures\n");
@@ -251,7 +325,7 @@ int main(int argc, char const *argv[])
             port = 443;
         }
     }
-    logger(IO_PROTOCOL,(char *)"Hostname= ",hostname,0,NULL);
+    log(IO_PROTOCOL,(char *)"Hostname= ",hostname,0,NULL);
 
     make_client_message(&GET,hostname);
 
@@ -263,7 +337,7 @@ int main(int argc, char const *argv[])
 
     if (!client.connect(hostname,port))
     {
-        logger(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
+        log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
  		exit(EXIT_FAILURE);
     }
 
@@ -301,18 +375,18 @@ int main(int argc, char const *argv[])
             client.connect(hostname,port);
             if (!TLS13_connect(session,&GET)) // try again, this time fall back to a FULL handshake
             {  
-				logger(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
+				log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
                 exit(EXIT_FAILURE);
             }
         } else {
-			logger(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
+			log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
             exit(EXIT_FAILURE);
         }
     }
 
 // Get server response, may attach resumption ticket to session
     int rtn=TLS13_recv(session,&RESP);
-    logger(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+    log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 
     if (rtn<0)
         sendAlert(session,alert_from_cause(rtn));

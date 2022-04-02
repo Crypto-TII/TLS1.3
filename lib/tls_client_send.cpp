@@ -292,7 +292,7 @@ void sendAlert(TLS_session *session,int type)
     OCT_append_byte(&PT,0x02,1);  // alerts are always fatal
     OCT_append_byte(&PT,type,1);  // alert type
     sendClientMessage(session,ALERT,TLS1_2,&PT,NULL);
-    logger(IO_PROTOCOL,(char *)"Alert sent to Server - ",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Alert sent to Server - ",NULL,0,NULL);
     logAlert(type);
 }
 

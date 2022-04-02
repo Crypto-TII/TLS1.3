@@ -26,7 +26,7 @@ extern void myprintf(char *s);
     @param info an integer to be output
     @param O an octad to be output (or NULL)
  */
-extern void logger(int logit,char *preamble,char *string,unsign32 info,octad *O);
+extern void log(int logit,char *preamble,char *string,unsign32 info,octad *O);
 
 /**	@brief logging the Server hello
  *
@@ -80,37 +80,17 @@ extern void logServerResponse(ret r);
  */
 extern void logAlert(int detail);
 
-
-/**	@brief name Cipher Suite
- *
-    @param cipher_suite print Cipher Suite
- */
-extern void nameCipherSuite(int cipher_suite);
-
-
 /**	@brief log Cipher Suite
  *
     @param cipher_suite the Cipher Suite to be logged
  */
 extern void logCipherSuite(int cipher_suite);
 
-/**	@brief name Key Exchange Group
- *
-    @param kex print key exchange algorithm
- */
-extern void nameKeyExchange(int kex);
-
 /**	@brief log Key Exchange Group
  *
     @param kex the Key Exchange Group to be logged
  */
 extern void logKeyExchange(int kex);
-
-/**	@brief name Signature Algorithm
- *
-    @param sigAlg print Signature Algorithm
- */
-extern void nameSigAlg(int sigAlg);
 
 /**	@brief log Signature Algorithm
  *
