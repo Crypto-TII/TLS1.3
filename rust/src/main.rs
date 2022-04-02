@@ -7,7 +7,7 @@ use std::io::Write;
 use std::io::{BufRead, BufReader};
 use std::net::{Shutdown, TcpStream};
 use tls13::connection::SESSION;
-use tls13::logger;
+use tls13::logger::log;
 use tls13::sal;
 use tls13::utils;
 use config::*;
@@ -196,13 +196,13 @@ fn main() {
     let mut args: Vec<String> = env::args().collect();
 
     if args.len()<2 {
-        logger::logger(IO_PROTOCOL,"Command line error\n",0,None);
+        log(IO_PROTOCOL,"Command line error\n",0,None);
         bad_input();
         return;
     }
 
     if !tls13::sal::init() {
-        logger::logger(IO_PROTOCOL,"SAL failed to start\n",0,None);
+        log(IO_PROTOCOL,"SAL failed to start\n",0,None);
         return;
     }
 
@@ -272,7 +272,7 @@ fn main() {
     }
 
     let mut have_psk=false;
-    let mut psk:[u8;16]=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]; // fake a pre-shared key
+    let psk:[u8;16]=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]; // fake a pre-shared key
     
     if args[1].as_str() == "/p" { // psk label is in args[2]
         println!("PSK mode selected");
@@ -301,7 +301,7 @@ fn main() {
     match TcpStream::connect(&fullhost) {
         Ok(stream) => {
             
-            logger::logger(IO_PROTOCOL,"Successfully connected to server\n",0,None);
+            log(IO_PROTOCOL,"Successfully connected to server\n",0,None);
             let mut get:[u8;256]=[0;256];
             let mut resp:[u8;256]=[0;256];
             let gtlen=make_client_message(&mut get,&host);
@@ -338,17 +338,17 @@ fn main() {
                     session.sockptr.shutdown(Shutdown::Both).unwrap();
                     session.sockptr=TcpStream::connect(&fullhost).unwrap();
                     if !session.connect(Some(&mut get[0..gtlen])) {
-                        logger::logger(IO_APPLICATION,"TLS Handshake failed\n",0,None);
+                        log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
                         return;
                     } 
                 } else {
-                    logger::logger(IO_APPLICATION,"TLS Handshake failed\n",0,None);
+                    log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
                     return;
                 }
             } 
             let mut rplen=0;
             let rtn=session.recv(&mut resp,&mut rplen);
-            logger::logger(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
+            log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
             if rtn<0 {
                 session.send_alert(alert_from_cause(rtn));
             } else {
@@ -364,7 +364,7 @@ fn main() {
                 session.send(&get[0..gtlen]);
                 let mut rplen=0;
                 session.recv(&mut resp,&mut rplen);
-                logger::logger(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
+                log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
             }
 
             store_ticket(&session,"cookie.txt");
@@ -372,7 +372,7 @@ fn main() {
             recover_ticket(&mut session,"cookie.txt"); */
         },
         Err(_e) => {
-            logger::logger(IO_PROTOCOL,"Failed to connect\n",0,None);
+            log(IO_PROTOCOL,"Failed to connect\n",0,None);
         } 
     } 
 

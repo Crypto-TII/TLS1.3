@@ -12,7 +12,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
     TLS_session state;
     state.sockptr=sockptr;                                  // pointer to socket
     strcpy(state.hostname,hostname);                        // server to connection with
-    state.session_status=TLS13_DISCONNECTED;
+    state.status=TLS13_DISCONNECTED;
 	state.server_max_record=0;
     state.cipher_suite=0;//TLS_AES_128_GCM_SHA256;              // cipher suite
     initCryptoContext(&state.K_send);                       // Transmission key
@@ -870,7 +870,7 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
     
     if (!early_went && EARLY!=NULL)
         TLS13_send(session,EARLY);  // didn't go early, so send it now
-
+    session->status=TLS13_CONNECTED;
     return true;   // exiting with live session, ready to receive fresh ticket
 }
 
@@ -998,6 +998,7 @@ void TLS13_clean(TLS_session *session)
     OCT_kill(&session->RMS);
     initCryptoContext(&session->K_send);
     initCryptoContext(&session->K_recv);
+    session->status=TLS13_DISCONNECTED;
 }
 
 void TLS13_end(TLS_session *session)

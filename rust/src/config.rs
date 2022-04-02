@@ -197,10 +197,9 @@ pub fn alert_from_cause(rtn: isize) -> u8
     }
 }
 
-// connection modes
-pub const FULL_HANDSHAKE:usize =  1;    // Do Full Handshake 
-pub const EXTERNAL_PSK:usize =  2;      // Use external Pre-Shared Key 
-pub const TICKET_RESUME:usize =  3;     // Use ticket-based resumption 
+// ticket origin
+pub const FULL_HANDSHAKE:usize =  1;    // Came from Full Handshake 
+pub const EXTERNAL_PSK:usize =  2;      // External Pre-Shared Key 
 
 // protocol returns..
 pub const TLS_FAILURE:usize = 0;

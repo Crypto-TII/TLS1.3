@@ -5,10 +5,9 @@ use crate::tls13::utils::RET;
 use crate::tls13::utils::EESTATUS;
 use crate::tls13::x509;
 use crate::tls13::x509::PKTYPE;
-use crate::tls13::sal;
 use crate::tls13::ticket::TICKET;
 
-pub fn logger(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
+pub fn log(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
     if logit>VERBOSITY {
         return;
     }
@@ -40,94 +39,92 @@ pub fn logger(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
 }
 
 pub fn log_cipher_suite(cipher_suite: u16) {
-    logger(IO_DEBUG,"Cipher Suite is ",0,None);
+    log(IO_DEBUG,"Cipher Suite is ",0,None);
     match cipher_suite {
-        AES_128_GCM_SHA256 => logger(IO_DEBUG,"AES_128_GCM_SHA256\n",0,None),
-        AES_256_GCM_SHA384 => logger(IO_DEBUG,"AES_256_GCM_SHA384\n",0,None),
-        CHACHA20_POLY1305_SHA256 => logger(IO_DEBUG,"CHACHA20_POLY1305_SHA256\n",0,None),
-        _ => logger(IO_DEBUG,"Non-standard\n",0,None)
+        AES_128_GCM_SHA256 => log(IO_DEBUG,"AES_128_GCM_SHA256\n",0,None),
+        AES_256_GCM_SHA384 => log(IO_DEBUG,"AES_256_GCM_SHA384\n",0,None),
+        CHACHA20_POLY1305_SHA256 => log(IO_DEBUG,"CHACHA20_POLY1305_SHA256\n",0,None),
+        _ => log(IO_DEBUG,"Non-standard\n",0,None)
     }
 }
 
 pub fn log_sig_alg(sigalg: u16) {
     match sigalg {
-        ECDSA_SECP256R1_SHA256 => logger(IO_DEBUG,"ECDSA_SECP256R1_SHA256\n",0,None),
-        RSA_PSS_RSAE_SHA256 => logger(IO_DEBUG,"RSA_PSS_RSAE_SHA256\n",0,None),
-        RSA_PKCS1_SHA256 => logger(IO_DEBUG,"RSA_PKCS1_SHA256\n",0,None),
-        ECDSA_SECP384R1_SHA384 => logger(IO_DEBUG,"ECDSA_SECP384R1_SHA384\n",0,None),
-        RSA_PSS_RSAE_SHA384 => logger(IO_DEBUG,"RSA_PSS_RSAE_SHA384\n",0,None),
-        RSA_PKCS1_SHA384 => logger(IO_DEBUG,"RSA_PKCS1_SHA384\n",0,None),
-        RSA_PSS_RSAE_SHA512 => logger(IO_DEBUG,"RSA_PSS_RSAE_SHA512\n",0,None),
-        RSA_PKCS1_SHA512 => logger(IO_DEBUG,"RSA_PKCS1_SHA512\n",0,None),
-        _ => logger(IO_DEBUG,"Non-standard\n",0,None)
+        ECDSA_SECP256R1_SHA256 => log(IO_DEBUG,"ECDSA_SECP256R1_SHA256\n",0,None),
+        RSA_PSS_RSAE_SHA256 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA256\n",0,None),
+        RSA_PKCS1_SHA256 => log(IO_DEBUG,"RSA_PKCS1_SHA256\n",0,None),
+        ECDSA_SECP384R1_SHA384 => log(IO_DEBUG,"ECDSA_SECP384R1_SHA384\n",0,None),
+        RSA_PSS_RSAE_SHA384 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA384\n",0,None),
+        RSA_PKCS1_SHA384 => log(IO_DEBUG,"RSA_PKCS1_SHA384\n",0,None),
+        RSA_PSS_RSAE_SHA512 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA512\n",0,None),
+        RSA_PKCS1_SHA512 => log(IO_DEBUG,"RSA_PKCS1_SHA512\n",0,None),
+        _ => log(IO_DEBUG,"Non-standard\n",0,None)
     }     
 }
 
 pub fn log_key_exchange(kex: u16) {
-    logger(IO_DEBUG,"Key Exchange Group is ",0,None);
+    log(IO_DEBUG,"Key Exchange Group is ",0,None);
     match kex {
-        X25519 => logger(IO_DEBUG,"x25519\n",0,None),
-        SECP256R1 => logger(IO_DEBUG,"secp256r1\n",0,None),
-        SECP384R1 => logger(IO_DEBUG,"secp384r1\n",0,None),
-        _  => logger(IO_DEBUG,"Non-standard\n",0,None)
+        X25519 => log(IO_DEBUG,"x25519\n",0,None),
+        SECP256R1 => log(IO_DEBUG,"secp256r1\n",0,None),
+        SECP384R1 => log(IO_DEBUG,"secp384r1\n",0,None),
+        _  => log(IO_DEBUG,"Non-standard\n",0,None)
     }
 }
 
 pub fn log_server_hello(cipher_suite: u16,kex: u16,pskid: isize,pk: &[u8],ck: &[u8]) {
-    logger(IO_DEBUG,"Parsing Server Hello\n",0,None);
+    log(IO_DEBUG,"Parsing Server Hello\n",0,None);
     log_cipher_suite(cipher_suite);
     log_key_exchange(kex);
     if pskid>=0 {
-        logger(IO_DEBUG,"PSK identity= ",pskid,None);
+        log(IO_DEBUG,"PSK identity= ",pskid,None);
     }
     if pk.len()>0 {
-        logger(IO_DEBUG,"Server Public Key= ",0,Some(&pk));
+        log(IO_DEBUG,"Server Public Key= ",0,Some(&pk));
     }
     if ck.len()>0 {
-       logger(IO_DEBUG,"Cookie= ",0,Some(&ck));
+       log(IO_DEBUG,"Cookie= ",0,Some(&ck));
     }
 }
 
 pub fn log_ticket(t: &TICKET) {
-    let htype=sal::hash_type(t.cipher_suite);
-    let hlen=sal::hash_len(htype);
-    logger(IO_DEBUG,"\nParsing Ticket\n",0,None);
-    logger(IO_DEBUG,"Ticket = ",0,Some(&t.tick[0..t.tklen])); 
+    log(IO_DEBUG,"\nParsing Ticket\n",0,None);
+    log(IO_DEBUG,"Ticket = ",0,Some(&t.tick[0..t.tklen])); 
     let minutes=t.lifetime/60;
-    logger(IO_DEBUG,"life time in minutes = ",minutes as isize,None);
-    logger(IO_DEBUG,"Pre-Shared Key = ",0,Some(&t.psk[0..t.psklen])); 
-    logger(IO_DEBUG,"max_early_data = ",t.max_early_data as isize,None);
-    logger(IO_DEBUG,"\n",0,None);
+    log(IO_DEBUG,"life time in minutes = ",minutes as isize,None);
+    log(IO_DEBUG,"Pre-Shared Key = ",0,Some(&t.psk[0..t.psklen])); 
+    log(IO_DEBUG,"max_early_data = ",t.max_early_data as isize,None);
+    log(IO_DEBUG,"\n",0,None);
 }
 
 pub fn log_enc_ext(expected: &EESTATUS,response: &EESTATUS) {
     if expected.early_data {
         if response.early_data {
-            logger(IO_PROTOCOL,"Early Data Accepted\n",0,None);
+            log(IO_PROTOCOL,"Early Data Accepted\n",0,None);
         } else {
-            logger(IO_PROTOCOL,"Early Data NOT accepted\n",0,None);
+            log(IO_PROTOCOL,"Early Data NOT accepted\n",0,None);
         }
     }
 
     if expected.alpn {
         if response.alpn {
-            logger(IO_DEBUG,"ALPN extension acknowledged by server\n",0,None);
+            log(IO_DEBUG,"ALPN extension acknowledged by server\n",0,None);
         } else {
-            logger(IO_DEBUG,"Warning - ALPN extension NOT acknowledged\n",0,None);
+            log(IO_DEBUG,"Warning - ALPN extension NOT acknowledged\n",0,None);
         }
     }
     if expected.server_name {
         if response.server_name {
-            logger(IO_DEBUG,"Server name acknowledged\n",0,None);
+            log(IO_DEBUG,"Server name acknowledged\n",0,None);
         } else {
-            logger(IO_DEBUG,"Server name NOT acknowledged\n",0,None);
+            log(IO_DEBUG,"Server name NOT acknowledged\n",0,None);
         }
     }
     if expected.max_frag_len {
        if response.max_frag_len {
-            logger(IO_DEBUG,"Max frag length request acknowledged\n",0,None);
+            log(IO_DEBUG,"Max frag length request acknowledged\n",0,None);
         } else {
-            logger(IO_DEBUG,"Max frag length request NOT acknowledged\n",0,None);
+            log(IO_DEBUG,"Max frag length request NOT acknowledged\n",0,None);
         }
     }
 }
@@ -135,78 +132,78 @@ pub fn log_enc_ext(expected: &EESTATUS,response: &EESTATUS) {
 // log certificate details
 pub fn log_cert_details(pubkey: &[u8],pkt: &PKTYPE,sig: &[u8],sgt: &PKTYPE,issuer: &[u8],subject: &[u8])
 {
-    logger(IO_DEBUG,"Parsing Certificate\n",0,None);
-    logger(IO_DEBUG,"Signature on Certificate is ",0,Some(sig)); 
+    log(IO_DEBUG,"Parsing Certificate\n",0,None);
+    log(IO_DEBUG,"Signature on Certificate is ",0,Some(sig)); 
     if sgt.kind==x509::ECC {
-        logger(IO_DEBUG,"ECC signature ",0,None);
+        log(IO_DEBUG,"ECC signature ",0,None);
         if sgt.curve==x509::USE_NIST256 {
-            logger(IO_DEBUG,"Curve is SECP256R1\n",0,None);
+            log(IO_DEBUG,"Curve is SECP256R1\n",0,None);
         }
         if sgt.curve==x509::USE_NIST384 {
-            logger(IO_DEBUG,"Curve is SECP384R1\n",0,None);
+            log(IO_DEBUG,"Curve is SECP384R1\n",0,None);
         }
         if sgt.curve==x509::USE_NIST521 {
-            logger(IO_DEBUG,"Curve is SECP521R1\n",0,None);
+            log(IO_DEBUG,"Curve is SECP521R1\n",0,None);
         }
-        if sgt.hash == x509::H256 {logger(IO_DEBUG,"Hashed with SHA256\n",0,None);}
-        if sgt.hash == x509::H384 {logger(IO_DEBUG,"Hashed with SHA384\n",0,None);}
-        if sgt.hash == x509::H512 {logger(IO_DEBUG,"Hashed with SHA512\n",0,None);}
+        if sgt.hash == x509::H256 {log(IO_DEBUG,"Hashed with SHA256\n",0,None);}
+        if sgt.hash == x509::H384 {log(IO_DEBUG,"Hashed with SHA384\n",0,None);}
+        if sgt.hash == x509::H512 {log(IO_DEBUG,"Hashed with SHA512\n",0,None);}
     }
     if sgt.kind==x509::RSA {
-        logger(IO_DEBUG,"RSA signature of length ",sgt.curve as isize,None);
+        log(IO_DEBUG,"RSA signature of length ",sgt.curve as isize,None);
     }
 
-    logger(IO_DEBUG,"Public key from Certificate is ",0,Some(pubkey)); 
+    log(IO_DEBUG,"Public key from Certificate is ",0,Some(pubkey)); 
     if pkt.kind==x509::ECC {
-        logger(IO_DEBUG,"ECC public key ",0,None);
+        log(IO_DEBUG,"ECC public key ",0,None);
         if pkt.curve==x509::USE_NIST256 {
-            logger(IO_DEBUG,"Curve is SECP256R1\n",0,None);
+            log(IO_DEBUG,"Curve is SECP256R1\n",0,None);
         }
         if pkt.curve==x509::USE_NIST384 {
-            logger(IO_DEBUG,"Curve is SECP384R1\n",0,None);
+            log(IO_DEBUG,"Curve is SECP384R1\n",0,None);
         }
         if pkt.curve==x509::USE_NIST521 {
-            logger(IO_DEBUG,"Curve is SECP521R1\n",0,None);
+            log(IO_DEBUG,"Curve is SECP521R1\n",0,None);
         }
     }
     if pkt.kind==x509::RSA {
-        logger(IO_DEBUG,"Certificate public key is RSA of length ",pkt.curve as isize,None);
+        log(IO_DEBUG,"Certificate public key is RSA of length ",pkt.curve as isize,None);
     }
-    logger(IO_DEBUG,"Issuer is  ",-1,Some(issuer));
-    logger(IO_DEBUG,"Subject is ",-1,Some(subject));
+    log(IO_DEBUG,"Issuer is  ",-1,Some(issuer));
+    log(IO_DEBUG,"Subject is ",-1,Some(subject));
 }
 
 
 pub fn log_alert(detail: u8) {
     match detail {
-        0  => logger(IO_PROTOCOL,"Close notify\n",0,None),
-        10 => logger(IO_PROTOCOL,"Unexpected Message\n",0,None),
-        20 => logger(IO_PROTOCOL,"Bad record mac\n",0,None),
-        22 => logger(IO_PROTOCOL,"Record overflow\n",0,None),
-        40 => logger(IO_PROTOCOL,"Handshake Failure (not TLS1.3?)\n",0,None),
-        42 => logger(IO_PROTOCOL,"Bad Certificate\n",0,None),
-        43 => logger(IO_PROTOCOL,"Unsupported certificate\n",0,None),
-        44 => logger(IO_PROTOCOL,"Certificate revoked\n",0,None),
-        45 => logger(IO_PROTOCOL,"Certificate expired\n",0,None),
-        46 => logger(IO_PROTOCOL,"Certificate unknown\n",0,None),
-        47 => logger(IO_PROTOCOL,"Illegal parameter\n",0,None),
-        48 => logger(IO_PROTOCOL,"Unknown CA\n",0,None),
-        49 => logger(IO_PROTOCOL,"Access denied\n",0,None),
-        50 => logger(IO_PROTOCOL,"Decode error\n",0,None),
-        51 => logger(IO_PROTOCOL,"Decrypt error\n",0,None),
-        70 => logger(IO_PROTOCOL,"Protocol version\n",0,None),
-        71 => logger(IO_PROTOCOL,"Insufficient security\n",0,None),
-        80 => logger(IO_PROTOCOL,"Internal error\n",0,None),
-        86 => logger(IO_PROTOCOL,"Inappropriate fallback\n",0,None),
-        90 => logger(IO_PROTOCOL,"User cancelled\n",0,None),
-        109 => logger(IO_PROTOCOL,"Missing Extension\n",0,None),
-        110 => logger(IO_PROTOCOL,"Unsupported extension\n",0,None),
-        112 => logger(IO_PROTOCOL,"Unrecognized name\n",0,None),
-        113 => logger(IO_PROTOCOL,"Bad certificate status response\n",0,None),
-        115 => logger(IO_PROTOCOL,"Unknown PSK identity\n",0,None),
-        116 => logger(IO_PROTOCOL,"Certificate required\n",0,None),
-        120 => logger(IO_PROTOCOL,"No application protocol\n",0,None),
-        _ => logger(IO_PROTOCOL,"Unrecognized alert\n",0,None)
+        0  => log(IO_PROTOCOL,"Close notify\n",0,None),
+        10 => log(IO_PROTOCOL,"Unexpected Message\n",0,None),
+        20 => log(IO_PROTOCOL,"Bad record mac\n",0,None),
+        22 => log(IO_PROTOCOL,"Record overflow\n",0,None),
+        40 => log(IO_PROTOCOL,"Handshake Failure (not TLS1.3?)\n",0,None),
+        42 => log(IO_PROTOCOL,"Bad Certificate\n",0,None),
+        43 => log(IO_PROTOCOL,"Unsupported certificate\n",0,None),
+        44 => log(IO_PROTOCOL,"Certificate revoked\n",0,None),
+        45 => log(IO_PROTOCOL,"Certificate expired\n",0,None),
+        46 => log(IO_PROTOCOL,"Certificate unknown\n",0,None),
+        47 => log(IO_PROTOCOL,"Illegal parameter\n",0,None),
+        48 => log(IO_PROTOCOL,"Unknown CA\n",0,None),
+        49 => log(IO_PROTOCOL,"Access denied\n",0,None),
+        50 => log(IO_PROTOCOL,"Decode error\n",0,None),
+        51 => log(IO_PROTOCOL,"Decrypt error\n",0,None),
+        70 => log(IO_PROTOCOL,"Protocol version\n",0,None),
+        71 => log(IO_PROTOCOL,"Insufficient security\n",0,None),
+        80 => log(IO_PROTOCOL,"Internal error\n",0,None),
+        86 => log(IO_PROTOCOL,"Inappropriate fallback\n",0,None),
+        90 => log(IO_PROTOCOL,"User cancelled\n",0,None),
+        109 => log(IO_PROTOCOL,"Missing Extension\n",0,None),
+        110 => log(IO_PROTOCOL,"Unsupported extension\n",0,None),
+        112 => log(IO_PROTOCOL,"Unrecognized name\n",0,None),
+        113 => log(IO_PROTOCOL,"Bad certificate status response\n",0,None),
+        115 => log(IO_PROTOCOL,"Unknown PSK identity\n",0,None),
+        116 => log(IO_PROTOCOL,"Certificate required\n",0,None),
+        120 => log(IO_PROTOCOL,"No application protocol\n",0,None),
+        _ => log(IO_PROTOCOL,"Unrecognized alert\n",0,None)
     }
 }
 
@@ -217,23 +214,23 @@ pub fn log_server_response(r: &RET) {
     }
     if rtn<0 {
         match rtn {
-            NOT_TLS1_3 => logger(IO_DEBUG,"Not TLS1.3\n",0,None),
-            BAD_CERT_CHAIN => logger(IO_DEBUG,"Bad Certificate Chain\n",0,None),
-            ID_MISMATCH => logger(IO_DEBUG,"Identity Mismatch\n",0,None),
-            UNRECOGNIZED_EXT => logger(IO_DEBUG,"Unrecognized Extension\n",0,None),
-            BAD_HELLO => logger(IO_DEBUG,"Malformed Hello\n",0,None),
-            WRONG_MESSAGE => logger(IO_DEBUG,"Message received out-of-order\n",0,None),
-            MISSING_REQUEST_CONTEXT => logger(IO_DEBUG,"Missing Request Context\n",0,None),
-            AUTHENTICATION_FAILURE => logger(IO_DEBUG,"Authentication Failure\n",0,None),
-            BAD_RECORD => logger(IO_DEBUG,"Malformed Record received (max size exceeded?)\n",0,None),
-            BAD_TICKET => logger(IO_DEBUG,"Malformed Ticket received\n",0,None),
-            _ => logger(IO_DEBUG,"Unknown Error\n",0,None)
+            NOT_TLS1_3 => log(IO_DEBUG,"Not TLS1.3\n",0,None),
+            BAD_CERT_CHAIN => log(IO_DEBUG,"Bad Certificate Chain\n",0,None),
+            ID_MISMATCH => log(IO_DEBUG,"Identity Mismatch\n",0,None),
+            UNRECOGNIZED_EXT => log(IO_DEBUG,"Unrecognized Extension\n",0,None),
+            BAD_HELLO => log(IO_DEBUG,"Malformed Hello\n",0,None),
+            WRONG_MESSAGE => log(IO_DEBUG,"Message received out-of-order\n",0,None),
+            MISSING_REQUEST_CONTEXT => log(IO_DEBUG,"Missing Request Context\n",0,None),
+            AUTHENTICATION_FAILURE => log(IO_DEBUG,"Authentication Failure\n",0,None),
+            BAD_RECORD => log(IO_DEBUG,"Malformed Record received (max size exceeded?)\n",0,None),
+            BAD_TICKET => log(IO_DEBUG,"Malformed Ticket received\n",0,None),
+            _ => log(IO_DEBUG,"Unknown Error\n",0,None)
         }
     } else {
         match rtn as u8 {
-            TIMED_OUT => logger(IO_DEBUG,"Time Out\n",0,None),
-            ALERT => logger(IO_DEBUG,"Alert received from Server\n",0,None),
-            _ => logger(IO_DEBUG,"Unknown issue\n",0,None)
+            TIMED_OUT => log(IO_DEBUG,"Time Out\n",0,None),
+            ALERT => log(IO_DEBUG,"Alert received from Server\n",0,None),
+            _ => log(IO_DEBUG,"Unknown issue\n",0,None)
         }
     }
 }

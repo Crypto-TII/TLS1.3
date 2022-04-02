@@ -6,6 +6,7 @@ use crate::tls13::x509;
 use crate::tls13::x509::PKTYPE;
 use crate::tls13::sal;
 use crate::tls13::logger;
+use crate::tls13::logger::log;
 use crate::tls13::cacerts;
 use crate::tls13::clientcert;
 
@@ -181,11 +182,11 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,sig: &mut[u8],csgt:
     let sblen=create_full_name(&mut subject,cert,ic);
 
     if !check_cert_not_expired(cert) {
-        logger::logger(IO_DEBUG,"Certificate has expired\n",0,None);
+        log(IO_DEBUG,"Certificate has expired\n",0,None);
         return CERT_OUTOFDATE;
     }
     if sgt.kind==0 {
-        logger::logger(IO_DEBUG,"Unrecognised Signature Type\n",0,None);
+        log(IO_DEBUG,"Unrecognised Signature Type\n",0,None);
         return BAD_CERT_CHAIN;
     }
     let pkt=x509::extract_public_key(cert, pk);
@@ -193,7 +194,7 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,sig: &mut[u8],csgt:
     logger::log_cert_details(&pk[0..pkt.len],&sgt,&sig[0..pkt.len],&pkt,&subject[0..sblen],&issuer[0..islen]);
 
     if pkt.kind==0 {
-        logger::logger(IO_DEBUG,"Unrecognised Public key Type\n",0,None);
+        log(IO_DEBUG,"Unrecognised Public key Type\n",0,None);
         return BAD_CERT_CHAIN;
     }
 
@@ -201,13 +202,13 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,sig: &mut[u8],csgt:
     *cpkt=pkt;
 
     if issuer[0..islen]==subject[0..sblen] {
-        logger::logger(IO_DEBUG,"Self signed Cert\n",0,None);
+        log(IO_DEBUG,"Self signed Cert\n",0,None);
         return SELF_SIGNED_CERT;
     }
 
     if *pislen!=0 { // there was one
         if prev_issuer[0..*pislen] != subject[0..sblen] {
-            logger::logger(IO_DEBUG,"Subject of this certificate is not issuer of prior certificate\n",0,None);       
+            log(IO_DEBUG,"Subject of this certificate is not issuer of prior certificate\n",0,None);       
         }
         return BAD_CERT_CHAIN;
     }
@@ -268,7 +269,7 @@ pub fn check_server_certchain(chain: &[u8],hostname: &[u8],pubkey:&mut [u8],pkle
     let c=x509::find_extension(server_cert,&x509::AN,ic);
     let found=x509::find_alt_name(server_cert,c.index,hostname);
     if !found && hostname!="localhost".as_bytes() {
-        logger::logger(IO_DEBUG,"Hostname not found in certificate\n",0,None);
+        log(IO_DEBUG,"Hostname not found in certificate\n",0,None);
         return BAD_CERT_CHAIN;
     }
 
@@ -291,7 +292,7 @@ pub fn check_server_certchain(chain: &[u8],hostname: &[u8],pubkey:&mut [u8],pkle
     ptr+=len;    // skip certificate extensions
 
     if ptr<=chain.len() {
-        logger::logger(IO_PROTOCOL,"Warning - there are unprocessed Certificates in the Chain\n",0,None);
+        log(IO_PROTOCOL,"Warning - there are unprocessed Certificates in the Chain\n",0,None);
     }
 
 // extract signature
@@ -308,23 +309,23 @@ pub fn check_server_certchain(chain: &[u8],hostname: &[u8],pubkey:&mut [u8],pkle
     }
 
     if !check_cert_sig(&ssgt,&server_cert,&server_sig[0..ssgt.len],&pk[0..ipkt.len]) {
-        logger::logger(IO_DEBUG,"Server Certificate sig is NOT OK\n",0,None);
+        log(IO_DEBUG,"Server Certificate sig is NOT OK\n",0,None);
         return BAD_CERT_CHAIN
     }
-    logger::logger(IO_DEBUG,"Server Certificate sig is OK\n",0,None);
+    log(IO_DEBUG,"Server Certificate sig is OK\n",0,None);
     
     let mut pklen=0;
     if !find_root_ca(&issuer[0..islen],&isgt,&mut pk, &mut pklen) {
-        logger::logger(IO_DEBUG,"Root Certificate not found\n",0,None);
+        log(IO_DEBUG,"Root Certificate not found\n",0,None);
         return BAD_CERT_CHAIN;
     }
-    logger::logger(IO_DEBUG,"\nPublic Key from root cert= ",0,Some(&pk[0..pklen]));
+    log(IO_DEBUG,"\nPublic Key from root cert= ",0,Some(&pk[0..pklen]));
     
     if !check_cert_sig(&isgt,&inter_cert,&inter_sig[0..isgt.len],&pk[0..pklen]) {
-        logger::logger(IO_DEBUG,"Root Certificate sig is NOT OK\n",0,None);
+        log(IO_DEBUG,"Root Certificate sig is NOT OK\n",0,None);
         return BAD_CERT_CHAIN;
     }
-    logger::logger(IO_DEBUG,"Root Certificate sig is OK\n",0,None);
+    log(IO_DEBUG,"Root Certificate sig is OK\n",0,None);
     
     return 0;
 }

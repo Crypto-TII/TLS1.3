@@ -129,10 +129,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define PSKOK 0x00                      /**< Preshared Key only mode */
 #define PSKWECDHE 0x01                  /**< Preshared Key with Diffie-Hellman key exchange mode */
 
-// connection modes
-#define TLS_FULL_HANDSHAKE  1           /**< Do Full Handshake */
-#define TLS_EXTERNAL_PSK  2             /**< Use external Pre-Shared Key */
-#define TLS_TICKET_RESUME  3            /**< Use ticket-based resumption */
+// ticket origin
+#define TLS_FULL_HANDSHAKE  1           /**< Came from Full Handshake */
+#define TLS_EXTERNAL_PSK  2             /**< External Pre-Shared Key */
 
 // TLS versions 
 #define TLS1_0 0x0301                   /**< TLS 1.0 version */
@@ -284,7 +283,7 @@ typedef struct
  * @brief TLS1.3 session state */
 typedef struct 
 {
-    int session_status;     /**< Connection status */
+    int status;             /**< Connection status */
 	int server_max_record;  /**< Server's max record size */
     Socket *sockptr;        /**< Pointer to socket */
     char hostname[TLS_MAX_SERVER_NAME];     /**< Server name for connection */

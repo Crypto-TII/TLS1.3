@@ -99,8 +99,6 @@ static void bad_input()
     printf("Example:- client www.bbc.co.uk\n");
 }
 
-void print_kex(
-
 int main(int argc, char const *argv[])
 {
     char get[256];
