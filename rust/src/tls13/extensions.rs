@@ -1,6 +1,10 @@
+// Build TLS1.3 extensions
+//
+
 use crate::tls13::utils;
 use crate::config;
 
+// create cipher suite bytes for Client Hello
 pub fn cipher_suites(cs: &mut [u8],nsc:usize,ciphers: &[u16]) -> usize {
     let mut ptr=0;
     ptr=utils::append_int(cs,ptr,2*nsc,2);

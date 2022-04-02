@@ -1,5 +1,5 @@
-// TLS1.3 Certificate Processing Code
-
+// TLS1.3 X.509 Certificate Processing Code
+//
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::x509;
@@ -24,6 +24,7 @@ fn create_full_name(fullname: &mut [u8],cert: &[u8],ic: usize) -> usize {
     return ptr;
 }
 
+// just check year of issue
 fn check_cert_not_expired(cert:&[u8]) -> bool {
     let ic=x509::find_validity(cert);
     let c=x509::find_expiry_date(cert,ic);
@@ -35,6 +36,7 @@ fn check_cert_not_expired(cert:&[u8]) -> bool {
     return true;
 }
 
+// base64 decoding
 fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in place
     let mut j=0;
     let mut k=0;
@@ -74,6 +76,7 @@ fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in place
     return k;
 }
 
+// find root CA (if it exists) from database
 fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bool {
     let mut owner:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
     let mut sc:[u8;MAX_ROOT_CERT_SIZE]=[0;MAX_ROOT_CERT_SIZE];
@@ -124,6 +127,7 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return res;
 }
 
+// get client credentials
 pub fn get_client_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
     let mut sc:[u8;MAX_MYCERT_SIZE]=[0;MAX_MYCERT_SIZE];
 // first get certificate chain

@@ -1,4 +1,5 @@
-
+// Generate and process cryptographic keys
+//
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::sal;
@@ -72,12 +73,13 @@ pub fn derive_later_secrets(htype: usize,es: &[u8],h: &[u8], cets: Option<&mut [
     }
 }
 
+// Key and IV for AEAD
 pub struct CRYPTO {
     pub active: bool,
-    pub k: [u8;MAX_KEY], // AEAD cryptographic Key bytes     
-    pub iv: [u8;MAX_IV_SIZE],            // AEAD cryptographic IV bytes 
+    pub k: [u8;MAX_KEY],        // AEAD cryptographic Key bytes     
+    pub iv: [u8;MAX_IV_SIZE],   // AEAD cryptographic IV bytes 
     pub record: usize,          // current record number - to be incremented 
-    pub suite: u16,           // Cipher Suite 
+    pub suite: u16,             // Cipher Suite 
 	pub taglen: usize		    //Tag Length 
 }
 
@@ -169,6 +171,7 @@ impl CRYPTO {
     }  
 }
 
+// create ECDSA signature, needed in ASN.1 form 
 fn parse_in_ecdsa_sig(htype: usize,ccvsig: &mut [u8]) -> usize {
     let mut c:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
     let mut d:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
@@ -213,6 +216,7 @@ fn parse_in_ecdsa_sig(htype: usize,ccvsig: &mut [u8]) -> usize {
     return ptr;
 }
 
+// Create Client Certificate Verifier
 pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut [u8]) -> usize {
     let mut ptr=0;
     let txt="TLS 1.3, client CertificateVerify";
@@ -230,7 +234,7 @@ pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut 
 }
 
 // Convert DER encoded signature to ECDSA signature
-// parse out DER encoded (r,s) ECDSA signature into a single SIG 
+// parse out DER encoded (r,s) ECDSA signature into a single SIG r|s
 fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
     let mut r:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
     let mut s:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
@@ -273,6 +277,7 @@ fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
     return 2*hlen; // length of signature
 }
 
+// Check Server Certificate Verifier - verify signature
 pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk: &[u8]) -> bool {
     let mut scv:[u8;100+MAX_HASH]=[0;100+MAX_HASH];
     let mut ptr=0;
@@ -294,6 +299,7 @@ pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk:
     return sal::tls_signature_verify(sigalg,&scv[0..ptr],&scvsig[0..siglen],certpk);
 }
 
+// Derive verifier
 pub fn derive_verifier_data(htype:usize,cf: &mut [u8],chts: &[u8],h: &[u8]) {
     let mut fk:[u8;MAX_HASH]=[0;MAX_HASH];  
     let info="finished";
@@ -302,6 +308,7 @@ pub fn derive_verifier_data(htype:usize,cf: &mut [u8],chts: &[u8],h: &[u8]) {
     sal::hmac(htype,cf,&fk[0..hlen],h);
 }
 
+// Check verifier
 pub fn check_verifier_data(htype: usize,sf: &[u8],shts: &[u8],h: &mut [u8]) -> bool {
     let mut vd:[u8;MAX_HASH]=[0;MAX_HASH];
     let hlen=sal::hash_len(htype);

@@ -1,5 +1,6 @@
-//extern crate resize_slice;
-extern crate mcore;
+//
+// Main TLS1.3 protocol 
+//
 
 use std::net::{TcpStream};
 use std::io::{Write};
@@ -81,6 +82,7 @@ impl SESSION {
         return r;
     }
 
+// pull bytes into array
     fn parse_bytes_pull(&mut self,e: &mut[u8],ptr: &mut usize) -> RET {
         let mut r=utils::parse_bytes(e,&self.io[0..self.iolen],ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another fragment
@@ -97,6 +99,7 @@ impl SESSION {
         return r;
     }
 
+// pull bytes into input bufer
     fn parse_pull(&mut self,n: usize,ptr:&mut usize) -> RET { // get n bytes into self.io
         let mut r=RET{val:0,err:0};
         while *ptr+n>self.iolen {
@@ -174,6 +177,7 @@ impl SESSION {
         keys::hkdf_expand_label(htype,&mut self.sts[0..hlen],&hs[0..hlen],sh.as_bytes(),Some(h));
     }
 
+// Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
     pub fn derive_application_secrets(&mut self,hs: &[u8],sfh: &[u8],cfh: &[u8],ems: Option<&mut [u8]>) {
         let dr="derived";
         let ch="c ap traffic";
@@ -198,7 +202,8 @@ impl SESSION {
         keys::hkdf_expand_label(htype,&mut self.rms[0..hlen],&ms[0..hlen],rh.as_bytes(),Some(cfh));
     }
 
-    fn recover_psk(&mut self) { // recover Pre-Shared-Key from Resumption Master Secret
+// recover Pre-Shared-Key from Resumption Master Secret
+    fn recover_psk(&mut self) { 
         let rs="resumption";
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
@@ -206,6 +211,7 @@ impl SESSION {
         self.t.psklen=hlen;
     }
 
+// send a message - could/should be broken down into multiple records
     fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>) {
         let mut ptr=0;
         let rbytes=(sal::random_byte()%16) as usize;
@@ -248,6 +254,7 @@ impl SESSION {
         self.sockptr.write(&self.io[0..ptr]).unwrap();
     }   
 
+// Send Client Hello
     pub fn send_client_hello(&mut self,version:usize,ch: &mut [u8],already_agreed: bool,cid: &mut [u8],ext: &[u8],extra: usize,resume: bool) -> usize {
         let mut rn: [u8;32]=[0;32];
         let mut cs: [u8;2+2*MAX_CIPHER_SUITES]=[0;2+2*MAX_CIPHER_SUITES];
@@ -278,6 +285,7 @@ impl SESSION {
         ptr=utils::append_bytes(ch,ptr,&cs[0..clen]);
         ptr=utils::append_int(ch,ptr,cm,2);
         ptr=utils::append_int(ch,ptr,extlen,2);
+
         self.send_message(HSHAKE,version,&ch[0..ptr],Some(&ext));
         return ptr
     }
@@ -292,7 +300,6 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&b[0..ptr],None);
         return ptr;
     }
-
 
 // check for a bad response. If not happy with what received - send alert and close. If alert received from Server, log it and close.
     fn bad_response(&mut self,r: &RET) -> bool {
@@ -314,6 +321,7 @@ impl SESSION {
         return false;
     }
 
+// Send an alert to the Server
     pub fn send_alert(&mut self,kind: u8) {
         let pt: [u8;2]=[0x02,kind];
         self.send_message(ALERT,TLS1_2,&pt[0..2],None);
@@ -321,13 +329,13 @@ impl SESSION {
         logger::log_alert(kind);
     }
 
-
-// send Change Cipher Suite - helps get past middleboxes
+// send Change Cipher Suite - helps get past middleboxes (?)
     pub fn send_cccs(&mut self) {
         let cccs:[u8;6]=[0x14,0x03,0x03,0x00,0x01,0x01];
         self.sockptr.write(&cccs).unwrap();
     }
 
+// Send Early Data
     pub fn send_end_early_data(&mut self) {
         let mut ed:[u8;4]=[0;4];
         let mut ptr=0;
@@ -357,7 +365,7 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],certchain);
     }
 
-// Send Client Cert Verify 
+// Send Client Certificate Verify 
     fn send_client_cert_verify(&mut self, sigalg: u16,ccvsig: &[u8]) { 
         let mut pt:[u8;8]=[0;8];
         let mut ptr=0;
@@ -381,8 +389,11 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(chf));
     }
 
-// build chosen set of extensions, and assert expectations of server responses
+// build chosen set of extensions, and assert expectation of server responses
 // The User may want to change the mix of optional extensions
+// mode=0 - full handshake
+// mode=1 - resumption handshake
+// mode=2 = External PSK handshake
     pub fn build_extensions(&self,ext: &mut [u8],pk: &[u8],expected: &mut EESTATUS,mode: usize) -> usize {
         let psk_mode=PSKWECDHE;
         let tls_version=TLS1_3;
@@ -410,18 +421,20 @@ impl SESSION {
         if SET_RECORD_LIMIT {
             extensions::add_rsl(ext,extlen,CLIENT_MAX_RECORD);
         } else {
-            if mode!=2 {
+            if mode!=2 { // PSK mode has a problem with this (?)
                 extlen=extensions::add_mfl(ext,extlen,MAX_FRAG); expected.max_frag_len=true;
             }
         }
         extlen=extensions::add_padding(ext,extlen,(sal::random_byte()%16) as usize);
-        if mode==0 { // need some signature related extensions for full handshake
+
+        if mode==0 { // need some signature related extensions only for full handshake
             extlen=extensions::add_supported_sigs(ext,extlen,nsa,&sig_algs);
             extlen=extensions::add_supported_sigcerts(ext,extlen,nsac,&sig_alg_certs);            
         }
         return extlen;
     }
 
+// Receive Server Certificate Verifier
     fn get_server_cert_verify(&mut self,scvsig: &mut [u8],siglen: &mut usize,sigalg: &mut u16) -> RET {
         let mut ptr=0;
         let mut r=self.parse_int_pull(3,&mut ptr); if r.err!=0 {return r;}
@@ -435,6 +448,7 @@ impl SESSION {
         return r;
     }
 
+// Receive Certificate Request - the Server wants the client to supply a certificate chain
     fn get_certificate_request(&mut self, nalgs: &mut usize,sigalgs: &mut [u16]) -> RET {
         let mut ptr=0;
         let mut unexp=0;
@@ -833,9 +847,9 @@ impl SESSION {
         r.val=CERTIFICATE as usize;
         return r;
     }
+
 // clean up buffers, kill crypto keys
     pub fn clean(&mut self) {
-// clean up buffers, kill crypto keys
         self.status=DISCONNECTED;
         for i in 0..self.iolen {
             self.io[i]=0;
@@ -849,12 +863,16 @@ impl SESSION {
         self.k_recv.clear();
     }
 
+// clean out IO buffer
     fn clean_io(&mut self) {
         for i in 0..self.iolen {
             self.io[i]=0;
-        }        
+        }  
+        self.iolen=0;
     }
 
+// TLS1.3
+// RESUMPTION handshake. Can optionally start with some early data
     pub fn tls_resume(&mut self,early: Option<&[u8]>) -> usize {
         let mut expected=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
         let mut response=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
@@ -888,7 +906,7 @@ impl SESSION {
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
 
-// extract slices..
+// extract slices.. Depends on cipher suite
         let mut hh: [u8;MAX_HASH]=[0;MAX_HASH]; let hh_s=&mut hh[0..hlen];
         let mut hs: [u8;MAX_HASH]=[0;MAX_HASH]; let hs_s=&mut hs[0..hlen];
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
@@ -953,7 +971,6 @@ impl SESSION {
 
 // create and send Client Hello octad
         let chlen=self.send_client_hello(TLS1_2,&mut ch,true,&mut cid,&ext[0..extlen],extra,false);  
-// extract slices..
 
         self.running_hash(&ch[0..chlen]); 
         self.running_hash(&ext[0..extlen]);
@@ -971,10 +988,9 @@ impl SESSION {
             self.send_cccs();
         }
 
-        keys::derive_later_secrets(htype,es_s,hh_s,Some(cets_s),None);   // Get Client Early Traffic Secret from transcript hash and ES
+        keys::derive_later_secrets(htype,es_s,hh_s,Some(cets_s),None);   // Get Client Later Traffic Secret from transcript hash and ES
         log(IO_DEBUG,"Client Early Traffic Secret= ",0,Some(cets_s)); 
         self.k_send.init(self.cipher_suite,cets_s);
-
 
 // if its allowed, send client message as (encrypted!) early data
         if have_early_data {
@@ -1095,6 +1111,8 @@ impl SESSION {
         return TLS_SUCCESS;
     }
 
+// TLS1.3
+// FULL handshake
     pub fn tls_full(&mut self) -> usize {
         let mut groups:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
         let mut ciphers:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
@@ -1136,7 +1154,7 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
         }
-        // Find cipher-suite chosen by Server
+// Find cipher-suite chosen by Server
         let mut hash_type=0;
         for i in 0..nsc {
             if self.cipher_suite==ciphers[i] {
@@ -1153,7 +1171,7 @@ impl SESSION {
             return TLS_FAILURE;
         }
         logger::log_cipher_suite(self.cipher_suite);
-// extract slices..
+// extract slices.. Depends on cipher suite
         let mut hh: [u8;MAX_HASH]=[0;MAX_HASH]; let hh_s=&mut hh[0..hlen];
         let mut hs: [u8;MAX_HASH]=[0;MAX_HASH]; let hs_s=&mut hs[0..hlen];
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
@@ -1205,6 +1223,7 @@ impl SESSION {
             }
             resumption_required=true;
         }
+// Transcript hash the Hellos 
         self.running_hash(&ch[0..chlen]);
         self.running_hash(&ext[0..extlen]);
         self.running_hash_io();
@@ -1214,14 +1233,20 @@ impl SESSION {
         let ss_s=&mut ss[0..sslen];
         log(IO_DEBUG,"Server Hello= ",0,Some(&self.io[0..self.iolen]));
         logger::log_server_hello(self.cipher_suite,kex,pskid,pk_s,&cookie[0..cklen]);
+
+// Generate Shared secret SS from Client Secret Key and Server's Public Key
         sal::generate_shared_secret(self.favourite_group,csk_s,pk_s,ss_s);
         log(IO_DEBUG,"Shared Secret= ",0,Some(ss_s));
+
+// Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
         self.derive_handshake_secrets(ss_s,es_s,hh_s,hs_s);
         self.create_send_crypto_context();
         self.create_recv_crypto_context();
         log(IO_DEBUG,"Handshake secret= ",0,Some(hs_s));
         log(IO_DEBUG,"Client Handshake Traffic secret= ",0,Some(&self.cts[0..hlen]));
         log(IO_DEBUG,"Server Handshake Traffic secret= ",0,Some(&self.sts[0..hlen]));
+
+// get encrypted extensions
         let mut rtn=self.get_server_encrypted_extensions(&expected,&mut response);
 
         if self.bad_response(&rtn) {
@@ -1238,7 +1263,9 @@ impl SESSION {
         let mut nccsalgs=0;
         let mut csigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut gotacertrequest=false;
-        if rtn.val == CERT_REQUEST as usize {
+
+// Maybe Server is requesting certificate from Client
+        if rtn.val == CERT_REQUEST as usize { 
             gotacertrequest=true;
             rtn=self.get_certificate_request(&mut nccsalgs,&mut csigalgs);
             if self.bad_response(&rtn) {
@@ -1258,6 +1285,11 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
         }
+
+// Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
+// (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
+// on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
+
         let mut spklen=0;
         rtn=self.get_check_server_certificatechain(&mut spk,&mut spklen);
         if self.bad_response(&rtn) {
@@ -1268,6 +1300,8 @@ impl SESSION {
         self.transcript_hash(hh_s);
         log(IO_DEBUG,"Certificate Chain is valid\n",0,None);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(hh_s));  
+
+// get verifier signature
         rtn=self.get_whats_next();
         if self.bad_response(&rtn) {
             self.clean();
@@ -1300,6 +1334,7 @@ impl SESSION {
         }
         log(IO_DEBUG,"Server Cert Verification OK\n",0,None);
 
+// get server finished
         let mut fnlen=0;
         let mut fin:[u8;MAX_HASH]=[0;MAX_HASH];
         rtn=self.get_server_finished(&mut fin,&mut fnlen);
@@ -1320,8 +1355,11 @@ impl SESSION {
             self.send_cccs();
         }
         self.transcript_hash(hh_s);
-        if gotacertrequest {
-            if HAVE_CLIENT_CERT {
+
+// Now its the clients turn to respond
+// Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
+        if gotacertrequest { // Server wants a client certificate
+            if HAVE_CLIENT_CERT { // do I have one?
                 let mut client_key:[u8;MAX_MYCERT_SIZE]=[0;MAX_MYCERT_SIZE];
                 let mut client_certchain:[u8;MAX_MYCERT_SIZE]=[0;MAX_MYCERT_SIZE];
                 let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
@@ -1349,11 +1387,16 @@ impl SESSION {
             }
         }
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]) = ",0,Some(th_s));
+
+// create client verify data
+// .... and send it to Server
         keys::derive_verifier_data(hash_type,chf_s,&self.cts[0..hlen],th_s);
         self.send_client_finish(chf_s);
         log(IO_DEBUG,"Client Verify Data= ",0,Some(chf_s)); 
         self.transcript_hash(fh_s);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]+CF) = ",0,Some(fh_s));
+
+// calculate traffic and application keys from handshake secret and transcript hashes
         self.derive_application_secrets(hs_s,hh_s,fh_s,None);
         self.create_send_crypto_context();
         self.create_recv_crypto_context();
@@ -1430,7 +1473,7 @@ impl SESSION {
                             let start=ptr;
                             r=self.parse_pull(len,&mut ptr);
                             let ticket=&self.io[start..start+len];
-                            let rtn=self.t.create(ticket::millis(),ticket);
+                            let rtn=self.t.create(ticket::millis(),ticket);  // extract into ticket structure T, and keep for later use
                             if rtn==BAD_TICKET {
                                 self.t.valid=false;
                                 log(IO_PROTOCOL,"Got a bad ticket ",0,None);
@@ -1453,7 +1496,7 @@ impl SESSION {
                             let htype=sal::hash_type(self.cipher_suite);
                             let hlen=sal::hash_len(htype);
                             r=self.parse_int_pull(1,&mut ptr); let kur=r.val; if r.err!=0 {return r.err;}
-                            if kur==0 {
+                            if kur==0 {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 log(IO_PROTOCOL,"KEYS UPDATED\n",0,None);
                             }

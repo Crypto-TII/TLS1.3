@@ -1,3 +1,5 @@
+// TLS1.3 client example program
+//
 mod tls13;
 mod config;
 
@@ -20,6 +22,7 @@ const MIN_TIME: isize = 1;
 
 extern crate mcore;
 
+// create a test message to send to Server
 fn make_client_message(get: &mut[u8],host: &str) -> usize {
     let mut ptr=0;
     let str1="GET / HTTP/1.1".as_bytes();
@@ -43,6 +46,7 @@ fn make_client_message(get: &mut[u8],host: &str) -> usize {
     return ptr;
 }
 
+// store ticket in cookie
 fn store_ticket(s: &SESSION,fname: &str) {
     let mut fp = File::create(fname).unwrap(); //expect("Unable to create file for ticket");
     for i in 0..s.hlen {
@@ -70,6 +74,7 @@ fn store_ticket(s: &SESSION,fname: &str) {
     writeln!(&mut fp,"{:016X}",s.t.origin).unwrap();
 }
 
+// retrieve ticket from cookie
 fn recover_ticket(s: &mut SESSION,fname: &str) -> bool {
     match File::open(fname) {
         Ok(file) => {
@@ -185,6 +190,7 @@ fn name_signature(sigalg: u16) {
     }
 }
 
+// delete ticket
 fn remove_ticket() {       
     match fs::remove_file("cookie.txt") {
         Ok(_) => return,
@@ -358,31 +364,10 @@ fn main() {
                 store_ticket(&session,"cookie.txt");
             }
             session.clean();
-/*
-            let r=session.tls_full();
-            if r!=TLS_FAILURE {
-                session.send(&get[0..gtlen]);
-                let mut rplen=0;
-                session.recv(&mut resp,&mut rplen);
-                log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
-            }
-
-            store_ticket(&session,"cookie.txt");
-            session.t.clear();
-            recover_ticket(&mut session,"cookie.txt"); */
         },
         Err(_e) => {
             log(IO_PROTOCOL,"Failed to connect\n",0,None);
         } 
     } 
-
- // Read the file line by line using the lines() iterator from std::io::BufRead.
-    
- //   for (index, line) in reader.lines().enumerate() {
- //       let line = line.unwrap(); // Ignore errors.
- //       // Show the line and its number.
- //       println!("{}. {}", index + 1, line);
- //   }
-
 }
 

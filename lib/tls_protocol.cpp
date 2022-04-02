@@ -314,10 +314,6 @@ static int TLS13_full(TLS_session *session)
     log(IO_DEBUG,(char *)"Server handshake key= ",NULL,0,&(session->K_recv.K));
     log(IO_DEBUG,(char *)"Server handshake iv= ",NULL,0,&(session->K_recv.IV));
 
-// Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
-// (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
-// on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
-
 // 1. get encrypted extensions
     rtn=getServerEncryptedExtensions(session,&enc_ext_expt,&enc_ext_resp);   
 //
@@ -375,6 +371,10 @@ static int TLS13_full(TLS_session *session)
         TLS13_clean(session);
         return TLS_FAILURE;
     }
+
+// Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
+// (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
+// on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
     rtn=getCheckServerCertificateChain(session,&SPK);
 //
 //

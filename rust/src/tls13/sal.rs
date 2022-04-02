@@ -30,6 +30,7 @@ pub fn name() -> &'static str {
     return "MIRACL Core";
 }
 
+// initialize SAL
 pub fn init() -> bool {
     let mut raw: [u8; 100] = [0; 100];
 
@@ -45,6 +46,7 @@ pub fn init() -> bool {
     } 
 }
 
+// return a random byte
 pub fn random_byte() -> u8{
     unsafe {
 	    return CSPRNG.getbyte();
@@ -96,6 +98,7 @@ pub fn shared_secret_size(group: u16) -> usize {
     return 0;
 }
 
+// provide list of supported cipher suites
 pub fn ciphers(ciphers: &mut [u16]) -> usize {
     let n=2;
     ciphers[0]=config::AES_128_GCM_SHA256;
@@ -103,6 +106,7 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
     return n;
 }
 
+// provide list of supported key exchange groups
 pub fn groups(groups: &mut [u16]) -> usize {
     let n=3;
     groups[0]=config::X25519;
@@ -111,6 +115,7 @@ pub fn groups(groups: &mut [u16]) -> usize {
     return n;
 }
 
+// provide list of supported signature algorithms (for TLS)
 pub fn sigs(sig_algs: &mut [u16]) -> usize {
     let n=3;
     sig_algs[0]=config::ECDSA_SECP256R1_SHA256;
@@ -119,6 +124,7 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
     return n;
 }
 
+// provide list of supported signature algorithms (for Certificates)
 pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
     let n=5;
     sig_algs_cert[0]=config::ECDSA_SECP256R1_SHA256;
@@ -161,6 +167,7 @@ pub fn hash_len(hash_type: usize) -> usize {
     return hlen;
 }
 
+// get AEAD parameters
 pub fn aead_key_len(cipher_suite:u16) -> usize {
     let mut klen=0;
     if cipher_suite==config::AES_128_GCM_SHA256 {
@@ -189,6 +196,7 @@ pub fn aead_tag_len(cipher_suite:u16) -> usize {
     return tlen;
 }
 
+// Key derivation function
 pub fn hkdf_expand(htype:usize, okm: &mut [u8],prk: &[u8], info: &[u8])
 {
     let hlen=hash_len(htype);
@@ -208,7 +216,7 @@ pub fn hmac(htype: usize,t: &mut [u8],k: &[u8],m: &[u8]) {
     hmac::hmac1(hmac::MC_SHA2,hlen,t,hlen,k,m);
 }
 
-// HASH of NULL
+// Hash of NULL
 pub fn hash_null(htype: usize,h: &mut [u8]) -> usize
 {
     let hlen=hash_len(htype);
@@ -319,6 +327,7 @@ pub fn aead_decrypt(recv: &keys::CRYPTO,hdr: &[u8],ct: &mut [u8],tag: &[u8]) -> 
     return true;
 }
 
+// generate private/public key pair
 pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
     if group==config::X25519 {
         use mcore::c25519::ecdh;
@@ -433,6 +442,7 @@ fn rsa_4096_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) ->
     return false;
 }
 
+// RSA PSS signature verification
 pub fn rsa_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     if pubkey.len()==256 {
         return rsa_2048_pss_rsae_verify(hlen,mess,sig,pubkey);
@@ -443,6 +453,7 @@ pub fn rsa_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) -> 
     return false;
 }
 
+// NIST secp256r1 curve signature verification
 pub fn secp256r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::nist256::ecdh;
     let mut res=ecdh::public_key_validate(pubkey);
@@ -457,6 +468,7 @@ pub fn secp256r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) 
     return true;
 }
 
+// NIST secp384r1 curve signature verification
 pub fn secp384r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::nist384::ecdh;
     let mut res=ecdh::public_key_validate(pubkey);
@@ -470,7 +482,6 @@ pub fn secp384r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) 
     }
     return true;
 }
-
 
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
@@ -540,6 +551,7 @@ fn rsa_4096_pss_rsae_sign(hlen: usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> 
     return 512;
 }
 
+// RSA PSS transcript signature using secret key
 pub fn rsa_pss_rsae_sign(hlen:usize,key:&[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     let len=key.len()/5;
     if len==128 {

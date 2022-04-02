@@ -1,5 +1,4 @@
-
-/* X.509 Functions */
+// X.509 Functions 
 
 pub struct PKTYPE {
     pub kind: usize,
@@ -29,8 +28,8 @@ pub const H512:usize = 4;
 
 pub const USE_NIST256:usize = 4;    /**< For the NIST 256-bit standard curve - WEIERSTRASS only */
 pub const USE_C25519:usize = 1;     /**< Bernstein's Modulus 2^255-19 - EDWARDS or MONTGOMERY only */
-//const USE_BRAINPOOL:usize = 2;  /**< For Brainpool 256-bit curve - WEIERSTRASS only */
-//const USE_ANSSI:usize = 3;      /**< For French 256-bit standard curve - WEIERSTRASS only */
+//const USE_BRAINPOOL:usize = 2;    /**< For Brainpool 256-bit curve - WEIERSTRASS only */
+//const USE_ANSSI:usize = 3;        /**< For French 256-bit standard curve - WEIERSTRASS only */
 pub const USE_NIST384:usize = 10;   /**< For the NIST 384-bit standard curve - WEIERSTRASS only */
 pub const USE_NIST521:usize = 12;   /**< For the NIST 521-bit standard curve - WEIERSTRASS only */
 
@@ -369,12 +368,10 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
     return ret;
 }
 
-
 //  Input signed cert as octet, and extract signature
 //  Return 0 for failure, ECC for Elliptic Curve signature, RSA for RSA signature
 //  Note that signature type is not provided here - its the type of the public key that
 //  is used to verify it that matters, and which determines for example the curve to be used!
-
 pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
     let mut soid:[u8;9]=[0;9];
     let mut ret=PKTYPE::new();

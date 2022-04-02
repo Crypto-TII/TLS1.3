@@ -1,4 +1,5 @@
-
+// Utility functions
+//
 use crate::config;
 
 pub struct RET {
@@ -73,6 +74,7 @@ pub fn decode_hex(x: &mut[u8],s: &str) -> usize {
     return i;
 }
 
+// decode hex bytes into unsigned number
 pub fn decode_hex_num(s: &str) -> usize {
     let mut buf:[u8;16]=[0;16];
     let len=decode_hex(&mut buf,s);
@@ -90,6 +92,7 @@ pub fn printbinary(array: &[u8]) {
     print!("")
 }
 
+// functions to create byte stream in buffer, from bytes and integers
 pub fn append_byte(buf: &mut [u8],ptr: usize, b: u8, rep:usize) -> usize {
     for i in 0..rep { 
         buf[ptr+i]=b;
@@ -115,6 +118,7 @@ pub fn append_int(buf: &mut [u8],ptr: usize, int: usize, len:usize) -> usize {
     return ptr+len;
 }
 
+// shift a buffer left - used to empty input buffer as it is processed
 pub fn shift_left(buf: &mut [u8],n: usize) -> usize { // return new length
     let mut blen=buf.len();
     if n>=blen {

@@ -1,3 +1,5 @@
+// Process resumption tickets
+//
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config::*;
@@ -27,26 +29,8 @@ pub struct TICKET {
     pub origin: usize                    // Origin of initial handshake - Full or PSK? 
 } 
 
+// ticket structure
 impl TICKET {
-/*
-    pub fn new() -> TICKET {
-        TICKET {
-            valid: false,
-            tick: [0;MAX_TICKET_SIZE],
-            nonce: [0;MAX_KEY],
-            psk : [0;MAX_HASH],
-            tklen: 0,
-            nnlen: 0,
-            age_obfuscator: 0,
-            max_early_data: 0,
-            birth: 0,
-            lifetime: 0,
-            cipher_suite: 0,
-            favourite_group: 0,
-            origin: 0
-        }
-    }
-*/
     pub fn clear(&mut self) {
         self.valid=false;
         self.tklen=0;
@@ -70,6 +54,7 @@ impl TICKET {
         }
     }
 
+// create ticket structure from byte stream
     pub fn create(&mut self,birth: usize,tickdata: &[u8]) -> isize {
         if tickdata.len() == 0 {
             return BAD_TICKET;
@@ -112,6 +97,7 @@ impl TICKET {
         return 0;
     }
 
+// check if ticket is likely to work
     pub fn still_good(&self) -> bool {
         if self.origin==EXTERNAL_PSK {
             return true;
