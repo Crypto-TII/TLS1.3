@@ -587,6 +587,7 @@ pub fn extract_cert_ptr(sc: &[u8],ptr: &mut usize) -> usize {
 }
 
 // Extract certificate from signed cert
+#[allow(dead_code)]
 pub fn extract_cert(sc: &[u8],cert: &mut [u8]) -> usize {
     let mut j:usize=0;
 
@@ -839,6 +840,7 @@ pub fn find_subject(c: &[u8]) -> usize {
     return j;
 }
 
+#[allow(dead_code)]
 pub fn self_signed(c: &[u8]) -> bool {
     let mut ksub=find_subject(c);
     let mut kiss=find_issuer(c);
@@ -915,6 +917,7 @@ pub fn find_entity_property(c: &[u8],soid: &[u8],start: usize) -> FDTYPE {
     return ret;
 }
 
+#[allow(dead_code)]
 pub fn find_start_date(c: &[u8],start: usize) -> usize {
     let mut j=start;
     let mut len=getalen(SEQ,c,j);

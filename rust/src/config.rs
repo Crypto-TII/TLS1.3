@@ -12,7 +12,6 @@ pub const CHACHA20_POLY1305_SHA256: u16 = 0x1303; // CHACHA20/SHA256/POLY1305 ci
 //pub const AES_128_CCM_SHA256: u16 = 0x1304;       // AES/SHA256/CCM cipher suite - optional 
 //pub const AES_128_CCM_8_SHA256: u16 = 0x1305;     // AES/SHA256/CCM 8 cipher suite - optional 
 
-
 // Signature algorithms for TLS1.3 and Certs that we can handle 
 pub const ECDSA_SECP256R1_SHA256: u16 = 0x0403;   // Supported ECDSA Signature algorithm 
 pub const ECDSA_SECP384R1_SHA384: u16 = 0x0503;   // Supported ECDSA Signature algorithm 
@@ -36,9 +35,7 @@ pub const MAX_CIPHER_FRAG: usize = 16384+256;       // Max Ciphertext Fragment s
 
 pub const MAX_X509_FIELD:usize = 256;               // Maximum X.509 field size 
 pub const MAX_ROOT_CERT_SIZE:usize = 2048;          // I checked - current max for root CAs is 2016 
-//pub const MAX_ROOT_CERT_B64:usize = 2800;           // In base64 - current max for root CAs is 2688 
 pub const MAX_MYCERT_SIZE:usize = 2048;             // Max client private key/cert 
-//pub const MAX_MYCERT_B64:usize = 2800;              // In base64 - Max client private key/cert 
 pub const MAX_CLIENT_HELLO: usize = 256;
 pub const MAX_SECRET_KEY: usize = 64;
 pub const MAX_PUBLIC_KEY: usize = 136;
@@ -104,7 +101,7 @@ pub const APP_PROTOCOL:usize = 0x0010;            // Application Layer Protocol 
 pub const RECORD_SIZE_LIMIT:usize = 0x001c;       // Record Size Limit 
 
 // pre-shared Key (PSK) modes 
-pub const PSKOK:usize = 0x00;                     // Preshared Key only mode 
+//pub const PSKOK:usize = 0x00;                     // Preshared Key only mode 
 pub const PSKWECDHE:usize = 0x01;                 // Preshared Key with Diffie-Hellman key exchange mode 
 
 // Causes of server error - which should generate a client alert 
@@ -148,7 +145,7 @@ pub const BAD_CERTIFICATE: u8 =  0x2A;            // Bad certificate alert
 pub const UNSUPPORTED_EXTENSION: u8 =  0x6E;      // Unsupported extension alert 
 pub const UNKNOWN_CA: u8 =  0x30;                 // Unrecognised Certificate Authority 
 pub const CERTIFICATE_EXPIRED: u8 =  0x2D;        // Certificate Expired 
-pub const PROTOCOL_VERSION: u8 =  0x46;           // Wrong TLS version 
+//pub const PROTOCOL_VERSION: u8 =  0x46;           // Wrong TLS version 
 pub const DECODE_ERROR: u8 =  0x32;               // Decode error alert 
 pub const RECORD_OVERFLOW: u8 =  0x16;            // Record Overflow 
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
@@ -158,14 +155,9 @@ pub struct UNIHASH {
     pub htype: usize
 }
 
-pub const TLS_PROTOCOL: bool=true;       // ALPN 
-pub const SET_RECORD_LIMIT: bool=false;  // Max record size
-
-pub const LOG_OUTPUT_TRUNCATION: usize= 256;       /**< Output Hex digits before truncation */
-
 // logging
 pub const IO_NONE:usize= 0;           // Run silently 
-pub const IO_ERROR:usize= 1;          // Report only errors
+//pub const IO_ERROR:usize= 1;          // Report only errors
 pub const IO_APPLICATION:usize= 2;    // Report application traffic + errors 
 pub const IO_PROTOCOL:usize= 3;       // Report protocol progress + application traffic 
 pub const IO_DEBUG:usize= 4;          // print lots of debug information + protocol progress + application progress 
@@ -207,9 +199,13 @@ pub const TLS_SUCCESS:usize = 1;
 pub const TLS_RESUMPTION_REQUIRED:usize = 2;
 pub const TLS_EARLY_DATA_ACCEPTED:usize = 3;
 
+pub const SET_RECORD_LIMIT: bool=false;  // Max record size (non-standard?) extension
+pub const LOG_OUTPUT_TRUNCATION: usize= 256;       /**< Output Hex digits before truncation */
 
-// User controls
+// User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true; // allow self-signed server certs
 pub const HAVE_CLIENT_CERT:bool= false; // client-side authentication
 pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates 
+pub const TLS_PROTOCOL: bool=true;       // ALPN extension
+pub const APPLICATION_PROTOCOL:&str="http/1.1";

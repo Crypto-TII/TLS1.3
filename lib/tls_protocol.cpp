@@ -4,8 +4,6 @@
 
 #include "tls_protocol.h"
 
-static const char *http= (const char *)"687474702f312e31"; // http/1.1
-
 // Initialise TLS 1.3 session state
 TLS_session TLS13_start(Socket *sockptr,char *hostname)
 {
@@ -37,10 +35,13 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
     OCT_kill(&CSK); OCT_kill(&PK); OCT_kill(&SS); OCT_kill(&CH); OCT_kill(&EXT);  OCT_kill(&SPK); \
     OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&HH); OCT_kill(&FH); OCT_kill(&TH); \
     OCT_kill(&CID); OCT_kill(&COOK); OCT_kill(&SCVSIG); OCT_kill(&FIN); OCT_kill(&CHF); \
-    OCT_kill(&CETS); OCT_kill(&ALPN);
+    OCT_kill(&CETS);
 
-// build chosen set of extensions, and assert expectations of server responses
+// build client's chosen set of extensions, and assert expectations of server responses
 // The User may want to change the mix of optional extensions
+// mode=0 - full handshake
+// mode=1 - resumption handshake
+// mode=2 = External PSK handshake
 static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status *expectations,int mode)
 {
 	int groups[TLS_MAX_SUPPORTED_GROUPS];
@@ -49,33 +50,29 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 	int nsa=SAL_sigs(sigAlgs);
 	int sigAlgsCert[TLS_MAX_SUPPORTED_SIGS];
 	int nsac=SAL_sigCerts(sigAlgsCert);
-    char alpn[8];
+    char alpn[20];
     octad ALPN={0,sizeof(alpn),alpn};         // ALPN
     int tlsVersion=TLS1_3;
     int pskMode=PSKWECDHE;
-#ifdef TLS_PROTOCOL
-#if TLS_PROTOCOL == TLS_HTTP_PROTOCOL
-    OCT_from_hex(&ALPN,(char *)http);
+#ifdef TLS_APPLICATION_PROTOCOL
+    OCT_append_string(&ALPN,(char *)TLS_APPLICATION_PROTOCOL);
 #endif
-#endif
-
 	if (mode!=0)
 	{  // resumption
 		nsg=1;
 		groups[0]=session->favourite_group; // Only allow the group already agreed
 	}
-
 	OCT_kill(EXT);
 	addServerNameExt(EXT,session->hostname); expectations->server_name=true;  // Server Name extension - acknowledgement is expected
 	addSupportedGroupsExt(EXT,nsg,groups);
 	addKeyShareExt(EXT,session->favourite_group,PK); // only sending one public key
-#ifdef TLS_PROTOCOL
+#ifdef TLS_APPLICATION_PROTOCOL
 	addALPNExt(EXT,&ALPN); expectations->alpn=true; // only supporting one application protocol
 #endif
 	addPSKModesExt(EXT,pskMode);
 	addVersionExt(EXT,tlsVersion);
 #ifdef CLIENT_MAX_RECORD
-	addRSLExt(EXT,CLIENT_MAX_RECORD);                     // demand a fragment size limit
+	addRSLExt(EXT,CLIENT_MAX_RECORD);               // demand a fragment size limit
 #else
 	if (mode!=2)
 	{
@@ -144,8 +141,6 @@ static int TLS13_full(TLS_session *session)
     octad CHF={0,sizeof(chf),chf};                    // client verify
     char cets[TLS_MAX_HASH];           
     octad CETS={0,sizeof(cets),cets};   // Early traffic secret
-    char alpn[8];
-    octad ALPN={0,sizeof(alpn),alpn};         // ALPN
 
     log(IO_PROTOCOL,(char *)"Attempting Full Handshake\n",NULL,0,NULL);
 
@@ -156,12 +151,6 @@ static int TLS13_full(TLS_session *session)
     octad CLIENT_CERTCHAIN={0,sizeof(client_cert),client_cert};   // Early traffic secret
     char ccvsig[TLS_MAX_SIGNATURE_SIZE];
     octad CCVSIG={0,sizeof(ccvsig),ccvsig};           // Client's digital signature on transcript
-#endif
-
-#ifdef TLS_PROTOCOL
-#if TLS_PROTOCOL == TLS_HTTP_PROTOCOL
-    OCT_from_hex(&ALPN,(char *)http);
-#endif
 #endif
 
     ee_status enc_ext_resp={false,false,false,false};  // encrypted extensions expectations
@@ -536,7 +525,7 @@ static int TLS13_full(TLS_session *session)
     OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&SS); OCT_kill(&CSK); OCT_kill(&PK); \
     OCT_kill(&CH); OCT_kill(&EXT); OCT_kill(&HH); OCT_kill(&FH); OCT_kill(&TH); \
     OCT_kill(&FIN); OCT_kill(&CHF); OCT_kill(&CETS); OCT_kill(&CID); OCT_kill(&COOK); \
-    OCT_kill(&BND); OCT_kill(&BL); OCT_kill(&PSK); OCT_kill(&BK); OCT_kill(&ALPN);
+    OCT_kill(&BND); OCT_kill(&BL); OCT_kill(&PSK); OCT_kill(&BK);
 
 // TLS1.3 fast resumption handshake (0RTT and 1RTT)
 // EARLY - First message from Client to Server (should ideally be sent as early data!)
@@ -582,14 +571,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad PSK={0,sizeof(psk),psk};      // Pre-shared key
     char bk[TLS_MAX_HASH];
     octad BK={0,sizeof(bk),bk};         // Binder key
-    char alpn[8];
-    octad ALPN={0,sizeof(alpn),alpn};         // ALPN
-
-#ifdef TLS_PROTOCOL
-#if TLS_PROTOCOL == TLS_HTTP_PROTOCOL
-    OCT_from_hex(&ALPN,(char *)http);
-#endif
-#endif
 
 // NOTE: MAX_TICKET_SIZE and MAX_EXTENSIONS are increased to support much larger tickets issued when client certificate authentication required
 

@@ -27,8 +27,6 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define IO_DEBUG 3          /**< print lots of debug information + protocol progress + application progress */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application progress + bytes on the wire */
 
-// Supported protocols
-#define TLS_HTTP_PROTOCOL 1  /**< Supported ALPN protocol */
 
 //#ifdef TLS_ARDUINO
 //#define POPULAR_ROOT_CERTS        /**< Define this to limit root CAs to most popular only */
@@ -38,7 +36,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
-#define TLS_PROTOCOL TLS_HTTP_PROTOCOL   /**< Selected application protocol */
+// Supported protocols    
+#define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
 #define ALLOW_SELF_SIGNED		  /**< allow self-signed server cert */
 
 // Note that the IOBUFF is quite large, and therefore maybe better taken from the heap

@@ -389,7 +389,7 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(chf));
     }
 
-// build chosen set of extensions, and assert expectation of server responses
+// build client's chosen set of extensions, and assert expectation of server responses
 // The User may want to change the mix of optional extensions
 // mode=0 - full handshake
 // mode=1 - resumption handshake
@@ -397,8 +397,8 @@ impl SESSION {
     pub fn build_extensions(&self,ext: &mut [u8],pk: &[u8],expected: &mut EESTATUS,mode: usize) -> usize {
         let psk_mode=PSKWECDHE;
         let tls_version=TLS1_3;
-        let http="http/1.1";
-        let alpn=http.as_bytes();
+        let protocol=APPLICATION_PROTOCOL;
+        let alpn=protocol.as_bytes();
         let mut groups:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
         let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut sig_alg_certs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
