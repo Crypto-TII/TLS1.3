@@ -121,8 +121,10 @@ pub const CERT_OUTOFDATE:isize= -14;              // Certificate Expired
 pub const MEM_OVERFLOW:isize= -15;                // Memory Overflow 
 pub const FORBIDDEN_EXTENSION:isize= -16;         // Forbidden Encrypted Extension 
 pub const MAX_EXCEEDED:isize= -17;                // Maximum record size exceeded 
-pub const EMPTY_CERT_CHAIN:isize= -18;            // Empty Certificate Message */
-pub const SELF_SIGNED_CERT:isize= -20;            // Empty Certificate Message */
+pub const EMPTY_CERT_CHAIN:isize= -18;            // Empty Certificate Message 
+pub const SELF_SIGNED_CERT:isize= -20;            // Self-signed certificate detected
+pub const TIME_OUT:isize= -21;                    // time out
+pub const ALERT_RECEIVED:isize=-22;               // alert received
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -185,6 +187,8 @@ pub fn alert_from_cause(rtn: isize) -> u8
 	    FORBIDDEN_EXTENSION => return ILLEGAL_PARAMETER,
 	    MAX_EXCEEDED => return RECORD_OVERFLOW,
 	    EMPTY_CERT_CHAIN => return DECODE_ERROR,
+        TIME_OUT => return CLOSE_NOTIFY,
+        ALERT_RECEIVED => return CLOSE_NOTIFY,
         _ => return ILLEGAL_PARAMETER   
     }
 }

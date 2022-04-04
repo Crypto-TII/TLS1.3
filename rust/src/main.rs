@@ -309,7 +309,7 @@ fn main() {
             
             log(IO_PROTOCOL,"Successfully connected to server\n",0,None);
             let mut get:[u8;256]=[0;256];
-            let mut resp:[u8;256]=[0;256];
+            let mut resp:[u8;40]=[0;40];
             let gtlen=make_client_message(&mut get,&host);
             let mut session=SESSION::new(stream,&host);
 
@@ -337,6 +337,9 @@ fn main() {
                     have_ticket=false;
                 }
             }
+
+// Make connection and send initial data
+// If resumption is possible it may go as "early data"
             if !session.connect(Some(&mut get[0..gtlen])) {
                 if have_ticket {
                     ticket_failed=true;
@@ -352,12 +355,12 @@ fn main() {
                     return;
                 }
             } 
-            let mut rplen=0;
-            let rtn=session.recv(&mut resp,&mut rplen);
-            log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen]));
-            if rtn<0 {
-                session.send_alert(alert_from_cause(rtn));
-            } else {
+// receive response
+            let rplen=session.recv(&mut resp);
+            if rplen<0 { // error
+                session.send_alert(alert_from_cause(rplen));
+            } else { // data received - clean finish
+                log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
                 session.send_alert(CLOSE_NOTIFY);
             }
             if session.t.valid && !ticket_failed {

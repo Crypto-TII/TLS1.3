@@ -20,21 +20,21 @@ use crate::tls13::ticket::TICKET;
 
 pub struct SESSION {
     status: usize,     // Connection status 
-    server_max_record: usize,  // Server's max record size 
-    pub sockptr: TcpStream,        // Pointer to socket 
-    pub hlen: usize,
-    iolen: usize,
+    server_max_record: usize, // Server's max record size 
+    pub sockptr: TcpStream,   // Pointer to socket 
+    pub hlen: usize,        // hostname length
+    iolen: usize,           // IO buffer length
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
-    cipher_suite: u16,       // agreed cipher suite 
-    favourite_group: u16,    // favourite key exchange group 
-    k_send: keys::CRYPTO,          // Sending Key 
-    k_recv: keys::CRYPTO,          // Receiving Key 
-    rms: [u8;MAX_HASH], // Resumption Master Secret         
-    sts: [u8;MAX_HASH], // Server Traffic secret             
-    cts: [u8;MAX_HASH], // Client Traffic secret                
-    io: [u8;MAX_IO],    // Main IO buffer for this connection 
-    tlshash: UNIHASH,         // Transcript hash recorder 
-    pub t: TICKET                 // resumption ticket    
+    cipher_suite: u16,      // agreed cipher suite 
+    favourite_group: u16,   // favourite key exchange group 
+    k_send: keys::CRYPTO,   // Sending Key 
+    k_recv: keys::CRYPTO,   // Receiving Key 
+    rms: [u8;MAX_HASH],     // Resumption Master Secret         
+    sts: [u8;MAX_HASH],     // Server Traffic secret             
+    cts: [u8;MAX_HASH],     // Client Traffic secret                
+    io: [u8;MAX_IO],        // Main IO buffer for this connection 
+    tlshash: UNIHASH,       // Transcript hash recorder 
+    pub t: TICKET           // resumption ticket    
 }
 
 impl SESSION {
@@ -65,10 +65,10 @@ impl SESSION {
         return this;
     }
  
-// get an int of length len from stream
+// get an integer of length len from stream
     fn parse_int_pull(&mut self,len:usize,ptr: &mut usize) -> RET {
         let mut r=utils::parse_int(&self.io[0..self.iolen],len,ptr); 
-        while r.err !=0 { // not enough bytes in IO - pull in another fragment
+        while r.err !=0 { // not enough bytes in IO - pull in another frecord
             let rtn=self.get_record();  // gets more stuff and increments iolen
             if rtn!=HSHAKE as isize {
                 r.err=rtn;
@@ -85,7 +85,7 @@ impl SESSION {
 // pull bytes into array
     fn parse_bytes_pull(&mut self,e: &mut[u8],ptr: &mut usize) -> RET {
         let mut r=utils::parse_bytes(e,&self.io[0..self.iolen],ptr);
-        while r.err !=0 { // not enough bytes in IO - pull in another fragment
+        while r.err !=0 { // not enough bytes in IO - pull in another record
             let rtn=self.get_record();  // gets more stuff and increments iolen
             if rtn!=HSHAKE as isize {
                 r.err=rtn;
@@ -212,6 +212,8 @@ impl SESSION {
     }
 
 // send a message - could/should be broken down into multiple records
+// message comes in two halves - cm and (optional) ext
+// message is constructed in IO buffer, and finaaly written to the socket
     fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>) {
         let mut ptr=0;
         let rbytes=(sal::random_byte()%16) as usize;
@@ -406,7 +408,7 @@ impl SESSION {
         let nsa=sal::sigs(&mut sig_algs);
         let nsac=sal::sig_certs(&mut sig_alg_certs);
         let mut extlen=0;
-        if mode!=0 {
+        if mode!=0 { // group already agreed
             nsg=1;
             groups[0]=self.favourite_group;
         }
@@ -524,7 +526,8 @@ impl SESSION {
         return r;
     }
 
-// Receive a single record. Could be fragment of a full message. Could be encrypted
+// Receive a single record. Could be fragment of a full message. Could be encrypted.
+// returns +ve type of record, or negative error
     pub fn get_record(&mut self) -> isize {
         let mut rh:[u8;5]=[0;5];
         let mut tag:[u8;MAX_TAG_SIZE]=[0;MAX_TAG_SIZE];
@@ -549,7 +552,7 @@ impl SESSION {
         let left=socket::get_int16(&mut self.sockptr);
         utils::append_int(&mut rh,3,left,2);
         if left+pos>self.io.len() { // this commonly happens with big records of application data from server
-            return MEM_OVERFLOW;   // record is too big - memory overflow
+            return MEM_OVERFLOW;    // record is too big - memory overflow
         }
         if !self.k_recv.is_active() { // not encrypted
             if left>MAX_PLAIN_FRAG {
@@ -971,7 +974,11 @@ impl SESSION {
 
 // create and send Client Hello octad
         let chlen=self.send_client_hello(TLS1_2,&mut ch,true,&mut cid,&ext[0..extlen],extra,false);  
-
+//
+//
+//   ----------------------------------------------------------> client Hello
+//
+//
         self.running_hash(&ch[0..chlen]); 
         self.running_hash(&ext[0..extlen]);
         self.transcript_hash(hh_s); // hh = hash of Truncated clientHello
@@ -997,6 +1004,11 @@ impl SESSION {
             log(IO_APPLICATION,"Sending some early data\n",0,None);
             if let Some(searly) = early {
                 self.send_message(APPLICATION,TLS1_2,searly,None);
+//
+//
+//   ----------------------------------------------------------> (Early Data)
+//
+//
             }
         }
 // Process Server Hello
@@ -1004,7 +1016,11 @@ impl SESSION {
         let mut pskid:isize=-1;
         let mut cklen=0;
         let mut rtn = self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,pk_s,&mut pskid);
-
+//
+//
+//  <---------------------------------------------------------- server Hello
+//
+//
         self.running_hash_io();         // Hashing Server Hello
         self.transcript_hash(hh_s);     // HH = hash of clientHello+serverHello
 
@@ -1050,7 +1066,11 @@ impl SESSION {
         log(IO_DEBUG,"Server handshake traffic secret= ",0,Some(&self.sts[0..hlen]));
 
         rtn=self.get_server_encrypted_extensions(&expected,&mut response);
-
+//
+//
+//  <------------------------------------------------- {Encrypted Extensions}
+//
+//
         if self.bad_response(&rtn) {
             self.clean();
             return TLS_FAILURE;
@@ -1062,6 +1082,11 @@ impl SESSION {
         let mut fnlen=0;
         let mut fin:[u8;MAX_HASH]=[0;MAX_HASH];
         rtn=self.get_server_finished(&mut fin,&mut fnlen);
+//
+//
+//  <------------------------------------------------------ {Server Finished}
+//
+//
         let fin_s=&fin[0..fnlen];
         if self.bad_response(&rtn) {
             self.clean();
@@ -1089,6 +1114,11 @@ impl SESSION {
 
         keys::derive_verifier_data(htype,chf_s,&self.cts[0..hlen],th_s);
         self.send_client_finish(chf_s);
+//
+//
+//  {client Finished} ----------------------------------------------------->
+//
+//
         log(IO_DEBUG,"Server Data is verified\n",0,None);
         log(IO_DEBUG,"Client Verify Data= ",0,Some(chf_s)); 
 
@@ -1144,12 +1174,22 @@ impl SESSION {
         let mut extlen=self.build_extensions(&mut ext,&pk[0..pklen],&mut expected,0);
 // build and transmit client hello
         let mut chlen=self.send_client_hello(TLS1_0,&mut ch,false,&mut cid,&ext[0..extlen],0,false);
+//
+//
+//   ----------------------------------------------------------> client Hello
+//
+//   
         log(IO_DEBUG,"Client Hello sent\n",0,None);
 // process server hello
         let mut kex=0;
         let mut pskid:isize=-1;
         let mut cklen=0;
         let mut rtn = self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,&mut pk[0..pklen],&mut pskid);
+//
+//
+//  <--------------------------------- server Hello (or helloRetryRequest?)
+//
+//
         if self.bad_response(&rtn) {
             self.clean();
             return TLS_FAILURE;
@@ -1207,9 +1247,19 @@ impl SESSION {
             ccs_sent=true;
 // send new client hello
             chlen=self.send_client_hello(TLS1_2,&mut ch,true,&mut cid,&ext[0..extlen],0,true);
+//
+//
+//  ---------------------------------------------------> Resend Client Hello
+//
+//
             log(IO_DEBUG,"Client Hello re-sent\n",0,None);
 // get new server hello
             rtn=self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,&mut pk[0..pklen],&mut pskid);
+//
+//
+//  <---------------------------------------------------------- server Hello
+//
+//
             if self.bad_response(&rtn) {
                 self.clean();
                 return TLS_FAILURE;
@@ -1248,7 +1298,11 @@ impl SESSION {
 
 // get encrypted extensions
         let mut rtn=self.get_server_encrypted_extensions(&expected,&mut response);
-
+//
+//
+//  <------------------------------------------------- {Encrypted Extensions}
+//
+//
         if self.bad_response(&rtn) {
             self.clean();
             return TLS_FAILURE;
@@ -1268,6 +1322,11 @@ impl SESSION {
         if rtn.val == CERT_REQUEST as usize { 
             gotacertrequest=true;
             rtn=self.get_certificate_request(&mut nccsalgs,&mut csigalgs);
+//
+//
+//  <---------------------------------------------------- {Certificate Request}
+//
+//
             if self.bad_response(&rtn) {
                 self.clean();
                 return TLS_FAILURE;
@@ -1292,6 +1351,11 @@ impl SESSION {
 
         let mut spklen=0;
         rtn=self.get_check_server_certificatechain(&mut spk,&mut spklen);
+//
+//
+//  <---------------------------------------------------------- {Certificate}
+//
+//
         if self.bad_response(&rtn) {
             self.clean();
             return TLS_FAILURE;
@@ -1316,6 +1380,11 @@ impl SESSION {
         let mut siglen=0;
         let mut sigalg:u16=0;
         rtn=self.get_server_cert_verify(&mut scvsig,&mut siglen,&mut sigalg);
+//
+//
+//  <---------------------------------------------------- {Certificate Verify}
+//
+//
         if self.bad_response(&rtn) {
             self.clean();
             return TLS_FAILURE;
@@ -1338,6 +1407,11 @@ impl SESSION {
         let mut fnlen=0;
         let mut fin:[u8;MAX_HASH]=[0;MAX_HASH];
         rtn=self.get_server_finished(&mut fin,&mut fnlen);
+//
+//
+//  <------------------------------------------------------ {Server Finished}
+//
+//
         let fin_s=&fin[0..fnlen];
         if self.bad_response(&rtn) {
             self.clean();
@@ -1371,9 +1445,19 @@ impl SESSION {
                     let cc_s=&client_certchain[0..cclen];
                     let ck_s=&client_key[0..cklen];
                     self.send_client_certificate(Some(cc_s));
+//
+//
+//  {client Certificate} ---------------------------------------------------->
+//
+//
                     self.transcript_hash(th_s);
                     let cclen=keys::create_client_cert_verifier(kind,th_s,ck_s,&mut ccvsig);
                     self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
+//
+//
+//  {Certificate Verify} ---------------------------------------------------->
+//
+//
                 } else { // No, I can't - send a null cert
                     self.send_client_certificate(None);
                 }
@@ -1392,6 +1476,11 @@ impl SESSION {
 // .... and send it to Server
         keys::derive_verifier_data(hash_type,chf_s,&self.cts[0..hlen],th_s);
         self.send_client_finish(chf_s);
+//
+//
+//  {client Finished} ----------------------------------------------------->
+//
+//
         log(IO_DEBUG,"Client Verify Data= ",0,Some(chf_s)); 
         self.transcript_hash(fh_s);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]+CF) = ",0,Some(fh_s));
@@ -1444,14 +1533,16 @@ impl SESSION {
         log(IO_APPLICATION,"Sending Application Message \n\n",-1,Some(mess));
         self.send_message(APPLICATION,TLS1_2,mess,None);       
     }
+
 // Process Server records received post-handshake
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
 // For example could include a ticket. Also receiving key K_recv might be updated.
-
-    pub fn recv(&mut self,mess: &mut [u8], mslen: &mut usize) -> isize {
+// returns +ve length of message, or negative error
+    pub fn recv(&mut self,mess: &mut [u8]) -> isize {
         let mut fin=false;
         let mut kind:isize;
+        let mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input \n",0,None);
             let mut ptr=0;
@@ -1462,12 +1553,12 @@ impl SESSION {
             }
             if kind==TIMED_OUT as isize {
                 log(IO_PROTOCOL,"TIME_OUT\n",0,None);
-                return kind;
+                return TIME_OUT;
             }
             if kind==HSHAKE as isize {
                 loop {
-                    let mut r=self.parse_int_pull(1,&mut ptr); let nb=r.val; if r.err!=0 {return r.err;}
-                    r=self.parse_int_pull(3,&mut ptr); let len=r.val; if r.err!=0 {return r.err;}   // message length
+                    let mut r=self.parse_int_pull(1,&mut ptr); let nb=r.val; if r.err!=0 {return BAD_RECORD;}
+                    r=self.parse_int_pull(3,&mut ptr); let len=r.val; if r.err!=0 {return BAD_RECORD;}   // message length
                     match nb as u8 {
                         TICKET => {
                             let start=ptr;
@@ -1495,7 +1586,7 @@ impl SESSION {
                             } 
                             let htype=sal::hash_type(self.cipher_suite);
                             let hlen=sal::hash_len(htype);
-                            r=self.parse_int_pull(1,&mut ptr); let kur=r.val; if r.err!=0 {return r.err;}
+                            r=self.parse_int_pull(1,&mut ptr); let kur=r.val; if r.err!=0 {return BAD_RECORD;}
                             if kur==0 {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 log(IO_PROTOCOL,"KEYS UPDATED\n",0,None);
@@ -1515,21 +1606,25 @@ impl SESSION {
                             fin=true;
                         }
                     }
-                    if r.err!=0 {return r.err;}
+                    if r.err!=0 {return BAD_RECORD;}
                     if fin {break;}
                 }
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
-                for i in 0..40 {
+                let mut n=mess.len();
+                if n>self.iolen {
+                    n=self.iolen;
+                }
+                for i in 0..n {
                     mess[i]=self.io[i];
                 }
-                *mslen=40;
+                mslen=n as isize;
                 break;
             }
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",0,None);
                 logger::log_alert(self.io[1]);
-                return kind;
+                return ALERT_RECEIVED;
             }
         }
         if self.t.valid {
@@ -1538,6 +1633,6 @@ impl SESSION {
         } else {
             log(IO_PROTOCOL,"No ticket provided \n",0,None);
         }
-        return kind; 
+        return mslen; 
     }
 }

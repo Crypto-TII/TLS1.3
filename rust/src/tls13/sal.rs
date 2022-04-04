@@ -303,7 +303,7 @@ pub fn hash_output(h: &config::UNIHASH,o: &mut [u8]) -> usize
 }
 
 pub fn aead_encrypt(send: &keys::CRYPTO,hdr: &[u8],pt: &mut [u8],tag: &mut [u8])
-{ // AEAD encryption AES-GCM
+{ // AEAD encryption assuming AES-GCM (but should check send.k.suite)
     let mut g=GCM::new();
     let klen=aead_key_len(send.suite);
     g.init(klen,&send.k,12,&send.iv);
