@@ -45,16 +45,16 @@ static void nameGroup(int kex)
 {
     switch(kex) {
     case X25519:
-        printf("X25519\n");
+        Serial.println("X25519");
         break;
     case SECP256R1:
-        printf("SECP256R1\n");   
+        Serial.println("SECP256R1");   
         break;
     case SECP384R1:
-        printf("SECP384R1\n");   
+        Serial.println("SECP384R1");   
         break;
     default:
-        printf("Non-standard\n");   
+        Serial.println("Non-standard");   
         break;
     }
 }
@@ -64,16 +64,16 @@ static void nameCipher(int cipher_suite)
     switch (cipher_suite)
     {
     case TLS_AES_128_GCM_SHA256:
-		printf("TLS_AES_128_GCM_SHA256\n");
+		Serial.println("TLS_AES_128_GCM_SHA256");
         break;
     case TLS_AES_256_GCM_SHA384:
-        printf("TLS_AES_256_GCM_SHA384\n");   
+        Serial.println("TLS_AES_256_GCM_SHA384");   
         break;
     case TLS_CHACHA20_POLY1305_SHA256:
-        printf("TLS_CHACHA20_POLY1305_SHA256\n");   
+        Serial.println("TLS_CHACHA20_POLY1305_SHA256");   
         break;
     default:
-        printf("Non-standard\n");   
+        Serial.println("Non-standard");   
         break;
     }
 }
@@ -83,34 +83,34 @@ static void nameSigAlg(int sigAlg)
     switch (sigAlg)
     {
     case ECDSA_SECP256R1_SHA256:
-        printf("ECDSA_SECP256R1_SHA256\n");
+        Serial.println("ECDSA_SECP256R1_SHA256");
         break;
     case RSA_PSS_RSAE_SHA256:
-        printf("RSA_PSS_RSAE_SHA256\n");   
+        Serial.println("RSA_PSS_RSAE_SHA256");   
         break;
     case RSA_PKCS1_SHA256:
-        printf("RSA_PKCS1_SHA256\n");   
+        Serial.println("RSA_PKCS1_SHA256");   
         break;
     case ECDSA_SECP384R1_SHA384:
-        printf("ECDSA_SECP384R1_SHA384\n");
+        Serial.println("ECDSA_SECP384R1_SHA384");
         break;
     case RSA_PSS_RSAE_SHA384:
-        printf("RSA_PSS_RSAE_SHA384\n");   
+        Serial.println("RSA_PSS_RSAE_SHA384");   
         break;
     case RSA_PKCS1_SHA384:
-        printf("RSA_PKCS1_SHA384\n");   
+        Serial.println("RSA_PKCS1_SHA384");   
         break;
     case RSA_PSS_RSAE_SHA512:
-        printf("RSA_PSS_RSAE_SHA512\n");   
+        Serial.println("RSA_PSS_RSAE_SHA512");   
         break;
     case RSA_PKCS1_SHA512:
-        printf("RSA_PKCS1_SHA512\n");   
+        Serial.println("RSA_PKCS1_SHA512");   
         break;
     case ED25519:
-        printf("ED25519\n");   
+        Serial.println("ED25519");   
         break;
     default:
-        printf("Non-standard\n");   
+        Serial.println("Non-standard");   
         break;
     }
 }
