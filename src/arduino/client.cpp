@@ -268,7 +268,7 @@ void loop() {
 // make connection using full handshake...
     if (!client.connect(hostname,port))
     {
-        log((IO_PROTOCOL, *)"Unable to access ",hostname,0,NULL);
+        log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
         while (Serial.available() == 0) {}
         Serial.read(); 
  		return;
