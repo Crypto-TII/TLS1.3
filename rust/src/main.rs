@@ -307,7 +307,7 @@ fn main() {
     match TcpStream::connect(&fullhost) {
         Ok(stream) => {
             
-            log(IO_PROTOCOL,"Successfully connected to server\n",0,None);
+            log(IO_PROTOCOL,"Hostname= ",-1,Some(&host.as_bytes()));
             let mut get:[u8;256]=[0;256];
             let mut resp:[u8;40]=[0;40];
             let gtlen=make_client_message(&mut get,&host);

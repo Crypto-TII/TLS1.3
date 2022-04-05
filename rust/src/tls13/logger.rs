@@ -29,8 +29,8 @@ pub fn log(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
                 if truncated {
                     print!(" (truncated)");
                 }
-                println!();
             }
+            println!();
         }
         if info>0 {
             println!("{}",info);
