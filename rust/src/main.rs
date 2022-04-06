@@ -286,7 +286,7 @@ fn main() {
     }
 
     let mut localhost=false;
-    if args.len()==1 || have_psk {
+    if args[1].as_str()=="localhost" || have_psk {
         localhost=true;
     }
 
