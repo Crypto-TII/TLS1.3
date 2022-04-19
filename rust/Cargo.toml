@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 mcore = { path = "../../rust/mcore" }
 getrandom = "0.2.5"
+zeroize = "1.5.4"

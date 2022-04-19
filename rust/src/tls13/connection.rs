@@ -4,6 +4,9 @@
 
 use std::net::{TcpStream};
 use std::io::{Write};
+
+use zeroize::Zeroize;
+
 use crate::config::*;
 use crate::tls13::sal;
 use crate::tls13::socket;
@@ -68,7 +71,7 @@ impl SESSION {
 // get an integer of length len from stream
     fn parse_int_pull(&mut self,len:usize,ptr: &mut usize) -> RET {
         let mut r=utils::parse_int(&self.io[0..self.iolen],len,ptr); 
-        while r.err !=0 { // not enough bytes in IO - pull in another frecord
+        while r.err !=0 { // not enough bytes in IO - pull in another record
             let rtn=self.get_record();  // gets more stuff and increments iolen
             if rtn!=HSHAKE as isize {
                 r.err=rtn;
@@ -99,7 +102,7 @@ impl SESSION {
         return r;
     }
 
-// pull bytes into input bufer
+// pull bytes into input buffer
     fn parse_pull(&mut self,n: usize,ptr:&mut usize) -> RET { // get n bytes into self.io
         let mut r=RET{val:0,err:0};
         while *ptr+n>self.iolen {
@@ -854,14 +857,10 @@ impl SESSION {
 // clean up buffers, kill crypto keys
     pub fn clean(&mut self) {
         self.status=DISCONNECTED;
-        for i in 0..self.iolen {
-            self.io[i]=0;
-        }
-        for i in 0..MAX_HASH {
-            self.cts[i]=0;
-            self.sts[i]=0;
-            self.rms[i]=0
-        }
+        self.io.zeroize();
+        self.cts.zeroize();
+        self.sts.zeroize();
+        self.rms.zeroize();
         self.k_send.clear();
         self.k_recv.clear();
     }

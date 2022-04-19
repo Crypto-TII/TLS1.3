@@ -1,5 +1,8 @@
 // Generate and process cryptographic keys
 //
+
+use zeroize::Zeroize;
+
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::sal;
@@ -115,12 +118,8 @@ impl CRYPTO {
         self.record=0;
         self.suite=0;
         self.taglen=0;
-        for i in 0..MAX_KEY {
-            self.k[i]=0;
-        }
-        for i in 0..MAX_IV_SIZE {
-            self.iv[i]=0;
-        }
+        self.k.zeroize();
+        self.iv.zeroize();
     }
 
     pub fn is_active(&mut self) -> bool {
