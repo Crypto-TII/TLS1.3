@@ -125,6 +125,7 @@ pub const EMPTY_CERT_CHAIN:isize= -18;            // Empty Certificate Message
 pub const SELF_SIGNED_CERT:isize= -20;            // Self-signed certificate detected
 pub const TIME_OUT:isize= -21;                    // time out
 pub const ALERT_RECEIVED:isize=-22;               // alert received
+pub const BAD_MESSAGE:isize=-23;                        // Badly formed mesage
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -189,6 +190,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
 	    EMPTY_CERT_CHAIN => return DECODE_ERROR,
         TIME_OUT => return CLOSE_NOTIFY,
         ALERT_RECEIVED => return CLOSE_NOTIFY,
+        BAD_MESSAGE => return DECODE_ERROR,
         _ => return ILLEGAL_PARAMETER   
     }
 }

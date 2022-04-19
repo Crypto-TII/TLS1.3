@@ -67,7 +67,7 @@ impl SESSION {
         }
         return this;
     }
- 
+
 // get an integer of length len from stream
     fn parse_int_pull(&mut self,len:usize,ptr: &mut usize) -> RET {
         let mut r=utils::parse_int(&self.io[0..self.iolen],len,ptr); 
@@ -102,7 +102,7 @@ impl SESSION {
         return r;
     }
 
-// pull bytes into input buffer
+// pull bytes into input buffer and advance pointer
     fn parse_pull(&mut self,n: usize,ptr:&mut usize) -> RET { // get n bytes into self.io
         let mut r=RET{val:0,err:0};
         while *ptr+n>self.iolen {
@@ -442,10 +442,16 @@ impl SESSION {
 // Receive Server Certificate Verifier
     fn get_server_cert_verify(&mut self,scvsig: &mut [u8],siglen: &mut usize,sigalg: &mut u16) -> RET {
         let mut ptr=0;
-        let mut r=self.parse_int_pull(3,&mut ptr); if r.err!=0 {return r;}
+        let mut r=self.parse_int_pull(3,&mut ptr); let mut left=r.val; if r.err!=0 {return r;} // pull in record to find messgae length
+
         r=self.parse_int_pull(2,&mut ptr); *sigalg=r.val as u16; if r.err!=0 {return r;}
         r=self.parse_int_pull(2,&mut ptr); let len=r.val; if r.err!=0 {return r;}
         r=self.parse_bytes_pull(&mut scvsig[0..len],&mut ptr); if r.err!=0 {return r;}
+        left-=4+len;
+        if left!=0 {
+            r.err=BAD_MESSAGE;
+            return r;
+        }
         *siglen=len;
         sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
         self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
@@ -457,13 +463,18 @@ impl SESSION {
     fn get_certificate_request(&mut self, nalgs: &mut usize,sigalgs: &mut [u16]) -> RET {
         let mut ptr=0;
         let mut unexp=0;
-        let mut r=self.parse_int_pull(3,&mut ptr); if r.err!=0 {return r;}
+        let mut r=self.parse_int_pull(3,&mut ptr); let mut left=r.val; if r.err!=0 {return r;}
         r=self.parse_int_pull(1,&mut ptr); let nb=r.val; if r.err!=0 {return r;}
         if nb!=0 {
             r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
             return r;
         }
         r=self.parse_int_pull(2,&mut ptr); let mut len=r.val; if r.err!=0 {return r;} // length of extensions
+        left-=3;
+        if left!=len {
+            r.err=BAD_MESSAGE;
+            return r;
+        }
         let mut algs=0;
         while len>0 {
             r=self.parse_int_pull(2,&mut ptr); let ext=r.val; if r.err!=0 {return r;}
@@ -628,7 +639,13 @@ impl SESSION {
         if srn==hrr {
             retry=true;
         }
-        r=self.parse_int_pull(1,&mut ptr); let silen=r.val; if r.err!=0 || silen!=32 {return r;}
+        r=self.parse_int_pull(1,&mut ptr); if r.err!=0 {return r;}
+        let silen=r.val; 
+        if silen!=32 { 
+            r.err=BAD_HELLO;
+            return r;
+        }
+     
         left-=1;
         r=self.parse_bytes_pull(&mut sid[0..silen],&mut ptr); if r.err!=0 {return r;}
         left-=silen;  
@@ -662,14 +679,18 @@ impl SESSION {
         while extlen>0 {
             r=self.parse_int_pull(2,&mut ptr); let ext=r.val; if r.err!=0 {return r;} 
             extlen-=2;
-            r=self.parse_int_pull(2,&mut ptr); let tmplen=r.val; if r.err!=0 {break;} 
+            r=self.parse_int_pull(2,&mut ptr); let tmplen=r.val; if r.err!=0 {return r;} 
             extlen-=2;
             extlen-=tmplen;
             match ext {
                 KEY_SHARE => {
-                    r=self.parse_int_pull(2,&mut ptr); *kex=r.val as u16; if r.err!=0 {break;}
+                    r=self.parse_int_pull(2,&mut ptr); *kex=r.val as u16; if r.err!=0 {return r;}
                     if !retry { // its not a retry request
-                        r=self.parse_int_pull(2,&mut ptr); let pklen=r.val; if r.err!=0 || pklen!=pk.len() {break;}
+                        r=self.parse_int_pull(2,&mut ptr); let pklen=r.val; if r.err!=0 {return r;}
+                        if pklen!=pk.len() {
+                            r.err=BAD_HELLO;
+                            return r;
+                        }
                         r=self.parse_bytes_pull(pk,&mut ptr);
                     }
                 },
@@ -680,7 +701,7 @@ impl SESSION {
                     r=self.parse_bytes_pull(&mut cookie[0..tmplen],&mut ptr); *cklen=tmplen;
                 },
                 TLS_VER => {
-                    r=self.parse_int_pull(2,&mut ptr); let tls=r.val; if r.err!=0 {break;}
+                    r=self.parse_int_pull(2,&mut ptr); let tls=r.val; if r.err!=0 {return r;}
                     if tls!=TLS1_3 {
                         r.err=NOT_TLS1_3;
                     }
@@ -700,6 +721,10 @@ impl SESSION {
         return r;
     }
 
+// Handshake Messages start with TYPE|<- LEN -> where TYPE is a byte, and LEN is 24 bits
+// Here we strip off the TYPE and decide what to do next
+// The whole lot go into the transcript hash
+
 // Find out whats coming next
     pub fn get_whats_next(&mut self) -> RET {
         let mut ptr=0;
@@ -713,7 +738,7 @@ impl SESSION {
         let mut b:[u8;1]=[0;1];
         b[0]=nb;
         sal::hash_process_array(&mut self.tlshash,&b[0..1]);
-        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
+        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr); // strip off first byte
 
         return r;
     }
@@ -732,7 +757,7 @@ impl SESSION {
         if r.err!=0 {return r;}
         let nb=r.val as u8;
 
-        r=self.parse_int_pull(3,&mut ptr); if r.err!=0 {return r;}
+        r=self.parse_int_pull(3,&mut ptr); let mut left=r.val;  if r.err!=0 {return r;}  // get message length
         response.early_data=false;
         response.alpn=false;
         response.server_name=false;
@@ -743,6 +768,12 @@ impl SESSION {
         }
 
         r=self.parse_int_pull(2,&mut ptr); let mut len=r.val; if r.err!=0 {return r;}
+        left-=2;
+
+        if left!=len {
+            r.err=BAD_MESSAGE;
+            return r;
+        }
 
 // extension could include Servers preference for supported groups, which could be
 // taken into account by the client for later connections. Here we will ignore it. From RFC:

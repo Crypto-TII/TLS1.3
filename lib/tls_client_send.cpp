@@ -396,6 +396,7 @@ int alert_from_cause(int rtn)
 		return ILLEGAL_PARAMETER;
 	case MAX_EXCEEDED:
 		return RECORD_OVERFLOW;
+	case BAD_MESSAGE:
 	case EMPTY_CERT_CHAIN:
 		return DECODE_ERROR;
     default:

@@ -195,6 +195,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define MAX_EXCEEDED -17				/**< Maximum record size exceeded */
 #define EMPTY_CERT_CHAIN -18            /**< Empty Certificate Message */
 #define SELF_SIGNED_CERT -20			/**< Self signed certificate */
+#define BAD_MESSAGE -23                 /**< Badly formed message */
 
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */

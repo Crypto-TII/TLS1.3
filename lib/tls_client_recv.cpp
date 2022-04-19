@@ -278,7 +278,7 @@ ret getWhatsNext(TLS_session *session)
 ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee_status *enc_ext_resp)
 {
     ret r;
-    int nb,ext,len,tlen,mfl,ptr=0;
+    int nb,left,ext,len,tlen,mfl,ptr=0;
     int unexp=0;
 
     OCT_kill(&session->IO); // clear IO buffer
@@ -287,7 +287,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     if (r.err) return r;
     nb=r.val;
 
-    r=parseIntorPull(session,3,ptr); if (r.err) return r;         // message length    
+    r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r;         // message length    
 
     enc_ext_resp->early_data=false;
     enc_ext_resp->alpn=false;
@@ -300,6 +300,12 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     }
 
     r=parseIntorPull(session,2,ptr); len=r.val; if (r.err) return r; // length of extensions
+
+    left-=2;
+    if (left!=len) {
+        r.err=BAD_MESSAGE;
+        return r;
+    }
 
 // extension could include Servers preference for supported groups, which could be
 // taken into account by the client for later connections. Here we will ignore it. From RFC:
@@ -407,17 +413,21 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
 {
     ret r;
-    int i,nb,ext,len,tlen,ptr=0;
+    int i,left,nb,ext,len,tlen,ptr=0;
     int unexp=0;
 
-    r=parseIntorPull(session,3,ptr); if (r.err) return r;         // message length 
+    r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r;         // message length 
     r=parseIntorPull(session,1,ptr); nb=r.val; if (r.err) return r;
     if (nb!=0x00) {
         r.err= MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
         return r;
     }
     r=parseIntorPull(session,2,ptr); len=r.val; if (r.err) return r; // length of extensions
-
+	left-=3;
+    if (left!=len) {
+        r.err=BAD_MESSAGE;
+        return r;
+    }
     nalgs=0;
 // extension must include signature algorithms
     while (len>0)
@@ -511,15 +521,21 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
 ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
 {
     ret r;
-    int nb,len,ptr=0;
+    int nb,left,len,ptr=0;
 
-    r=parseIntorPull(session,3,ptr); if (r.err) return r; // message length    
+    r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r; // message length    
 
     OCT_kill(SCVSIG);
     r=parseIntorPull(session,2,ptr); sigalg=r.val; if (r.err) return r; // may for example be 0804 - RSA-PSS-RSAE-SHA256
     r=parseIntorPull(session,2,ptr); len=r.val; if (r.err) return r;    // sig data follows
     r=parseoctadorPull(session,SCVSIG,len,ptr); if (r.err) return r;
    
+    left-=4+len;
+    if (left!=0) {
+        r.err=BAD_MESSAGE;
+        return r;
+    }
+
 // Update Transcript hash
     SAL_hashProcessArray(&session->tlshash,session->IO.val,ptr);
 
@@ -610,7 +626,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CID,octad *CK,octad *PK,
     {
         retry=true;        // "random" data was not random at all - indicated Handshake Retry Request!
     }
-    r=parseIntorPull(session,1,ptr); silen=r.val; if (r.err || silen!=32) return r; 
+    r=parseIntorPull(session,1,ptr); silen=r.val; if (silen!=32) r.err=BAD_HELLO; if (r.err) return r; 
     left-=1;
     r=parseoctadorPull(session,&SID,silen,ptr); if (r.err) return r;
     left-=silen;  
