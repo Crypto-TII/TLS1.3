@@ -85,7 +85,6 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 	{ // need signature related extensions for full handshake
 		addSigAlgsExt(EXT,nsa,sigAlgs);
 		addSigAlgsCertExt(EXT,nsac,sigAlgsCert);
-
 	} 
 }
 
@@ -319,7 +318,7 @@ static int TLS13_full(TLS_session *session)
     logEncExt(&enc_ext_expt,&enc_ext_resp);
     log(IO_DEBUG,(char *)"Encrypted Extensions Processed\n",NULL,0,NULL);
 // 2. get certificate request (maybe..) and certificate chain, check it, get Server public key
-    rtn=getWhatsNext(session);  // get message type
+    rtn=seeWhatsNext(session);  // get message type
     if (badResponse(session,rtn)) 
     {
         CLEAN_FULL_STACK
@@ -343,22 +342,6 @@ static int TLS13_full(TLS_session *session)
             return TLS_FAILURE;
         }
         log(IO_PROTOCOL,(char *)"Certificate Request received\n",NULL,0,NULL);
-        rtn=getWhatsNext(session);  // get message type
-        if (badResponse(session,rtn)) 
-        {
-            CLEAN_FULL_STACK
-            TLS13_clean(session);
-            return TLS_FAILURE;
-        }
-    }
-
-    if (rtn.val!=CERTIFICATE)
-    {
-        sendAlert(session,alert_from_cause(WRONG_MESSAGE));
-        log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
-        CLEAN_FULL_STACK
-        TLS13_clean(session);
-        return TLS_FAILURE;
     }
 
 // Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
@@ -382,22 +365,6 @@ static int TLS13_full(TLS_session *session)
 
 // 3. get verifier signature
     int sigalg;
-
-    rtn=getWhatsNext(session);  // get message type
-    if (badResponse(session,rtn))
-    {
-        CLEAN_FULL_STACK
-        TLS13_clean(session);
-        return TLS_FAILURE;
-    }
-    if (rtn.val!=CERT_VERIFY)
-    {
-        sendAlert(session,alert_from_cause(WRONG_MESSAGE));
-        log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
-        CLEAN_FULL_STACK
-        TLS13_clean(session);
-        return TLS_FAILURE;
-    }
     rtn=getServerCertVerify(session,&SCVSIG,sigalg);
 //
 //

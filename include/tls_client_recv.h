@@ -89,12 +89,12 @@ extern ret parseoctadorPullptr(TLS_session *session,octad *O,int len,int &ptr);
  */
 extern bool badResponse(TLS_session *session,ret r);
 
-/**	@brief Identify type of message
+/**	@brief Identify type of incoming message
  *
 	@param session the TLS session structure
 	@return negative error, zero for OK, or positive for message type
  */
-extern ret getWhatsNext(TLS_session *session);
+extern ret seeWhatsNext(TLS_session *session);
 
 /**	@brief Receive and parse Server Encrypted Extensions
  *

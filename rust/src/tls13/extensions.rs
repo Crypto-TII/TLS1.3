@@ -2,7 +2,7 @@
 //
 
 use crate::tls13::utils;
-use crate::config;
+use crate::config::*;
 
 // create cipher suite bytes for Client Hello
 pub fn cipher_suites(cs: &mut [u8],nsc:usize,ciphers: &[u16]) -> usize {
@@ -19,7 +19,7 @@ pub fn cipher_suites(cs: &mut [u8],nsc:usize,ciphers: &[u16]) -> usize {
 // Build Servername Extension
 pub fn add_server_name(ext: &mut [u8],ptr: usize,name: &[u8],len: usize) -> usize {
     let mut nptr=ptr;
-    nptr=utils::append_int(ext,nptr,config::SERVER_NAME,2);  // This extension is SERVER_NAME(0)
+    nptr=utils::append_int(ext,nptr,SERVER_NAME,2);  // This extension is SERVER_NAME(0)
     nptr=utils::append_int(ext,nptr,5+len,2);  // In theory its a list..
     nptr=utils::append_int(ext,nptr,3+len,2);  // but only one entry
     nptr=utils::append_int(ext,nptr,0,1);      // Server is of type DNS Hostname (only one type supported, and only one of each type)
@@ -31,7 +31,7 @@ pub fn add_server_name(ext: &mut [u8],ptr: usize,name: &[u8],len: usize) -> usiz
 // Build Supported Groups Extension
 pub fn add_supported_groups(ext: &mut [u8],ptr: usize, nsg: usize, groups: &[u16]) -> usize {
     let mut nptr=ptr;
-    nptr=utils::append_int(ext,nptr,config::SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
+    nptr=utils::append_int(ext,nptr,SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
     nptr=utils::append_int(ext,nptr,2*nsg+2,2);        // Total length
     nptr=utils::append_int(ext,nptr,2*nsg,2);          // Number of entries
     for i in 0..nsg {
@@ -43,7 +43,7 @@ pub fn add_supported_groups(ext: &mut [u8],ptr: usize, nsg: usize, groups: &[u16
 // Build Signature algorithms Extension
 pub fn add_supported_sigs(ext: &mut [u8],ptr: usize, nsa: usize, sig_algs: &[u16]) -> usize {
     let mut nptr=ptr;
-    nptr=utils::append_int(ext,nptr,config::SIG_ALGS,2); // This extension is SUPPORTED GROUPS(0x0a)
+    nptr=utils::append_int(ext,nptr,SIG_ALGS,2); // This extension is SUPPORTED GROUPS(0x0a)
     nptr=utils::append_int(ext,nptr,2*nsa+2,2);        // Total length
     nptr=utils::append_int(ext,nptr,2*nsa,2);          // Number of entries
     for i in 0..nsa {
@@ -55,7 +55,7 @@ pub fn add_supported_sigs(ext: &mut [u8],ptr: usize, nsa: usize, sig_algs: &[u16
 // Build Signature algorithms Cert Extension
 pub fn add_supported_sigcerts(ext: &mut [u8],ptr: usize, nsac: usize, sig_alg_certs: &[u16]) -> usize {
     let mut nptr=ptr;
-    nptr=utils::append_int(ext,nptr,config::SIG_ALGS_CERT,2); // This extension is SUPPORTED GROUPS(0x0a)
+    nptr=utils::append_int(ext,nptr,SIG_ALGS_CERT,2); // This extension is SUPPORTED GROUPS(0x0a)
     nptr=utils::append_int(ext,nptr,2*nsac+2,2);        // Total length
     nptr=utils::append_int(ext,nptr,2*nsac,2);          // Number of entries
     for i in 0..nsac {
@@ -69,7 +69,7 @@ pub fn add_supported_sigcerts(ext: &mut [u8],ptr: usize, nsac: usize, sig_alg_ce
 pub fn add_key_share(ext: &mut [u8],ptr: usize,alg: u16,pk: &[u8]) -> usize {
     let mut nptr=ptr;
     let tlen=pk.len()+4;
-    nptr=utils::append_int(ext,nptr,config::KEY_SHARE,2); // This extension is KEY_SHARE(0x0033)
+    nptr=utils::append_int(ext,nptr,KEY_SHARE,2); // This extension is KEY_SHARE(0x0033)
     nptr=utils::append_int(ext,nptr,tlen+2,2);
     nptr=utils::append_int(ext,nptr,tlen,2);
     nptr=utils::append_int(ext,nptr,alg as usize,2);
@@ -83,7 +83,7 @@ pub fn add_key_share(ext: &mut [u8],ptr: usize,alg: u16,pk: &[u8]) -> usize {
 pub fn add_alpn(ext: &mut [u8],ptr: usize,ap: &[u8]) -> usize {
     let tlen=ap.len()+1;
     let mut nptr=ptr;
-    nptr=utils::append_int(ext,nptr,config::APP_PROTOCOL,2);
+    nptr=utils::append_int(ext,nptr,APP_PROTOCOL,2);
     nptr=utils::append_int(ext,nptr,tlen+2,2);
     nptr=utils::append_int(ext,nptr,tlen,2);
     nptr=utils::append_int(ext,nptr,ap.len(),1);
@@ -94,7 +94,7 @@ pub fn add_alpn(ext: &mut [u8],ptr: usize,ap: &[u8]) -> usize {
 // indicate supported PSK mode
 pub fn add_psk(ext: &mut [u8],ptr: usize,mode: usize) -> usize {
     let mut nptr=ptr;
-    nptr=utils::append_int(ext,nptr,config::PSK_MODE,2);
+    nptr=utils::append_int(ext,nptr,PSK_MODE,2);
     nptr=utils::append_int(ext,nptr,2,2);
     nptr=utils::append_int(ext,nptr,1,1);
     nptr=utils::append_int(ext,nptr,mode,1);
@@ -104,7 +104,7 @@ pub fn add_psk(ext: &mut [u8],ptr: usize,mode: usize) -> usize {
 // indicate TLS version support
 pub fn add_version(ext: &mut [u8],ptr: usize,version: usize) -> usize {
     let mut nptr=ptr;
-    nptr=utils::append_int(ext,nptr,config::TLS_VER,2);
+    nptr=utils::append_int(ext,nptr,TLS_VER,2);
     nptr=utils::append_int(ext,nptr,3,2);
     nptr=utils::append_int(ext,nptr,2,1);
     nptr=utils::append_int(ext,nptr,version,2);
@@ -115,7 +115,7 @@ pub fn add_version(ext: &mut [u8],ptr: usize,version: usize) -> usize {
 pub fn add_mfl(ext: &mut [u8],ptr: usize, mode: usize) -> usize {
     let mut nptr=ptr;
     if mode>0 {
-    nptr=utils::append_int(ext,nptr,config::MAX_FRAG_LENGTH,2);
+    nptr=utils::append_int(ext,nptr,MAX_FRAG_LENGTH,2);
     nptr=utils::append_int(ext,nptr,1,2);
     nptr=utils::append_int(ext,nptr,mode,1);
     }
@@ -125,7 +125,7 @@ pub fn add_mfl(ext: &mut [u8],ptr: usize, mode: usize) -> usize {
 // indicate preferred maximum record size
 pub fn add_rsl(ext: &mut [u8],ptr: usize, size: usize) -> usize {
     let mut nptr=ptr;
-    nptr=utils::append_int(ext,nptr,config::RECORD_SIZE_LIMIT,2);
+    nptr=utils::append_int(ext,nptr,RECORD_SIZE_LIMIT,2);
     nptr=utils::append_int(ext,nptr,2,2);
     nptr=utils::append_int(ext,nptr,size,2);
     return nptr;    
@@ -134,7 +134,7 @@ pub fn add_rsl(ext: &mut [u8],ptr: usize, size: usize) -> usize {
 // add n padding bytes
 pub fn add_padding(ext: &mut [u8],ptr: usize, n: usize) -> usize {
     let mut nptr=ptr;
-    nptr=utils::append_int(ext,nptr,config::PADDING,2);
+    nptr=utils::append_int(ext,nptr,PADDING,2);
     nptr=utils::append_int(ext,nptr,n,2);
     nptr=utils::append_byte(ext,nptr,0,n);
     return nptr;
@@ -143,7 +143,7 @@ pub fn add_padding(ext: &mut [u8],ptr: usize, n: usize) -> usize {
 // Add a cookie - useful for handshake resumption
 pub fn add_cookie(ext: &mut [u8],ptr: usize,ck: &[u8]) -> usize {
     let mut nptr=ptr;  
-    nptr=utils::append_int(ext,nptr,config::COOKIE,2);
+    nptr=utils::append_int(ext,nptr,COOKIE,2);
     nptr=utils::append_int(ext,nptr,ck.len(),2);
     nptr=utils::append_bytes(ext,nptr,ck);
     return nptr;    
@@ -152,7 +152,7 @@ pub fn add_cookie(ext: &mut [u8],ptr: usize,ck: &[u8]) -> usize {
 // indicate desire to send early data
 pub fn add_early_data(ext: &mut [u8],ptr: usize) -> usize {
     let mut nptr=ptr; 
-    nptr=utils::append_int(ext,nptr,config::EARLY_DATA,2);
+    nptr=utils::append_int(ext,nptr,EARLY_DATA,2);
     nptr=utils::append_int(ext,nptr,0,2);
     return nptr;
 }
@@ -165,7 +165,7 @@ pub fn add_presharedkey(ext: &mut [u8],ptr: usize,age: usize,ids: &[u8],sha: usi
     let mut tlen2=0;
     tlen1+=ids.len()+2+4;
     tlen2+=sha+1;
-    nptr=utils::append_int(ext,nptr,config::PRESHARED_KEY,2);
+    nptr=utils::append_int(ext,nptr,PRESHARED_KEY,2);
     nptr=utils::append_int(ext,nptr,tlen1+tlen2+4,2);
 //PSK identifiers
     nptr=utils::append_int(ext,nptr,tlen1,2);

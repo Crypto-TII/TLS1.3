@@ -251,8 +251,7 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
 // update transcript hash
 // Bad actor Server could be throwing anything at us - so be careful
 
-// Extract first byte to determine message type
-ret getWhatsNext(TLS_session *session)
+ret seeWhatsNext(TLS_session *session)
 {
     int nb,ptr=0;
     ret r;
@@ -265,12 +264,6 @@ ret getWhatsNext(TLS_session *session)
 		r.err=WRONG_MESSAGE;
 		return r;
 	}
-//log((char *)"IO= \n",NULL,0,IO);
-
-    char b[1];
-    b[0]=r.val;
-    SAL_hashProcessArray(&session->tlshash,b,1);
-    OCT_shift_left(&session->IO,ptr); 
     return r;      
 }
 
@@ -283,7 +276,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 
     OCT_kill(&session->IO); // clear IO buffer
 
-    r=getWhatsNext(session);
+    r=parseIntorPull(session,1,ptr);
     if (r.err) return r;
     nb=r.val;
 
@@ -416,6 +409,14 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
     int i,left,nb,ext,len,tlen,ptr=0;
     int unexp=0;
 
+    r=parseIntorPull(session,1,ptr); // get message type
+    if (r.err!=0) {return r;}
+    nb=r.val;
+    if (nb != CERT_REQUEST) {
+        r.err=WRONG_MESSAGE;
+        return r;
+    }
+
     r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r;         // message length 
     r=parseIntorPull(session,1,ptr); nb=r.val; if (r.err) return r;
     if (nb!=0x00) {
@@ -488,6 +489,14 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
     octad CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
     CERTCHAIN.len=0;
 
+    r=parseIntorPull(session,1,ptr); // get message type
+    if (r.err!=0) {return r;}
+    nb=r.val;
+    if (nb != CERTIFICATE) {
+        r.err=WRONG_MESSAGE;
+        return r;
+    }
+
     r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r;         // message length   
     log(IO_DEBUG,(char *)"Certificate Chain Length= ",(char *)"%d",len,NULL);
 
@@ -523,6 +532,14 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
     ret r;
     int nb,left,len,ptr=0;
 
+    r=parseIntorPull(session,1,ptr); // get message type
+    if (r.err!=0) {return r;}
+    nb=r.val;
+    if (nb != CERT_VERIFY) {
+        r.err=WRONG_MESSAGE;
+        return r;
+    }
+
     r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r; // message length    
 
     OCT_kill(SCVSIG);
@@ -550,11 +567,10 @@ ret getServerFinished(TLS_session *session,octad *HFIN)
     ret r;
     int nb,len,ptr=0;
 
-    r=getWhatsNext(session); nb=r.val;
-    if (r.err) return r;
-
-    if (nb!=FINISHED)
-    {        
+    r=parseIntorPull(session,1,ptr); // get message type
+    if (r.err!=0) {return r;}
+    nb=r.val;
+    if (nb != FINISHED) {
         r.err=WRONG_MESSAGE;
         return r;
     }

@@ -442,7 +442,16 @@ impl SESSION {
 // Receive Server Certificate Verifier
     fn get_server_cert_verify(&mut self,scvsig: &mut [u8],siglen: &mut usize,sigalg: &mut u16) -> RET {
         let mut ptr=0;
-        let mut r=self.parse_int_pull(3,&mut ptr); let mut left=r.val; if r.err!=0 {return r;} // pull in record to find messgae length
+
+        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
+        if r.err!=0 {return r;}
+        let nb=r.val as u8;
+        if nb != CERT_VERIFY {
+            r.err=WRONG_MESSAGE;
+            return r;
+        }
+
+        r=self.parse_int_pull(3,&mut ptr); let mut left=r.val; if r.err!=0 {return r;} // find message length
 
         r=self.parse_int_pull(2,&mut ptr); *sigalg=r.val as u16; if r.err!=0 {return r;}
         r=self.parse_int_pull(2,&mut ptr); let len=r.val; if r.err!=0 {return r;}
@@ -463,7 +472,17 @@ impl SESSION {
     fn get_certificate_request(&mut self, nalgs: &mut usize,sigalgs: &mut [u16]) -> RET {
         let mut ptr=0;
         let mut unexp=0;
-        let mut r=self.parse_int_pull(3,&mut ptr); let mut left=r.val; if r.err!=0 {return r;}
+
+
+        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
+        if r.err!=0 {return r;}
+        let nb=r.val as u8;
+        if nb != CERT_REQUEST {
+            r.err=WRONG_MESSAGE;
+            return r;
+        }
+
+        r=self.parse_int_pull(3,&mut ptr); let mut left=r.val; if r.err!=0 {return r;}
         r=self.parse_int_pull(1,&mut ptr); let nb=r.val; if r.err!=0 {return r;}
         if nb!=0 {
             r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
@@ -526,8 +545,11 @@ impl SESSION {
 // Get handshake finish verifier data in hfin
     fn get_server_finished(&mut self,hfin: &mut [u8],hflen: &mut usize) -> RET {
         let mut ptr=0;
-        let mut r=self.get_whats_next(); let nb=r.val; if r.err!=0 {return r;}
-        if nb!=FINISHED as usize {
+
+        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
+        if r.err!=0 {return r;}
+        let nb=r.val as u8;
+        if nb != FINISHED {
             r.err=WRONG_MESSAGE;
             return r;
         }
@@ -724,9 +746,8 @@ impl SESSION {
 // Handshake Messages start with TYPE|<- LEN -> where TYPE is a byte, and LEN is 24 bits
 // Here we strip off the TYPE and decide what to do next
 // The whole lot go into the transcript hash
-
-// Find out whats coming next
-    pub fn get_whats_next(&mut self) -> RET {
+// See whats coming next
+    fn see_whats_next(&mut self) -> RET {
         let mut ptr=0;
         let mut r=self.parse_int_pull(1,&mut ptr);
         if r.err!=0 {return r;}
@@ -735,11 +756,6 @@ impl SESSION {
             r.err=WRONG_MESSAGE;
             return r;
         }
-        let mut b:[u8;1]=[0;1];
-        b[0]=nb;
-        sal::hash_process_array(&mut self.tlshash,&b[0..1]);
-        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr); // strip off first byte
-
         return r;
     }
 
@@ -751,9 +767,9 @@ impl SESSION {
         for i in 0..self.iolen {
             self.io[i]=0;
         }
-
         self.iolen=0;
-        let mut r=self.get_whats_next();    
+
+        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
         if r.err!=0 {return r;}
         let nb=r.val as u8;
 
@@ -863,10 +879,19 @@ impl SESSION {
 // Get certificate chain, and check its validity 
     pub fn get_check_server_certificatechain(&mut self,spk:&mut [u8],spklen: &mut usize) -> RET {
         let mut ptr=0;
-        let mut r=self.parse_int_pull(3,&mut ptr); let mut len=r.val; if r.err!=0 {return r;}         // message length   
+
+        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
+        if r.err!=0 {return r;}
+        let nb=r.val as u8;
+        if nb != CERTIFICATE {
+            r.err=WRONG_MESSAGE;
+            return r;
+        }
+
+        r=self.parse_int_pull(3,&mut ptr); let mut len=r.val; if r.err!=0 {return r;}         // message length   
         log(IO_DEBUG,"Certificate Chain Length= ",len as isize,None);
-        r=self.parse_int_pull(1,&mut ptr); let nb=r.val; if r.err!=0 {return r;} 
-        if nb!=0x00 {
+        r=self.parse_int_pull(1,&mut ptr); let rc=r.val; if r.err!=0 {return r;} 
+        if rc!=0x00 {
             r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
             return r;
         }
@@ -1339,7 +1364,8 @@ impl SESSION {
         }
         logger::log_enc_ext(&expected,&response);
         log(IO_DEBUG,"Encrypted extensions processed\n",0,None);
-        rtn=self.get_whats_next();
+
+        rtn=self.see_whats_next();
         if self.bad_response(&rtn) {
             self.clean();
             return TLS_FAILURE;
@@ -1362,17 +1388,6 @@ impl SESSION {
                 return TLS_FAILURE;
             }
             log(IO_PROTOCOL,"Certificate Request received\n",0,None);
-            rtn=self.get_whats_next();
-            if self.bad_response(&rtn) {
-                self.clean();
-                return TLS_FAILURE;
-            }
-        }
-        if rtn.val != CERTIFICATE as usize {
-            self.send_alert(alert_from_cause(WRONG_MESSAGE));
-            log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
-            self.clean();
-            return TLS_FAILURE;
         }
 
 // Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
@@ -1395,18 +1410,6 @@ impl SESSION {
         log(IO_DEBUG,"Certificate Chain is valid\n",0,None);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(hh_s));  
 
-// get verifier signature
-        rtn=self.get_whats_next();
-        if self.bad_response(&rtn) {
-            self.clean();
-            return TLS_FAILURE;
-        }
-        if rtn.val != CERT_VERIFY as usize {
-            self.send_alert(alert_from_cause(WRONG_MESSAGE));
-            log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
-            self.clean();
-            return TLS_FAILURE;
-        }
         let mut siglen=0;
         let mut sigalg:u16=0;
         rtn=self.get_server_cert_verify(&mut scvsig,&mut siglen,&mut sigalg);
