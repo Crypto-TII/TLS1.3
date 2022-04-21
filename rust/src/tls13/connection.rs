@@ -23,11 +23,11 @@ use crate::tls13::ticket::TICKET;
 
 pub struct SESSION {
     status: usize,     // Connection status 
-    server_max_record: usize, // Server's max record size 
+    max_record: usize, // Server's max record size 
     pub sockptr: TcpStream,   // Pointer to socket 
-    pub hlen: usize,        // hostname length
     iolen: usize,           // IO buffer length
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
+    pub hlen: usize,        // hostname length
     cipher_suite: u16,      // agreed cipher suite 
     favourite_group: u16,   // favourite key exchange group 
     k_send: keys::CRYPTO,   // Sending Key 
@@ -44,11 +44,11 @@ impl SESSION {
     pub fn new(stream: TcpStream,host: &str) -> SESSION  {
         let mut this=SESSION {
             status:DISCONNECTED,
-            server_max_record: 0,
+            max_record: 0,
             sockptr: stream,
-            hlen: 0,
             iolen: 0,
             hostname: [0; MAX_SERVER_NAME],
+            hlen: 0,
             cipher_suite: 0,  //AES_128_GCM_SHA256,
             favourite_group: 0,
             k_send: keys::CRYPTO::new(), 
@@ -831,7 +831,7 @@ impl SESSION {
                         r.err=UNRECOGNIZED_EXT;
                         return r;
                     }
-                    self.server_max_record=mfl;
+                    self.max_record=mfl;
                 },
                 APP_PROTOCOL => {
                     let mut name:[u8;256]=[0;256];
@@ -939,7 +939,7 @@ impl SESSION {
         logger::log_ticket(&self.t); 
 
         let mut ext:[u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
-        let mut ch: [u8; MAX_CLIENT_HELLO] = [0; MAX_CLIENT_HELLO]; 
+        let mut ch: [u8; MAX_HELLO] = [0; MAX_HELLO]; 
         let mut csk: [u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
         let mut pk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
         let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
@@ -1208,7 +1208,7 @@ impl SESSION {
         let mut resumption_required=false;
         let mut expected=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
         let mut response=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
-        let mut ch: [u8; MAX_CLIENT_HELLO] = [0; MAX_CLIENT_HELLO]; 
+        let mut ch: [u8; MAX_HELLO] = [0; MAX_HELLO]; 
         let mut csk: [u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
         let mut pk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
         let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];

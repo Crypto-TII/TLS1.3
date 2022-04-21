@@ -11,7 +11,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
     state.sockptr=sockptr;                                  // pointer to socket
     strcpy(state.hostname,hostname);                        // server to connection with
     state.status=TLS13_DISCONNECTED;
-	state.server_max_record=0;
+	state.max_record=0;
     state.cipher_suite=0;//TLS_AES_128_GCM_SHA256;              // cipher suite
     initCryptoContext(&state.K_send);                       // Transmission key
     initCryptoContext(&state.K_recv);                       // Reception key
@@ -114,7 +114,7 @@ static int TLS13_full(TLS_session *session)
     octad SS = {0, sizeof(ss), ss};      
 	char spk[TLS_MAX_SERVER_PUB_KEY];    // servers public key
 	octad SPK={0,sizeof(spk),spk};
-    char ch[TLS_MAX_CLIENT_HELLO];       // Client Hello
+    char ch[TLS_MAX_HELLO];       // Client Hello
     octad CH = {0, sizeof(ch), ch};
     char ext[TLS_MAX_EXTENSIONS];
     octad EXT={0,sizeof(ext),ext};       // Extensions                  
@@ -510,7 +510,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad CSK = {0, sizeof(csk), csk};   // clients key exchange secret key
     char pk[TLS_MAX_PUB_KEY_SIZE];
     octad PK = {0, sizeof(pk), pk};   // Servers key exchange Public Key
-    char ch[TLS_MAX_CLIENT_HELLO];    // Client Hello
+    char ch[TLS_MAX_HELLO];    // Client Hello
     octad CH = {0, sizeof(ch), ch};
     char ext[TLS_MAX_EXTENSIONS];
     octad EXT={0,sizeof(ext),ext};       // Extensions  

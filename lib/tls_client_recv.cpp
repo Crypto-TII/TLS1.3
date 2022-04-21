@@ -347,7 +347,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
             } 
 //	printf("server max record = %d\n",mfl);
 
-			session->server_max_record=mfl;
+			session->max_record=mfl;
 			break;
 
 

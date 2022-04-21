@@ -66,7 +66,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_ROOT_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
 #define TLS_MAX_MYCERT_SIZE 2048         /**< Max client private key/cert */
 #define TLS_MAX_MYCERT_B64 2800          /**< In base64 - Max client private key/cert */
-#define TLS_MAX_CLIENT_HELLO 256         /**< Max client hello size (less extensions) */
+#define TLS_MAX_HELLO 256         /**< Max client hello size (less extensions) */
 #define TLS_MAX_EXT_LABEL 256            /**< Max external psk label size */
 
 #define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
@@ -284,7 +284,7 @@ typedef struct
 typedef struct 
 {
     int status;             /**< Connection status */
-	int server_max_record;  /**< Server's max record size */
+	int max_record;         /**< max record size I should send */
     Socket *sockptr;        /**< Pointer to socket */
     char hostname[TLS_MAX_SERVER_NAME];     /**< Server name for connection */
     int cipher_suite;       /**< agreed cipher suite */
