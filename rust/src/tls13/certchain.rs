@@ -129,7 +129,7 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
 
 // get client credentials
 pub fn get_client_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
-    let mut sc:[u8;MAX_MYCERT_SIZE]=[0;MAX_MYCERT_SIZE];
+    let mut sc:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
 // first get certificate chain
     let nccsalgs=csigalgs.len();
     let mut ptr=0;
@@ -145,7 +145,7 @@ pub fn get_client_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
     let b=clientcert::MYPRIVATE.as_bytes();
     let sclen=decode_b64(&b,&mut sc);
     let pk=x509::extract_private_key(&sc[0..sclen],privkey);
-    *sklen=sclen;
+    *sklen=pk.len;
     let mut kind:u16=0;
     if pk.kind==x509::ECC {
         if pk.curve==x509::USE_NIST256 {

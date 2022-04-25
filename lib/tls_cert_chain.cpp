@@ -170,9 +170,9 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
-    char sc[TLS_MAX_MYCERT_SIZE];  // X.509 .pem file (is it a cert or a cert chain??)
+    char sc[TLS_MAX_CERT_SIZE];  // X.509 .pem file (is it a cert or a cert chain??)
     octad SC={0,sizeof(sc),sc};
-    char b[TLS_MAX_MYCERT_B64];    // maximum size key/cert
+    char b[TLS_MAX_CERT_B64];    // maximum size key/cert
     char line[80]; 
     
     OCT_kill(CERTCHAIN);

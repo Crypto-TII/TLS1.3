@@ -35,7 +35,7 @@ pub const MAX_CIPHER_FRAG: usize = 16384+256;       // Max Ciphertext Fragment s
 
 pub const MAX_X509_FIELD:usize = 256;               // Maximum X.509 field size 
 pub const MAX_ROOT_CERT_SIZE:usize = 2048;          // I checked - current max for root CAs is 2016 
-pub const MAX_MYCERT_SIZE:usize = 2048;             // Max client private key/cert 
+pub const MAX_CERT_SIZE:usize = 2048;             // Max client private key/cert 
 pub const MAX_HELLO: usize = 256;
 pub const MAX_SECRET_KEY: usize = 64;
 pub const MAX_PUBLIC_KEY: usize = 136;
@@ -50,7 +50,7 @@ pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes
 pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes 
 
 pub const MAX_FRAG:usize = 4;
-pub const CLIENT_MAX_RECORD:usize = 1024;
+pub const MAX_RECORD:usize = 1024;
 
 pub const MAX_SERVER_PUB_KEY:usize= 512;                   // Max Server Public Key size 
 pub const MAX_SIGNATURE_SIZE:usize= 512;                   // Max digital signature size in bytes  

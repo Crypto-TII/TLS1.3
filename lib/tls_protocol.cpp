@@ -71,8 +71,8 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 #endif
 	addPSKModesExt(EXT,pskMode);
 	addVersionExt(EXT,tlsVersion);
-#ifdef CLIENT_MAX_RECORD
-	addRSLExt(EXT,CLIENT_MAX_RECORD);               // demand a fragment size limit
+#ifdef MAX_RECORD
+	addRSLExt(EXT,MAX_RECORD);               // demand a fragment size limit
 #else
 	if (mode!=2)
 	{
@@ -144,9 +144,9 @@ static int TLS13_full(TLS_session *session)
     log(IO_PROTOCOL,(char *)"Attempting Full Handshake\n",NULL,0,NULL);
 
 #ifdef HAVE_A_CLIENT_CERT
-    char client_key[TLS_MAX_MYCERT_SIZE];           
+    char client_key[TLS_MAX_CERT_SIZE];           
     octad CLIENT_KEY={0,sizeof(client_key),client_key};   // Early traffic secret
-    char client_cert[TLS_MAX_MYCERT_SIZE];           
+    char client_cert[TLS_MAX_CERT_SIZE];           
     octad CLIENT_CERTCHAIN={0,sizeof(client_cert),client_cert};   // Early traffic secret
     char ccvsig[TLS_MAX_SIGNATURE_SIZE];
     octad CCVSIG={0,sizeof(ccvsig),ccvsig};           // Client's digital signature on transcript

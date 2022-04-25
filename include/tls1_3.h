@@ -46,7 +46,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define IOBUFF_FROM_HEAP          /**< Get main IO buffer from heap, else stack */
 
 // comment out if no max record size. In practise TLS1.3 doesn't seem to support this record_size_limit extension, so use with caution
-// #define CLIENT_MAX_RECORD 1024     /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IO_SIZE below */
+// #define MAX_RECORD 1024     /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IO_SIZE below */
 // Note that if this is not used, max_fragment_size extension is tried instead, see TLS_MAX_FRAG below
 // *****************************************************************************
 
@@ -64,8 +64,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_X509_MAX_FIELD 256           /**< Maximum X.509 field size */
 #define TLS_MAX_ROOT_CERT_SIZE 2048      /**< I checked - current max for root CAs is 2016 */
 #define TLS_MAX_ROOT_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
-#define TLS_MAX_MYCERT_SIZE 2048         /**< Max client private key/cert */
-#define TLS_MAX_MYCERT_B64 2800          /**< In base64 - Max client private key/cert */
+#define TLS_MAX_CERT_SIZE 2048         /**< Max client private key/cert */
+#define TLS_MAX_CERT_B64 2800          /**< In base64 - Max client private key/cert */
 #define TLS_MAX_HELLO 256         /**< Max client hello size (less extensions) */
 #define TLS_MAX_EXT_LABEL 256            /**< Max external psk label size */
 

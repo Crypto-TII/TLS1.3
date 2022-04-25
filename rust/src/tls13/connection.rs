@@ -424,7 +424,7 @@ impl SESSION {
         extlen=extensions::add_psk(ext,extlen,psk_mode);
         extlen=extensions::add_version(ext,extlen,tls_version);
         if SET_RECORD_LIMIT {
-            extensions::add_rsl(ext,extlen,CLIENT_MAX_RECORD);
+            extensions::add_rsl(ext,extlen,MAX_RECORD);
         } else {
             if mode!=2 { // PSK mode has a problem with this (?)
                 extlen=extensions::add_mfl(ext,extlen,MAX_FRAG); expected.max_frag_len=true;
@@ -1467,8 +1467,8 @@ impl SESSION {
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
         if gotacertrequest { // Server wants a client certificate
             if HAVE_CLIENT_CERT { // do I have one?
-                let mut client_key:[u8;MAX_MYCERT_SIZE]=[0;MAX_MYCERT_SIZE];
-                let mut client_certchain:[u8;MAX_MYCERT_SIZE]=[0;MAX_MYCERT_SIZE];
+                let mut client_key:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
+                let mut client_certchain:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
                 let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
                 let mut cclen=0;
                 let mut cklen=0;
@@ -1484,7 +1484,7 @@ impl SESSION {
 //
 //
                     self.transcript_hash(th_s);
-                    let cclen=keys::create_client_cert_verifier(kind,th_s,ck_s,&mut ccvsig);
+                    cclen=keys::create_client_cert_verifier(kind,th_s,ck_s,&mut ccvsig);
                     self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
 //
 //
