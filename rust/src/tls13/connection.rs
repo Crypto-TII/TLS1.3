@@ -1412,7 +1412,7 @@ impl SESSION {
 
         let mut siglen=0;
         let mut sigalg:u16=0;
-        rtn=self.get_server_cert_verify(&mut scvsig,&mut siglen,&mut sigalg);
+        rtn=self.get_server_cert_verify(&mut scvsig,&mut siglen,&mut sigalg);            // *******************SERVER_CERT_VERIFY****** fh_s
 //
 //
 //  <---------------------------------------------------- {Certificate Verify}
@@ -1439,7 +1439,7 @@ impl SESSION {
 // get server finished
         let mut fnlen=0;
         let mut fin:[u8;MAX_HASH]=[0;MAX_HASH];
-        rtn=self.get_server_finished(&mut fin,&mut fnlen);
+        rtn=self.get_server_finished(&mut fin,&mut fnlen);                   // *************SERVER FINISHED*************** hh_s
 //
 //
 //  <------------------------------------------------------ {Server Finished}
@@ -1508,7 +1508,7 @@ impl SESSION {
 // create client verify data
 // .... and send it to Server
         keys::derive_verifier_data(hash_type,chf_s,&self.cts[0..hlen],th_s);
-        self.send_client_finish(chf_s);
+        self.send_client_finish(chf_s);                                           // ********************CLIENT FINISH*************
 //
 //
 //  {client Finished} ----------------------------------------------------->
