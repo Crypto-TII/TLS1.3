@@ -35,12 +35,14 @@ pub const MAX_CIPHER_FRAG: usize = 16384+256;       // Max Ciphertext Fragment s
 
 pub const MAX_X509_FIELD:usize = 256;               // Maximum X.509 field size 
 pub const MAX_ROOT_CERT_SIZE:usize = 2048;          // I checked - current max for root CAs is 2016 
-pub const MAX_CERT_SIZE:usize = 2048;             // Max client private key/cert 
-pub const MAX_HELLO: usize = 256;
-pub const MAX_SECRET_KEY: usize = 64;
-pub const MAX_PUBLIC_KEY: usize = 136;
-pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
+pub const MAX_CERT_SIZE:usize = 2048;               // Max client private key/cert 
 
+// These all blow up post quantum
+pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size - was 256 pre-quantum
+pub const MAX_SECRET_KEY: usize = 2400;             // Maximum Secret key size - was 64 pre-quantum
+pub const MAX_PUBLIC_KEY: usize = 1184;             // Maximum Public key size - was 136 pre-quantum
+
+pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
 pub const MAX_CIPHER_SUITES: usize = 5;
 pub const MAX_SUPPORTED_GROUPS: usize = 5;
 pub const MAX_SUPPORTED_SIGS: usize = 16;
@@ -76,6 +78,7 @@ pub const HANDSHAKE_RETRY: usize = 0x102;        // Handshake retry
 pub const X25519: u16 = 0x001d;
 pub const SECP256R1: u16 = 0x0017;
 pub const SECP384R1: u16 = 0x0018;
+pub const KYBER768: u16 = 0x4242;
 //pub const SECP521R1: u16 = 0x0019;
 //pub const X448: u16 = 0x001e;
 

@@ -172,6 +172,7 @@ fn name_group(group: u16) {
         X25519 => println!("X25519"),
         SECP256R1 => println!("SECP256R1"),   
         SECP384R1 => println!("SECP384R1"),   
+        KYBER768 => println!("KYBER768"),
         _ => println!("Non-standard")
     }
 }
@@ -226,17 +227,19 @@ fn main() {
             print!("    ");
             name_group(nt[i]);
             let mut csk: [u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
-            let mut pk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+            let mut cpk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+            let mut spk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
             let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
             let sklen=sal::secret_key_size(nt[i]);   // may change on a handshake retry
-            let pklen=sal::public_key_size(nt[i]);
+            let cpklen=sal::client_public_key_size(nt[i]);
+            let spklen=sal::server_public_key_size(nt[i]);
             let sslen=sal::shared_secret_size(nt[i]);
 
             let start = Instant::now();
             let mut iterations = 0;
             let mut dur = 0 as u64;
             while dur < (MIN_TIME as u64) * 1000 || iterations < MIN_ITERS {
-                sal::generate_key_pair(nt[i],&mut csk[0..sklen],&mut pk[0..pklen]);
+                sal::generate_key_pair(nt[i],&mut csk[0..sklen],&mut cpk[0..cpklen]);
                 iterations += 1;
                 let elapsed = start.elapsed();
                 dur = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
@@ -244,11 +247,13 @@ fn main() {
             let duration = (dur as f64) / (iterations as f64);
             println!("        Key Generation {:0.2} ms", duration);
 
+            sal::server_shared_secret(nt[i],&cpk[0..cpklen],&mut spk[0..spklen],&mut ss[0..sslen]);
+
             let start = Instant::now();
             let mut iterations = 0;
             let mut dur = 0 as u64;
             while dur < (MIN_TIME as u64) * 1000 || iterations < MIN_ITERS {
-                sal::generate_shared_secret(nt[i],&csk[0..sklen],&pk[0..pklen],&mut ss[0..sslen]);
+                sal::generate_shared_secret(nt[i],&csk[0..sklen],&spk[0..spklen],&mut ss[0..sslen]);
                 iterations += 1;
                 let elapsed = start.elapsed();
                 dur = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;

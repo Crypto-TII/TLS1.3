@@ -99,6 +99,9 @@ static void nameKeyExchange(int kex)
     case SECP384R1:
         myprintf((char *)"SECP384R1\n");   
         break;
+    case KYBER768:
+        myprintf((char *)"KYBER768\n");
+		break;
     default:
         myprintf((char *)"Non-standard\n");   
         break;

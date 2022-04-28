@@ -66,7 +66,6 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_ROOT_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
 #define TLS_MAX_CERT_SIZE 2048         /**< Max client private key/cert */
 #define TLS_MAX_CERT_B64 2800          /**< In base64 - Max client private key/cert */
-#define TLS_MAX_HELLO 256         /**< Max client hello size (less extensions) */
 #define TLS_MAX_EXT_LABEL 256            /**< Max external psk label size */
 
 #define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
@@ -82,12 +81,16 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_FRAG 4					/**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
 #define TLS_MAX_SERVER_PUB_KEY 512      /**< Max Server Public Key size */
 #define TLS_MAX_SIGNATURE_SIZE 512      /**< Max digital signature size in bytes  */
-#define TLS_MAX_PUB_KEY_SIZE 136        /**< Max key exchange public key size in bytes */
+
+// these sizes will blow up PQ
+#define TLS_MAX_HELLO 256               /**< Max client hello size (less extensions)		KYBER768 PQ - 2048 */
+#define TLS_MAX_PUB_KEY_SIZE 136        /**< Max key exchange public key size in bytes		KYBER768 PQ - 1184 */
+#define TLS_MAX_SECRET_KEY_SIZE 64      /**< Max key exchange private key size in bytes		KYBER768 PQ - 2400 */
+
 #define TLS_MAX_SHARED_SECRET_SIZE 66	/**< Max key exchange Shared secret size */
-#define TLS_MAX_SECRET_KEY_SIZE 64      /**< Max key exchange private key size in bytes */
 #define TLS_MAX_ECC_FIELD 66            /**< Max ECC field size in bytes */
-#define TLS_MAX_IV_SIZE 12                  /**< Max IV size in bytes */
-#define TLS_MAX_TAG_SIZE 16                 /**< Max HMAC tag length in bytes */    
+#define TLS_MAX_IV_SIZE 12              /**< Max IV size in bytes */
+#define TLS_MAX_TAG_SIZE 16             /**< Max HMAC tag length in bytes */    
 #define TLS_MAX_COOKIE 128              /**< Max Cookie size */    
 
 #define TLS_MAX_SERVER_NAME 128         /**< Max server name size in bytes */
@@ -112,6 +115,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define SECP384R1 0x0018                /**< NIST SECP384R1 elliptic curve key exchange */
 #define SECP521R1 0x0019				/**< NIST SECP521R1 elliptic curve key exchange */
 #define X448 0x001e						/**< X448 elliptic curve key exchange */
+#define KYBER768 0x4242                 /**< Kyber PQ key exchange */
 
 // Signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 

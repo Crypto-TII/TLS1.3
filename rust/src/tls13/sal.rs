@@ -4,6 +4,7 @@
 //
 extern crate getrandom;
 use getrandom::getrandom;
+use zeroize::Zeroize;
 
 extern crate mcore;
 use mcore::rand as my_rand;
@@ -16,6 +17,12 @@ use mcore::gcm::GCM;
 
 use crate::config;
 use crate::tls13::keys;
+
+extern crate pqcrypto_kyber;
+extern crate pqcrypto_traits;
+
+use pqcrypto_kyber::kyber768::*;
+use pqcrypto_traits::kem::{Ciphertext, PublicKey, SecretKey, SharedSecret};
 
 // No good simple safe way to do this in Rust
 static mut CSPRNG:RAND = RAND {
@@ -69,10 +76,13 @@ pub fn secret_key_size(group: u16) -> usize {
     if group==config::SECP384R1 {    
         return 48;
     }
+    if group==config::KYBER768 {
+        return 2400;
+    }
     return 0;
 }
 
-pub fn public_key_size(group: u16) -> usize {
+pub fn client_public_key_size(group: u16) -> usize {
     if group==config::X25519 {
     	return 32;
     }
@@ -81,6 +91,25 @@ pub fn public_key_size(group: u16) -> usize {
     }
     if group==config::SECP384R1 {    
         return 97;
+    }
+    if group==config::KYBER768 {
+        return 1184;                
+    }
+    return 0;
+}
+
+pub fn server_public_key_size(group: u16) -> usize {
+    if group==config::X25519 {
+    	return 32;
+    }
+    if group==config::SECP256R1 {
+    	return 65;
+    }
+    if group==config::SECP384R1 {    
+        return 97;
+    }
+    if group==config::KYBER768 {
+        return 1088;                // actually size of encapsulation
     }
     return 0;
 }
@@ -95,6 +124,9 @@ pub fn shared_secret_size(group: u16) -> usize {
     if group==config::SECP384R1 {    
         return 48;
     }
+    if group==config::KYBER768 {
+        return 32;
+    }
     return 0;
 }
 
@@ -108,10 +140,11 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
 
 // provide list of supported key exchange groups
 pub fn groups(groups: &mut [u16]) -> usize {
-    let n=3;
+    let n=4;
     groups[0]=config::X25519;
     groups[1]=config::SECP256R1;
     groups[2]=config::SECP384R1;
+    groups[3]=config::KYBER768;
     return n;
 }
 
@@ -348,7 +381,65 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
     	random_bytes(48,csk);
     	ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..48], &mut pk[0..97]);
     }    
+    if group==config::KYBER768 {
+        let (cpk, sk) = keypair();
+        let pkbytes=cpk.as_bytes();
+        let skbytes=sk.as_bytes();
+        for i in 0..pkbytes.len() {
+            pk[i]=pkbytes[i];
+        }
+        for i in 0..skbytes.len() {
+            csk[i]=skbytes[i];
+        }
+    }
 }
+
+// Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
+pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) {
+    let mut csk:[u8;config::MAX_SECRET_KEY]=[0;config::MAX_SECRET_KEY];
+    if group==config::X25519 {
+        use mcore::c25519::ecdh;
+        random_bytes(32,&mut csk);
+        csk[31] &= 248;
+        csk[0] &=127;
+        csk[0] |=64;
+        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..32], &mut spk[0..32]);
+        spk[0..32].reverse();
+        let mut rpk:[u8;32]=[0;32];
+        for i in 0..32 {
+            rpk[i]=cpk[i]
+        }
+        rpk[0..32].reverse();
+        ecdh::ecpsvdp_dh(&csk[0..32],&rpk[0..32],&mut ss[0..32],0);
+        ss[0..32].reverse();
+    }
+    if group==config::SECP256R1 {
+    	use mcore::nist256::ecdh;
+    	random_bytes(32,&mut csk);
+    	ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..32], &mut spk[0..65]);
+        ecdh::ecpsvdp_dh(&csk[0..32],&cpk[0..65],&mut ss[0..32],0);
+    }
+    if group==config::SECP384R1 {
+    	use mcore::nist384::ecdh;
+    	random_bytes(48,&mut csk);
+    	ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..48], &mut spk[0..97]);
+        ecdh::ecpsvdp_dh(&csk[0..48],&cpk[0..97],&mut ss[0..48],0);
+    }
+    if group==config::KYBER768 {
+        let pk=PublicKey::from_bytes(cpk).unwrap();
+        let (share, ct) = encapsulate(&pk);
+        let myss=share.as_bytes();
+        for i in 0..myss.len() {
+            ss[i]=myss[i];
+        }
+        let myct=ct.as_bytes();
+        for i in 0..myct.len() {
+            spk[i]=myct[i];
+        }
+    }
+    csk.zeroize();
+}
+
 
 // generate shared secret SS from secret key SK and public key PK
 pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
@@ -371,6 +462,15 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
     if group==config::SECP384R1 {
         use mcore::nist384::ecdh;
         ecdh::ecpsvdp_dh(&sk[0..48],&pk[0..97],&mut ss[0..48],0);
+    }
+    if group==config::KYBER768 {
+        let ct=Ciphertext::from_bytes(pk).unwrap();
+        let sk=SecretKey::from_bytes(sk).unwrap();
+        let share = decapsulate(&ct, &sk);
+        let myss=share.as_bytes();
+        for i in 0..myss.len() {
+            ss[i]=myss[i];
+        }
     }
 }
 
