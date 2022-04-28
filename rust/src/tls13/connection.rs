@@ -691,19 +691,18 @@ impl SESSION {
             r.err=NOT_TLS1_3;  // don't ask
             return r;
         }
-        r=self.parse_int_pull(2,&mut ptr); let mut extlen=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(2,&mut ptr); let extlen=r.val; if r.err!=0 {return r;}
         left-=2;  
         if left!=extlen { // Check space left is size of extensions
             r.err=BAD_HELLO;
             return r;
         }
 
-        while extlen>0 {
+        while left>0 {
             r=self.parse_int_pull(2,&mut ptr); let ext=r.val; if r.err!=0 {return r;} 
-            extlen-=2;
-            r=self.parse_int_pull(2,&mut ptr); let tmplen=r.val; if r.err!=0 {return r;} 
-            extlen-=2;
-            extlen-=tmplen;
+            r=self.parse_int_pull(2,&mut ptr); let extlen=r.val; if r.err!=0 {return r;} 
+            if extlen+2>left {r.err=BAD_MESSAGE;return r;}
+            left-=4+extlen;
             match ext {
                 KEY_SHARE => {
                     r=self.parse_int_pull(2,&mut ptr); *kex=r.val as u16; if r.err!=0 {return r;}
@@ -720,7 +719,7 @@ impl SESSION {
                     r=self.parse_int_pull(2,&mut ptr); *pskid=r.val as isize;
                 },
                 COOKIE => {
-                    r=self.parse_bytes_pull(&mut cookie[0..tmplen],&mut ptr); *cklen=tmplen;
+                    r=self.parse_bytes_pull(&mut cookie[0..extlen],&mut ptr); *cklen=extlen;
                 },
                 TLS_VER => {
                     r=self.parse_int_pull(2,&mut ptr); let tls=r.val; if r.err!=0 {return r;}

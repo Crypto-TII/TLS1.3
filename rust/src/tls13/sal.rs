@@ -440,7 +440,6 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
     csk.zeroize();
 }
 
-
 // generate shared secret SS from secret key SK and public key PK
 pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
 {

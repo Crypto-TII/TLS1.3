@@ -33,7 +33,7 @@ pub fn log(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
             println!();
         }
         if info>0 {
-            println!("{}",info);
+            println!("0x{:#06x}",info);
         }
     }
 }

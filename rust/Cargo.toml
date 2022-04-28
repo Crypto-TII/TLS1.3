@@ -9,6 +9,6 @@ edition = "2021"
 mcore = { path = "../../rust/mcore" }
 getrandom = "0.2.5"
 zeroize = "1.5.4"
-pqcrypto = "0.15.0"
+#pqcrypto = "0.15.0"
 pqcrypto-kyber = "0.7.5"
 pqcrypto-traits = "0.3.4"
