@@ -69,6 +69,7 @@ pub fn log_key_exchange(kex: u16) {
         SECP256R1 => log(IO_DEBUG,"secp256r1\n",0,None),
         SECP384R1 => log(IO_DEBUG,"secp384r1\n",0,None),
         KYBER768 => log(IO_DEBUG,"kyber768\n",0,None),
+        SIDH => log(IO_DEBUG,"sidh\n",0,None),
         _  => log(IO_DEBUG,"Non-standard\n",0,None)
     }
 }

@@ -24,7 +24,7 @@ pub const RSA_PKCS1_SHA512: u16 = 0x0601;         // Supported RSA Signature alg
 //pub const ED25519: usize = 0x0807;                  // Ed25519 EdDSA Signature algorithm 
 
 // Maximum sizes for stack arrays
-pub const MAX_SHARED_SECRET_SIZE:usize = 66;        // Maximum shared secret size 
+
 pub const MAX_ECC_FIELD:usize = 66;                  // Max ECC field size in bytes 
 pub const MAX_HASH_STATE:usize = 768;               // Maximum memory required to store hash function state 
 pub const MAX_HASH: usize = 64;                     // Maximum hash output length in bytes 
@@ -40,7 +40,8 @@ pub const MAX_CERT_SIZE:usize = 2048;               // Max client private key/ce
 // These all blow up post quantum
 pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size - was 256 pre-quantum
 pub const MAX_SECRET_KEY: usize = 2400;             // Maximum Secret key size - was 64 pre-quantum
-pub const MAX_PUBLIC_KEY: usize = 1184;             // Maximum Public key size - was 136 pre-quantum
+pub const MAX_PUBLIC_KEY: usize = 1184;             // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
+pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
 
 pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
 pub const MAX_CIPHER_SUITES: usize = 5;
@@ -79,6 +80,7 @@ pub const X25519: u16 = 0x001d;
 pub const SECP256R1: u16 = 0x0017;
 pub const SECP384R1: u16 = 0x0018;
 pub const KYBER768: u16 = 0x4242;
+pub const SIDH: u16 = 0x4243;
 //pub const SECP521R1: u16 = 0x0019;
 //pub const X448: u16 = 0x001e;
 
@@ -218,3 +220,4 @@ pub const HAVE_CLIENT_CERT:bool= false; // client-side authentication
 pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates 
 pub const TLS_PROTOCOL: bool=true;       // ALPN extension
 pub const APPLICATION_PROTOCOL:&str="http/1.1";
+
