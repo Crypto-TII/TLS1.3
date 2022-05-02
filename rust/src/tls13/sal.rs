@@ -30,6 +30,8 @@ pub fn init() -> bool {
     return true;
 }
 
+// Assume a thread-safe global random number resource
+
 // return a random byte
 pub fn random_byte() -> u8 {
     return rand::random::<u8>();
@@ -488,7 +490,6 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
     if group==config::KYBER768 {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         let ct=kem.ciphertext_from_bytes(&pk).unwrap().to_owned();
-
         let sk=kem.secret_key_from_bytes(&sk).unwrap().to_owned();
         let share = kem.decapsulate(&sk, &ct).unwrap();
         let myss=share.as_ref();
@@ -623,7 +624,6 @@ pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) ->
     let mut r:[u8;32]=[0;32];
     let mut s:[u8;32]=[0;32];
     let mut raw: [u8; 100] = [0; 100];
-
     random_bytes(100,&mut raw);
     let mut rng=RAND::new();
     rng.clean();

@@ -55,7 +55,7 @@ pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes
 pub const MAX_FRAG:usize = 4;
 pub const MAX_RECORD:usize = 1024;
 
-pub const MAX_SERVER_PUB_KEY:usize= 512;                   // Max Server Public Key size 
+//pub const MAX_SERVER_PUB_KEY:usize= 512;                   // Max Server Public Key size 
 pub const MAX_SIGNATURE_SIZE:usize= 512;                   // Max digital signature size in bytes  
 pub const MAX_TICKET_SIZE:usize = 2048; 
 pub const MAX_EXTENSIONS:usize = 2048;       
@@ -153,6 +153,7 @@ pub const BAD_CERTIFICATE: u8 =  0x2A;            // Bad certificate alert
 pub const UNSUPPORTED_EXTENSION: u8 =  0x6E;      // Unsupported extension alert 
 pub const UNKNOWN_CA: u8 =  0x30;                 // Unrecognised Certificate Authority 
 pub const CERTIFICATE_EXPIRED: u8 =  0x2D;        // Certificate Expired 
+pub const CERTIFICATE_REQUIRED: u8 = 0x74;        // Certificate Expected
 //pub const PROTOCOL_VERSION: u8 =  0x46;           // Wrong TLS version 
 pub const DECODE_ERROR: u8 =  0x32;               // Decode error alert 
 pub const RECORD_OVERFLOW: u8 =  0x16;            // Record Overflow 
@@ -192,7 +193,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         MEM_OVERFLOW => return DECODE_ERROR,
 	    FORBIDDEN_EXTENSION => return ILLEGAL_PARAMETER,
 	    MAX_EXCEEDED => return RECORD_OVERFLOW,
-	    EMPTY_CERT_CHAIN => return DECODE_ERROR,
+	    EMPTY_CERT_CHAIN => return CERTIFICATE_REQUIRED,
         TIME_OUT => return CLOSE_NOTIFY,
         ALERT_RECEIVED => return CLOSE_NOTIFY,
         BAD_MESSAGE => return DECODE_ERROR,
@@ -216,7 +217,7 @@ pub const LOG_OUTPUT_TRUNCATION: usize= 256;       /**< Output Hex digits before
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true; // allow self-signed server certs
-pub const HAVE_CLIENT_CERT:bool= false; // client-side authentication
+pub const HAVE_CLIENT_CERT:bool= true; // client-side authentication
 pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates 
 pub const TLS_PROTOCOL: bool=true;       // ALPN extension
 pub const APPLICATION_PROTOCOL:&str="http/1.1";

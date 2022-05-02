@@ -6,7 +6,7 @@ use zeroize::Zeroize;
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::sal;
-use crate::tls13::logger::log;
+//use crate::tls13::logger::log;
 
 // create expanded HKDF label LB from label and context
 fn hkdf_label(lb: &mut [u8],len: usize,label:&[u8],ctx: Option<&[u8]>) -> usize {
@@ -294,7 +294,7 @@ pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk:
             return false;
         }    
     }
-    log(IO_DEBUG,"Certificate Signature = ",0,Some(&scvsig[0..siglen]));
+    //log(IO_DEBUG,"Certificate Signature = ",0,Some(&scvsig[0..siglen]));
     return sal::tls_signature_verify(sigalg,&scv[0..ptr],&scvsig[0..siglen],certpk);
 }
 

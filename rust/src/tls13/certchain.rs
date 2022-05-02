@@ -195,7 +195,7 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,sig: &mut[u8],csgt:
     }
     let pkt=x509::extract_public_key(cert, pk);
 
-    logger::log_cert_details(&pk[0..pkt.len],&sgt,&sig[0..pkt.len],&pkt,&subject[0..sblen],&issuer[0..islen]);
+    logger::log_cert_details(&pk[0..pkt.len],&sgt,&sig[0..sgt.len],&pkt,&subject[0..sblen],&issuer[0..islen]);
 
     if pkt.kind==0 {
         log(IO_DEBUG,"Unrecognised Public key Type\n",0,None);
@@ -223,27 +223,27 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,sig: &mut[u8],csgt:
     return 0;
 }
 
-// extract server public key, and check validity of certificate chain
+// extract public key, and check validity of certificate chain
 // ensures that the hostname is valid.
-// Assumes simple chain Server Cert->Intermediate Cert->CA cert
+// Assumes simple chain Cert->Intermediate Cert->CA cert
 // CA cert not read from chain (if its even there). 
 // Search for issuer of Intermediate Cert in cert store 
-pub fn check_server_certchain(chain: &[u8],hostname: &[u8],pubkey:&mut [u8],pklen: &mut usize) -> isize {
+pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pklen: &mut usize) -> isize {
     let mut ptr=0;
-    let mut server_sig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
+    let mut sig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
     let mut inter_sig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
-    let mut pk:[u8;MAX_SERVER_PUB_KEY]=[0;MAX_SERVER_PUB_KEY];
+    let mut pk:[u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
     let mut issuer:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
 
-// Extract and process Server Cert
+// Extract and process Cert
     let mut r=utils::parse_int(chain,3,&mut ptr); if r.err!=0 {return BAD_CERT_CHAIN;}
     let mut len=r.val;
     if ptr+len>chain.len() {
         return BAD_CERT_CHAIN;
     }
 
-// slice signed server cert from chain
-    let server_signed_cert=&chain[ptr..ptr+len];
+// slice signed cert from chain
+    let signed_cert=&chain[ptr..ptr+len];
     ptr+=len;
 
     r=utils::parse_int(chain,2,&mut ptr); if r.err!=0 {return BAD_CERT_CHAIN;}
@@ -251,16 +251,16 @@ pub fn check_server_certchain(chain: &[u8],hostname: &[u8],pubkey:&mut [u8],pkle
     ptr+=len;    // skip certificate extensions
 
 // extract signature
-    let mut ssgt=PKTYPE::new();  // server sig type
-    let mut spkt=PKTYPE::new();  // server public key type
+    let mut ssgt=PKTYPE::new();  // sig type
+    let mut spkt=PKTYPE::new();  // public key type
     let mut start=0;
     let mut len=0;
     let mut islen=0;
-    let mut rtn=parse_cert(&server_signed_cert,&mut start,&mut len,&mut server_sig,&mut ssgt,pubkey,&mut spkt,&mut issuer,&mut islen);
-    let server_cert=&server_signed_cert[start..start+len];  // slice certificate from signed certificate
+    let mut rtn=parse_cert(&signed_cert,&mut start,&mut len,&mut sig,&mut ssgt,pubkey,&mut spkt,&mut issuer,&mut islen);
+    let cert=&signed_cert[start..start+len];  // slice certificate from signed certificate
     if rtn!=0 {
         if rtn==SELF_SIGNED_CERT {
-            if !check_cert_sig(&ssgt,&server_cert,&server_sig[0..ssgt.len],&pubkey[0..spkt.len]) {
+            if !check_cert_sig(&ssgt,&cert,&sig[0..ssgt.len],&pubkey[0..spkt.len]) {
                 return BAD_CERT_CHAIN;
             }
         } else {
@@ -269,12 +269,15 @@ pub fn check_server_certchain(chain: &[u8],hostname: &[u8],pubkey:&mut [u8],pkle
     }
     *pklen=spkt.len;
 
-    let ic=x509::find_extensions(server_cert);
-    let c=x509::find_extension(server_cert,&x509::AN,ic);
-    let found=x509::find_alt_name(server_cert,c.index,hostname);
-    if !found && hostname!="localhost".as_bytes() {
-        log(IO_DEBUG,"Hostname not found in certificate\n",0,None);
-        return BAD_CERT_CHAIN;
+    let ic=x509::find_extensions(cert);
+    let c=x509::find_extension(cert,&x509::AN,ic);
+
+    if  let Some(host) = hostname {
+        let found=x509::find_alt_name(cert,c.index,host);
+        if !found && host!="localhost".as_bytes() {
+            log(IO_DEBUG,"Hostname not found in certificate\n",0,None);
+            return BAD_CERT_CHAIN;
+        }
     }
 
     if rtn==SELF_SIGNED_CERT { // If self-signed, thats the end of the chain. And for development it may be acceptable
@@ -312,11 +315,11 @@ pub fn check_server_certchain(chain: &[u8],hostname: &[u8],pubkey:&mut [u8],pkle
         return BAD_CERT_CHAIN;
     }
 
-    if !check_cert_sig(&ssgt,&server_cert,&server_sig[0..ssgt.len],&pk[0..ipkt.len]) {
-        log(IO_DEBUG,"Server Certificate sig is NOT OK\n",0,None);
+    if !check_cert_sig(&ssgt,&cert,&sig[0..ssgt.len],&pk[0..ipkt.len]) {
+        log(IO_DEBUG,"Certificate sig is NOT OK\n",0,None);
         return BAD_CERT_CHAIN
     }
-    log(IO_DEBUG,"Server Certificate sig is OK\n",0,None);
+    log(IO_DEBUG,"Certificate sig is OK\n",0,None);
     
     let mut pklen=0;
     if !find_root_ca(&issuer[0..islen],&isgt,&mut pk, &mut pklen) {

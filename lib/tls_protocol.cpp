@@ -380,7 +380,7 @@ static int TLS13_full(TLS_session *session)
 
     transcriptHash(session,&FH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify
     log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV) = ",NULL,0,&FH);
-    log(IO_DEBUG,(char *)"Server Certificate Signature= ",NULL,0,&SCVSIG);
+    log(IO_DEBUG,(char *)"Server Transcript Signature= ",NULL,0,&SCVSIG);
 
     logSigAlg(sigalg);
     if (!checkServerCertVerifier(sigalg,&SCVSIG,&HH,&SPK))

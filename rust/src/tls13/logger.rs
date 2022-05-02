@@ -21,6 +21,7 @@ pub fn log(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
                 }
             } else {
                 let mut truncated=false;
+                print!("({}) ",len);
                 if len>LOG_OUTPUT_TRUNCATION {
                     len=LOG_OUTPUT_TRUNCATION;
                     truncated=true;

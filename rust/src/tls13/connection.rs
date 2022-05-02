@@ -903,7 +903,7 @@ impl SESSION {
         r=self.parse_pull(len,&mut ptr); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
 // Update Transcript hash
         sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        r.err=certchain::check_server_certchain(&self.io[start..start+len],&self.hostname[0..self.hlen],spk,spklen);
+        r.err=certchain::check_certchain(&self.io[start..start+len],Some(&self.hostname[0..self.hlen]),spk,spklen);
         self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr); // rewind io buffer
         r.val=CERTIFICATE as usize;
         return r;
@@ -1226,7 +1226,7 @@ impl SESSION {
         let mut cid: [u8;32]=[0;32];
         let mut ext: [u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
-        let mut spk: [u8; MAX_SERVER_PUB_KEY]=[0;MAX_SERVER_PUB_KEY];
+        let mut spk: [u8; MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
 // add chosen extensions
         let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,0);
 // build and transmit client hello
@@ -1431,7 +1431,7 @@ impl SESSION {
         let scvsig_s=&mut scvsig[0..siglen];
         self.transcript_hash(fh_s);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(fh_s));
-        log(IO_DEBUG,"Server Certificate Signature = ",0,Some(scvsig_s));
+        log(IO_DEBUG,"Server Transcript Signature = ",0,Some(scvsig_s));
         logger::log_sig_alg(sigalg);
         if !keys::check_server_cert_verifier(sigalg,scvsig_s,hh_s,spk_s) {
             self.send_alert(DECRYPT_ERROR);
@@ -1490,8 +1490,12 @@ impl SESSION {
 //
 //
                     self.transcript_hash(th_s);
+                    log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(th_s)); 
                     cclen=keys::create_client_cert_verifier(kind,th_s,ck_s,&mut ccvsig);
                     self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
+                    self.transcript_hash(fh_s);
+                    log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(fh_s));
+                    log(IO_DEBUG,"Client Transcript Signature = ",0,Some(&ccvsig[0..cclen]));
 //
 //
 //  {Certificate Verify} ---------------------------------------------------->
