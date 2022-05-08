@@ -216,7 +216,7 @@ impl SESSION {
 
 // send a message - could/should be broken down into multiple records
 // message comes in two halves - cm and (optional) ext
-// message is constructed in IO buffer, and finaaly written to the socket
+// message is constructed in IO buffer, and finally written to the socket
     fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>) {
         let mut ptr=0;
         let rbytes=(sal::random_byte()%16) as usize;
@@ -903,7 +903,9 @@ impl SESSION {
         r=self.parse_pull(len,&mut ptr); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
 // Update Transcript hash
         sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        r.err=certchain::check_certchain(&self.io[start..start+len],Some(&self.hostname[0..self.hlen]),spk,spklen);
+        let mut identity:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];    // extracting cert identity - but not sure what to dowith it!
+        let mut idlen=0;
+        r.err=certchain::check_certchain(&self.io[start..start+len],Some(&self.hostname[0..self.hlen]),spk,spklen,&mut identity,&mut idlen);
         self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr); // rewind io buffer
         r.val=CERTIFICATE as usize;
         return r;
@@ -1036,12 +1038,14 @@ impl SESSION {
         self.running_hash(&ch[0..chlen]); 
         self.running_hash(&ext[0..extlen]);
         self.transcript_hash(hh_s); // hh = hash of Truncated clientHello
+        log(IO_DEBUG,"Hash of Truncated client Hello",0,Some(hh_s));
         log(IO_DEBUG,"Client Hello sent\n",0,None);
         keys::derive_verifier_data(htype,bnd_s,bk_s,hh_s);  
         let blen=self.send_binder(&mut bl,bnd_s);
+//  -----------------------------------------------------------> Send rest of client Hello
         self.running_hash(&bl[0..blen]);
-        self.transcript_hash(hh_s); // hh = hash of Truncated clientHello
-
+        self.transcript_hash(hh_s); // hh = hash of complete clientHello
+        log(IO_DEBUG,"Hash of Completed client Hello",0,Some(hh_s));
         log(IO_DEBUG,"BND= ",0,Some(bnd_s));
         log(IO_DEBUG,"Sending Binders\n",0,None);   // only sending one
 
@@ -1440,7 +1444,8 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
         }
-        log(IO_DEBUG,"Server Cert Verification OK\n",0,None);
+        log(IO_PROTOCOL,"Server Cert Verification OK - ",-1,Some(&self.hostname[0..self.hlen]));
+
 
 // get server finished
         let mut fnlen=0;

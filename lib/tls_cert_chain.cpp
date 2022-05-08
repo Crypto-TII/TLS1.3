@@ -346,6 +346,12 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 		return rtn;
 #endif
 
+    if (ptr==CERTCHAIN->len)
+    {
+        log(IO_DEBUG,(char *)"Non-self-signed Chain of length 1 ended unexpectedly\n",NULL,0,NULL);
+        return BAD_CERT_CHAIN;
+    }
+
 // Extract and process Intermediate Cert
     r=parseInt(CERTCHAIN,3,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN; // get length of next certificate
     r=parseoctadptr(&INTER_CERT,len,CERTCHAIN,ptr); if (r.err) return BAD_CERT_CHAIN;

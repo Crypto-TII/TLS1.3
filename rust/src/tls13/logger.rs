@@ -4,8 +4,8 @@ use crate::tls13::utils;
 use crate::tls13::utils::RET;
 use crate::tls13::utils::EESTATUS;
 use crate::tls13::x509;
-use crate::tls13::x509::PKTYPE;
 use crate::tls13::ticket::TICKET;
+use crate::tls13::certchain::CERT;
 
 pub fn log(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
     if logit>VERBOSITY {
@@ -34,7 +34,7 @@ pub fn log(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
             println!();
         }
         if info>0 {
-            println!("0x{:#06x}",info);
+            println!("{:#06x}",info);
         }
     }
 }
@@ -133,51 +133,53 @@ pub fn log_enc_ext(expected: &EESTATUS,response: &EESTATUS) {
 }
 
 // log certificate details
-pub fn log_cert_details(pubkey: &[u8],pkt: &PKTYPE,sig: &[u8],sgt: &PKTYPE,issuer: &[u8],subject: &[u8])
+// log certificate details
+pub fn log_cert_details(d: &CERT)
 {
     log(IO_DEBUG,"Parsing Certificate\n",0,None);
-    log(IO_DEBUG,"Signature on Certificate is ",0,Some(sig)); 
-    if sgt.kind==x509::ECC {
+    log(IO_DEBUG,"Signature on Certificate is ",0,Some(&d.sig[0..d.sgt.len])); 
+    if d.sgt.kind==x509::ECC {
         log(IO_DEBUG,"ECC signature ",0,None);
-        if sgt.curve==x509::USE_NIST256 {
+        if d.sgt.curve==x509::USE_NIST256 {
             log(IO_DEBUG,"Curve is SECP256R1\n",0,None);
         }
-        if sgt.curve==x509::USE_NIST384 {
+        if d.sgt.curve==x509::USE_NIST384 {
             log(IO_DEBUG,"Curve is SECP384R1\n",0,None);
         }
-        if sgt.curve==x509::USE_NIST521 {
+        if d.sgt.curve==x509::USE_NIST521 {
             log(IO_DEBUG,"Curve is SECP521R1\n",0,None);
         }
-        if sgt.hash == x509::H256 {log(IO_DEBUG,"Hashed with SHA256\n",0,None);}
-        if sgt.hash == x509::H384 {log(IO_DEBUG,"Hashed with SHA384\n",0,None);}
-        if sgt.hash == x509::H512 {log(IO_DEBUG,"Hashed with SHA512\n",0,None);}
+        if d.sgt.hash == x509::H256 {log(IO_DEBUG,"Hashed with SHA256\n",0,None);}
+        if d.sgt.hash == x509::H384 {log(IO_DEBUG,"Hashed with SHA384\n",0,None);}
+        if d.sgt.hash == x509::H512 {log(IO_DEBUG,"Hashed with SHA512\n",0,None);}
     }
-    if sgt.kind==x509::RSA {
-        log(IO_DEBUG,"RSA signature of length ",sgt.curve as isize,None);
+    if d.sgt.kind==x509::RSA {
+        log(IO_DEBUG,"RSA signature of length ",d.sgt.curve as isize,None);
     }
 
-    log(IO_DEBUG,"Public key from Certificate is ",0,Some(pubkey)); 
-    if pkt.kind==x509::ECC {
+    log(IO_DEBUG,"Public key from Certificate is ",0,Some(&d.pk[0..d.pkt.len])); 
+    if d.pkt.kind==x509::ECC {
         log(IO_DEBUG,"ECC public key ",0,None);
-        if pkt.curve==x509::USE_NIST256 {
+        if d.pkt.curve==x509::USE_NIST256 {
             log(IO_DEBUG,"Curve is SECP256R1\n",0,None);
         }
-        if pkt.curve==x509::USE_NIST384 {
+        if d.pkt.curve==x509::USE_NIST384 {
             log(IO_DEBUG,"Curve is SECP384R1\n",0,None);
         }
-        if pkt.curve==x509::USE_NIST521 {
+        if d.pkt.curve==x509::USE_NIST521 {
             log(IO_DEBUG,"Curve is SECP521R1\n",0,None);
         }
     }
-    if pkt.kind==x509::RSA {
-        log(IO_DEBUG,"Certificate public key is RSA of length ",pkt.curve as isize,None);
+    if d.pkt.kind==x509::RSA {
+        log(IO_DEBUG,"Certificate public key is RSA of length ",d.pkt.curve as isize,None);
     }
-    log(IO_DEBUG,"Issuer is  ",-1,Some(issuer));
-    log(IO_DEBUG,"Subject is ",-1,Some(subject));
+    log(IO_DEBUG,"Issuer is  ",-1,Some(&d.issuer[0..d.islen]));
+    log(IO_DEBUG,"Subject is ",-1,Some(&d.subject[0..d.sblen]));
 }
 
 
 pub fn log_alert(detail: u8) {
+    log(IO_PROTOCOL,"Alert received - ",0,None);
     match detail {
         0  => log(IO_PROTOCOL,"Close notify\n",0,None),
         10 => log(IO_PROTOCOL,"Unexpected Message\n",0,None),

@@ -37,6 +37,11 @@ pub fn random_byte() -> u8 {
     return rand::random::<u8>();
 }
 
+// return a random word
+pub fn random_word() -> u32 {
+    return rand::random::<u32>();
+}
+
 pub fn random_bytes(len: usize,rn: &mut [u8]){
     for i in 0..len {
         rn[i]=random_byte();
