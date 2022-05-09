@@ -26,6 +26,7 @@ pub struct SESSION {
     max_record: usize, // Server's max record size 
     pub sockptr: TcpStream,   // Pointer to socket 
     iolen: usize,           // IO buffer length
+    session_id:[u8;32],  // legacy session ID
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
     pub hlen: usize,        // hostname length
     cipher_suite: u16,      // agreed cipher suite 
@@ -47,6 +48,7 @@ impl SESSION {
             max_record: 0,
             sockptr: stream,
             iolen: 0,
+            session_id: [0;32],
             hostname: [0; MAX_SERVER_NAME],
             hlen: 0,
             cipher_suite: 0,  //AES_128_GCM_SHA256,
@@ -260,7 +262,7 @@ impl SESSION {
     }   
 
 // Send Client Hello
-    pub fn send_client_hello(&mut self,version:usize,ch: &mut [u8],already_agreed: bool,cid: &mut [u8],ext: &[u8],extra: usize,resume: bool) -> usize {
+    pub fn send_client_hello(&mut self,version:usize,ch: &mut [u8],already_agreed: bool,ext: &[u8],extra: usize,resume: bool) -> usize {
         let mut rn: [u8;32]=[0;32];
         let mut cs: [u8;2+2*MAX_CIPHER_SUITES]=[0;2+2*MAX_CIPHER_SUITES];
         let mut total=8;
@@ -276,7 +278,7 @@ impl SESSION {
         sal::random_bytes(32,&mut rn);
         total+=32;
         if !resume {
-            sal::random_bytes(32,cid);
+            sal::random_bytes(32,&mut self.session_id);
         }   
         total+=33;
         let clen=extensions::cipher_suites(&mut cs,nsc,&ciphers);
@@ -286,7 +288,7 @@ impl SESSION {
         ptr=utils::append_int(ch,ptr,TLS1_2,2);
         ptr=utils::append_bytes(ch,ptr,&rn[0..32]);
         ptr=utils::append_int(ch,ptr,32,1);
-        ptr=utils::append_bytes(ch,ptr,&cid[0..32]);
+        ptr=utils::append_bytes(ch,ptr,&self.session_id);
         ptr=utils::append_bytes(ch,ptr,&cs[0..clen]);
         ptr=utils::append_int(ch,ptr,cm,2);
         ptr=utils::append_int(ch,ptr,extlen,2);
@@ -636,7 +638,7 @@ impl SESSION {
     }
 
 // Get (unencrypted) Server Hello
-    fn get_server_hello(&mut self,kex: &mut u16,cid: &[u8],cookie: &mut [u8],cklen:&mut usize,pk: &mut [u8],pskid: &mut isize) -> RET {
+    fn get_server_hello(&mut self,kex: &mut u16,cookie: &mut [u8],cklen:&mut usize,pk: &mut [u8],pskid: &mut isize) -> RET {
         let mut srn: [u8;32]=[0;32];
         let mut sid: [u8;32]=[0;32];
         let mut hrr: [u8; HRR.len()/2]=[0;HRR.len()/2];
@@ -671,7 +673,7 @@ impl SESSION {
         left-=1;
         r=self.parse_bytes_pull(&mut sid[0..silen],&mut ptr); if r.err!=0 {return r;}
         left-=silen;  
-        if cid!=sid {
+        if self.session_id!=sid {
             r.err=ID_MISMATCH;
             return r;
         }
@@ -944,7 +946,6 @@ impl SESSION {
         let mut csk: [u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
         let mut pk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
         let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
-        let mut cid: [u8;32]=[0;32];
         let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
 
 // Extract Ticket parameters
@@ -1029,7 +1030,7 @@ impl SESSION {
         extlen=extensions::add_presharedkey(&mut ext,extlen,age,&self.t.tick[0..self.t.tklen],hlen,&mut extra);
 
 // create and send Client Hello octad
-        let chlen=self.send_client_hello(TLS1_2,&mut ch,true,&mut cid,&ext[0..extlen],extra,false);  
+        let chlen=self.send_client_hello(TLS1_2,&mut ch,true,&ext[0..extlen],extra,false);  
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -1075,7 +1076,7 @@ impl SESSION {
         let mut kex=0;
         let mut pskid:isize=-1;
         let mut cklen=0;
-        let mut rtn = self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,pk_s,&mut pskid);
+        let mut rtn = self.get_server_hello(&mut kex,&mut cookie,&mut cklen,pk_s,&mut pskid);
 //
 //
 //  <---------------------------------------------------------- server Hello
@@ -1227,14 +1228,13 @@ impl SESSION {
         sal::generate_key_pair(self.favourite_group,&mut csk[0..sklen],pk_s);
         log(IO_DEBUG,"Private Key= ",0,Some(&csk[0..sklen]));
         log(IO_DEBUG,"Client Public Key= ",0,Some(pk_s));
-        let mut cid: [u8;32]=[0;32];
         let mut ext: [u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
         let mut spk: [u8; MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
 // add chosen extensions
         let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,0);
 // build and transmit client hello
-        let mut chlen=self.send_client_hello(TLS1_0,&mut ch,false,&mut cid,&ext[0..extlen],0,false);
+        let mut chlen=self.send_client_hello(TLS1_0,&mut ch,false,&ext[0..extlen],0,false);
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -1247,7 +1247,7 @@ impl SESSION {
         let mut kex=0;
         let mut pskid:isize=-1;
         let mut cklen=0;
-        let mut rtn = self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,pk_s,&mut pskid);
+        let mut rtn = self.get_server_hello(&mut kex,&mut cookie,&mut cklen,pk_s,&mut pskid);
 //
 //
 //  <--------------------------------- server Hello (or helloRetryRequest?)
@@ -1310,7 +1310,7 @@ impl SESSION {
             self.send_cccs();
             ccs_sent=true;
 // send new client hello
-            chlen=self.send_client_hello(TLS1_2,&mut ch,true,&mut cid,&ext[0..extlen],0,true);
+            chlen=self.send_client_hello(TLS1_2,&mut ch,true,&ext[0..extlen],0,true);
 //
 //
 //  ---------------------------------------------------> Resend Client Hello
@@ -1320,7 +1320,7 @@ impl SESSION {
 // get new server hello
             pklen=sal::server_public_key_size(self.favourite_group);
             pk_s=&mut pk[0..pklen];
-            rtn=self.get_server_hello(&mut kex,&cid,&mut cookie,&mut cklen,pk_s,&mut pskid);
+            rtn=self.get_server_hello(&mut kex,&mut cookie,&mut cklen,pk_s,&mut pskid);
 //
 //
 //  <---------------------------------------------------------- server Hello

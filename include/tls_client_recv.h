@@ -25,6 +25,16 @@
  */
 extern ret parseoctad(octad *E,int len,octad *M,int &ptr);
 
+/**	@brief Parse out byte array from a pointer into an octad 
+ *
+	@param e the output byte array copied out from the octad M
+    @param len the expected length of e
+    @param M the input octad
+    @param ptr a pointer into M, which advances after use
+	@return the actual length of e extracted, and an error flag
+ */
+extern ret parsebytes(char *e,int len,octad *M,int &ptr);
+
 /**	@brief Parse out an unsigned integer from a pointer into an octad 
  *
     @param M the input octad
@@ -70,6 +80,17 @@ extern ret parseIntorPull(TLS_session *session,int len,int &ptr);
 	@return the actual length of O extracted, and an error flag
  */
 extern ret parseoctadorPull(TLS_session *session,octad *O,int len,int &ptr);
+
+
+/**	@brief Parse out a byte array from a pointer into an octad, if necessary pulling in a new fragment
+ *
+	@param session the TLS session structure
+    @param o the output bytes
+    @param len the expected length of the output
+    @param ptr a pointer into IO, which advances after use
+	@return the actual length of o extracted, and an error flag
+ */
+extern ret parsebytesorPull(TLS_session *session,char *o,int len,int &ptr);
 
 /**	@brief Return a pointer to an octad from a pointer into an octad, if necessary pulling in a new fragment
  *
@@ -126,13 +147,12 @@ extern ret getServerFinished(TLS_session *session,octad *HFIN);
  *
 	@param session the TLS session structure
     @param kex key exchange data
-    @param CID random session identity
     @param CK an output Cookie
     @param PK the key exchange public value supplied by the Server
     @param pskid indicates if a pre-shared key was accepted, otherwise -1
 	@return response structure
  */
-extern ret getServerHello(TLS_session *session,/*int &cipher,*/int &kex,octad *CID,octad *CK,octad *PK,int &pskid);
+extern ret getServerHello(TLS_session *session,/*int &cipher,*/int &kex,octad *CK,octad *PK,int &pskid);
 
 /**	@brief Receive and check certificate chain
  *

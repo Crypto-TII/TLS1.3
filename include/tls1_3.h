@@ -290,6 +290,7 @@ typedef struct
     int status;             /**< Connection status */
 	int max_record;         /**< max record size I should send */
     Socket *sockptr;        /**< Pointer to socket */
+	char id[32];
     char hostname[TLS_MAX_SERVER_NAME];     /**< Server name for connection */
     int cipher_suite;       /**< agreed cipher suite */
     int favourite_group;    /**< favourite key exchange group - may be changed on handshake retry */

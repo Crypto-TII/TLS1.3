@@ -25,6 +25,21 @@ ret parseoctad(octad *E,int len,octad *M,int &ptr)
     return r;
 }
 
+ret parsebytes(char *e,int len,octad *M,int &ptr)
+{
+    ret r={0,BAD_RECORD};
+    if (ptr+len>M->len) return r;   // not enough in M - probably need to read in some more
+    if (e==NULL)
+    {
+        ptr+=len;
+    } else {
+        for (int i=0;i<len;i++ )
+            e[i]=M->val[ptr++];
+    }
+    r.val=len; r.err=0;             // it looks OK
+    return r;
+}
+
 // parse out an octad of length len from octad M
 // ptr is a moving pointer through the octad M
 // but now E is just a pointer into M
@@ -192,6 +207,24 @@ ret parseoctadorPull(TLS_session *session,octad *O,int len,int &ptr)
     }
     return r;
 }
+
+// Get byte array o of length len from the IO buffer. Create a copy.
+ret parsebytesorPull(TLS_session *session,char *o,int len,int &ptr)
+{
+    ret r=parsebytes(o,len,&session->IO,ptr);
+    while (r.err)
+    { // not enough bytes in IO - pull in another fragment
+        int rtn=getServerFragment(session);
+        if (rtn!=HSHAKE) {
+            r.err=rtn;
+            if (rtn==ALERT) r.val=session->IO.val[1];
+            break;
+        }
+        r=parsebytes(o,len,&session->IO,ptr);
+    }
+    return r;
+}
+
 
 // Get an octad O of length len from the IO buffer, but this time the output octad is a pointer into the IO buffer
 ret parseoctadorPullptr(TLS_session *session,octad *O,int len,int &ptr)
@@ -593,13 +626,12 @@ static const char *hrrh= (const char *)"CF21AD74E59A6111BE1D8C021E65B891C2A21116
 
 // Process initial serverHello - NOT encrypted
 // pskid >=0 if Pre-Shared-Key is accepted
-ret getServerHello(TLS_session *session,int &kex,octad *CID,octad *CK,octad *PK,int &pskid)
+ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 {
     ret r;
     int i,tls,svr,left,rtn,silen,cmp,extLen,ext,tmplen,pklen,cipher;
     bool retry=false;
     char sid[32];
-    octad SID = {0, sizeof(sid), sid};
     char srn[32];
     octad SRN={0,sizeof(srn),srn};    
     char hrr[40];
@@ -644,14 +676,20 @@ ret getServerHello(TLS_session *session,int &kex,octad *CID,octad *CK,octad *PK,
     }
     r=parseIntorPull(session,1,ptr); silen=r.val; if (silen!=32) r.err=BAD_HELLO; if (r.err) return r; 
     left-=1;
-    r=parseoctadorPull(session,&SID,silen,ptr); if (r.err) return r;
+    r=parsebytesorPull(session,sid,silen,ptr); if (r.err) return r;
     left-=silen;  
 
 // Tricky one. According to the RFC (4.1.3) this check should be made, even though the session id is "legacy",
 // Unfortunately it is not made clear if the same session ID should be use on a handshake resumption.
 // We note that some servers echo the original id, not a new id associated with a new Client Hello
 // Solution here is to use same id on resumption(?)
-    if (!OCT_compare(CID,&SID)) { 
+	bool mismatch=false;
+	for (int i=0;i<32;i++)
+	{
+		if (session->id[i]!=sid[i])
+			mismatch=true;
+	}
+    if (mismatch) { 
         r.err=ID_MISMATCH;  // check identities match
         return r;
     }

@@ -34,7 +34,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 #define CLEAN_FULL_STACK \
     OCT_kill(&CSK); OCT_kill(&PK); OCT_kill(&SS); OCT_kill(&CH); OCT_kill(&EXT);  OCT_kill(&SPK); \
     OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&HH); OCT_kill(&FH); OCT_kill(&TH); \
-    OCT_kill(&CID); OCT_kill(&COOK); OCT_kill(&SCVSIG); OCT_kill(&FIN); OCT_kill(&CHF); \
+    OCT_kill(&COOK); OCT_kill(&SCVSIG); OCT_kill(&FIN); OCT_kill(&CHF); \
     OCT_kill(&CETS);
 
 // build client's chosen set of extensions, and assert expectations of server responses
@@ -128,8 +128,6 @@ static int TLS13_full(TLS_session *session)
     octad FH={0,sizeof(fh),fh};       
     char th[TLS_MAX_HASH];
     octad TH={0,sizeof(th),th};  
-    char cid[32];                       
-    octad CID={0,sizeof(cid),cid};       // Client session ID
     char cook[TLS_MAX_COOKIE];
     octad COOK={0,sizeof(cook),cook};    // Cookie
     char scvsig[TLS_MAX_SIGNATURE_SIZE];
@@ -167,7 +165,7 @@ static int TLS13_full(TLS_session *session)
 	buildExtensions(session,&EXT,&PK,&enc_ext_expt,0);
 
 // create and send Client Hello octad
-    sendClientHello(session,TLS1_0,&CH,false,&CID,&EXT,0,false);  
+    sendClientHello(session,TLS1_0,&CH,false,&EXT,0,false);  
 
 //
 //
@@ -177,7 +175,7 @@ static int TLS13_full(TLS_session *session)
     log(IO_DEBUG,(char *)"Client Hello sent\n",NULL,0,NULL);
 
 // Process Server Hello response
-    rtn=getServerHello(session,kex,&CID,&COOK,&PK,pskid);
+    rtn=getServerHello(session,kex,&COOK,&PK,pskid);
 //
 //
 //  <--------------------------------- server Hello (or helloRetryRequest?)
@@ -245,14 +243,14 @@ static int TLS13_full(TLS_session *session)
         ccs_sent=true;
 
 // create and send new Client Hello octad
-        sendClientHello(session,TLS1_2,&CH,false,&CID,&EXT,0,true);
+        sendClientHello(session,TLS1_2,&CH,false,&EXT,0,true);
 //
 //
 //  ---------------------------------------------------> Resend Client Hello
 //
 //
         log(IO_DEBUG,(char *)"Client Hello re-sent\n",NULL,0,NULL);
-        rtn=getServerHello(session,kex,&CID,&COOK,&PK,pskid);
+        rtn=getServerHello(session,kex,&COOK,&PK,pskid);
 //
 //
 //  <---------------------------------------------------------- server Hello
@@ -491,7 +489,7 @@ static int TLS13_full(TLS_session *session)
 #define CLEAN_RESUMPTION_STACK \
     OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&SS); OCT_kill(&CSK); OCT_kill(&PK); \
     OCT_kill(&CH); OCT_kill(&EXT); OCT_kill(&HH); OCT_kill(&FH); OCT_kill(&TH); \
-    OCT_kill(&FIN); OCT_kill(&CHF); OCT_kill(&CETS); OCT_kill(&CID); OCT_kill(&COOK); \
+    OCT_kill(&FIN); OCT_kill(&CHF); OCT_kill(&CETS); OCT_kill(&COOK); \
     OCT_kill(&BND); OCT_kill(&BL); OCT_kill(&PSK); OCT_kill(&BK);
 
 // TLS1.3 fast resumption handshake (0RTT and 1RTT)
@@ -526,8 +524,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad CHF={0,sizeof(chf),chf};      // client verify
     char cets[TLS_MAX_HASH];           
     octad CETS={0,sizeof(cets),cets};   // Early traffic secret
-    char cid[32];                       
-    octad CID={0,sizeof(cid),cid};      // Client session ID
     char cook[TLS_MAX_COOKIE];
     octad COOK={0,sizeof(cook),cook};   // Cookie
     char bnd[TLS_MAX_HASH];
@@ -613,7 +609,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     int extra=addPreSharedKeyExt(&EXT,age,&session->T.TICK,SAL_hashLen(hashtype));
 
 // create and send Client Hello octad
-    sendClientHello(session,TLS1_2,&CH,true,&CID,&EXT,extra,false);  
+    sendClientHello(session,TLS1_2,&CH,true,&EXT,extra,false);  
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -652,7 +648,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     }
 
 // Process Server Hello
-    rtn=getServerHello(session,kex,&CID,&COOK,&PK,pskid);
+    rtn=getServerHello(session,kex,&COOK,&PK,pskid);
 //
 //
 //  <---------------------------------------------------------- server Hello

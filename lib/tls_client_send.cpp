@@ -168,13 +168,6 @@ int clientRandom(octad *RN)
     return 32;
 }
 
-// Create random 32-byte session ID (not used in TLS1.3)
-int sessionID(octad *SI)
-{
-    SAL_randomOctad(32,SI);
-    return 1+SI->len;  // return its overall length (extra byte required)
-}
-
 // build cipher-suites octad from ciphers we support
 int cipherSuites(octad *CS,int ncs,int *ciphers)
 {
@@ -228,7 +221,7 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
-void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agreed,octad *CID,octad *EXTENSIONS,int extra,bool resume)
+void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agreed,octad *EXTENSIONS,int extra,bool resume)
 {
     char rn[32];
     octad RN = {0, sizeof(rn), rn};
@@ -248,10 +241,12 @@ void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agr
 	}
 
     total+=clientRandom(&RN);
-    if (!resume)
-        total+=sessionID(CID);  
-    else
-        total+=(1+CID->len);    // if its a handshake resumption, re-use the old CID?? Since its the same session?
+	total+=33;
+    if (!resume) { // if its a handshake resumption, re-use the old id?? Since its the same session?
+        for (int i=0;i<32;i++)
+			session->id[i]=SAL_randomByte();
+	}
+ 
     total+=cipherSuites(&CS,nsc,ciphers);
 
     OCT_kill(CH);
@@ -260,8 +255,8 @@ void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agr
 
     OCT_append_int(CH,TLS1_2,2);           // 2
     OCT_append_octad(CH,&RN);              // 32
-    OCT_append_byte(CH,CID->len,1);        // 1   
-    OCT_append_octad(CH,CID);              // 32
+    OCT_append_byte(CH,32,1);        // 1   
+    OCT_append_bytes(CH,session->id,32);              // 32
     OCT_append_octad(CH,&CS);              // 2+TLS_MAX_CIPHER_SUITES*2
     OCT_append_int(CH,compressionMethods,2);  // 2
 
