@@ -1060,8 +1060,8 @@ impl SESSION {
 
 // if its allowed, send client message as (encrypted!) early data
         if have_early_data {
-            log(IO_APPLICATION,"Sending some early data\n",0,None);
             if let Some(searly) = early {
+                log(IO_APPLICATION,"Sending some early data\n",0,None);
                 self.send_message(APPLICATION,TLS1_2,searly,None);
 //
 //
@@ -1153,7 +1153,7 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
         }
-
+        log(IO_DEBUG,"Server Finished Message Received - ",0,Some(fin_s));
 // Now indicate End of Early Data, encrypted with 0-RTT keys
         self.transcript_hash(hh_s); // hash of clientHello+serverHello+encryptedExtension+serverFinish
         if response.early_data {
@@ -1186,6 +1186,7 @@ impl SESSION {
         self.transcript_hash(fh_s); // hash of clientHello+serverHello+encryptedExtension+serverFinish+EndOfEarlyData+clientFinish
 
 // calculate traffic and application keys from handshake secret and transcript hashes, and store in session
+
         self.derive_application_secrets(hs_s,hh_s,fh_s,None);
         self.create_send_crypto_context();
         self.create_recv_crypto_context();

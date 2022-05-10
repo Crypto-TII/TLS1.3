@@ -179,7 +179,7 @@ pub fn log_cert_details(d: &CERT)
 
 
 pub fn log_alert(detail: u8) {
-    log(IO_PROTOCOL,"Alert received - ",0,None);
+    //log(IO_PROTOCOL,"Alert received - ",0,None);
     match detail {
         0  => log(IO_PROTOCOL,"Close notify\n",0,None),
         10 => log(IO_PROTOCOL,"Unexpected Message\n",0,None),
