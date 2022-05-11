@@ -61,6 +61,7 @@ fn char2int(inp: u8) -> u8 {
 }
 
 // s better have even number of characters!
+#[allow(dead_code)]
 pub fn decode_hex(x: &mut[u8],s: &str) -> usize {
     let c=s.as_bytes();
     let mut i=0;
@@ -75,6 +76,7 @@ pub fn decode_hex(x: &mut[u8],s: &str) -> usize {
 }
 
 // decode hex bytes into unsigned number
+#[allow(dead_code)]
 pub fn decode_hex_num(s: &str) -> usize {
     let mut buf:[u8;16]=[0;16];
     let len=decode_hex(&mut buf,s);

@@ -566,6 +566,7 @@ impl SESSION {
 
 // Receive a single record. Could be fragment of a full message. Could be encrypted.
 // returns +ve type of record, or negative error
+// should I check version? RFC - "MUST be ignored for all purposes"
     pub fn get_record(&mut self) -> isize {
         let mut rh:[u8;5]=[0;5];
         let mut tag:[u8;MAX_TAG_SIZE]=[0;MAX_TAG_SIZE];
@@ -1636,11 +1637,11 @@ impl SESSION {
                             let htype=sal::hash_type(self.cipher_suite);
                             let hlen=sal::hash_len(htype);
                             r=self.parse_int_pull(1,&mut ptr); let kur=r.val; if r.err!=0 {return BAD_RECORD;}
-                            if kur==0 {  // reset record number
+                            if kur==UPDATE_NOT_REQUESTED {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 log(IO_PROTOCOL,"KEYS UPDATED\n",0,None);
                             }
-                            if kur==1 {
+                            if kur==UPDATE_REQUESTED {
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 log(IO_PROTOCOL,"Key update notified - client should do the same (?) \n",0,None);
                                 log(IO_PROTOCOL,"KEYS UPDATED\n",0,None);

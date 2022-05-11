@@ -1,6 +1,6 @@
 
 // Main TII TLS 1.3 Configuration File for constants and structures
- 
+
 pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";  
 pub const DISCONNECTED: usize = 0;
 pub const CONNECTED: usize = 1;
@@ -55,7 +55,7 @@ pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes
 pub const MAX_FRAG:usize = 4;
 pub const MAX_RECORD:usize = 1024;
 
-//pub const MAX_SERVER_PUB_KEY:usize= 512;                   // Max Server Public Key size 
+
 pub const MAX_SIGNATURE_SIZE:usize= 512;                   // Max digital signature size in bytes  
 pub const MAX_TICKET_SIZE:usize = 2048; 
 pub const MAX_EXTENSIONS:usize = 2048;       
@@ -74,6 +74,9 @@ pub const MESSAGE_HASH: u8 = 0xFE;               // Special synthetic message ha
 pub const END_OF_EARLY_DATA: u8 = 0x05;          // End of Early Data message   
 // pseudo message types
 pub const HANDSHAKE_RETRY: usize = 0x102;        // Handshake retry 
+
+pub const UPDATE_NOT_REQUESTED: usize=0;    
+pub const UPDATE_REQUESTED: usize=1;
 
 // Key exchange groups
 pub const X25519: u16 = 0x001d;
@@ -154,7 +157,7 @@ pub const UNSUPPORTED_EXTENSION: u8 =  0x6E;      // Unsupported extension alert
 pub const UNKNOWN_CA: u8 =  0x30;                 // Unrecognised Certificate Authority 
 pub const CERTIFICATE_EXPIRED: u8 =  0x2D;        // Certificate Expired 
 pub const CERTIFICATE_REQUIRED: u8 = 0x74;        // Certificate Expected
-//pub const PROTOCOL_VERSION: u8 =  0x46;           // Wrong TLS version 
+pub const PROTOCOL_VERSION: u8 =  0x46;           // Wrong TLS version 
 pub const DECODE_ERROR: u8 =  0x32;               // Decode error alert 
 pub const RECORD_OVERFLOW: u8 =  0x16;            // Record Overflow 
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
@@ -177,7 +180,7 @@ pub const IO_DEBUG:usize= 4;          // print lots of debug information + proto
 pub fn alert_from_cause(rtn: isize) -> u8
 {
     match rtn {
-        NOT_TLS1_3 => return ILLEGAL_PARAMETER,
+        NOT_TLS1_3 => return PROTOCOL_VERSION,
         ID_MISMATCH => return ILLEGAL_PARAMETER,
         UNRECOGNIZED_EXT => return ILLEGAL_PARAMETER,
         BAD_HELLO => return ILLEGAL_PARAMETER,        

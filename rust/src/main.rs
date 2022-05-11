@@ -246,7 +246,7 @@ fn main() {
                 dur = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
             }
             let duration = (dur as f64) / (iterations as f64);
-            println!("        Key Generation {:0.2} ms", duration);
+            println!("        Client Key Generation {:0.2} ms", duration);
 
             sal::server_shared_secret(nt[i],&cpk[0..cpklen],&mut spk[0..spklen],&mut ss[0..sslen]);
 
@@ -260,7 +260,9 @@ fn main() {
                 dur = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
             }
             let duration = (dur as f64) / (iterations as f64);
-            println!("        Shared Secret {:0.2} ms", duration);
+            println!("        Client Shared Secret {:0.2} ms", duration);
+            println!("        Client Public Key size {} bytes",cpklen);
+            println!("        Server Public Key/Encapsulation size {} bytes",spklen);
         }
         println!("SAL supported Cipher suites");
         let ns=sal::ciphers(&mut nt);
@@ -327,7 +329,6 @@ fn main() {
                     session.t.tick[i]=pl[i];
                 }
                 session.t.tklen=pl.len();
-
                 for i in 0..16 {
                     session.t.psk[i]=psk[i];
                 }
