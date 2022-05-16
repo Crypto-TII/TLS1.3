@@ -26,6 +26,7 @@ pub struct SESSION {
     max_record: usize, // Server's max record size 
     pub sockptr: TcpStream,   // Pointer to socket 
     iolen: usize,           // IO buffer length
+    ptr: usize,             // IO buffer pointer - consumed portion
     session_id:[u8;32],  // legacy session ID
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
     pub hlen: usize,        // hostname length
@@ -41,6 +42,11 @@ pub struct SESSION {
     pub t: TICKET           // resumption ticket    
 }
 
+// IO buffer
+// xxxxxxxxxxxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyy
+// -------------ptr---------->----------iolen----------->
+//
+// when ptr becomes equal to iolen, pull in another record (and maybe decrypt it)
 impl SESSION {
     pub fn new(stream: TcpStream,host: &str) -> SESSION  {
         let mut this=SESSION {
@@ -48,6 +54,7 @@ impl SESSION {
             max_record: 0,
             sockptr: stream,
             iolen: 0,
+            ptr: 0,
             session_id: [0;32],
             hostname: [0; MAX_SERVER_NAME],
             hlen: 0,
@@ -70,46 +77,46 @@ impl SESSION {
         return this;
     }
 
-// get an integer of length len from stream
-    fn parse_int_pull(&mut self,len:usize,ptr: &mut usize) -> RET {
-        let mut r=utils::parse_int(&self.io[0..self.iolen],len,ptr); 
+// get an integer of length len bytes from io stream
+    fn parse_int_pull(&mut self,len:usize) -> RET {
+        let mut r=utils::parse_int(&self.io[0..self.iolen],len,&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
             let rtn=self.get_record();  // gets more stuff and increments iolen
-            if rtn!=HSHAKE as isize {
+            if rtn!=HSHAKE as isize as isize {
                 r.err=rtn;
                 if rtn==ALERT as isize {
                     r.val=self.io[1] as usize;
                 }
                 break;
             }
-            r=utils::parse_int(&self.io[0..self.iolen],len,ptr);
+            r=utils::parse_int(&self.io[0..self.iolen],len,&mut self.ptr);
         }
         return r;
-    }
-
+    }  
+    
 // pull bytes into array
-    fn parse_bytes_pull(&mut self,e: &mut[u8],ptr: &mut usize) -> RET {
-        let mut r=utils::parse_bytes(e,&self.io[0..self.iolen],ptr);
+    fn parse_bytes_pull(&mut self,e: &mut[u8]) -> RET {
+        let mut r=utils::parse_bytes(e,&self.io[0..self.iolen],&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
             let rtn=self.get_record();  // gets more stuff and increments iolen
-            if rtn!=HSHAKE as isize {
+            if rtn!=HSHAKE as isize  {
                 r.err=rtn;
                 if rtn==ALERT as isize {
                     r.val=self.io[1] as usize;    // 0 is alert level, 1 is alert description
                 }
                 break;
             }
-            r=utils::parse_bytes(e,&self.io[0..self.iolen],ptr);
+            r=utils::parse_bytes(e,&self.io[0..self.iolen],&mut self.ptr);
         }
         return r;
     }
 
-// pull bytes into input buffer and advance pointer
-    fn parse_pull(&mut self,n: usize,ptr:&mut usize) -> RET { // get n bytes into self.io
+// pull bytes into input buffer
+    fn parse_pull(&mut self,n: usize) -> RET { // get n bytes into self.io
         let mut r=RET{val:0,err:0};
-        while *ptr+n>self.iolen {
+        while self.ptr+n>self.iolen {
             let rtn=self.get_record();
-            if rtn!=HSHAKE as isize {
+            if rtn!=HSHAKE  as isize  {
                 r.err=rtn;
                 if rtn==ALERT as isize {
                     r.val=self.io[1] as usize;    // 0 is alert level, 1 is alert description
@@ -117,9 +124,22 @@ impl SESSION {
                 break;
             }
         }
-        *ptr += n;
+        self.ptr += n;
         return r;
     }
+
+// rewind iobuffer
+    fn rewind(&mut self) {
+        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],self.ptr); // rewind
+        self.ptr=0;        
+    }
+
+// Add I/O buffer self.io to transcript hash 
+    fn running_hash_io(&mut self) {
+        sal::hash_process_array(&mut self.tlshash,&self.io[0..self.ptr]);
+        self.rewind();
+    }
+
 
 // Initialise transcript hash
     fn init_transcript_hash(&mut self) {
@@ -130,11 +150,6 @@ impl SESSION {
 // Add octad to transcript hash 
     fn running_hash(&mut self,o: &[u8]) {
         sal::hash_process_array(&mut self.tlshash,o);
-    }
-
-// Add self.io to transcript hash 
-    fn running_hash_io(&mut self) {
-        sal::hash_process_array(&mut self.tlshash,&self.io[0..self.iolen]);
     }
 
 // Output transcript hash 
@@ -219,6 +234,7 @@ impl SESSION {
 // send a message - could/should be broken down into multiple records
 // message comes in two halves - cm and (optional) ext
 // message is constructed in IO buffer, and finally written to the socket
+// note that IO buffer is overwritten
     fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>) {
         let mut ptr=0;
         let rbytes=(sal::random_byte()%16) as usize;
@@ -259,6 +275,7 @@ impl SESSION {
             ptr=utils::append_bytes(&mut self.io,ptr,&tag[0..taglen]);
         }
         self.sockptr.write(&self.io[0..ptr]).unwrap();
+        self.clean_io();
     }   
 
 // Send Client Hello
@@ -443,9 +460,9 @@ impl SESSION {
 
 // Receive Server Certificate Verifier
     fn get_server_cert_verify(&mut self,scvsig: &mut [u8],siglen: &mut usize,sigalg: &mut u16) -> RET {
-        let mut ptr=0;
+        //let mut ptr=0;
 
-        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
+        let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
         let nb=r.val as u8;
         if nb != CERT_VERIFY {
@@ -453,30 +470,31 @@ impl SESSION {
             return r;
         }
 
-        r=self.parse_int_pull(3,&mut ptr); let mut left=r.val; if r.err!=0 {return r;} // find message length
+        r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;} // find message length
 
-        r=self.parse_int_pull(2,&mut ptr); *sigalg=r.val as u16; if r.err!=0 {return r;}
-        r=self.parse_int_pull(2,&mut ptr); let len=r.val; if r.err!=0 {return r;}
-        r=self.parse_bytes_pull(&mut scvsig[0..len],&mut ptr); if r.err!=0 {return r;}
+        r=self.parse_int_pull(2); *sigalg=r.val as u16; if r.err!=0 {return r;}
+        r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
+        r=self.parse_bytes_pull(&mut scvsig[0..len]); if r.err!=0 {return r;}
         left-=4+len;
         if left!=0 {
             r.err=BAD_MESSAGE;
             return r;
         }
         *siglen=len;
-        sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
+        self.running_hash_io();
+        //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
+        //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
         r.val=CERT_VERIFY as usize;
         return r;
     }
 
 // Receive Certificate Request - the Server wants the client to supply a certificate chain
     fn get_certificate_request(&mut self, nalgs: &mut usize,sigalgs: &mut [u16]) -> RET {
-        let mut ptr=0;
+        //let mut ptr=0;
         let mut unexp=0;
 
 
-        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
+        let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
         let nb=r.val as u8;
         if nb != CERT_REQUEST {
@@ -484,13 +502,13 @@ impl SESSION {
             return r;
         }
 
-        r=self.parse_int_pull(3,&mut ptr); let mut left=r.val; if r.err!=0 {return r;}
-        r=self.parse_int_pull(1,&mut ptr); let nb=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r;}
         if nb!=0 {
             r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
             return r;
         }
-        r=self.parse_int_pull(2,&mut ptr); let mut len=r.val; if r.err!=0 {return r;} // length of extensions
+        r=self.parse_int_pull(2); let mut len=r.val; if r.err!=0 {return r;} // length of extensions
         left-=3;
         if left!=len {
             r.err=BAD_MESSAGE;
@@ -498,16 +516,16 @@ impl SESSION {
         }
         let mut algs=0;
         while len>0 {
-            r=self.parse_int_pull(2,&mut ptr); let ext=r.val; if r.err!=0 {return r;}
+            r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;}
             len-=2;
             match ext {
                 SIG_ALGS => {
-                    r=self.parse_int_pull(2,&mut ptr); let tlen=r.val; if r.err!=0 {return r;}
+                    r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
                     len-=2;
-                    r=self.parse_int_pull(2,&mut ptr); algs=r.val/2; if r.err!=0 {return r;}
+                    r=self.parse_int_pull(2); algs=r.val/2; if r.err!=0 {return r;}
                     len-=2;
                     for i in 0..algs {
-                        r=self.parse_int_pull(2,&mut ptr); if r.err!=0 {return r;}
+                        r=self.parse_int_pull(2); if r.err!=0 {return r;}
                         if i<MAX_SUPPORTED_SIGS {
                             sigalgs[i]=r.val as u16;
                         }
@@ -522,16 +540,17 @@ impl SESSION {
                     }
                 }
                 _ => {
-                    r=self.parse_int_pull(2,&mut ptr); let tlen=r.val;
+                    r=self.parse_int_pull(2); let tlen=r.val;
                     len-=2;
-                    len-=tlen; ptr+=tlen;
+                    len-=tlen; self.ptr+=tlen;
                     unexp+=1;
                 }
             }
             if r.err!=0 {return r;}
         }
-        sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
+        self.running_hash_io();
+        //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
+        //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
         r.val=CERT_REQUEST as usize;
         if algs==0 {
             r.err=UNRECOGNIZED_EXT;
@@ -546,20 +565,21 @@ impl SESSION {
 
 // Get handshake finish verifier data in hfin
     fn get_server_finished(&mut self,hfin: &mut [u8],hflen: &mut usize) -> RET {
-        let mut ptr=0;
+        //let mut ptr=0;
 
-        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
+        let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
         let nb=r.val as u8;
         if nb != FINISHED {
             r.err=WRONG_MESSAGE;
             return r;
         }
-        r=self.parse_int_pull(3,&mut ptr); let len=r.val; if r.err!=0 {return r;}
-        r=self.parse_bytes_pull(&mut hfin[0..len],&mut ptr); if r.err!=0 {return r;}
+        r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}
+        r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
         *hflen=len;
-        sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
+        self.running_hash_io();
+        //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
+        //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
         r.val=FINISHED as usize;
         return r;
     }
@@ -644,27 +664,30 @@ impl SESSION {
         let mut sid: [u8;32]=[0;32];
         let mut hrr: [u8; HRR.len()/2]=[0;HRR.len()/2];
         utils::decode_hex(&mut hrr,&HRR);
-        let mut ptr=0;
+        //let mut ptr=0;
+
+        self.ptr=0;  
         self.iolen=0;
-        let mut r=self.parse_int_pull(1,&mut ptr);  if r.err!=0 {return r;}
+
+        let mut r=self.parse_int_pull(1);  if r.err!=0 {return r;}
         if r.val!=SERVER_HELLO as usize { // should be Server Hello
             r.err=BAD_HELLO;
             return r;
         }
-        r=self.parse_int_pull(3,&mut ptr); let mut left=r.val; if r.err!=0 {return r;} // If not enough, pull in another fragment
-        r=self.parse_int_pull(2,&mut ptr); let svr=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;} // If not enough, pull in another fragment
+        r=self.parse_int_pull(2); let svr=r.val; if r.err!=0 {return r;}
         left-=2;                // whats left in message
         if svr!=TLS1_2 { 
             r.err=NOT_TLS1_3;  // don't ask
             return r;
         }
-        r= self.parse_bytes_pull(&mut srn,&mut ptr); if r.err!=0 {return r;}
+        r= self.parse_bytes_pull(&mut srn); if r.err!=0 {return r;}
         left-=32;
         let mut retry=false;
         if srn==hrr {
             retry=true;
         }
-        r=self.parse_int_pull(1,&mut ptr); if r.err!=0 {return r;}
+        r=self.parse_int_pull(1); if r.err!=0 {return r;}
         let silen=r.val; 
         if silen!=32 { 
             r.err=BAD_HELLO;
@@ -672,13 +695,13 @@ impl SESSION {
         }
      
         left-=1;
-        r=self.parse_bytes_pull(&mut sid[0..silen],&mut ptr); if r.err!=0 {return r;}
+        r=self.parse_bytes_pull(&mut sid[0..silen]); if r.err!=0 {return r;}
         left-=silen;  
         if self.session_id!=sid {
             r.err=ID_MISMATCH;
             return r;
         }
-        r=self.parse_int_pull(2,&mut ptr); let cipher=r.val as u16; if r.err!=0 {return r;}
+        r=self.parse_int_pull(2); let cipher=r.val as u16; if r.err!=0 {return r;}
         left-=2;
 	    if self.cipher_suite!=0 { // don't allow a change after initial assignment
 		    if cipher!=self.cipher_suite
@@ -688,13 +711,13 @@ impl SESSION {
 		    }
 	    }
 	    self.cipher_suite=cipher;
-        r=self.parse_int_pull(1,&mut ptr); let cmp=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(1); let cmp=r.val; if r.err!=0 {return r;}
         left-=1; // Compression not used in TLS1.3
         if cmp!=0  { 
             r.err=NOT_TLS1_3;  // don't ask
             return r;
         }
-        r=self.parse_int_pull(2,&mut ptr); let extlen=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(2); let extlen=r.val; if r.err!=0 {return r;}
         left-=2;  
         if left!=extlen { // Check space left is size of extensions
             r.err=BAD_HELLO;
@@ -702,30 +725,30 @@ impl SESSION {
         }
 
         while left>0 {
-            r=self.parse_int_pull(2,&mut ptr); let ext=r.val; if r.err!=0 {return r;} 
-            r=self.parse_int_pull(2,&mut ptr); let extlen=r.val; if r.err!=0 {return r;} 
+            r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;} 
+            r=self.parse_int_pull(2); let extlen=r.val; if r.err!=0 {return r;} 
             if extlen+2>left {r.err=BAD_MESSAGE;return r;}
             left-=4+extlen;
             match ext {
                 KEY_SHARE => {
-                    r=self.parse_int_pull(2,&mut ptr); *kex=r.val as u16; if r.err!=0 {return r;}
+                    r=self.parse_int_pull(2); *kex=r.val as u16; if r.err!=0 {return r;}
                     if !retry { // its not a retry request
-                        r=self.parse_int_pull(2,&mut ptr); let pklen=r.val; if r.err!=0 {return r;}
+                        r=self.parse_int_pull(2); let pklen=r.val; if r.err!=0 {return r;}
                         if pklen!=pk.len() {
                             r.err=BAD_HELLO;
                             return r;
                         }
-                        r=self.parse_bytes_pull(pk,&mut ptr);
+                        r=self.parse_bytes_pull(pk);
                     }
                 },
                 PRESHARED_KEY => {
-                    r=self.parse_int_pull(2,&mut ptr); *pskid=r.val as isize;
+                    r=self.parse_int_pull(2); *pskid=r.val as isize;
                 },
                 COOKIE => {
-                    r=self.parse_bytes_pull(&mut cookie[0..extlen],&mut ptr); *cklen=extlen;
+                    r=self.parse_bytes_pull(&mut cookie[0..extlen]); *cklen=extlen;
                 },
                 TLS_VER => {
-                    r=self.parse_int_pull(2,&mut ptr); let tls=r.val; if r.err!=0 {return r;}
+                    r=self.parse_int_pull(2); let tls=r.val; if r.err!=0 {return r;}
                     if tls!=TLS1_3 {
                         r.err=NOT_TLS1_3;
                     }
@@ -746,12 +769,13 @@ impl SESSION {
     }
 
 // Handshake Messages start with TYPE|<- LEN -> where TYPE is a byte, and LEN is 24 bits
-// Here we strip off the TYPE and decide what to do next
-// The whole lot go into the transcript hash
+// Here we peek ahead for the TYPE in order to decide what to do next
+// Important to include TYPE in the transcript hash
 // See whats coming next
     fn see_whats_next(&mut self) -> RET {
-        let mut ptr=0;
-        let mut r=self.parse_int_pull(1,&mut ptr);
+        //let mut ptr=0;
+        let mut r=self.parse_int_pull(1);
+        self.ptr -= 1;  // put it back
         if r.err!=0 {return r;}
         let nb=r.val as u8;
         if nb==END_OF_EARLY_DATA || nb==KEY_UPDATE { // Servers MUST NOT send this.... KEY_UPDATE should not happen at this stage
@@ -763,19 +787,13 @@ impl SESSION {
 
 // Process server's encrypted extensions
     pub fn get_server_encrypted_extensions(&mut self,expected: &EESTATUS,response: &mut EESTATUS) -> RET {
-        let mut ptr=0;
         let mut _unexp=0;
 
-        for i in 0..self.iolen {
-            self.io[i]=0;
-        }
-        self.iolen=0;
-
-        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
+        let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
         let nb=r.val as u8;
 
-        r=self.parse_int_pull(3,&mut ptr); let mut left=r.val;  if r.err!=0 {return r;}  // get message length
+        r=self.parse_int_pull(3); let mut left=r.val;  if r.err!=0 {return r;}  // get message length
         response.early_data=false;
         response.alpn=false;
         response.server_name=false;
@@ -785,7 +803,7 @@ impl SESSION {
             return r;
         }
 
-        r=self.parse_int_pull(2,&mut ptr); let mut len=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(2); let mut len=r.val; if r.err!=0 {return r;}
         left-=2;
 
         if left!=len {
@@ -798,9 +816,9 @@ impl SESSION {
 // "Clients MUST NOT act upon any information found in "supported_groups" prior to successful completion of the handshake"
 
         while len!=0 {
-            r=self.parse_int_pull(2,&mut ptr); let ext=r.val; if r.err!=0 {return r;}
+            r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;}
             len-=2;
-            r=self.parse_int_pull(2,&mut ptr); let tlen=r.val; if r.err!=0 {return r;}
+            r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
             len -= 2;
             match ext {
                 EARLY_DATA => {
@@ -815,7 +833,7 @@ impl SESSION {
                     }
                 },
                 MAX_FRAG_LENGTH => {
-                    r=self.parse_int_pull(1,&mut ptr); if r.err!=0 {return r;}
+                    r=self.parse_int_pull(1); if r.err!=0 {return r;}
                     len-=tlen;
                     if tlen !=1 {
                         r.err=UNRECOGNIZED_EXT;
@@ -827,7 +845,7 @@ impl SESSION {
                     }
                 },
                 RECORD_SIZE_LIMIT => {
-                    r=self.parse_int_pull(2,&mut ptr); let mfl=r.val; if r.err!=0 {return r;}
+                    r=self.parse_int_pull(2); let mfl=r.val; if r.err!=0 {return r;}
                     len-=tlen;
                     if tlen!=2 || mfl<64 {
                         r.err=UNRECOGNIZED_EXT;
@@ -837,9 +855,9 @@ impl SESSION {
                 },
                 APP_PROTOCOL => {
                     let mut name:[u8;256]=[0;256];
-                    r=self.parse_int_pull(2,&mut ptr); if r.err!=0 {return r;}
-                    r=self.parse_int_pull(1,&mut ptr); let mfl=r.val; if r.err!=0 {return r;}
-                    r=self.parse_bytes_pull(&mut name[0..mfl],&mut ptr); if r.err!=0 {return r;}
+                    r=self.parse_int_pull(2); if r.err!=0 {return r;}
+                    r=self.parse_int_pull(1); let mfl=r.val; if r.err!=0 {return r;}
+                    r=self.parse_bytes_pull(&mut name[0..mfl]); if r.err!=0 {return r;}
                     len-=tlen;
                     response.alpn=true;
                     if !expected.alpn {
@@ -864,15 +882,14 @@ impl SESSION {
                     return r;
                 },
                 _ => {
-                    len-=tlen; ptr +=tlen; // skip over it
+                    len-=tlen; self.ptr +=tlen; // skip over it
                     _unexp+=1;
                 }
             }
             if r.err!=0 {return r;}
         }
-// Update Transcript hash
-        sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr); // rewind io buffer
+// Update Transcript hash and rewind IO buffer
+        self.running_hash_io();
         r.val=nb as usize;
 
         return r;
@@ -880,9 +897,7 @@ impl SESSION {
 
 // Get certificate chain, and check its validity 
     pub fn get_check_server_certificatechain(&mut self,spk:&mut [u8],spklen: &mut usize) -> RET {
-        let mut ptr=0;
-
-        let mut r=self.parse_int_pull(1,&mut ptr); // get message type
+        let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
         let nb=r.val as u8;
         if nb != CERTIFICATE {
@@ -890,26 +905,27 @@ impl SESSION {
             return r;
         }
 
-        r=self.parse_int_pull(3,&mut ptr); let mut len=r.val; if r.err!=0 {return r;}         // message length   
+        r=self.parse_int_pull(3); let mut len=r.val; if r.err!=0 {return r;}         // message length   
         log(IO_DEBUG,"Certificate Chain Length= ",len as isize,None);
-        r=self.parse_int_pull(1,&mut ptr); let rc=r.val; if r.err!=0 {return r;} 
+        r=self.parse_int_pull(1); let rc=r.val; if r.err!=0 {return r;} 
         if rc!=0x00 {
             r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
             return r;
         }
-        r=self.parse_int_pull(3,&mut ptr); len=r.val; if r.err!=0 {return r;}   // get length of certificate chain
+        r=self.parse_int_pull(3); len=r.val; if r.err!=0 {return r;}   // get length of certificate chain
 	    if len==0 {
 		    r.err=EMPTY_CERT_CHAIN;
 		    return r;
 	    }
-        let start=ptr;
-        r=self.parse_pull(len,&mut ptr); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
+        let start=self.ptr;
+        r=self.parse_pull(len); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
 // Update Transcript hash
-        sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
+
         let mut identity:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];    // extracting cert identity - but not sure what to dowith it!
         let mut idlen=0;
         r.err=certchain::check_certchain(&self.io[start..start+len],Some(&self.hostname[0..self.hlen]),spk,spklen,&mut identity,&mut idlen);
-        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr); // rewind io buffer
+        self.running_hash_io();
+
         r.val=CERTIFICATE as usize;
         return r;
     }
@@ -929,7 +945,8 @@ impl SESSION {
     fn clean_io(&mut self) {
         for i in 0..self.iolen {
             self.io[i]=0;
-        }  
+        } 
+        self.ptr=0;
         self.iolen=0;
     }
 
@@ -1244,6 +1261,8 @@ impl SESSION {
 //   
         log(IO_DEBUG,"Client Hello sent\n",0,None);
 // process server hello
+
+
         pklen=sal::server_public_key_size(self.favourite_group);
         pk_s=&mut pk[0..pklen];
         let mut kex=0;
@@ -1276,6 +1295,10 @@ impl SESSION {
             return TLS_FAILURE;
         }
         logger::log_cipher_suite(self.cipher_suite);
+
+// For Transcript hash we must use cipher-suite hash function
+        self.init_transcript_hash();
+
 // extract slices.. Depends on cipher suite
         let mut hh: [u8;MAX_HASH]=[0;MAX_HASH]; let hh_s=&mut hh[0..hlen];
         let mut hs: [u8;MAX_HASH]=[0;MAX_HASH]; let hs_s=&mut hs[0..hlen];
@@ -1286,8 +1309,7 @@ impl SESSION {
         keys::derive_early_secrets(hash_type,None,es_s,None,None);
         log(IO_DEBUG,"Early secret= ",0,Some(es_s));
 // Initialise Transcript Hash
-// For Transcript hash we must use cipher-suite hash function
-        self.init_transcript_hash();
+
         if rtn.val==HANDSHAKE_RETRY { // Was server hello actually an hello retry request?
             self.running_synthetic_hash(&ch[0..chlen],&ext[0..extlen]);
             self.running_hash_io();
@@ -1547,6 +1569,7 @@ impl SESSION {
             log(IO_PROTOCOL,"... after handshake resumption\n",0,None);
             return TLS_RESUMPTION_REQUIRED;
         }
+//println!("1. self.iolen= {}",self.iolen);
         return TLS_SUCCESS;
     }
 
@@ -1595,8 +1618,9 @@ impl SESSION {
         let mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input \n",0,None);
-            let mut ptr=0;
-            self.iolen=0;
+            //let mut ptr=0;
+//println!("self.iolen= {}",self.iolen);
+            //self.iolen=0;
             kind=self.get_record();  // get first fragment to determine type
             if kind<0 {
                 return kind;   // its an error
@@ -1607,12 +1631,12 @@ impl SESSION {
             }
             if kind==HSHAKE as isize {
                 loop {
-                    let mut r=self.parse_int_pull(1,&mut ptr); let nb=r.val; if r.err!=0 {return BAD_RECORD;}
-                    r=self.parse_int_pull(3,&mut ptr); let len=r.val; if r.err!=0 {return BAD_RECORD;}   // message length
+                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return BAD_RECORD;}
+                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return BAD_RECORD;}   // message length
                     match nb as u8 {
                         TICKET => {
-                            let start=ptr;
-                            r=self.parse_pull(len,&mut ptr);
+                            let start=self.ptr;
+                            r=self.parse_pull(len);
                             let ticket=&self.io[start..start+len];
                             let rtn=self.t.create(ticket::millis(),ticket);  // extract into ticket structure T, and keep for later use
                             if rtn==BAD_TICKET {
@@ -1624,8 +1648,9 @@ impl SESSION {
                                 self.t.valid=true;
                                 log(IO_PROTOCOL,"Got a ticket with lifetime (minutes)= ",(self.t.lifetime/60) as isize,None);
                             }
-                            if ptr==self.iolen {
+                            if self.ptr==self.iolen {
                                 fin=true;
+                                self.rewind();
                             }
                             if !fin {continue;}
                         }
@@ -1636,7 +1661,7 @@ impl SESSION {
                             } 
                             let htype=sal::hash_type(self.cipher_suite);
                             let hlen=sal::hash_len(htype);
-                            r=self.parse_int_pull(1,&mut ptr); let kur=r.val; if r.err!=0 {return BAD_RECORD;}
+                            r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {return BAD_RECORD;}
                             if kur==UPDATE_NOT_REQUESTED {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 log(IO_PROTOCOL,"KEYS UPDATED\n",0,None);
@@ -1646,8 +1671,9 @@ impl SESSION {
                                 log(IO_PROTOCOL,"Key update notified - client should do the same (?) \n",0,None);
                                 log(IO_PROTOCOL,"KEYS UPDATED\n",0,None);
                             }
-                            if ptr==self.iolen {
+                            if self.ptr==self.iolen {
                                 fin=true;
+                                self.rewind();
                             }
                             if !fin {continue;}
                         }
@@ -1661,14 +1687,16 @@ impl SESSION {
                 }
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
+                self.ptr=self.iolen;
                 let mut n=mess.len();
-                if n>self.iolen {
-                    n=self.iolen;
+                if n>self.ptr {
+                    n=self.ptr;
                 }
                 for i in 0..n {
                     mess[i]=self.io[i];
                 }
                 mslen=n as isize;
+                self.rewind();
                 break;
             }
             if kind==ALERT as isize {

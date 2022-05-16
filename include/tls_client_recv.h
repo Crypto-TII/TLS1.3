@@ -69,7 +69,7 @@ extern int getServerFragment(TLS_session *session);
     @param ptr a pointer into IO, which advances after use
 	@return the unsigned integer, and an error flag
  */
-extern ret parseIntorPull(TLS_session *session,int len,int &ptr);
+extern ret parseIntorPull(TLS_session *session,int len);
 
 /**	@brief Parse out an octad from a pointer into an octad, if necessary pulling in a new fragment
  *
@@ -79,7 +79,7 @@ extern ret parseIntorPull(TLS_session *session,int len,int &ptr);
     @param ptr a pointer into IO, which advances after use
 	@return the actual length of O extracted, and an error flag
  */
-extern ret parseoctadorPull(TLS_session *session,octad *O,int len,int &ptr);
+extern ret parseoctadorPull(TLS_session *session,octad *O,int len);
 
 
 /**	@brief Parse out a byte array from a pointer into an octad, if necessary pulling in a new fragment
@@ -90,7 +90,7 @@ extern ret parseoctadorPull(TLS_session *session,octad *O,int len,int &ptr);
     @param ptr a pointer into IO, which advances after use
 	@return the actual length of o extracted, and an error flag
  */
-extern ret parsebytesorPull(TLS_session *session,char *o,int len,int &ptr);
+extern ret parsebytesorPull(TLS_session *session,char *o,int len);
 
 /**	@brief Return a pointer to an octad from a pointer into an octad, if necessary pulling in a new fragment
  *
@@ -100,7 +100,7 @@ extern ret parsebytesorPull(TLS_session *session,char *o,int len,int &ptr);
     @param ptr a pointer into IO, which advances after use
 	@return the actual length of O extracted, and an error flag
  */
-extern ret parseoctadorPullptr(TLS_session *session,octad *O,int len,int &ptr);
+extern ret parseoctadorPullptrX(TLS_session *session,octad *O,int len);
 
 /**	@brief Process response from server input
  *

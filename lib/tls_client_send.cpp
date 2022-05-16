@@ -190,6 +190,8 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
     int rbytes=SAL_randomByte()%16; // random padding bytes
 
     OCT_kill(&session->IO);
+    session->ptr=0;
+
     reclen=CM->len;
     if (EXT!=NULL) reclen+=EXT->len;
     if (!session->K_send.active)

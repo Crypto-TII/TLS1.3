@@ -2,6 +2,8 @@
 // Security Abstraction Layer
 // This version uses only MIRACL core functions
 //
+#![allow(dead_code)]
+
 use zeroize::Zeroize;
 
 extern crate mcore;
@@ -465,7 +467,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         let myct=ct.as_ref();
         for i in 0..myct.len() {
             spk[i]=myct[i];
-        }        
+        }      
     }
     csk.zeroize();
 }

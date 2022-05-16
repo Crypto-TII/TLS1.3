@@ -306,9 +306,15 @@ typedef struct
 #ifndef IOBUFF_FROM_HEAP
     char io[TLS_MAX_IO_SIZE];
 #endif
+    int ptr;                /**< pointer into IO buffer */
     unihash tlshash;        /**< Transcript hash recorder */
     ticket T;               /**< resumption ticket */
 } TLS_session;
 
+// IO buffer
+// xxxxxxxxxxxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyy
+// -------------ptr---------->----------IO.len----------->
+//
+// when ptr becomes equal to IO.len, pull in another record (and maybe decrypt it)
 
 #endif

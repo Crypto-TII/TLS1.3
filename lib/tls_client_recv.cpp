@@ -172,12 +172,11 @@ int getServerFragment(TLS_session *session)
     return BAD_RECORD;
 }
 
-// These functions read data from the input buffer, and pull more records from a socket if it has to.
+// These functions read data from the input buffer, and pull more handshake records from a socket if it has to.
 // ALL of these records SHOULD be of type HSHAKE
-
-ret parseIntorPull(TLS_session *session,int len,int &ptr)
+ret parseIntorPull(TLS_session *session,int len)
 {
-    ret r=parseInt(&session->IO,len,ptr);
+    ret r=parseInt(&session->IO,len,session->ptr);
     while (r.err)
     { // not enough bytes in IO - Pull in some more
         int rtn=getServerFragment(session); 
@@ -186,15 +185,15 @@ ret parseIntorPull(TLS_session *session,int len,int &ptr)
             if (rtn==ALERT) r.val=session->IO.val[1];
             break;
         }
-        r=parseInt(&session->IO,len,ptr);
+        r=parseInt(&session->IO,len,session->ptr);
     }
     return r;
 }
 
 // Get an octad O of length len from the IO buffer. Create a copy.
-ret parseoctadorPull(TLS_session *session,octad *O,int len,int &ptr)
+ret parseoctadorPull(TLS_session *session,octad *O,int len)
 {
-    ret r=parseoctad(O,len,&session->IO,ptr);
+    ret r=parseoctad(O,len,&session->IO,session->ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
         int rtn=getServerFragment(session);
@@ -203,15 +202,15 @@ ret parseoctadorPull(TLS_session *session,octad *O,int len,int &ptr)
             if (rtn==ALERT) r.val=session->IO.val[1];
             break;
         }
-        r=parseoctad(O,len,&session->IO,ptr);
+        r=parseoctad(O,len,&session->IO,session->ptr);
     }
     return r;
 }
 
 // Get byte array o of length len from the IO buffer. Create a copy.
-ret parsebytesorPull(TLS_session *session,char *o,int len,int &ptr)
+ret parsebytesorPull(TLS_session *session,char *o,int len)
 {
-    ret r=parsebytes(o,len,&session->IO,ptr);
+    ret r=parsebytes(o,len,&session->IO,session->ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
         int rtn=getServerFragment(session);
@@ -220,16 +219,15 @@ ret parsebytesorPull(TLS_session *session,char *o,int len,int &ptr)
             if (rtn==ALERT) r.val=session->IO.val[1];
             break;
         }
-        r=parsebytes(o,len,&session->IO,ptr);
+        r=parsebytes(o,len,&session->IO,session->ptr);
     }
     return r;
 }
 
-
 // Get an octad O of length len from the IO buffer, but this time the output octad is a pointer into the IO buffer
-ret parseoctadorPullptr(TLS_session *session,octad *O,int len,int &ptr)
+ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
 {
-    ret r=parseoctadptr(O,len,&session->IO,ptr);
+    ret r=parseoctadptr(O,len,&session->IO,session->ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
         int rtn=getServerFragment(session); 
@@ -238,7 +236,7 @@ ret parseoctadorPullptr(TLS_session *session,octad *O,int len,int &ptr)
             if (rtn==ALERT) r.val=session->IO.val[1];
             break;
         }
-        r=parseoctadptr(O,len,&session->IO,ptr);
+        r=parseoctadptr(O,len,&session->IO,session->ptr);
     }
     return r;
 }
@@ -286,10 +284,12 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
 
 ret seeWhatsNext(TLS_session *session)
 {
-    int nb,ptr=0;
+    int nb;//,ptr=0;
     ret r;
 
-    r=parseIntorPull(session,1,ptr); 
+    //session->ptr=0;
+    r=parseIntorPull(session,1); 
+    session->ptr-=1;
     if (r.err) return r; 
 
 	nb=r.val;
@@ -304,16 +304,16 @@ ret seeWhatsNext(TLS_session *session)
 ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee_status *enc_ext_resp)
 {
     ret r;
-    int nb,left,ext,len,tlen,mfl,ptr=0;
+    int nb,left,ext,len,tlen,mfl;//,ptr=0;
     int unexp=0;
+    //session->ptr=0;
+    //OCT_kill(&session->IO); // clear IO buffer
 
-    OCT_kill(&session->IO); // clear IO buffer
-
-    r=parseIntorPull(session,1,ptr);
+    r=parseIntorPull(session,1);
     if (r.err) return r;
     nb=r.val;
 
-    r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r;         // message length    
+    r=parseIntorPull(session,3); left=r.val; if (r.err) return r;         // message length    
 
     enc_ext_resp->early_data=false;
     enc_ext_resp->alpn=false;
@@ -325,7 +325,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
         return r;
     }
 
-    r=parseIntorPull(session,2,ptr); len=r.val; if (r.err) return r; // length of extensions
+    r=parseIntorPull(session,2); len=r.val; if (r.err) return r; // length of extensions
 
     left-=2;
     if (left!=len) {
@@ -338,9 +338,9 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 // "Clients MUST NOT act upon any information found in "supported_groups" prior to successful completion of the handshake"
     while (len>0)
     {
-        r=parseIntorPull(session,2,ptr); ext=r.val; if (r.err) return r;
+        r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
         len-=2;
-        r=parseIntorPull(session,2,ptr); tlen=r.val; if (r.err) return r;
+        r=parseIntorPull(session,2); tlen=r.val; if (r.err) return r;
         len-=2;
         switch (ext)
         {
@@ -356,7 +356,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
             }
             break;
         case MAX_FRAG_LENGTH :
-            r=parseIntorPull(session,1,ptr); if (r.err) return r; // ideally this should the same as requested by client
+            r=parseIntorPull(session,1); if (r.err) return r; // ideally this should the same as requested by client
             len-=tlen;                                       // but server may have ignored this request... :( so we ignore this response 
             if (tlen!=1) {
                 r.err=UNRECOGNIZED_EXT;
@@ -372,7 +372,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 		case RECORD_SIZE_LIMIT:
 
 //	printf("*****RECORD_SIZE_LIMIT EXTENSION RECEIVED*****\n");
-			r=parseIntorPull(session,2,ptr); mfl=r.val; if (r.err) return r;
+			r=parseIntorPull(session,2); mfl=r.val; if (r.err) return r;
 			len-=tlen;
             if (tlen!=2 || mfl<64) {
                 r.err=UNRECOGNIZED_EXT;
@@ -385,9 +385,9 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 
 
         case APP_PROTOCOL :
-            r=parseIntorPull(session,2,ptr); mfl=r.val; if (r.err) return r;
-            r=parseIntorPull(session,1,ptr); mfl=r.val; if (r.err) return r;
-            r=parseoctadorPull(session,NULL,mfl,ptr);  if (r.err) return r; // ALPN code - send to NULL -- assume its the one I asked for
+            r=parseIntorPull(session,2); mfl=r.val; if (r.err) return r;
+            r=parseIntorPull(session,1); mfl=r.val; if (r.err) return r;
+            r=parseoctadorPull(session,NULL,mfl);  if (r.err) return r; // ALPN code - send to NULL -- assume its the one I asked for
             len-=tlen;
             enc_ext_resp->alpn=true;
             if (!enc_ext_expt->alpn) {
@@ -414,21 +414,20 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 		case TLS_VER:
 		case COOKIE:
 		case PADDING:
-            len-=tlen; ptr+=tlen; // skip over it
+            len-=tlen; session->ptr+=tlen; // skip over it
             r.err=FORBIDDEN_EXTENSION;
             return r;
         default:    // ignore all other extensions
-            len-=tlen; ptr+=tlen; // skip over it
+            len-=tlen; session->ptr+=tlen; // skip over it
             unexp++;
             break;
         }
         if (r.err) return r;
     }
 
-// Update Transcript hash
-    SAL_hashProcessArray(&session->tlshash,session->IO.val,ptr);
+// Update Transcript hash and rewind IO buffer
+    runningHashIO(session);
 
-    OCT_shift_left(&session->IO,ptr);  // Shift octad left - rewind to start 
     if (unexp>0)    
         log(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
     r.val=nb;
@@ -439,10 +438,11 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
 {
     ret r;
-    int i,left,nb,ext,len,tlen,ptr=0;
+    int i,left,nb,ext,len,tlen;//,ptr=0;
     int unexp=0;
+    //session->ptr=0;
 
-    r=parseIntorPull(session,1,ptr); // get message type
+    r=parseIntorPull(session,1); // get message type
     if (r.err!=0) {return r;}
     nb=r.val;
     if (nb != CERT_REQUEST) {
@@ -450,13 +450,13 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
         return r;
     }
 
-    r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r;         // message length 
-    r=parseIntorPull(session,1,ptr); nb=r.val; if (r.err) return r;
+    r=parseIntorPull(session,3); left=r.val; if (r.err) return r;         // message length 
+    r=parseIntorPull(session,1); nb=r.val; if (r.err) return r;
     if (nb!=0x00) {
         r.err= MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
         return r;
     }
-    r=parseIntorPull(session,2,ptr); len=r.val; if (r.err) return r; // length of extensions
+    r=parseIntorPull(session,2); len=r.val; if (r.err) return r; // length of extensions
 	left-=3;
     if (left!=len) {
         r.err=BAD_MESSAGE;
@@ -466,18 +466,18 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
 // extension must include signature algorithms
     while (len>0)
     {
-        r=parseIntorPull(session,2,ptr); ext=r.val; if (r.err) return r;
+        r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
         len-=2;
         switch (ext)
         {
         case SIG_ALGS :
-            r=parseIntorPull(session,2,ptr); tlen=r.val; if (r.err) return r; 
+            r=parseIntorPull(session,2); tlen=r.val; if (r.err) return r; 
             len-=2;  
-            r=parseIntorPull(session,2,ptr); nalgs=r.val/2; if (r.err) return r;
+            r=parseIntorPull(session,2); nalgs=r.val/2; if (r.err) return r;
             len-=2;
             for (i=0;i<nalgs;i++)
             {
-                r=parseIntorPull(session,2,ptr); if (r.err) return r;
+                r=parseIntorPull(session,2); if (r.err) return r;
                 if (i<TLS_MAX_SUPPORTED_SIGS) sigalgs[i]=r.val;
                 len-=2;
             }
@@ -488,21 +488,19 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
             if (nalgs>TLS_MAX_SUPPORTED_SIGS) nalgs=TLS_MAX_SUPPORTED_SIGS;
             break;
         default:    // ignore all other extensions
-            r=parseIntorPull(session,2,ptr); tlen=r.val; 
+            r=parseIntorPull(session,2); tlen=r.val; 
             len-=2;  // length of extension
             //r=parseoctadorPull(session->sockptr,&U,tlen,ptr,recv);   // to look at extension
             //printf("Unexpected Extension= "); OCT_output(&U);
-            len-=tlen; ptr+=tlen; // skip over it
+            len-=tlen; session->ptr+=tlen; // skip over it
             unexp++;
             break;
         }
         if (r.err) return r;
     }
 
-// Update Transcript hash
-    SAL_hashProcessArray(&session->tlshash,session->IO.val,ptr);
-   
-    OCT_shift_left(&session->IO,ptr);  // Shift octad left - rewind to start 
+// Update Transcript hash and rewind IO buffer
+    runningHashIO(session);
 
     if (nalgs==0) { // must specify at least one signature algorithm
         r.err=UNRECOGNIZED_EXT;
@@ -518,11 +516,13 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
 ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
 {
     ret r;
-    int nb,len,ptr=0;
+    int nb,len;//,ptr=0;
     octad CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
     CERTCHAIN.len=0;
 
-    r=parseIntorPull(session,1,ptr); // get message type
+    //session->ptr=0;
+
+    r=parseIntorPull(session,1); // get message type
     if (r.err!=0) {return r;}
     nb=r.val;
     if (nb != CERTIFICATE) {
@@ -530,15 +530,15 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
         return r;
     }
 
-    r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r;         // message length   
+    r=parseIntorPull(session,3); len=r.val; if (r.err) return r;         // message length   
     log(IO_DEBUG,(char *)"Certificate Chain Length= ",(char *)"%d",len,NULL);
 
-    r=parseIntorPull(session,1,ptr); nb=r.val; if (r.err) return r;
+    r=parseIntorPull(session,1); nb=r.val; if (r.err) return r;
     if (nb!=0x00) {
         r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
         return r;
     }
-    r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r;    // get length of certificate chain
+    r=parseIntorPull(session,3); len=r.val; if (r.err) return r;    // get length of certificate chain
 
 	if (len==0)
 	{
@@ -546,16 +546,14 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
 		return r;
 	}
 
-    r=parseoctadorPullptr(session,&CERTCHAIN,len,ptr); if (r.err) return r; // get pointer to certificate chain
+    r=parseoctadorPullptrX(session,&CERTCHAIN,len); if (r.err) return r; // get pointer to certificate chain
 
-// Update Transcript hash
-    SAL_hashProcessArray(&session->tlshash,session->IO.val,ptr);
+// Update Transcript hash and rewind IO buffer
+    runningHashIO(session);
 
     r.err=checkServerCertChain(&CERTCHAIN,session->hostname,PUBKEY);
 
-    OCT_shift_left(&session->IO,ptr);  // rewind to start
     r.val=CERTIFICATE;
-
     return r;
 }
 
@@ -563,9 +561,11 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
 ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
 {
     ret r;
-    int nb,left,len,ptr=0;
+    int nb,left,len;//,ptr=0;
 
-    r=parseIntorPull(session,1,ptr); // get message type
+    //session->ptr=0;
+    //r=parseIntorPull(session,1,ptr); // get message type
+    r=parseIntorPull(session,1); // get message type
     if (r.err!=0) {return r;}
     nb=r.val;
     if (nb != CERT_VERIFY) {
@@ -573,23 +573,28 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
         return r;
     }
 
-    r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r; // message length    
+    //r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r; // message length    
+    r=parseIntorPull(session,3); left=r.val; if (r.err) return r; // message length    
 
     OCT_kill(SCVSIG);
-    r=parseIntorPull(session,2,ptr); sigalg=r.val; if (r.err) return r; // may for example be 0804 - RSA-PSS-RSAE-SHA256
-    r=parseIntorPull(session,2,ptr); len=r.val; if (r.err) return r;    // sig data follows
-    r=parseoctadorPull(session,SCVSIG,len,ptr); if (r.err) return r;
+    //r=parseIntorPull(session,2,ptr); sigalg=r.val; if (r.err) return r; // may for example be 0804 - RSA-PSS-RSAE-SHA256
+    //r=parseIntorPull(session,2,ptr); len=r.val; if (r.err) return r;    // sig data follows
+    //r=parseoctadorPull(session,SCVSIG,len,ptr); if (r.err) return r;
    
+    r=parseIntorPull(session,2); sigalg=r.val; if (r.err) return r; // may for example be 0804 - RSA-PSS-RSAE-SHA256
+    r=parseIntorPull(session,2); len=r.val; if (r.err) return r;    // sig data follows
+    r=parseoctadorPull(session,SCVSIG,len); if (r.err) return r;
+
+
     left-=4+len;
     if (left!=0) {
         r.err=BAD_MESSAGE;
         return r;
     }
 
-// Update Transcript hash
-    SAL_hashProcessArray(&session->tlshash,session->IO.val,ptr);
+// Update Transcript hash and rewind IO buffer
+    runningHashIO(session);
 
-    OCT_shift_left(&session->IO,ptr);  // rewind to start
     r.val=CERT_VERIFY;
     return r;
 }
@@ -598,9 +603,10 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
 ret getServerFinished(TLS_session *session,octad *HFIN)
 {
     ret r;
-    int nb,len,ptr=0;
+    int nb,len;//,ptr=0;
 
-    r=parseIntorPull(session,1,ptr); // get message type
+    //session->ptr=0;
+    r=parseIntorPull(session,1); // get message type
     if (r.err!=0) {return r;}
     nb=r.val;
     if (nb != FINISHED) {
@@ -608,15 +614,14 @@ ret getServerFinished(TLS_session *session,octad *HFIN)
         return r;
     }
 
-    r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r;         // message length    
+    r=parseIntorPull(session,3); len=r.val; if (r.err) return r;         // message length    
 
     OCT_kill(HFIN);
-    r=parseoctadorPull(session,HFIN,len,ptr); if (r.err) return r;
+    r=parseoctadorPull(session,HFIN,len); if (r.err) return r;
 
-// Update Transcript hash
-    SAL_hashProcessArray(&session->tlshash,session->IO.val,ptr);
-   
-    OCT_shift_left(&session->IO,ptr);  // rewind to start
+// Update Transcript hash and rewind IO buffer
+    runningHashIO(session);
+
     r.val=FINISHED;
     return r;
 }
@@ -650,16 +655,17 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
     OCT_kill(&session->IO);
 
 // start parsing mandatory components
-    int ptr=0;
-    r=parseIntorPull(session,1,ptr); if (r.err) return r; // should be Server Hello
+    session->ptr=0;
+
+    r=parseIntorPull(session,1); if (r.err) return r; // should be Server Hello
     if (r.val!=SERVER_HELLO)
     {
         r.err=BAD_HELLO;
         return r;
     }
 
-    r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r;   // If not enough, pull in another fragment
-    r=parseIntorPull(session,2,ptr); svr=r.val; if (r.err) return r;
+    r=parseIntorPull(session,3); left=r.val; if (r.err) return r;   // If not enough, pull in another fragment
+    r=parseIntorPull(session,2); svr=r.val; if (r.err) return r;
     left-=2;                // whats left in message
 
     if (svr!=TLS1_2) { 
@@ -667,16 +673,16 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
         return r;
     }
 
-    r= parseoctadorPull(session,&SRN,32,ptr); if (r.err) return r;
+    r= parseoctadorPull(session,&SRN,32); if (r.err) return r;
     left-=32;
 
     if (OCT_compare(&SRN,&HRR))
     {
         retry=true;        // "random" data was not random at all - indicated Handshake Retry Request!
     }
-    r=parseIntorPull(session,1,ptr); silen=r.val; if (silen!=32) r.err=BAD_HELLO; if (r.err) return r; 
+    r=parseIntorPull(session,1); silen=r.val; if (silen!=32) r.err=BAD_HELLO; if (r.err) return r; 
     left-=1;
-    r=parsebytesorPull(session,sid,silen,ptr); if (r.err) return r;
+    r=parsebytesorPull(session,sid,silen); if (r.err) return r;
     left-=silen;  
 
 // Tricky one. According to the RFC (4.1.3) this check should be made, even though the session id is "legacy",
@@ -693,7 +699,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
         r.err=ID_MISMATCH;  // check identities match
         return r;
     }
-    r=parseIntorPull(session,2,ptr); cipher=r.val; if (r.err) return r;
+    r=parseIntorPull(session,2); cipher=r.val; if (r.err) return r;
     left-=2;
 
 	if (session->cipher_suite!=0)
@@ -706,14 +712,14 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 	}
 	session->cipher_suite=cipher;
 
-    r=parseIntorPull(session,1,ptr); cmp=r.val; if (r.err) return r;
+    r=parseIntorPull(session,1); cmp=r.val; if (r.err) return r;
     left-=1; // Compression not used in TLS1.3
     if (cmp!=0x00) { 
         r.err=NOT_TLS1_3;  // don't ask
         return r;
     }
 
-    r=parseIntorPull(session,2,ptr); extLen=r.val; if (r.err) return r;
+    r=parseIntorPull(session,2); extLen=r.val; if (r.err) return r;
     left-=2;  
     if (left!=extLen) { // Check space left is size of extensions
         r.err=BAD_HELLO;
@@ -723,36 +729,36 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 // process extensions
     while (extLen>0)
     {
-        r=parseIntorPull(session,2,ptr); ext=r.val; if (r.err) return r;
+        r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
         extLen-=2;
-        r=parseIntorPull(session,2,ptr); tmplen=r.val; if (r.err) break;
+        r=parseIntorPull(session,2); tmplen=r.val; if (r.err) break;
         extLen-=2;
         extLen-=tmplen;
         switch (ext)
         {
         case KEY_SHARE :
             { // actually mandatory
-                r=parseIntorPull(session,2,ptr); kex=r.val; if (r.err) break;
+                r=parseIntorPull(session,2); kex=r.val; if (r.err) break;
                 if (!retry)
                 { // its not a retry request
-                    r=parseIntorPull(session,2,ptr); pklen=r.val; if (r.err) break;   // FIX this first for HRR
-                    r=parseoctadorPull(session,PK,pklen,ptr); 
+                    r=parseIntorPull(session,2); pklen=r.val; if (r.err) break;   // FIX this first for HRR
+                    r=parseoctadorPull(session,PK,pklen); 
                 }
                 break;
             }
         case PRESHARED_KEY :
             { // Indicate acceptance of pre-shared key
-                r=parseIntorPull(session,2,ptr); pskid=r.val;
+                r=parseIntorPull(session,2); pskid=r.val;
                 break;
             }
         case COOKIE :
             { // Pick up a cookie
-                r=parseoctadorPull(session,CK,tmplen,ptr);
+                r=parseoctadorPull(session,CK,tmplen);
                 break;
             }
         case TLS_VER :
             { // report TLS version
-                r=parseIntorPull(session,2,ptr); tls=r.val; if (r.err) break; // get TLS version
+                r=parseIntorPull(session,2); tls=r.val; if (r.err) break; // get TLS version
                 if (tls!=TLS1_3) r.err=NOT_TLS1_3;
                 break;
             }
@@ -762,7 +768,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
         }
         if (r.err) return r;
     }
-
+    
     if (retry)
         r.val=HANDSHAKE_RETRY;
     else

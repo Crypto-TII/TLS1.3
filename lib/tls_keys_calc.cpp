@@ -18,6 +18,14 @@ void runningHash(TLS_session *session,octad *O)
     SAL_hashProcessArray(&session->tlshash,O->val,O->len);
 }
 
+// Add IO buffer to transcript hash
+void runningHashIO(TLS_session *session)
+{
+    SAL_hashProcessArray(&session->tlshash,session->IO.val,session->ptr);
+    OCT_shift_left(&session->IO,session->ptr);  // Shift octad left - rewind IO buffer to start 
+    session->ptr=0;
+}
+
 // Output transcript hash 
 void transcriptHash(TLS_session *session,octad *O)
 {

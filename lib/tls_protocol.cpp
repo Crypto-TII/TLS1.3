@@ -25,7 +25,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 #else
 	state.IO={0,TLS_MAX_IO_SIZE,state.io};
 #endif
-
+    state.ptr=0;
     state.favourite_group=0;							    // default key exchage group
     initTicketContext(&state.T);                            // Resumption ticket - may be added to session state
     return state;
@@ -215,7 +215,8 @@ static int TLS13_full(TLS_session *session)
     if (rtn.val==HANDSHAKE_RETRY)  // Was serverHello an helloRetryRequest?
     {
         runningSyntheticHash(session,&CH,&EXT); // RFC 8446 section 4.4.1
-        runningHash(session,&session->IO);      // Hash of helloRetryRequest
+        //runningHash(session,&session->IO);      // Hash of helloRetryRequest
+        runningHashIO(session);      // Hash of helloRetryRequest
 
         if (kex==session->favourite_group)
         { // its the same one I chose !?
@@ -276,7 +277,8 @@ static int TLS13_full(TLS_session *session)
 // Hash Transcript the Hellos 
     runningHash(session,&CH);
     runningHash(session,&EXT);
-    runningHash(session,&session->IO);  // Hashing Server Hello
+    runningHashIO(session);
+    //runningHash(session,&session->IO);  // Hashing Server Hello
     transcriptHash(session,&HH);        // HH = hash of clientHello+serverHello
     log(IO_DEBUG,(char *)"Server Hello= ",NULL,0,&session->IO); 
     logServerHello(session->cipher_suite,kex,pskid,&PK,&COOK);
@@ -654,7 +656,8 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 //  <---------------------------------------------------------- server Hello
 //
 //
-    runningHash(session,&session->IO); // Hashing Server Hello
+    //runningHash(session,&session->IO); // Hashing Server Hello
+    runningHashIO(session); // Hashing Server Hello
     transcriptHash(session,&HH);       // HH = hash of clientHello+serverHello
 
     if (pskid<0)
@@ -833,17 +836,17 @@ void TLS13_send(TLS_session *state,octad *GET)
 int TLS13_recv(TLS_session *session,octad *REC)
 {
     ret r;
-    int nce,nb,len,te,type,nticks,kur,rtn,ptr=0;
+    int nce,nb,len,te,type,nticks,kur,rtn;//,ptr=0;
     bool fin=false;
     unsign32 time_ticket_received;
     octad TICK;  // Ticket raw data
     TICK.len=0;
-
+    session->ptr=0;
     nticks=0; // number of tickets received
     while (1)
     {
         log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
-        OCT_kill(&session->IO); ptr=0;
+        OCT_kill(&session->IO); session->ptr=0;
         type=getServerFragment(session);  // get first fragment to determine type
         if (type<0)
             return type;   // its an error
@@ -856,12 +859,12 @@ int TLS13_recv(TLS_session *session,octad *REC)
         {
             while (1)
             {
-                r=parseIntorPull(session,1,ptr); nb=r.val; if (r.err) return r.err;
-                r=parseIntorPull(session,3,ptr); len=r.val; if (r.err) return r.err;   // message length
+                r=parseIntorPull(session,1); nb=r.val; if (r.err) return r.err;
+                r=parseIntorPull(session,3); len=r.val; if (r.err) return r.err;   // message length
                 switch (nb)
                 {
                 case TICKET :   // keep last ticket
-                    r=parseoctadorPullptr(session,&TICK,len,ptr);    // just copy out pointer to this
+                    r=parseoctadorPullptrX(session,&TICK,len);    // just copy out pointer to this
                     nticks++;
                     rtn=parseTicket(&TICK,(unsign32)millis(),&session->T);       // extract into ticket structure T, and keep for later use  
                     if (rtn==BAD_TICKET) {
@@ -874,7 +877,11 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         log(IO_PROTOCOL,(char *)"Got a ticket with lifetime (minutes)= ",(char *)"%d",session->T.lifetime/60,NULL);
                     }
 
-                    if (ptr==session->IO.len) fin=true; // record finished
+                    if (session->ptr==session->IO.len)
+                    {
+                        fin=true; // record finished
+                        //OCT_shift_left(&session->IO,session->ptr); // rewind IO buffer
+                    }
                     if (fin) break;
                     continue;
 
@@ -884,7 +891,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         log(IO_PROTOCOL,(char *)"Something wrong\n",NULL,0,NULL);
                         return BAD_RECORD;
                     }
-                    r=parseIntorPull(session,1,ptr); kur=r.val; if (r.err) break;
+                    r=parseIntorPull(session,1); kur=r.val; if (r.err) break;
                     if (kur==0)
                     {
                         deriveUpdatedKeys(&session->K_recv,&session->STS);  // reset record number
@@ -896,7 +903,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         log(IO_PROTOCOL,(char *)"Key update notified - client should do the same (?) \n",NULL,0,NULL);
                         log(IO_PROTOCOL,(char *)"KEYS UPDATED\n",NULL,0,NULL);
                     }
-                    if (ptr==session->IO.len) fin=true; // record finished
+                    if (session->ptr==session->IO.len) fin=true; // record finished
                     if (fin) break;
                     continue;
 
