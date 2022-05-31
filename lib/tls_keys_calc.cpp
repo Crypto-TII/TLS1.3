@@ -430,8 +430,12 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
 
 // adjustment for ECDSA signatures
     if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384)
-        parse_in_ecdsa_sig(SAL_hashTypeSig(sigAlg),CCVSIG);
-
+    {
+        int hts=TLS_SHA256_T;
+        if (sigAlg==ECDSA_SECP384R1_SHA384)
+            hts=TLS_SHA384_T;
+        parse_in_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,CCVSIG);
+    }
     return;
 }
 
@@ -510,7 +514,10 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
 
 // Special case processing required here for ECDSA signatures -  SCVSIG is modified
     if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384) {
-        if (!parse_out_ecdsa_sig(SAL_hashTypeSig(sigAlg),SCVSIG)) return false;
+        int hts=TLS_SHA256_T;
+        if (sigAlg==ECDSA_SECP384R1_SHA384)
+            hts=TLS_SHA384_T;
+        if (!parse_out_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,SCVSIG)) return false;
     }
     log(IO_DEBUG,(char *)"Certificate Signature = ",NULL,0,SCVSIG);
     return SAL_tlsSignatureVerify(sigAlg,&SCV,SCVSIG,CERTPK);

@@ -78,6 +78,10 @@ static octad RSASHA384 = {9, sizeof(rsasha384), (char *)rsasha384};
 static unsigned char rsasha512[9] = {0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d};
 static octad RSASHA512 = {9, sizeof(rsasha512), (char *)rsasha512};
 
+// DILITHIUM3
+static unsigned char dilithium3[11] = {0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05};
+static octad DILITHIUM3 = {11, sizeof(dilithium3), (char *)dilithium3};
+
 
 // Cert details
 // countryName
@@ -173,7 +177,7 @@ static int bround(int len)
 pktype X509_extract_private_key(octad *c,octad *pk)
 {
     int i, j, k, fin, len, rlen, flen, sj, ex;
-    char soid[9];
+    char soid[12];
     octad SOID = {0, sizeof(soid), soid};
     pktype ret;
 
@@ -223,7 +227,20 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         ret.type = X509_ECD;
         ret.curve = USE_C25519;
     }
-
+    if (OCT_compare(&DILITHIUM3, &SOID))
+    { // Its a DILITHIUM3 key
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        for (i=0;i<len;i++)
+            pk->val[i]=c->val[j++];
+        pk->len=len;
+        ret.type=X509_PQ;
+        ret.curve=8*len;
+    }
     if (OCT_compare(&ECPK, &SOID))
     { // Its an ECC key
         len = getalen(OID, c->val, j);
@@ -353,7 +370,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
 pktype X509_extract_cert_sig(octad *sc, octad *sig)
 {
     int i, j, k, fin, len, rlen, sj, ex;
-    char soid[9];
+    char soid[12];
     octad SOID = {0, sizeof(soid), soid};
     pktype ret;
 
@@ -424,7 +441,13 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         ret.type = X509_RSA;
         ret.hash = X509_H512;
     }
-
+//printf("Checking OID %d %x %x %x %x %x %x %x %x %x %x %x\n",SOID.len,SOID.val[0],SOID.val[1],SOID.val[2],SOID.val[3],SOID.val[4],SOID.val[5],SOID.val[6],SOID.val[7],SOID.val[8],SOID.val[9],SOID.val[10]);
+    if (OCT_compare(&DILITHIUM3, &SOID))
+    {
+//printf("Found OID\n");
+        ret.type = X509_PQ;
+        ret.hash = 0; // hash type is implicit
+    }
     if (ret.type == 0) return ret; // unsupported type
 
     j = sj; // jump out to signature
@@ -537,7 +560,14 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
 
         ret.curve = 8*rlen;
     }
-
+    if (ret.type == X509_PQ)
+    {
+        sig->len = len;
+        fin = j + len;
+        for (i=0; j < fin; j++)
+            sig->val[i++] = sc->val[j];
+        ret.curve = 8*len;
+    }
     return ret;
 }
 
@@ -635,6 +665,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
     if (OCT_compare(&ECPK, &KOID)) ret.type = X509_ECC;
     if (OCT_compare(&EDPK, &KOID)) ret.type = X509_ECD;
     if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
+    if (OCT_compare(&DILITHIUM3, &KOID)) ret.type = X509_PQ;
 
     if (ret.type == 0) return ret;
 
@@ -673,7 +704,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
     len--; // skip bit shift (hopefully 0!)
 
 // extract key
-    if (ret.type == X509_ECC || ret.type == X509_ECD)
+    if (ret.type == X509_ECC || ret.type == X509_ECD || ret.type == X509_PQ)
     {
         key->len = len;
         fin = j + len;
@@ -681,6 +712,8 @@ pktype X509_extract_public_key(octad *c, octad *key)
             key->val[i++] = c->val[j];
 
     }
+    if (ret.type == X509_PQ) 
+        ret.curve=8*len;
     if (ret.type == X509_RSA)
     {
         // Key is (modulus,exponent) - assume exponent is 65537

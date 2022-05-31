@@ -50,6 +50,7 @@ pub fn log_cipher_suite(cipher_suite: u16) {
 }
 
 pub fn log_sig_alg(sigalg: u16) {
+    log(IO_DEBUG,"Signature Algorithm is ",0,None);
     match sigalg {
         ECDSA_SECP256R1_SHA256 => log(IO_DEBUG,"ECDSA_SECP256R1_SHA256\n",0,None),
         RSA_PSS_RSAE_SHA256 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA256\n",0,None),
@@ -59,6 +60,7 @@ pub fn log_sig_alg(sigalg: u16) {
         RSA_PKCS1_SHA384 => log(IO_DEBUG,"RSA_PKCS1_SHA384\n",0,None),
         RSA_PSS_RSAE_SHA512 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA512\n",0,None),
         RSA_PKCS1_SHA512 => log(IO_DEBUG,"RSA_PKCS1_SHA512\n",0,None),
+        DILITHIUM3 => log(IO_DEBUG,"DILITHIUM3\n",0,None),
         _ => log(IO_DEBUG,"Non-standard\n",0,None)
     }     
 }

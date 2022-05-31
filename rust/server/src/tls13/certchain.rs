@@ -108,7 +108,7 @@ fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in place
 // find root CA (if it exists) from database
 fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bool {
     let mut owner:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
-    let mut sc:[u8;MAX_ROOT_CERT_SIZE]=[0;MAX_ROOT_CERT_SIZE];
+    let mut sc:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
     for i in 0..cacerts::CERT_STORE_SIZE {
         let b=cacerts::CACERTS[i].as_bytes();
         let sclen=decode_b64(&b,&mut sc);
@@ -122,9 +122,11 @@ fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bo
         }
         if &owner[0..wlen]==issuer {
             let pkt=x509::extract_public_key(cert, pk);
-            if st.kind==pkt.kind && st.curve==pkt.curve {
-            *pklen=pkt.len;
-                return true;
+            if st.kind==pkt.kind {
+                if st.kind==x509::PQ || st.curve==pkt.curve {  // In PQ world signature sizes and public key sizes are not the same
+                    *pklen=pkt.len;
+                    return true;
+                }
             }
         }
     }
@@ -149,6 +151,9 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     if st.kind==x509::RSA && st.hash==x509::H512 {
         sigalg=RSA_PKCS1_SHA512;
     }
+    if st.kind==x509::PQ {
+        sigalg=DILITHIUM3;
+    }
     if sigalg==0 {
 //println!("Unsupported sig {} {} {}",st.kind,st.hash,st.curve);
         return false;
@@ -159,7 +164,7 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
 
 // get server credentials
 pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
-    let mut sc:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
+    let mut sc:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];
 // first get certificate chain
 // Should check against hostname to pick right certificate - we could have more than one
 
@@ -191,6 +196,11 @@ pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
     if pk.kind==x509::RSA {
         kind=RSA_PSS_RSAE_SHA256;
     }
+
+    if pk.kind==x509::PQ {
+        kind=DILITHIUM3;
+    }
+
     for i in 0..nccsalgs {
         if kind==csigalgs[i] {return kind;}
     }
@@ -353,7 +363,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
     r=utils::parse_int(chain,2,&mut ptr); len=r.val; if r.err!=0 {return BAD_CERT_CHAIN;}
     ptr+=len;    // skip certificate extensions
 
-    if ptr<=chain.len() {
+    if ptr<chain.len() {
         log(IO_PROTOCOL,"Warning - there are unprocessed Certificates in the Chain\n",0,None);
     }
 

@@ -29,13 +29,15 @@ void log(int logit,char *preamble,char *string,unsign32 info,octad *O)
 	if (logit>VERBOSITY) return;
 
 #if VERBOSITY>IO_NONE    
-
+    char w[16];
     myprintf(preamble);
 
     if (O!=NULL)
     {
         char buff[LOG_OUTPUT_TRUNCATION+8];
         bool res=OCT_output_hex(O,LOG_OUTPUT_TRUNCATION,buff);
+        sprintf(w," (%d) ",O->len);
+        myprintf(w);
         myprintf(buff);
         if (!res) myprintf((char *)" (truncated)");
         myprintf((char *)"\n");
@@ -48,7 +50,6 @@ void log(int logit,char *preamble,char *string,unsign32 info,octad *O)
             myprintf(string);
         else
         {
-            char w[16];
             sprintf(w,string,info);
             myprintf(w);
         }
@@ -146,6 +147,9 @@ static void nameSigAlg(int sigAlg)
         break;
     case ED25519:
         myprintf((char *)"ED25519\n");   
+        break;
+    case DILITHIUM3:
+        myprintf((char *)"DILITHIUM3\n");   
         break;
     default:
         myprintf((char *)"Non-standard\n");   

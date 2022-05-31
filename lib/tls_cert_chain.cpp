@@ -64,7 +64,7 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
     char owner[TLS_X509_MAX_FIELD];
     octad OWNER={0,sizeof(owner),owner};
     //char sc[TLS_MAX_ROOT_CERT_SIZE];  // server certificate
-    char b[TLS_MAX_ROOT_CERT_B64];  // maximum size for CA root signed certs in base64
+    char b[TLS_MAX_CERT_B64];  // maximum size for CA root signed certs in base64
     octad SC={0,sizeof(b),b};       // optimization - share memory
     char line[80]; int ptr=0;
 
@@ -94,9 +94,10 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
         if (OCT_compare(&OWNER,ISSUER))
         {
             pktype pt = X509_extract_public_key(&SC, PUBKEY);
-            if (st.type==pt.type && st.curve==pt.curve) 
+            if (st.type==pt.type || st.curve==pt.curve) 
             { // found CA cert 
-                return true;
+                if (st.type==X509_PQ || st.curve==pt.curve)
+                    return true;
             }
         } 
     }
@@ -141,6 +142,8 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
         sigAlg = RSA_PKCS1_SHA384;
     if (st.type== X509_RSA && st.hash==X509_H512)
         sigAlg = RSA_PKCS1_SHA512;
+    if (st.type== X509_PQ)
+        sigAlg = DILITHIUM3;
 
     if (sigAlg == 0)
     {
@@ -224,7 +227,10 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
     {
         kind=RSA_PSS_RSAE_SHA256;  // as long as this is a capability
     }
-
+    if (pk.type==X509_PQ)
+    {
+        kind=DILITHIUM3;
+    }
     for (i=0;i<nccsalgs;i++)
     {
         if (kind==csigAlgs[i]) return kind;
@@ -248,8 +254,7 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
 
     sst=stripDownCert(SCERT,SSIG,&ISSUER,&SUBJECT);    // break down Cert and extract signature
 	if (!checkCertNotExpired(SCERT)) {
-
-    log(IO_DEBUG,(char *)"Certificate has expired\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Certificate has expired\n",NULL,0,NULL);
 		return  CERT_OUTOFDATE;
 	}
     if (sst.type==0)
@@ -307,7 +312,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     octad INTER_CERT;  // signature on intermediate certificate
     INTER_CERT.len=0;
 
-    char pk[TLS_MAX_SERVER_PUB_KEY];  // Public Key 
+    char pk[TLS_MAX_PUB_KEY_SIZE];  // Public Key 
     octad PK = {0, sizeof(pk), pk};
 
     char issuer[TLS_X509_MAX_FIELD];  

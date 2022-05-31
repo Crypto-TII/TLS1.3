@@ -17,6 +17,7 @@ pub struct FDTYPE {
 pub const ECC:usize = 1;
 pub const RSA:usize = 2;
 pub const ECD:usize = 3;  // for Ed25519
+pub const PQ:usize = 4;
 
 // Supported Hash functions
 
@@ -67,7 +68,7 @@ const RSAPK:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01];
 const RSASHA256:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b];
 const RSASHA384:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0];
 const RSASHA512:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d];
-
+const DILITHIUM3:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05];
 // Cert details
 
 //pub const CN:[u8;3]=[0x55, 0x04, 0x06]; // countryName
@@ -150,7 +151,7 @@ impl FDTYPE {
 // For RSA octet = p|q|dp|dq|c where pk->len is multiple of 5
 // For ECC octet = k
 pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
-    let mut soid:[u8;9]=[0;9];
+    let mut soid:[u8;12]=[0;12];
     let mut ret=PKTYPE::new();
     let mut j=0 as usize;
 
@@ -215,7 +216,25 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
         ret.kind = ECD;
         ret.curve = USE_C25519;
     }
-
+    if DILITHIUM3 == soid[0..slen] {
+        len=getalen(OCT,c,j);
+        if len==0 {
+            return ret;
+        }
+        j+=skip(len);
+        len=getalen(OCT,c,j);
+        if len==0 {
+            return ret;
+        }
+        j+=skip(len);
+        for i in 0..len {
+            pk[i]=c[j];
+            j+=1;
+        }
+        ret.len=len;
+        ret.kind=PQ;
+        ret.curve=8*len;
+    }    
     if ECPK == soid[0..slen] {
         len=getalen(OID,c,j);
         if len==0 {
@@ -373,7 +392,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
 //  Note that signature type is not provided here - its the type of the public key that
 //  is used to verify it that matters, and which determines for example the curve to be used!
 pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
-    let mut soid:[u8;9]=[0;9];
+    let mut soid:[u8;12]=[0;12];
     let mut ret=PKTYPE::new();
 
     let mut j=0 as usize;
@@ -445,7 +464,10 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
         ret.kind=RSA;
         ret.hash=H512;
     }
-
+    if DILITHIUM3 == soid[0..slen] {
+        ret.kind=PQ;
+        ret.hash=0; // hash type is implicit
+    }
     if ret.kind==0 { 
         return ret;  // unsupported type
     }
@@ -560,6 +582,17 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
             slen+=1;
         }
         ret.curve=8*rlen;
+    }
+    if ret.kind==PQ {
+        ret.len=len;
+        slen=0;
+        fin=j+len;
+        while j<fin {
+            sig[slen]=sc[j];
+            j+=1;
+            slen+=1;
+        }
+        ret.curve=8*len;
     }
     return ret;
 }
@@ -703,7 +736,9 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     if RSAPK == koid[0..slen] {
         ret.kind=RSA;
     }
-
+    if DILITHIUM3 == koid[0..slen] {
+        ret.kind=PQ;
+    }
     if ret.kind==0 {
         return ret;
     }
@@ -746,7 +781,7 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     j+=1;
     len-=1; // skip bit shift (hopefully 0!)
 
-    if ret.kind==ECC || ret.kind==ECD {
+    if ret.kind==ECC || ret.kind==ECD || ret.kind==PQ {
         ret.len=len;
         fin=j+len;
         slen=0;
@@ -755,6 +790,9 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
             slen+=1;
             j+=1;
         }
+    }
+    if ret.kind==PQ {
+        ret.curve=8*len;
     }
     if ret.kind==RSA { // // Key is (modulus,exponent) - assume exponent is 65537
         len=getalen(SEQ,c,j);
@@ -1098,4 +1136,3 @@ pub fn find_alt_name(c: &[u8],start: usize,name: &[u8]) -> bool {
     }
     return false;
 }
-

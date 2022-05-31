@@ -1377,8 +1377,8 @@ impl SESSION {
 //
             }
 
-            let mut server_key:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
-            let mut server_certchain:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
+            let mut server_key:[u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
+            let mut server_certchain:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];   // assume max chain length of 2
             let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
             let mut sclen=0;
             let mut sklen=0;
@@ -1403,6 +1403,7 @@ impl SESSION {
             log(IO_DEBUG,"Server is sending certificate verifier\n",0,None);
             self.transcript_hash(th_s);
             sclen=keys::create_server_cert_verifier(kind,th_s,sk_s,&mut scvsig);
+//println!("sclen= {}",sclen);
             self.send_server_cert_verify(kind,&scvsig[0..sclen]);                           
             self.transcript_hash(th_s);
     //

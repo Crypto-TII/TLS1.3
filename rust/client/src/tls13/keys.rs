@@ -227,7 +227,11 @@ pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut 
 
     let mut cclen=sal::tls_signature(sigalg,key,&ccv[0..ptr],ccvsig);
     if sigalg==ECDSA_SECP256R1_SHA256 || sigalg==ECDSA_SECP384R1_SHA384 {
-        cclen=parse_in_ecdsa_sig(sal::hash_type_sig(sigalg),ccvsig);
+        let mut hts=SHA256_T;
+        if sigalg==ECDSA_SECP384R1_SHA384 {
+            hts=SHA384_T;
+        }
+        cclen=parse_in_ecdsa_sig(/*sal::hash_type_sig(sigalg)*/hts,ccvsig);
     }
     return cclen;
 }
@@ -289,7 +293,11 @@ pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk:
     let mut siglen=scvsig.len();
 // Special case processing required here for ECDSA signatures -  scvsig is modified
     if sigalg==ECDSA_SECP256R1_SHA256 || sigalg==ECDSA_SECP384R1_SHA384 {
-        siglen=parse_out_ecdsa_sig(sal::hash_type_sig(sigalg),scvsig);
+        let mut hts=SHA256_T;
+        if sigalg==ECDSA_SECP384R1_SHA384 {
+            hts=SHA384_T;
+        }
+        siglen=parse_out_ecdsa_sig(/*sal::hash_type_sig(sigalg)*/hts,scvsig);
         if siglen == 0 {
             return false;
         }    

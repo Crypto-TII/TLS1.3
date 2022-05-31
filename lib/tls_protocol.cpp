@@ -112,7 +112,7 @@ static int TLS13_full(TLS_session *session)
     octad PK = {0, sizeof(pk), pk};
     char ss[TLS_MAX_SHARED_SECRET_SIZE]; // key exchange Shared Secret 
     octad SS = {0, sizeof(ss), ss};      
-	char spk[TLS_MAX_SERVER_PUB_KEY];    // servers public key
+	char spk[TLS_MAX_PUB_KEY_SIZE];    // servers public key
 	octad SPK={0,sizeof(spk),spk};
     char ch[TLS_MAX_HELLO];       // Client Hello
     octad CH = {0, sizeof(ch), ch};

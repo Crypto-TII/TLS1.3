@@ -1502,8 +1502,8 @@ impl SESSION {
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
         if gotacertrequest { // Server wants a client certificate
             if HAVE_CLIENT_CERT { // do I have one?
-                let mut client_key:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
-                let mut client_certchain:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
+                let mut client_key:[u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
+                let mut client_certchain:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];
                 let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
                 let mut cclen=0;
                 let mut cklen=0;

@@ -33,7 +33,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 //#endif
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
-#define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
+#define VERBOSITY IO_DEBUG     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 // Supported protocols    
@@ -62,32 +62,31 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_HASH 64         /**< Maximum hash output length in bytes */
 #define TLS_MAX_KEY 32          /**< Maximum key length in bytes */
 #define TLS_X509_MAX_FIELD 256           /**< Maximum X.509 field size */
-#define TLS_MAX_ROOT_CERT_SIZE 2048      /**< I checked - current max for root CAs is 2016 */
-#define TLS_MAX_ROOT_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
-#define TLS_MAX_CERT_SIZE 2048         /**< Max client private key/cert */
-#define TLS_MAX_CERT_B64 2800          /**< In base64 - Max client private key/cert */
 #define TLS_MAX_EXT_LABEL 256            /**< Max external psk label size */
+
+// Max Frag length must be less than TLS_MAX_IO_SIZE
+#define TLS_MAX_FRAG 4					/**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
+
+#define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+#define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
+#define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
+
+// Certificate size limits
+#define TLS_MAX_CHAIN_LEN 2             /**< Maximum Certificate chain length */
+#define TLS_MAX_CHAIN_SIZE (TLS_MAX_CHAIN_LEN*TLS_MAX_CERT_SIZE)
+#define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 */
+#define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
+
+// These all blow up post quantum
+#define TLS_MAX_HELLO 2048               /**< Max client hello size (less extensions)		KYBER768 PQ - 2048 */
+#define TLS_MAX_PUB_KEY_SIZE 2048        /**< Max key exchange public key size in bytes		KYBER768 PQ - 1184 */
+#define TLS_MAX_SECRET_KEY_SIZE 6144     /**< Max key exchange private key size in bytes    KYBER768 PQ - 2400 (maybe includes the public key?) */
+#define TLS_MAX_SHARED_SECRET_SIZE 256	 /**< Max key exchange Shared secret size */
+#define TLS_MAX_SIGNATURE_SIZE 4096      /**< Max digital signature size in bytes  */
 
 #define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
 
-#ifdef IOBUFF_FROM_HEAP
-#define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
-#else
-#define TLS_MAX_IO_SIZE (8192+256)       /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
-#endif
-
-// Max Frag length must be less than TLS_MAX_IO_SIZE
-#define TLS_MAX_FRAG 4					/**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
-#define TLS_MAX_SERVER_PUB_KEY 512      /**< Max Server Public Key size */
-#define TLS_MAX_SIGNATURE_SIZE 512      /**< Max digital signature size in bytes  */
-
-// these sizes will blow up PQ
-#define TLS_MAX_HELLO 256               /**< Max client hello size (less extensions)		KYBER768 PQ - 2048 */
-#define TLS_MAX_PUB_KEY_SIZE 136        /**< Max key exchange public key size in bytes		KYBER768 PQ - 1184 */
-#define TLS_MAX_SECRET_KEY_SIZE 64      /**< Max key exchange private key size in bytes		KYBER768 PQ - 2400 */
-
-#define TLS_MAX_SHARED_SECRET_SIZE 66	/**< Max key exchange Shared secret size */
 #define TLS_MAX_ECC_FIELD 66            /**< Max ECC field size in bytes */
 #define TLS_MAX_IV_SIZE 12              /**< Max IV size in bytes */
 #define TLS_MAX_TAG_SIZE 16             /**< Max HMAC tag length in bytes */    
@@ -98,9 +97,6 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_SUPPORTED_SIGS 16       /**< Max number of supported signature schemes */    
 #define TLS_MAX_PSK_MODES 2             /**< Max preshared key modes */
 #define TLS_MAX_CIPHER_SUITES 5         /**< Max number of supported cipher suites */
-
-#define TLS_MAX_PLAIN_FRAG 16384		/**< Max Plaintext Fragment size */
-#define TLS_MAX_CIPHER_FRAG (16384+256) /**< Max Ciphertext Fragment size */
 
 // Cipher Suites 
 #define TLS_AES_128_GCM_SHA256 0x1301   /**< AES128/SHA256/GCM cipher suite - this is only one which MUST be implemented */
@@ -127,6 +123,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define RSA_PKCS1_SHA384 0x0501         /**< Supported RSA Signature algorithm */
 #define RSA_PKCS1_SHA512 0x0601         /**< Supported RSA Signature algorithm */
 #define ED25519 0x0807                  /**< Ed25519 EdDSA Signature algorithm */
+#define DILITHIUM3 0x0903               /**< Dilithium3 Signature algorithm */
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */
@@ -214,7 +211,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define RECORD_OVERFLOW 0x16            /**< Record Overflow */
 #define CLOSE_NOTIFY 0x00               /**< Orderly shut down of connection */
 
-#define LOG_OUTPUT_TRUNCATION 2048       /**< Output Hex digits before truncation */
+#define LOG_OUTPUT_TRUNCATION 256       /**< Output Hex digits before truncation */
 
 #define TLS13_DISCONNECTED 0
 #define TLS13_CONNECTED 1

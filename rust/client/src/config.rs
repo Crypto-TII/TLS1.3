@@ -21,6 +21,7 @@ pub const RSA_PSS_RSAE_SHA512: u16 = 0x0806;      // Supported RSA Signature alg
 pub const RSA_PKCS1_SHA256: u16 = 0x0401;         // Supported RSA Signature algorithm 
 pub const RSA_PKCS1_SHA384: u16 = 0x0501;         // Supported RSA Signature algorithm 
 pub const RSA_PKCS1_SHA512: u16 = 0x0601;         // Supported RSA Signature algorithm 
+pub const DILITHIUM3: u16 = 0x0903;               // Dilithium3 Signature algorithm
 //pub const ED25519: usize = 0x0807;                  // Ed25519 EdDSA Signature algorithm 
 
 // Maximum sizes for stack arrays
@@ -29,19 +30,24 @@ pub const MAX_ECC_FIELD:usize = 66;                  // Max ECC field size in by
 pub const MAX_HASH_STATE:usize = 768;               // Maximum memory required to store hash function state 
 pub const MAX_HASH: usize = 64;                     // Maximum hash output length in bytes 
 pub const MAX_KEY: usize = 32;                      // Maximum key length in bytes 
+pub const MAX_X509_FIELD:usize = 256;               // Maximum X.509 field size 
+
+// IO buffer limits
 pub const MAX_IO: usize = 16384+256;                // Maximum Input/Output buffer size.
 pub const MAX_PLAIN_FRAG: usize = 16384;            // Max Plaintext Fragment size 
 pub const MAX_CIPHER_FRAG: usize = 16384+256;       // Max Ciphertext Fragment size 
 
-pub const MAX_X509_FIELD:usize = 256;               // Maximum X.509 field size 
-pub const MAX_ROOT_CERT_SIZE:usize = 2048;          // I checked - current max for root CAs is 2016 
-pub const MAX_CERT_SIZE:usize = 2048;               // Max client private key/cert 
+// Certificate size limits
+pub const MAX_CHAIN_LEN:usize = 2;                  // Maximum Chain length
+pub const MAX_CERT_SIZE:usize = 6144;               // Max client private key/cert 
+pub const MAX_CHAIN_SIZE:usize = MAX_CHAIN_LEN*MAX_CERT_SIZE;
 
 // These all blow up post quantum
 pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size - was 256 pre-quantum
-pub const MAX_SECRET_KEY: usize = 2400;             // Maximum Secret key size - was 64 pre-quantum
-pub const MAX_PUBLIC_KEY: usize = 1184;             // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
+pub const MAX_PUBLIC_KEY: usize = 2048;             // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
+pub const MAX_SECRET_KEY: usize = 6144;             // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)
 pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
+pub const MAX_SIGNATURE_SIZE:usize= 4096;        // Max digital signature size in bytes *** increased for DILITHIUM 
 
 pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
 pub const MAX_CIPHER_SUITES: usize = 5;
@@ -55,8 +61,6 @@ pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes
 pub const MAX_FRAG:usize = 4;
 pub const MAX_RECORD:usize = 1024;
 
-
-pub const MAX_SIGNATURE_SIZE:usize= 512;                   // Max digital signature size in bytes  
 pub const MAX_TICKET_SIZE:usize = 2048; 
 pub const MAX_EXTENSIONS:usize = 2048;       
 
@@ -218,7 +222,7 @@ pub const SET_RECORD_LIMIT: bool=false;  // Max record size (non-standard?) exte
 pub const LOG_OUTPUT_TRUNCATION: usize= 256;       /**< Output Hex digits before truncation */
 
 // User defined controls
-pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
+pub const VERBOSITY:usize= IO_DEBUG;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true; // allow self-signed server certs
 pub const HAVE_CLIENT_CERT:bool= true; // client-side authentication
 pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates 

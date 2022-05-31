@@ -155,21 +155,23 @@ pub fn groups(groups: &mut [u16]) -> usize {
 
 // provide list of supported signature algorithms (for TLS)
 pub fn sigs(sig_algs: &mut [u16]) -> usize {
-    let n=3;
+    let n=4;
     sig_algs[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs[1]=config::RSA_PSS_RSAE_SHA256;
     sig_algs[2]=config::ECDSA_SECP384R1_SHA384;
+    sig_algs[3]=config::DILITHIUM3;
     return n;
 }
 
 // provide list of supported signature algorithms (for Certificates)
 pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
-    let n=5;
+    let n=6;
     sig_algs_cert[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs_cert[1]=config::RSA_PKCS1_SHA256;
     sig_algs_cert[2]=config::ECDSA_SECP384R1_SHA384;
     sig_algs_cert[3]=config::RSA_PKCS1_SHA384;
     sig_algs_cert[4]=config::RSA_PKCS1_SHA512;   
+    sig_algs_cert[5]=config::DILITHIUM3; 
     return n;
 }
 
@@ -181,7 +183,7 @@ pub fn hash_type(cipher_suite: u16) -> usize {
     if cipher_suite==config::CHACHA20_POLY1305_SHA256 {htype=config::SHA256_T;}
     return htype;
 }
-
+/*
 // return hashtype from signature algorithm
 pub fn hash_type_sig(sigalg: u16) -> usize {
     let mut htype=0;  
@@ -195,7 +197,7 @@ pub fn hash_type_sig(sigalg: u16) -> usize {
     if sigalg==config::RSA_PKCS1_SHA512 {htype=config::SHA512_T;}
     return htype;
 }
-
+*/
 // return hash length from hash type
 pub fn hash_len(hash_type: usize) -> usize {
     let mut hlen=0;
@@ -516,6 +518,17 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
     }
 }
 
+fn dilithium3_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+    use mcore::dilithium;
+    return dilithium::verify(pubkey,cert,sig);
+}
+
+pub fn dilithium3_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+    use mcore::dilithium;
+    dilithium::signature(&key[0..dilithium::SK_SIZE],mess,sig);
+    return dilithium::SIG_SIZE;
+}
+
 // RSA 2048-bit PKCS1.5 signature verification
 fn rsa_2048_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::rsa2048::rsa;
@@ -729,6 +742,7 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
         config::ECDSA_SECP384R1_SHA384 => {return secp384r1_ecdsa_verify(48,buff,sig,pubkey);},
         config::RSA_PKCS1_SHA512 => {return rsa_pkcs15_verify(64,buff,sig,pubkey);},
         config::RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_verify(32,buff,sig,pubkey);},
+        config::DILITHIUM3 => {return dilithium3_verify(buff,sig,pubkey);},
         _ => {return false;}
     }
 }
@@ -739,6 +753,7 @@ pub fn tls_signature(sigalg: u16,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usiz
         config:: RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_sign(32,key,trans,sig);},
         config:: ECDSA_SECP256R1_SHA256 => {return secp256r1_ecdsa_sign(32,key,trans,sig);},
         config::ECDSA_SECP384R1_SHA384 => {return secp384r1_ecdsa_sign(48,key,trans,sig);},
+        config:: DILITHIUM3 => {return dilithium3_sign(key,trans,sig);},
         _ => {return 0;}
     }
 }
