@@ -10,6 +10,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
     TLS_session state;
     state.sockptr=sockptr;                                  // pointer to socket
     strcpy(state.hostname,hostname);                        // server to connection with
+
     state.status=TLS13_DISCONNECTED;
 	state.max_record=0;
     state.cipher_suite=0;//TLS_AES_128_GCM_SHA256;              // cipher suite

@@ -340,8 +340,8 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 
     if (!checkHostnameInCert(&SERVER_CERT,hostname))
     { // Check that certificate covers the server URL
-        log(IO_DEBUG,(char *)"Hostname not found in certificate\n",NULL,0,NULL);
-        if (strcmp(hostname,"localhost")!=0) return BAD_CERT_CHAIN;
+        log(IO_PROTOCOL,(char *)"Hostname NOT found in certificate\n",NULL,0,NULL);
+        //if (strcmp(hostname,"localhost")!=0) return BAD_CERT_CHAIN;
     }
 
 	if (rtn==SELF_SIGNED_CERT) 

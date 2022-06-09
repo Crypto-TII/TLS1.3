@@ -307,8 +307,12 @@ fn main() {
     } else {
         let hn=args[1].as_str();
         let hlen=hn.len();
-        let port: &str = ":443";
-        args[1].push_str(port);
+
+        if let Some(_index)=hn.find(':') { // already has a port
+        } else {
+            let port: &str = ":443";
+            args[1].push_str(port);
+        }
         fullhost = &args[1].as_str();
         host=&fullhost[0..hlen];
     }

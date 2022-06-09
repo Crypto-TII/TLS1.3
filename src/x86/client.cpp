@@ -310,9 +310,14 @@ int main(int argc, char const *argv[])
         if (contains_colon)
         {
             strncpy(hostname, argv[ip], i);
+            hostname[i]=0;
             char port_part[5];
             strncpy(port_part, argv[ip]+sizeof(char)*(i+1), (argv_len - i));
             port = atoi(port_part);
+
+            //char ipaddr[20];
+            //getIPaddress(ipaddr,hostname);
+            //printf("ip address= %s\n",ipaddr);
         } else {
             strcpy(hostname, argv[ip]);
             port = 443;
