@@ -143,12 +143,13 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
 }
 
 // provide list of supported key exchange groups
+// IMPORTANT - Favourite group (as used in client Hello) is placed first in list
 pub fn groups(groups: &mut [u16]) -> usize {
     let n=5;
-    groups[3]=config::X25519;
+    groups[0]=config::X25519;
     groups[1]=config::SECP256R1;
     groups[2]=config::SECP384R1;
-    groups[0]=config::KYBER768;
+    groups[3]=config::KYBER768;
     groups[4]=config::SIDH;
     return n;
 }
@@ -416,7 +417,7 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
 
 // Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
 pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) {
-    let mut csk:[u8;config::MAX_SECRET_KEY]=[0;config::MAX_SECRET_KEY];
+    let mut csk:[u8;config::MAX_KEX_SECRET_KEY]=[0;config::MAX_KEX_SECRET_KEY];
     if group==config::X25519 {
         use mcore::c25519::ecdh;
         random_bytes(32,&mut csk);

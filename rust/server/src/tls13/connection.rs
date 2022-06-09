@@ -663,7 +663,7 @@ impl SESSION {
 
     // get client hello. Output encrypted extensions, client public key, client signature algorithms
     // Also generate extensions that are to be encrypted
-    fn process_client_hello(&mut self,sh: &mut [u8],shlen: &mut usize,encext: &mut [u8],enclen: &mut usize,ss: &mut [u8],sig_algs: &mut [u16],nsa: &mut usize,early_indication: &mut bool) -> RET {
+    fn process_client_hello(&mut self,sh: &mut [u8],shlen: &mut usize,encext: &mut [u8],enclen: &mut usize,ss: &mut [u8],sig_algs: &mut [u16],nsa: &mut usize,early_indication: &mut bool,is_retry: bool) -> RET {
         let mut host:[u8;MAX_SERVER_NAME]=[0;MAX_SERVER_NAME];
         let mut alpn:[u8;16]=[0;16];
         let mut rn: [u8;32]=[0;32];
@@ -674,7 +674,7 @@ impl SESSION {
         let mut cg:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
         let mut alg:u16=0;
         let mut cpklen=0;
-        let mut cpk:[u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+        let mut cpk:[u8;MAX_KEX_PUBLIC_KEY]=[0;MAX_KEX_PUBLIC_KEY];
         let mut nsac:usize;
         let mut sig_algs_cert:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let tls_version=TLS1_3; // only
@@ -949,8 +949,9 @@ impl SESSION {
         }
 
         log(IO_DEBUG,"Client Hello = ",0,Some(&self.io[0..self.ptr]));
-        self.init_transcript_hash();
-
+        if !is_retry { // need to know cipher suite before this can be initialised
+            self.init_transcript_hash();
+        }
         logger::log_cipher_suite(self.cipher_suite);
         let mut ext:[u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         sal::random_bytes(32,&mut rn);
@@ -963,7 +964,7 @@ impl SESSION {
             extlen=extensions::add_version(&mut ext,extlen,tls_version);
             self.running_synthetic_hash_io();
         } else {
-            let mut spk:[u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+            let mut spk:[u8;MAX_KEX_CIPHERTEXT]=[0;MAX_KEX_CIPHERTEXT];
             sal::server_shared_secret(self.favourite_group,&cpk[0..cpklen],&mut spk,ss);
             let spklen=sal::server_public_key_size(self.favourite_group);
             logger::log_key_exchange(self.favourite_group);
@@ -1168,7 +1169,7 @@ impl SESSION {
         let mut shlen=0;
         let mut enclen=0;
         let mut nsa=0;
-        let mut rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication);
+        let mut rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication,false);
         if self.bad_response(&rtn) {
             self.clean();
             return TLS_FAILURE;
@@ -1304,8 +1305,15 @@ impl SESSION {
             log(IO_PROTOCOL,"Attempting Full Handshake on port ",self.port as isize,None);
 
             if rtn.val==HANDSHAKE_RETRY { // try one more time
+let mut myh: [u8;MAX_HASH]=[0;MAX_HASH]; let myh_s=&mut myh[0..hlen];
+self.transcript_hash(myh_s);
+log(IO_DEBUG,"1. myh_s= ",0,Some(myh_s));
                 //self.running_synthetic_hash_io();            // contains synthetic hash of client Hello plus extensions
                 self.running_hash(&sh[0..shlen]);
+
+self.transcript_hash(myh_s);
+log(IO_DEBUG,"2. myh_s= ",0,Some(myh_s));
+
                 self.transcript_hash(hh_s);                                            //  *********CH+SH********  
 
                 self.send_message(HSHAKE,TLS1_2,&sh[0..shlen],None);
@@ -1321,7 +1329,7 @@ impl SESSION {
 //   <---------------------------------------------------------- receive updated client Hello
 //
 
-                let rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication);
+                let rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication,true);
                 if self.bad_response(&rtn) {
                     self.clean();
                     return TLS_FAILURE;
@@ -1332,11 +1340,15 @@ impl SESSION {
                     self.clean();
                     return TLS_FAILURE;
                 }
+                //self.running_hash_io(); // contains client Hello plus extensions
             }
             //self.running_hash_io(); // contains client Hello plus extensions
+let mut myh: [u8;MAX_HASH]=[0;MAX_HASH]; let myh_s=&mut myh[0..hlen];
+self.transcript_hash(myh_s);
+log(IO_DEBUG,"3. myh_s= ",0,Some(myh_s));
             self.running_hash(&sh[0..shlen]);
             self.transcript_hash(hh_s);                                   
-
+log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
             //log(IO_DEBUG,"Client Hello = ",0,Some(&self.io[0..self.iolen]));
             log(IO_DEBUG,"Client Hello processed\n",0,None);
             log(IO_DEBUG,"Host= ",-1,Some(&self.hostname[0..self.hlen]));
@@ -1359,6 +1371,7 @@ impl SESSION {
 
     // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
             self.derive_handshake_secrets(ss_s,es_s,hh_s,hs_s);
+
             self.create_send_crypto_context();
             self.create_recv_crypto_context();
             log(IO_DEBUG,"Handshake secret= ",0,Some(hs_s));
@@ -1377,7 +1390,7 @@ impl SESSION {
 //
             }
 
-            let mut server_key:[u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
+            let mut server_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
             let mut server_certchain:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];   // assume max chain length of 2
             let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
             let mut sclen=0;
@@ -1428,7 +1441,7 @@ impl SESSION {
     // Server now receives certificate chain and verifier from Client. Need to parse these out, check CA signature on the cert
     // (maybe its self-signed), extract public key from cert, and use this public key to check client's signature 
     // on the "verifier". Note Certificate signature might use old methods, but client will use PSS padding for its signature (or ECC).
-                let mut cpk: [u8; MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+                let mut cpk: [u8; MAX_KEX_PUBLIC_KEY]=[0;MAX_KEX_PUBLIC_KEY];
                 let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
                 let mut cpklen=0;
                 rtn=self.get_check_client_certificatechain(&mut cpk,&mut cpklen);            // get full name

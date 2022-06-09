@@ -33,7 +33,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 //#endif
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
-#define VERBOSITY IO_DEBUG     /**< Set to level of output information desired - see above */
+#define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
 #define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 // Supported protocols    
@@ -77,12 +77,16 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 */
 #define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
 
+#define TLS_MAX_HELLO 2048               /**< Max client hello size (less extensions) KEX public key is largest component */
+
 // These all blow up post quantum
-#define TLS_MAX_HELLO 2048               /**< Max client hello size (less extensions)		KYBER768 PQ - 2048 */
-#define TLS_MAX_PUB_KEY_SIZE 2048        /**< Max key exchange public key size in bytes		KYBER768 PQ - 1184 */
-#define TLS_MAX_SECRET_KEY_SIZE 6144     /**< Max key exchange private key size in bytes    KYBER768 PQ - 2400 (maybe includes the public key?) */
-#define TLS_MAX_SHARED_SECRET_SIZE 256	 /**< Max key exchange Shared secret size */
-#define TLS_MAX_SIGNATURE_SIZE 4096      /**< Max digital signature size in bytes  */
+#define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max key exchange public key size in bytes		DILITHIUM3 PQ - 1952 */
+#define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max key exchange private key size in bytes    DILITHIUM3 PQ - 4000 (maybe includes the public key?) */
+#define TLS_MAX_SIGNATURE_SIZE 4096          /**< Max digital signature size in bytes  DILITHIUM3 PQ - 3293 */
+#define TLS_MAX_KEX_PUB_KEY_SIZE 1184        /**< Max key exchange public key size in bytes		KYBER768 PQ - 1184 */
+#define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088     /**< Max key exchange (KEM) ciphertext size        KYBER768 PQ - 1088 - assume less than Public Key ?*/
+#define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes    KYBER768 PQ - 2400 */
+#define TLS_MAX_SHARED_SECRET_SIZE 256	     /**< Max key exchange Shared secret size */
 
 #define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */

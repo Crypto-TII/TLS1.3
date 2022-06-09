@@ -111,10 +111,8 @@ static void nameKeyExchange(int kex)
 
 void logKeyExchange(int kex)
 {
-#if VERBOSITY >= IO_DEBUG
-    log(IO_DEBUG,(char *)"Key Exchange Group is ",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Key Exchange Group is ",NULL,0,NULL);
     nameKeyExchange(kex);
-#endif
 }
 
 static void nameSigAlg(int sigAlg)
@@ -159,10 +157,8 @@ static void nameSigAlg(int sigAlg)
 
 void logSigAlg(int sigAlg)
 {
-#if VERBOSITY >= IO_DEBUG
-    log(IO_DEBUG,(char *)"Signature Algorithm is ",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Signature Algorithm is ",NULL,0,NULL);
     nameSigAlg(sigAlg);
-#endif
 }
 
 // log Encrypted Extensions Responses
@@ -213,12 +209,12 @@ void logEncExt(ee_status *expected,ee_status *received)
 }
 
 // log server hello outputs
-void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK)
+void logServerHello(int cipher_suite,int pskid,octad *PK,octad *CK)
 {
 #if VERBOSITY >= IO_DEBUG
     log(IO_DEBUG,(char *)"Parsing serverHello\n",NULL,0,NULL);
     logCipherSuite(cipher_suite);
-    logKeyExchange(kex);
+    //logKeyExchange(kex);
     if (pskid>=0) log(IO_DEBUG,(char *)"PSK Identity= ",(char *)"%d",pskid,NULL);
     if (PK->len>0) {
         log(IO_DEBUG,(char *)"Server Public Key= ",NULL,0,PK);//OCT_output(PK);

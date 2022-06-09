@@ -13,6 +13,7 @@
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
 #include "dilithium.h"
+#include "kyber.h"
 
 // Use TIIcrypto - must suggest default curve for legacy support
 
@@ -64,11 +65,11 @@ int SAL_ciphers(int *ciphers)
 
 int SAL_groups(int *groups)
 {
-    int n=3;
+    int n=4;
     groups[0]=X25519;
     groups[1]=SECP256R1;
     groups[2]=SECP384R1;
-
+    groups[3]=KYBER768;
     //n=1;
     //groups[0]=SECP256R1;
     return n;
@@ -419,6 +420,17 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
 
         PK->len=2*GFP_NIST_P384_BYTELEN+1;
     }
+    if (group==KYBER768)
+    {
+        byte r64[64];
+        for (int i=0;i<64;i++)
+            r64[i]=SAL_randomByte();
+        octet MC_SK=octad_to_octet(SK);
+        octet MC_PK=octad_to_octet(PK);
+        KYBER_CCA_keypair(r64,&MC_SK,&MC_PK);
+        SK->len=MC_SK.len;
+        PK->len=MC_PK.len;
+    }
 }
 
 // generate shared secret SS from secret key SK and public key PK
@@ -473,6 +485,15 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         ec_nist_p384_import_public_key((uint8_t *)&PK->val[1],&public_key);
         ecdh_key_agreement_for_curve_id((uint8_t *)SS->val, GFP_NIST_P384_BYTELEN, &private_key, &public_key, E_CURVE_ID_NIST_P384);  
         SS->len=GFP_NIST_P384_BYTELEN;
+    }
+    if (group==KYBER768) {
+        octet MC_SK=octad_to_octet(SK);
+        octet MC_PK=octad_to_octet(PK);
+        octet MC_SS=octad_to_octet(SS);
+        KYBER_CCA_decrypt(&MC_SK,&MC_PK,(byte *)MC_SS.val);
+        SK->len=MC_SK.len;
+        PK->len=MC_PK.len;
+        SS->len=32;
     }
 }
 

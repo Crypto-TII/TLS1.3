@@ -32,7 +32,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 }
 
 #define CLEAN_FULL_STACK \
-    OCT_kill(&CSK); OCT_kill(&PK); OCT_kill(&SS); OCT_kill(&CH); OCT_kill(&EXT);  OCT_kill(&SPK); \
+    OCT_kill(&CSK); OCT_kill(&CPK); OCT_kill(&SPK); OCT_kill(&SERVER_PK); OCT_kill(&SS); OCT_kill(&CH); OCT_kill(&EXT); \
     OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&HH); OCT_kill(&FH); OCT_kill(&TH); \
     OCT_kill(&COOK); OCT_kill(&SCVSIG); OCT_kill(&FIN); OCT_kill(&CHF); \
     OCT_kill(&CETS);
@@ -106,14 +106,17 @@ static int TLS13_full(TLS_session *session)
 	int groups[TLS_MAX_SUPPORTED_GROUPS];
 	nsg=SAL_groups(groups);
 
-    char csk[TLS_MAX_SECRET_KEY_SIZE];   // clients key exchange secret key
+    char csk[TLS_MAX_KEX_SECRET_KEY_SIZE];   // clients key exchange secret key
     octad CSK = {0, sizeof(csk), csk};
-    char pk[TLS_MAX_PUB_KEY_SIZE];       // Server & Client key exchange Public Key (shared memory)
-    octad PK = {0, sizeof(pk), pk};
-    char ss[TLS_MAX_SHARED_SECRET_SIZE]; // key exchange Shared Secret 
-    octad SS = {0, sizeof(ss), ss};      
-	char spk[TLS_MAX_PUB_KEY_SIZE];    // servers public key
-	octad SPK={0,sizeof(spk),spk};
+    char cpk[TLS_MAX_KEX_PUB_KEY_SIZE];      // Client key exchange Public Key (shared memory)
+    octad CPK = {0, sizeof(cpk), cpk};
+    char ss[TLS_MAX_SHARED_SECRET_SIZE];     // key exchange Shared Secret 
+    octad SS = {0, sizeof(ss), ss};     
+    char spk[TLS_MAX_KEX_CIPHERTEXT_SIZE];
+    octad SPK = {0, sizeof(spk), spk};       // Server's key exchange Public Key/Ciphertext
+    char server_pk[TLS_MAX_SIG_PUB_KEY_SIZE];
+    octad SERVER_PK = {0,sizeof(server_pk),server_pk}; // Server's cert sig public key
+
     char ch[TLS_MAX_HELLO];       // Client Hello
     octad CH = {0, sizeof(ch), ch};
     char ext[TLS_MAX_EXTENSIONS];
@@ -142,7 +145,7 @@ static int TLS13_full(TLS_session *session)
     log(IO_PROTOCOL,(char *)"Attempting Full Handshake\n",NULL,0,NULL);
 
 #ifdef HAVE_A_CLIENT_CERT
-    char client_key[TLS_MAX_CERT_SIZE];           
+    char client_key[TLS_MAX_SIG_SECRET_KEY_SIZE];           
     octad CLIENT_KEY={0,sizeof(client_key),client_key};   // Early traffic secret
     char client_cert[TLS_MAX_CERT_SIZE];           
     octad CLIENT_CERTCHAIN={0,sizeof(client_cert),client_cert};   // Early traffic secret
@@ -156,13 +159,13 @@ static int TLS13_full(TLS_session *session)
 //
 // Generate key pair in favourite group
 //
-    SAL_generateKeyPair(session->favourite_group,&CSK,&PK);   
+    SAL_generateKeyPair(session->favourite_group,&CSK,&CPK);   
     log(IO_DEBUG,(char *)"Private key= ",NULL,0,&CSK);
-    log(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&PK);
+    log(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&CPK);
 
 // Client Hello
 // First build our preferred mix of client Hello extensions, based on our capabililities
-	buildExtensions(session,&EXT,&PK,&enc_ext_expt,0);
+	buildExtensions(session,&EXT,&CPK,&enc_ext_expt,0);
 
 // create and send Client Hello octad
     sendClientHello(session,TLS1_0,&CH,false,&EXT,0,false);  
@@ -175,7 +178,7 @@ static int TLS13_full(TLS_session *session)
     log(IO_DEBUG,(char *)"Client Hello sent\n",NULL,0,NULL);
 
 // Process Server Hello response
-    rtn=getServerHello(session,kex,&COOK,&PK,pskid);
+    rtn=getServerHello(session,kex,&COOK,&SPK,pskid);
 //
 //
 //  <--------------------------------- server Hello (or helloRetryRequest?)
@@ -214,6 +217,7 @@ static int TLS13_full(TLS_session *session)
     initTranscriptHash(session);
     if (rtn.val==HANDSHAKE_RETRY)  // Was serverHello an helloRetryRequest?
     {
+        log(IO_DEBUG,(char *)"Server HelloRetryRequest= ",NULL,0,&session->IO);
         runningSyntheticHash(session,&CH,&EXT); // RFC 8446 section 4.4.1
         //runningHash(session,&session->IO);      // Hash of helloRetryRequest
         runningHashIO(session);      // Hash of helloRetryRequest
@@ -227,16 +231,15 @@ static int TLS13_full(TLS_session *session)
             TLS13_clean(session);
             return TLS_FAILURE;
         }
-        log(IO_DEBUG,(char *)"Server HelloRetryRequest= ",NULL,0,&session->IO);
+ 
 
 // Repair clientHello by supplying public key of Server's preferred key exchange algorithm
 // build new client Hello extensions
 
 // generate new key pair in new server selected group 
         session->favourite_group=kex;
-        SAL_generateKeyPair(session->favourite_group,&CSK,&PK); 
-
-		buildExtensions(session,&EXT,&PK,&enc_ext_expt,0);
+        SAL_generateKeyPair(session->favourite_group,&CSK,&CPK); 
+		buildExtensions(session,&EXT,&CPK,&enc_ext_expt,0);
 
         if (COOK.len!=0)
             addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR ... so send it back in an extension
@@ -251,7 +254,7 @@ static int TLS13_full(TLS_session *session)
 //
 //
         log(IO_DEBUG,(char *)"Client Hello re-sent\n",NULL,0,NULL);
-        rtn=getServerHello(session,kex,&COOK,&PK,pskid);
+        rtn=getServerHello(session,kex,&COOK,&SPK,pskid);
 //
 //
 //  <---------------------------------------------------------- server Hello
@@ -274,17 +277,18 @@ static int TLS13_full(TLS_session *session)
         }
         resumption_required=true;
     }
+    log(IO_DEBUG,(char *)"Server Hello= ",NULL,0,&session->IO); 
+    logServerHello(session->cipher_suite,pskid,&SPK,&COOK);
+    logKeyExchange(kex);
 // Hash Transcript the Hellos 
     runningHash(session,&CH);
     runningHash(session,&EXT);
     runningHashIO(session);
     //runningHash(session,&session->IO);  // Hashing Server Hello
     transcriptHash(session,&HH);        // HH = hash of clientHello+serverHello
-    log(IO_DEBUG,(char *)"Server Hello= ",NULL,0,&session->IO); 
-    logServerHello(session->cipher_suite,kex,pskid,&PK,&COOK);
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
-    SAL_generateSharedSecret(kex,&CSK,&PK,&SS);
+    SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
     log(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
@@ -347,7 +351,7 @@ static int TLS13_full(TLS_session *session)
 // Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
 // on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
-    rtn=getCheckServerCertificateChain(session,&SPK);
+    rtn=getCheckServerCertificateChain(session,&SERVER_PK);
 //
 //
 //  <---------------------------------------------------------- {Certificate}
@@ -383,7 +387,7 @@ static int TLS13_full(TLS_session *session)
     log(IO_DEBUG,(char *)"Server Transcript Signature= ",NULL,0,&SCVSIG);
 
     logSigAlg(sigalg);
-    if (!checkServerCertVerifier(sigalg,&SCVSIG,&HH,&SPK))
+    if (!checkServerCertVerifier(sigalg,&SCVSIG,&HH,&SERVER_PK))
     {
         sendAlert(session,DECRYPT_ERROR);
         log(IO_DEBUG,(char *)"Server Cert Verification failed\n",NULL,0,NULL);
@@ -489,7 +493,7 @@ static int TLS13_full(TLS_session *session)
 }
 
 #define CLEAN_RESUMPTION_STACK \
-    OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&SS); OCT_kill(&CSK); OCT_kill(&PK); \
+    OCT_kill(&ES); OCT_kill(&HS); OCT_kill(&SS); OCT_kill(&CSK); OCT_kill(&CPK); OCT_kill(&SPK);\
     OCT_kill(&CH); OCT_kill(&EXT); OCT_kill(&HH); OCT_kill(&FH); OCT_kill(&TH); \
     OCT_kill(&FIN); OCT_kill(&CHF); OCT_kill(&CETS); OCT_kill(&COOK); \
     OCT_kill(&BND); OCT_kill(&BL); OCT_kill(&PSK); OCT_kill(&BK);
@@ -506,10 +510,12 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad HS = {0,sizeof(hs),hs};
     char ss[TLS_MAX_SHARED_SECRET_SIZE];
     octad SS = {0, sizeof(ss), ss};      // Shared Secret
-    char csk[TLS_MAX_SECRET_KEY_SIZE];   
+    char csk[TLS_MAX_KEX_SECRET_KEY_SIZE];   
     octad CSK = {0, sizeof(csk), csk};   // clients key exchange secret key
-    char pk[TLS_MAX_PUB_KEY_SIZE];
-    octad PK = {0, sizeof(pk), pk};   // Servers key exchange Public Key
+    char cpk[TLS_MAX_KEX_PUB_KEY_SIZE];
+    octad CPK = {0, sizeof(cpk), cpk};   // Client's key exchange Public Key
+    char spk[TLS_MAX_KEX_CIPHERTEXT_SIZE];
+    octad SPK = {0, sizeof(spk), spk};   // Server's key exchange Public Key/Ciphertext
     char ch[TLS_MAX_HELLO];    // Client Hello
     octad CH = {0, sizeof(ch), ch};
     char ext[TLS_MAX_EXTENSIONS];
@@ -582,9 +588,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     log(IO_DEBUG,(char *)"Early Secret= ",NULL,0,&ES);
 
 // Generate key pair in favourite group - use same favourite group that worked before for this server - so should be no HRR
-    SAL_generateKeyPair(session->favourite_group,&CSK,&PK);
+    SAL_generateKeyPair(session->favourite_group,&CSK,&CPK);
     log(IO_DEBUG,(char *)"Private key= ",NULL,0,&CSK);  
-    log(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&PK);  
+    log(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&CPK);  
 
 // Client Hello
 // First build standard client Hello extensions
@@ -592,7 +598,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 	int resmode=1;
 	if (origin==TLS_EXTERNAL_PSK)
 		resmode=2;
-	buildExtensions(session,&EXT,&PK,&enc_ext_expt,resmode);	
+	buildExtensions(session,&EXT,&CPK,&enc_ext_expt,resmode);	
 	
     if (have_early_data)
     {
@@ -650,7 +656,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     }
 
 // Process Server Hello
-    rtn=getServerHello(session,kex,&COOK,&PK,pskid);
+    rtn=getServerHello(session,kex,&COOK,&SPK,pskid);
 //
 //
 //  <---------------------------------------------------------- server Hello
@@ -686,7 +692,8 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         TLS13_clean(session);
         return TLS_FAILURE;
     }
-    logServerHello(session->cipher_suite,kex,pskid,&PK,&COOK);
+    logServerHello(session->cipher_suite,pskid,&SPK,&COOK);
+    logKeyExchange(kex);
 
     if (rtn.val==HANDSHAKE_RETRY || kex!=session->favourite_group)
     { // should not happen
@@ -700,7 +707,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     log(IO_DEBUG,(char *)"serverHello= ",NULL,0,&session->IO); 
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
-    SAL_generateSharedSecret(kex,&CSK,&PK,&SS);
+    SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
     log(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
 
     deriveHandshakeSecrets(session,&SS,&ES,&HH,&HS); 

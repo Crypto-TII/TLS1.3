@@ -154,7 +154,7 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
     log(IO_DEBUG,(char *)"Signature  = ",NULL,0,SIG);
     log(IO_DEBUG,(char *)"Public key = ",NULL,0,PUBKEY);
     log(IO_DEBUG,(char *)"Checking Signature on Cert \n",NULL,0,NULL);
-    logSigAlg(sigAlg);
+    //logSigAlg(sigAlg);
 
     res=SAL_tlsSignatureVerify(sigAlg,CERT,SIG,PUBKEY); 
 
@@ -312,7 +312,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     octad INTER_CERT;  // signature on intermediate certificate
     INTER_CERT.len=0;
 
-    char pk[TLS_MAX_PUB_KEY_SIZE];  // Public Key 
+    char pk[TLS_MAX_SIG_PUB_KEY_SIZE];  // Public Key 
     octad PK = {0, sizeof(pk), pk};
 
     char issuer[TLS_X509_MAX_FIELD];  

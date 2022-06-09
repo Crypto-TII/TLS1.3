@@ -13,7 +13,7 @@ use crate::tls13::servercert;
 pub struct CERT {
     pub sig:[u8;MAX_SIGNATURE_SIZE],
     pub sgt: PKTYPE,
-    pub pk:[u8;MAX_PUBLIC_KEY],
+    pub pk:[u8;MAX_SIG_PUBLIC_KEY],
     pub pkt: PKTYPE,
     pub issuer: [u8;MAX_X509_FIELD],
     pub islen: usize,
@@ -27,7 +27,7 @@ impl CERT {
         let this=CERT {
             sig:[0;MAX_SIGNATURE_SIZE],
             sgt: {PKTYPE{kind:0,hash:0,curve:0,len:0}},
-            pk: [0;MAX_PUBLIC_KEY],
+            pk: [0;MAX_SIG_PUBLIC_KEY],
             pkt: {PKTYPE{kind:0,hash:0,curve:0,len:0}},
             issuer: [0;MAX_X509_FIELD],
             islen: 0,
@@ -268,7 +268,7 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
 // Search for issuer of Intermediate Cert in cert store 
 pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pklen: &mut usize,identity: &mut[u8],idlen: &mut usize) -> isize {
     let mut ptr=0;
-    let mut capk:[u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+    let mut capk:[u8;MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];
     let mut issuer:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
 
 // Extract and process Cert

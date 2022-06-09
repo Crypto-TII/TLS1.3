@@ -14,6 +14,7 @@
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
 #include "dilithium.h"
+#include "kyber.h"
 
 using namespace core;
 
@@ -51,10 +52,11 @@ int SAL_ciphers(int *ciphers)
 
 int SAL_groups(int *groups)
 {
-    int n=3;
+    int n=4;
     groups[0]=X25519;
-    groups[1]=SECP256R1;   // maybe put it first, as we have h/w support for it. But may servers do not support it, and that leads to expensive handshake retries
+    groups[1]=SECP256R1;   // maybe put it first, as we have h/w support for it. But many servers do not support it, and that leads to expensive handshake retries
     groups[2]=SECP384R1;
+    groups[3]=KYBER768;
     return n;
 }
 
@@ -407,7 +409,13 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         SAL_randomOctad(48,SK);
         NIST384::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
     }
-
+    if (group==KYBER768)
+    {
+        byte r64[64];
+        for (int i=0;i<64;i++)
+            r64[i]=SAL_randomByte();
+        KYBER_CCA_keypair(r64,&MC_SK,&MC_PK);
+    }
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;
 
@@ -434,6 +442,10 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
     }
     if (group==SECP384R1) {
         NIST384::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
+    }
+    if (group==KYBER768) {
+        KYBER_CCA_decrypt(&MC_SK,&MC_PK,(byte *)MC_SS.val);
+        MC_SS.len=32;
     }
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;

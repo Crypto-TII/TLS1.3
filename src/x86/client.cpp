@@ -111,6 +111,9 @@ static void nameGroup(int kex)
     case SECP384R1:
         printf("SECP384R1\n");   
         break;
+    case KYBER768:
+        printf("KYBER768\n");   
+        break;
     default:
         printf("Non-standard\n");   
         break;
@@ -166,6 +169,9 @@ static void nameSigAlg(int sigAlg)
         break;
     case ED25519:
         printf("ED25519\n");   
+        break;
+    case DILITHIUM3:
+        printf("DILITHIUM3\n");   
         break;
     default:
         printf("Non-standard\n");   
@@ -246,12 +252,10 @@ int main(int argc, char const *argv[])
             printf("    ");
             nameGroup(nt[i]);
 
-            char sk[TLS_MAX_SECRET_KEY_SIZE];
+            char sk[TLS_MAX_KEX_SECRET_KEY_SIZE];
             octad SK={0,sizeof(sk),sk};
-            char pk[TLS_MAX_PUB_KEY_SIZE];
+            char pk[TLS_MAX_KEX_PUB_KEY_SIZE];
             octad PK={0,sizeof(pk),pk};
-            char ss[TLS_MAX_PUB_KEY_SIZE];
-            octad SS={0,sizeof(ss),ss};
 
             iterations=0;
             start = clock();
@@ -262,17 +266,6 @@ int main(int argc, char const *argv[])
             } while (elapsed < MIN_TIME || iterations < MIN_ITERS);
             elapsed = 1000.0 * elapsed / iterations;
             printf("        Key Generation %8.2lf ms\n", elapsed);
-
-            iterations=0;
-            start = clock();
-            do {
-                SAL_generateSharedSecret(nt[i],&SK,&PK,&SS);   
-                iterations++;
-                elapsed = (clock() - start) / (double)CLOCKS_PER_SEC;
-            } while (elapsed < MIN_TIME || iterations < MIN_ITERS);
-            elapsed = 1000.0 * elapsed / iterations;
-            printf("        Shared Secret  %8.2lf ms\n", elapsed);
-
         }
         ns=SAL_ciphers(nt);
         printf("SAL supported Cipher suites\n");

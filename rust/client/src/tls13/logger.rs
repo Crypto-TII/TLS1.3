@@ -49,38 +49,38 @@ pub fn log_cipher_suite(cipher_suite: u16) {
     }
 }
 
-pub fn log_sig_alg(sigalg: u16) {
-    log(IO_DEBUG,"Signature Algorithm is ",0,None);
+pub fn log_sig_alg(level: usize,sigalg: u16) {
+    log(level,"Signature Algorithm is ",0,None);
     match sigalg {
-        ECDSA_SECP256R1_SHA256 => log(IO_DEBUG,"ECDSA_SECP256R1_SHA256\n",0,None),
-        RSA_PSS_RSAE_SHA256 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA256\n",0,None),
-        RSA_PKCS1_SHA256 => log(IO_DEBUG,"RSA_PKCS1_SHA256\n",0,None),
-        ECDSA_SECP384R1_SHA384 => log(IO_DEBUG,"ECDSA_SECP384R1_SHA384\n",0,None),
-        RSA_PSS_RSAE_SHA384 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA384\n",0,None),
-        RSA_PKCS1_SHA384 => log(IO_DEBUG,"RSA_PKCS1_SHA384\n",0,None),
-        RSA_PSS_RSAE_SHA512 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA512\n",0,None),
-        RSA_PKCS1_SHA512 => log(IO_DEBUG,"RSA_PKCS1_SHA512\n",0,None),
-        DILITHIUM3 => log(IO_DEBUG,"DILITHIUM3\n",0,None),
-        _ => log(IO_DEBUG,"Non-standard\n",0,None)
+        ECDSA_SECP256R1_SHA256 => log(level,"ECDSA_SECP256R1_SHA256\n",0,None),
+        RSA_PSS_RSAE_SHA256 => log(level,"RSA_PSS_RSAE_SHA256\n",0,None),
+        RSA_PKCS1_SHA256 => log(level,"RSA_PKCS1_SHA256\n",0,None),
+        ECDSA_SECP384R1_SHA384 => log(level,"ECDSA_SECP384R1_SHA384\n",0,None),
+        RSA_PSS_RSAE_SHA384 => log(level,"RSA_PSS_RSAE_SHA384\n",0,None),
+        RSA_PKCS1_SHA384 => log(level,"RSA_PKCS1_SHA384\n",0,None),
+        RSA_PSS_RSAE_SHA512 => log(level,"RSA_PSS_RSAE_SHA512\n",0,None),
+        RSA_PKCS1_SHA512 => log(level,"RSA_PKCS1_SHA512\n",0,None),
+        DILITHIUM3 => log(level,"DILITHIUM3\n",0,None),
+        _ => log(level,"Non-standard\n",0,None)
     }     
 }
 
-pub fn log_key_exchange(kex: u16) {
-    log(IO_DEBUG,"Key Exchange Group is ",0,None);
+pub fn log_key_exchange(level: usize,kex: u16) {
+    log(level,"Key Exchange Group is ",0,None);
     match kex {
-        X25519 => log(IO_DEBUG,"x25519\n",0,None),
-        SECP256R1 => log(IO_DEBUG,"secp256r1\n",0,None),
-        SECP384R1 => log(IO_DEBUG,"secp384r1\n",0,None),
-        KYBER768 => log(IO_DEBUG,"kyber768\n",0,None),
-        SIDH => log(IO_DEBUG,"sidh\n",0,None),
-        _  => log(IO_DEBUG,"Non-standard\n",0,None)
+        X25519 => log(level,"x25519\n",0,None),
+        SECP256R1 => log(level,"secp256r1\n",0,None),
+        SECP384R1 => log(level,"secp384r1\n",0,None),
+        KYBER768 => log(level,"kyber768\n",0,None),
+        SIDH => log(level,"sidh\n",0,None),
+        _  => log(level,"Non-standard\n",0,None)
     }
 }
 
-pub fn log_server_hello(cipher_suite: u16,kex: u16,pskid: isize,pk: &[u8],ck: &[u8]) {
+pub fn log_server_hello(cipher_suite: u16,pskid: isize,pk: &[u8],ck: &[u8]) {
     log(IO_DEBUG,"Parsing Server Hello\n",0,None);
     log_cipher_suite(cipher_suite);
-    log_key_exchange(kex);
+    //log_key_exchange(IO_DEBUG,kex);
     if pskid>=0 {
         log(IO_DEBUG,"PSK identity= ",pskid,None);
     }

@@ -53,6 +53,9 @@ static void nameGroup(int kex)
     case SECP384R1:
         Serial.println("SECP384R1");   
         break;
+    case KYBER768:
+        Serial.println("KYBER768");   
+        break;
     default:
         Serial.println("Non-standard");   
         break;
@@ -108,6 +111,9 @@ static void nameSigAlg(int sigAlg)
         break;
     case ED25519:
         Serial.println("ED25519");   
+        break;
+    case DILITHIUM3:
+        Serial.println("DILITHIUM3\n");   
         break;
     default:
         Serial.println("Non-standard");   
@@ -205,11 +211,11 @@ void loop() {
             Serial.print("    ");
             nameGroup(nt[i]);
 
-            char sk[TLS_MAX_SECRET_KEY_SIZE];
+            char sk[TLS_MAX_KEX_SECRET_KEY_SIZE];
             octad SK={0,sizeof(sk),sk};
-            char pk[TLS_MAX_PUB_KEY_SIZE];
+            char pk[TLS_MAX_KEX_PUB_KEY_SIZE];
             octad PK={0,sizeof(pk),pk};
-            char ss[TLS_MAX_PUB_KEY_SIZE];
+            char ss[TLS_MAX_SHARED_SECRET_SIZE];
             octad SS={0,sizeof(ss),ss};
 
             iterations=0;

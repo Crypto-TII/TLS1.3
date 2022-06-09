@@ -188,6 +188,7 @@ fn name_signature(sigalg: u16) {
         RSA_PKCS1_SHA384 => println!("RSA_PKCS1_SHA384"),
         RSA_PSS_RSAE_SHA512 => println!("RSA_PSS_RSAE_SHA512"),
         RSA_PKCS1_SHA512 => println!("RSA_PKCS1_SHA512"),
+        DILITHIUM3 => println!("DILITHIUM3"),
         _ => println!("Non-standard")        
     }
 }
@@ -227,9 +228,9 @@ fn main() {
         for i in 0..ns {
             print!("    ");
             name_group(nt[i]);
-            let mut csk: [u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
-            let mut cpk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
-            let mut spk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+            let mut csk: [u8;MAX_KEX_SECRET_KEY]=[0;MAX_KEX_SECRET_KEY];
+            let mut cpk: [u8;MAX_KEX_PUBLIC_KEY]=[0;MAX_KEX_PUBLIC_KEY];
+            let mut spk: [u8;MAX_KEX_CIPHERTEXT]=[0;MAX_KEX_CIPHERTEXT];
             let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
             let sklen=sal::secret_key_size(nt[i]);   // may change on a handshake retry
             let cpklen=sal::client_public_key_size(nt[i]);

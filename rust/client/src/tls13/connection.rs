@@ -171,6 +171,8 @@ impl SESSION {
         let t:[u8;4]=[MESSAGE_HASH,0,0,hlen as u8];
         sal::hash_process_array(&mut self.tlshash,&t);
         self.running_hash(&h[0..hlen]);
+//        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],self.ptr); // rewind
+//        self.ptr=0;
     }
 
     pub fn create_send_crypto_context(&mut self) {
@@ -961,8 +963,9 @@ impl SESSION {
 
         let mut ext:[u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         let mut ch: [u8; MAX_HELLO] = [0; MAX_HELLO]; 
-        let mut csk: [u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
-        let mut pk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+        let mut csk: [u8;MAX_KEX_SECRET_KEY]=[0;MAX_KEX_SECRET_KEY];  // client key exchange secret key
+        let mut cpk: [u8;MAX_KEX_PUBLIC_KEY]=[0;MAX_KEX_PUBLIC_KEY];  // client key exchange public key
+        let mut spk: [u8; MAX_KEX_CIPHERTEXT]=[0;MAX_KEX_CIPHERTEXT]; // server key exchange public key/ciphertext
         let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
         let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
 
@@ -1019,7 +1022,7 @@ impl SESSION {
         let sklen=sal::secret_key_size(self.favourite_group);   // may change on a handshake retry
         let sslen=sal::shared_secret_size(self.favourite_group);
         let mut pklen=sal::client_public_key_size(self.favourite_group);
-        let mut pk_s=&mut pk[0..pklen];
+        let mut pk_s=&mut cpk[0..pklen];
         let csk_s=&mut csk[0..sklen];
         let ss_s=&mut ss[0..sslen];
         sal::generate_key_pair(self.favourite_group,csk_s,pk_s);
@@ -1090,7 +1093,7 @@ impl SESSION {
         }
 // Process Server Hello
         pklen=sal::server_public_key_size(self.favourite_group);
-        pk_s=&mut pk[0..pklen];
+        pk_s=&mut spk[0..pklen];
         let mut kex=0;
         let mut pskid:isize=-1;
         let mut cklen=0;
@@ -1122,7 +1125,8 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
         }   
-        logger::log_server_hello(self.cipher_suite,kex,pskid,pk_s,&cookie[0..cklen]);
+        logger::log_server_hello(self.cipher_suite,pskid,pk_s,&cookie[0..cklen]);
+        logger::log_key_exchange(IO_PROTOCOL,kex);
 
         if rtn.val==HANDSHAKE_RETRY || kex!=self.favourite_group { // should not happen
             self.send_alert(UNEXPECTED_MESSAGE);
@@ -1234,8 +1238,9 @@ impl SESSION {
         let mut expected=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
         let mut response=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
         let mut ch: [u8; MAX_HELLO] = [0; MAX_HELLO]; 
-        let mut csk: [u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
-        let mut pk: [u8;MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+        let mut csk: [u8;MAX_KEX_SECRET_KEY]=[0;MAX_KEX_SECRET_KEY];
+        let mut cpk: [u8;MAX_KEX_PUBLIC_KEY]=[0;MAX_KEX_PUBLIC_KEY];
+        let mut spk: [u8; MAX_KEX_CIPHERTEXT]=[0;MAX_KEX_CIPHERTEXT];
         let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
 
         log(IO_PROTOCOL,"Attempting Full Handshake\n",0,None);
@@ -1243,13 +1248,13 @@ impl SESSION {
         let mut sklen=sal::secret_key_size(self.favourite_group);   // may change on a handshake retry
         let mut sslen=sal::shared_secret_size(self.favourite_group);
         let mut pklen=sal::client_public_key_size(self.favourite_group);
-        let mut pk_s=&mut pk[0..pklen];
+        let mut pk_s=&mut cpk[0..pklen];
         sal::generate_key_pair(self.favourite_group,&mut csk[0..sklen],pk_s);
         log(IO_DEBUG,"Private Key= ",0,Some(&csk[0..sklen]));
         log(IO_DEBUG,"Client Public Key= ",0,Some(pk_s));
         let mut ext: [u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
-        let mut spk: [u8; MAX_PUBLIC_KEY]=[0;MAX_PUBLIC_KEY];
+
 // add chosen extensions
         let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,0);
 // build and transmit client hello
@@ -1264,7 +1269,7 @@ impl SESSION {
 
 
         pklen=sal::server_public_key_size(self.favourite_group);
-        pk_s=&mut pk[0..pklen];
+        pk_s=&mut spk[0..pklen];
         let mut kex=0;
         let mut pskid:isize=-1;
         let mut cklen=0;
@@ -1311,8 +1316,18 @@ impl SESSION {
 // Initialise Transcript Hash
 
         if rtn.val==HANDSHAKE_RETRY { // Was server hello actually an hello retry request?
+            log(IO_DEBUG,"Server Hello Retry Request= ",0,Some(&self.io[0..self.iolen]));
             self.running_synthetic_hash(&ch[0..chlen],&ext[0..extlen]);
+
+
+let mut myh: [u8;MAX_HASH]=[0;MAX_HASH]; let myh_s=&mut myh[0..hlen];
+self.transcript_hash(myh_s);
+log(IO_DEBUG,"1. myh_s= ",0,Some(myh_s));
+
             self.running_hash_io();
+self.transcript_hash(myh_s);
+log(IO_DEBUG,"2. myh_s= ",0,Some(myh_s));
+
             if kex==self.favourite_group { // Its the same again
                 self.send_alert(ILLEGAL_PARAMETER);
                 log(IO_DEBUG,"No change as result of HRR\n",0,None);
@@ -1320,12 +1335,12 @@ impl SESSION {
                 self.clean();
                 return TLS_FAILURE;
             }
-            log(IO_DEBUG,"Server Hello Retry Request= ",0,Some(&self.io[0..self.iolen]));
+
             self.favourite_group=kex;
             sklen=sal::secret_key_size(self.favourite_group);   // probably changed on a handshake retry
             sslen=sal::shared_secret_size(self.favourite_group);
             pklen=sal::client_public_key_size(self.favourite_group);
-            pk_s=&mut pk[0..pklen];
+            pk_s=&mut cpk[0..pklen];
             sal::generate_key_pair(self.favourite_group,&mut csk[0..sklen],pk_s);
             extlen=self.build_extensions(&mut ext,pk_s,&mut expected,0);
             if cklen!=0 { // there was a cookie in the HRR ... so send it back in an extension
@@ -1343,7 +1358,7 @@ impl SESSION {
             log(IO_DEBUG,"Client Hello re-sent\n",0,None);
 // get new server hello
             pklen=sal::server_public_key_size(self.favourite_group);
-            pk_s=&mut pk[0..pklen];
+            pk_s=&mut spk[0..pklen];
             rtn=self.get_server_hello(&mut kex,&mut cookie,&mut cklen,pk_s,&mut pskid);
 //
 //
@@ -1363,15 +1378,20 @@ impl SESSION {
             }
             resumption_required=true;
         }
+        log(IO_DEBUG,"Server Hello= ",0,Some(&self.io[0..self.iolen]));
+        logger::log_server_hello(self.cipher_suite,pskid,pk_s,&cookie[0..cklen]);
+        logger::log_key_exchange(IO_PROTOCOL,self.favourite_group);
 // Transcript hash the Hellos 
         self.running_hash(&ch[0..chlen]);
         self.running_hash(&ext[0..extlen]);
-        self.running_hash_io();
+let mut myh: [u8;MAX_HASH]=[0;MAX_HASH]; let myh_s=&mut myh[0..hlen];
+self.transcript_hash(myh_s);
+log(IO_DEBUG,"3. myh_s= ",0,Some(myh_s));
+        self.running_hash_io();      // Server Hello
         self.transcript_hash(hh_s);
+log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
         let csk_s=&csk[0..sklen];
         let ss_s=&mut ss[0..sslen];
-        log(IO_DEBUG,"Server Hello= ",0,Some(&self.io[0..self.iolen]));
-        logger::log_server_hello(self.cipher_suite,kex,pskid,pk_s,&cookie[0..cklen]);
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
         sal::generate_shared_secret(self.favourite_group,csk_s,pk_s,ss_s);
@@ -1379,6 +1399,7 @@ impl SESSION {
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
         self.derive_handshake_secrets(ss_s,es_s,hh_s,hs_s);
+
         self.create_send_crypto_context();
         self.create_recv_crypto_context();
         log(IO_DEBUG,"Handshake secret= ",0,Some(hs_s));
@@ -1428,8 +1449,9 @@ impl SESSION {
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
 // on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
 
+        let mut server_pk: [u8; MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];
         let mut spklen=0;
-        rtn=self.get_check_server_certificatechain(&mut spk,&mut spklen);
+        rtn=self.get_check_server_certificatechain(&mut server_pk,&mut spklen);
 //
 //
 //  <---------------------------------------------------------- {Certificate}
@@ -1439,7 +1461,7 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
         }
-        let spk_s=&spk[0..spklen];
+        let spk_s=&server_pk[0..spklen];
         self.transcript_hash(hh_s);
         log(IO_DEBUG,"Certificate Chain is valid\n",0,None);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(hh_s));  
@@ -1460,7 +1482,7 @@ impl SESSION {
         self.transcript_hash(fh_s);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(fh_s));
         log(IO_DEBUG,"Server Transcript Signature = ",0,Some(scvsig_s));
-        logger::log_sig_alg(sigalg);
+        logger::log_sig_alg(IO_PROTOCOL,sigalg);
         if !keys::check_server_cert_verifier(sigalg,scvsig_s,hh_s,spk_s) {
             self.send_alert(DECRYPT_ERROR);
             log(IO_DEBUG,"Server Cert Verification failed\n",0,None);
@@ -1502,7 +1524,7 @@ impl SESSION {
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
         if gotacertrequest { // Server wants a client certificate
             if HAVE_CLIENT_CERT { // do I have one?
-                let mut client_key:[u8;MAX_SECRET_KEY]=[0;MAX_SECRET_KEY];
+                let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
                 let mut client_certchain:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];
                 let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
                 let mut cclen=0;

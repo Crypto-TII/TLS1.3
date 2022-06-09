@@ -416,7 +416,7 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
 
 // Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
 pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) {
-    let mut csk:[u8;config::MAX_SECRET_KEY]=[0;config::MAX_SECRET_KEY];
+    let mut csk:[u8;config::MAX_KEX_SECRET_KEY]=[0;config::MAX_KEX_SECRET_KEY];
     if group==config::X25519 {
         use mcore::c25519::ecdh;
         random_bytes(32,&mut csk);

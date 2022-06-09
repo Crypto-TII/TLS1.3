@@ -41,12 +41,16 @@ pub const MAX_CHAIN_LEN:usize = 2;                  // Maximum Chain length
 pub const MAX_CERT_SIZE:usize = 6144;               // Max key/cert                                      **** increased for Dilithium 3
 pub const MAX_CHAIN_SIZE:usize = MAX_CHAIN_LEN*MAX_CERT_SIZE;
 
-// These all blow up post quantum
 pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size - was 256 pre-quantum
-pub const MAX_PUBLIC_KEY: usize = 2048;             // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
-pub const MAX_SECRET_KEY: usize = 6144;             // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)
-pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum
-pub const MAX_SIGNATURE_SIZE:usize= 4096;           // Max digital signature size in bytes *** increased for DILITHIUM 
+
+// These all blow up post quantum
+pub const MAX_SIG_PUBLIC_KEY: usize = 1952;         // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
+pub const MAX_SIG_SECRET_KEY: usize = 4000;         // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)
+pub const MAX_SIGNATURE_SIZE: usize= 4096;          // Max digital signature size in bytes *** increased for DILITHIUM 
+pub const MAX_KEX_PUBLIC_KEY: usize = 1184;         // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
+pub const MAX_KEX_CIPHERTEXT: usize = 1088;         // Max key exchange (KEM) ciphertext size
+pub const MAX_KEX_SECRET_KEY: usize = 2400;         // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)
+pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
 
 pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
 pub const MAX_CIPHER_SUITES: usize = 16;            // *********************
@@ -228,7 +232,7 @@ pub const TLS_SUCCESS:usize = 1;
 pub const LOG_OUTPUT_TRUNCATION: usize= 512;       /**< Output Hex digits before truncation */
 
 // User defined controls
-pub const VERBOSITY:usize= IO_DEBUG;    // Set log reporting level
+pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true; // allow self-signed server certs
 pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates 
 //pub const TLS_PROTOCOL: bool=true;       // ALPN extension

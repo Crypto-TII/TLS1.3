@@ -31,12 +31,11 @@ extern void log(int logit,char *preamble,char *string,unsign32 info,octad *O);
 /**	@brief logging the Server hello
  *
 	@param cipher_suite the chosen cipher suite
-    @param kex the chosen key exchange algorithm
     @param pskid the chosen preshared key (or -1 if none)
     @param PK the Server Public Key
     @param CK a Cookie (if any)
  */
-extern void logServerHello(int cipher_suite,int kex,int pskid,octad *PK,octad *CK);
+extern void logServerHello(int cipher_suite,int pskid,octad *PK,octad *CK);
 
 /**	@brief logging a resumption ticket
  *
