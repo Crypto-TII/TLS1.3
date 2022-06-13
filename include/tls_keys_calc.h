@@ -129,19 +129,17 @@ extern void deriveLaterSecrets(int htype,octad *H,octad *ES,octad *CETS,octad *E
     @param SS input Shared Secret
     @param ES the input early secret key
     @param H a partial transcript hash
-    @param HS the output Handshake Secret
  */
-extern void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES, octad *H,octad *HS);
+extern void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES, octad *H);
 
 /**	@brief Extract Application Secret from Handshake Secret and Early Secret. Use Handshake Secret to extract Client and Server Application Traffic secrets 
  *
  	@param session the TLS session structure   
-    @param HS input Handshake Secret
     @param SFH an input partial transcript hash
     @param CFH an input partial transcript hash
     @param EMS the output External Master Secret (or NULL if not required)
  */
-extern void deriveApplicationSecrets(TLS_session *session,octad *HS,octad *SFH,octad *CFH,octad *EMS);
+extern void deriveApplicationSecrets(TLS_session *session,octad *SFH,octad *CFH,octad *EMS);
 
 /**	@brief Perform a Key Update on a crypto context
  *

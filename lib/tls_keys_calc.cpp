@@ -291,7 +291,7 @@ void deriveLaterSecrets(int htype,octad *ES,octad *H,octad *CETS,octad *EEMS)
 }
 
 // get Client and Server Handshake secrets for encrypting rest of handshake, from Shared secret SS and early secret ES
-void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES,octad *H,octad *HS)
+void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES,octad *H)
 {
     char ds[TLS_MAX_HASH];
     octad DS = {0,sizeof(ds),ds};       // Derived Secret
@@ -308,19 +308,21 @@ void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES,octad *H,oc
     OCT_append_string(&INFO,(char *)"derived");
     hkdfExpandLabel(htype,&DS,hlen,ES,&INFO,&EMH);  
 
-    SAL_hkdfExtract(htype,HS,&DS,SS);
+    SAL_hkdfExtract(htype,&session->HS,&DS,SS);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"c hs traffic");
-    hkdfExpandLabel(htype,&session->CTS,hlen,HS,&INFO,H);
+    hkdfExpandLabel(htype,&session->CTS,hlen,&session->HS,&INFO,H);
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"s hs traffic");
-    hkdfExpandLabel(htype,&session->STS,hlen,HS,&INFO,H);
+    hkdfExpandLabel(htype,&session->STS,hlen,&session->HS,&INFO,H);
 }
 
 // Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
-void deriveApplicationSecrets(TLS_session *session,octad *HS,octad *SFH,octad *CFH,octad *EMS)
+// SFH - Server Finished Hash
+// CFH - Client Finished Hash
+void deriveApplicationSecrets(TLS_session *session,octad *SFH,octad *CFH,octad *EMS)
 {
     char ds[TLS_MAX_HASH];
     octad DS = {0,sizeof(ds),ds};
@@ -340,7 +342,7 @@ void deriveApplicationSecrets(TLS_session *session,octad *HS,octad *SFH,octad *C
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"derived");
-    hkdfExpandLabel(htype,&DS,hlen,HS,&INFO,&EMH);   // Use handshake secret from above
+    hkdfExpandLabel(htype,&DS,hlen,&session->HS,&INFO,&EMH);   // Use handshake secret from above
 
     SAL_hkdfExtract(htype,&MS,&DS,&ZK);
 

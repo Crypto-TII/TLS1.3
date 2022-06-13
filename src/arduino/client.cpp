@@ -157,7 +157,7 @@ void setup()
     xTaskCreatePinnedToCore(
         myloop
         ,  "client"   // A name just for humans
-        ,  32768  // 32K-6K This stack size can be checked & adjusted by reading the Stack Highwater
+        ,  65536  // This stack size can be checked & adjusted by reading the Stack Highwater
         ,  NULL
         ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
         ,  NULL 
@@ -168,22 +168,27 @@ void setup()
 
 #ifdef ESP32
 void loop()
-{
+{ // main task loops around here
+    delay(1000);
 }
 
 void myloop(void *pvParameters) {
     (void) pvParameters;
+    TLS_session state;
+    TLS_session *session=&state;
     while (1)
     {
 #else
 void loop() {
+    TLS_session state;
+    TLS_session *session=&state;
 #endif
     char get[256];
     octad GET={0,sizeof(get),get};     // initial message
     char resp[40];
     octad RESP={0,sizeof(resp),resp};  // response
     Socket client;
-    int len,port=443;
+    int i,len,port=443;
     char hostname[128];
 
 // Initialise Security Abstraction Layer
@@ -200,7 +205,7 @@ void loop() {
 
     if (len==0)
     {
-        int i,ns,iterations;
+        int ns,iterations;
         int nt[20];
         int start,elapsed;
         Serial.print("\nCryptography by "); Serial.println(SAL_name());
@@ -265,8 +270,26 @@ void loop() {
         return;
     }
 
-    TLS_session state=TLS13_start(&client,hostname);
-    TLS_session *session=&state;
+    bool contains_colon = false;
+    len = strlen(hostname);
+    for (i=0;i<len;++i)
+    {
+        if(hostname[i] == ':')
+        {
+            contains_colon = true;
+            break;
+        }
+    }
+    if (contains_colon)
+    {
+        char port_part[5];
+        strncpy(port_part, hostname+sizeof(char)*(i+1), (len - i));
+        port = atoi(port_part);
+        hostname[i]=0;
+    }    
+
+
+    state=TLS13_start(&client,hostname);
     log(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
 
     make_client_message(&GET,hostname);

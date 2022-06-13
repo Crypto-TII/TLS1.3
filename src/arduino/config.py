@@ -676,10 +676,12 @@ print("41. RSA2048")
 print("42. RSA3072")
 print("43. RSA4096")
 print("44. NewHope\n")
+print("45. Dilithium\n")
+print("46. Kyber\n")
 
 selection=[]
 ptr=0
-max=45
+max=47
 
 def selected(selection,sel,len) :
     for i in range(0,len):
@@ -692,6 +694,8 @@ curve_selected=False
 pfcurve_selected=False
 rsa_selected=False
 nhs_selected=False
+dlthm_selected=False
+kyber_selected=False
 
 while ptr<max:
     x=int(input("Choose a Scheme to support - 0 to finish: "))
@@ -905,6 +909,11 @@ while ptr<max:
 
     if x==pf+16:
         nhs_selected=True
+    if x==pf+17:
+        dlthm_selected=True
+    if x==pf+18:
+        kyber_selected=True
+
 
 #    break;
 
@@ -959,6 +968,17 @@ if not nhs_selected :
 #    os.system("mkdir examples"+slashtext+"testnhs")
 #    os.system(copytext+" testnhs.ino "+"examples"+slashtext+"testnhs"+slashtext+"testnhs.ino")
 os.system(deltext+" testnhs.ino")
+
+if not dlthm_selected :
+    os.system(deltext+" dilithium.cpp")
+    os.system(deltext+" dilithium.h")
+os.system(deltext+" testdlthm.ino")
+
+if not kyber_selected :
+    os.system(deltext+" kyber.cpp")
+    os.system(deltext+" kyber.h")
+os.system(deltext+" testkyber.ino")
+
 
 #if curve_selected :
 #    os.system("mkdir examples")
@@ -1153,6 +1173,7 @@ if not selected(selection,40,ptr) :
     os.system(deltext+" testhtp.cpp")
     os.system(deltext+" testnhs.cpp")
     os.system(deltext+" testdlthm.cpp")
+    os.system(deltext+" testkyber.cpp")
 
     os.system(deltext+" config*.py")
     os.system(deltext+" benchtest_all.cpp")

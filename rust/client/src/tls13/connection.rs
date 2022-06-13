@@ -34,6 +34,7 @@ pub struct SESSION {
     favourite_group: u16,   // favourite key exchange group 
     k_send: keys::CRYPTO,   // Sending Key 
     k_recv: keys::CRYPTO,   // Receiving Key 
+    hs: [u8;MAX_HASH],      // Handshake secret
     rms: [u8;MAX_HASH],     // Resumption Master Secret         
     sts: [u8;MAX_HASH],     // Server Traffic secret             
     cts: [u8;MAX_HASH],     // Client Traffic secret                
@@ -62,6 +63,7 @@ impl SESSION {
             favourite_group: 0,
             k_send: keys::CRYPTO::new(), 
             k_recv: keys::CRYPTO::new(),
+            hs: [0;MAX_HASH],
             rms: [0;MAX_HASH],
             sts: [0;MAX_HASH],
             cts: [0;MAX_HASH],   
@@ -184,7 +186,7 @@ impl SESSION {
     }
     
 // get Client and Server Handshake secrets for encrypting rest of handshake, from Shared secret SS and early secret ES
-    pub fn derive_handshake_secrets(&mut self,ss: &[u8],es: &[u8],h: &[u8],hs: &mut [u8]) {
+    pub fn derive_handshake_secrets(&mut self,ss: &[u8],es: &[u8],h: &[u8]) {
         let dr="derived";
         let ch="c hs traffic";
         let sh="s hs traffic";
@@ -194,13 +196,13 @@ impl SESSION {
         let hlen=sal::hash_len(htype);
         sal::hash_null(htype,&mut emh[0..hlen]);
         keys::hkdf_expand_label(htype,&mut ds[0..hlen],es,dr.as_bytes(),Some(&emh[0..hlen]));
-        sal::hkdf_extract(htype,&mut hs[0..hlen],Some(&ds[0..hlen]),ss);
-        keys::hkdf_expand_label(htype,&mut self.cts[0..hlen],&hs[0..hlen],ch.as_bytes(),Some(h));
-        keys::hkdf_expand_label(htype,&mut self.sts[0..hlen],&hs[0..hlen],sh.as_bytes(),Some(h));
+        sal::hkdf_extract(htype,&mut self.hs[0..hlen],Some(&ds[0..hlen]),ss);
+        keys::hkdf_expand_label(htype,&mut self.cts[0..hlen],&self.hs[0..hlen],ch.as_bytes(),Some(h));
+        keys::hkdf_expand_label(htype,&mut self.sts[0..hlen],&self.hs[0..hlen],sh.as_bytes(),Some(h));
     }
 
 // Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
-    pub fn derive_application_secrets(&mut self,hs: &[u8],sfh: &[u8],cfh: &[u8],ems: Option<&mut [u8]>) {
+    pub fn derive_application_secrets(&mut self,sfh: &[u8],cfh: &[u8],ems: Option<&mut [u8]>) {
         let dr="derived";
         let ch="c ap traffic";
         let sh="s ap traffic";
@@ -212,7 +214,7 @@ impl SESSION {
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
         sal::hash_null(htype,&mut emh);
-        keys::hkdf_expand_label(htype,&mut ds[0..hlen],hs,dr.as_bytes(),Some(&emh[0..hlen]));
+        keys::hkdf_expand_label(htype,&mut ds[0..hlen],&mut self.hs[0..hlen],dr.as_bytes(),Some(&emh[0..hlen]));
         sal::hkdf_extract(htype,&mut ms[0..hlen],Some(&ds[0..hlen]),&zk[0..hlen]);
         keys::hkdf_expand_label(htype,&mut self.cts[0..hlen],&ms[0..hlen],ch.as_bytes(),Some(sfh));
         keys::hkdf_expand_label(htype,&mut self.sts[0..hlen],&ms[0..hlen],sh.as_bytes(),Some(sfh));
@@ -936,6 +938,7 @@ impl SESSION {
     pub fn clean(&mut self) {
         self.status=DISCONNECTED;
         self.io.zeroize();
+        self.hs.zeroize();
         self.cts.zeroize();
         self.sts.zeroize();
         self.rms.zeroize();
@@ -989,7 +992,6 @@ impl SESSION {
 
 // extract slices.. Depends on cipher suite
         let mut hh: [u8;MAX_HASH]=[0;MAX_HASH]; let hh_s=&mut hh[0..hlen];
-        let mut hs: [u8;MAX_HASH]=[0;MAX_HASH]; let hs_s=&mut hs[0..hlen];
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
         let mut th: [u8;MAX_HASH]=[0;MAX_HASH]; let th_s=&mut th[0..hlen];
         let mut bk:[u8;MAX_HASH]=[0;MAX_HASH]; let bk_s=&mut bk[0..hlen];
@@ -1141,10 +1143,10 @@ impl SESSION {
         sal::generate_shared_secret(kex,csk_s,pk_s,ss_s); 
         log(IO_DEBUG,"Shared Secret= ",0,Some(ss_s));
 
-        self.derive_handshake_secrets(ss_s,es_s,hh_s,hs_s); 
+        self.derive_handshake_secrets(ss_s,es_s,hh_s); 
         self.create_recv_crypto_context();
 
-        log(IO_DEBUG,"Handshake Secret= ",0,Some(hs_s));
+        log(IO_DEBUG,"Handshake Secret= ",0,Some(&self.hs[0..hlen]));
         log(IO_DEBUG,"Client handshake traffic secret= ",0,Some(&self.cts[0..hlen]));
         log(IO_DEBUG,"Server handshake traffic secret= ",0,Some(&self.sts[0..hlen]));
 
@@ -1209,7 +1211,7 @@ impl SESSION {
 
 // calculate traffic and application keys from handshake secret and transcript hashes, and store in session
 
-        self.derive_application_secrets(hs_s,hh_s,fh_s,None);
+        self.derive_application_secrets(hh_s,fh_s,None);
         self.create_send_crypto_context();
         self.create_recv_crypto_context();
 
@@ -1225,15 +1227,12 @@ impl SESSION {
         return TLS_SUCCESS;
     }
 
-// TLS1.3
-// FULL handshake
-    pub fn tls_full(&mut self) -> usize {
+// Exchange Client/Server "Hellos"
+    fn exchange_hellos(&mut self) -> usize {
         let mut groups:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
         let mut ciphers:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
-        let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
         let _nsg=sal::groups(&mut groups);
         let nsc=sal::ciphers(&mut ciphers);
-        let mut ccs_sent=false;
         let mut resumption_required=false;
         let mut expected=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
         let mut response=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
@@ -1244,8 +1243,9 @@ impl SESSION {
         let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
 
         log(IO_PROTOCOL,"Attempting Full Handshake\n",0,None);
-        self.favourite_group=groups[0];   // start out with first one.
-        let mut sklen=sal::secret_key_size(self.favourite_group);   // may change on a handshake retry
+        self.favourite_group=groups[0];   // start out with first one. May change on a handshake retry
+
+        let mut sklen=sal::secret_key_size(self.favourite_group);   
         let mut sslen=sal::shared_secret_size(self.favourite_group);
         let mut pklen=sal::client_public_key_size(self.favourite_group);
         let mut pk_s=&mut cpk[0..pklen];
@@ -1267,7 +1267,6 @@ impl SESSION {
         log(IO_DEBUG,"Client Hello sent\n",0,None);
 // process server hello
 
-
         pklen=sal::server_public_key_size(self.favourite_group);
         pk_s=&mut spk[0..pklen];
         let mut kex=0;
@@ -1280,7 +1279,6 @@ impl SESSION {
 //
 //
         if self.bad_response(&rtn) {
-            self.clean();
             return TLS_FAILURE;
         }
 // Find cipher-suite chosen by Server
@@ -1296,7 +1294,6 @@ impl SESSION {
             logger::log_cipher_suite(self.cipher_suite);
             log(IO_DEBUG,"Cipher Suite not valid\n",0,None);
             log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
-            self.clean();
             return TLS_FAILURE;
         }
         logger::log_cipher_suite(self.cipher_suite);
@@ -1306,33 +1303,19 @@ impl SESSION {
 
 // extract slices.. Depends on cipher suite
         let mut hh: [u8;MAX_HASH]=[0;MAX_HASH]; let hh_s=&mut hh[0..hlen];
-        let mut hs: [u8;MAX_HASH]=[0;MAX_HASH]; let hs_s=&mut hs[0..hlen];
-        let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
-        let mut th: [u8;MAX_HASH]=[0;MAX_HASH]; let th_s=&mut th[0..hlen];
-        let mut chf: [u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
         let mut es: [u8;MAX_HASH]=[0;MAX_HASH]; let es_s=&mut es[0..hlen];
         keys::derive_early_secrets(hash_type,None,es_s,None,None);
         log(IO_DEBUG,"Early secret= ",0,Some(es_s));
-// Initialise Transcript Hash
 
-        if rtn.val==HANDSHAKE_RETRY { // Was server hello actually an hello retry request?
+        if rtn.val==HANDSHAKE_RETRY { // Was server hello actually an Hello Retry Request?
             log(IO_DEBUG,"Server Hello Retry Request= ",0,Some(&self.io[0..self.iolen]));
             self.running_synthetic_hash(&ch[0..chlen],&ext[0..extlen]);
-
-
-let mut myh: [u8;MAX_HASH]=[0;MAX_HASH]; let myh_s=&mut myh[0..hlen];
-self.transcript_hash(myh_s);
-log(IO_DEBUG,"1. myh_s= ",0,Some(myh_s));
-
             self.running_hash_io();
-self.transcript_hash(myh_s);
-log(IO_DEBUG,"2. myh_s= ",0,Some(myh_s));
 
             if kex==self.favourite_group { // Its the same again
                 self.send_alert(ILLEGAL_PARAMETER);
                 log(IO_DEBUG,"No change as result of HRR\n",0,None);
                 log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
-                self.clean();
                 return TLS_FAILURE;
             }
 
@@ -1347,7 +1330,6 @@ log(IO_DEBUG,"2. myh_s= ",0,Some(myh_s));
                 extlen=extensions::add_cookie(&mut ext,extlen,&cookie[0..cklen]);
             }
             self.send_cccs();
-            ccs_sent=true;
 // send new client hello
             chlen=self.send_client_hello(TLS1_2,&mut ch,true,&ext[0..extlen],0,true);
 //
@@ -1366,14 +1348,12 @@ log(IO_DEBUG,"2. myh_s= ",0,Some(myh_s));
 //
 //
             if self.bad_response(&rtn) {
-                self.clean();
                 return TLS_FAILURE;
             }
             if rtn.val==HANDSHAKE_RETRY {
                 log(IO_DEBUG,"A second Handshake Retry Request?\n",0,None);
                 self.send_alert(UNEXPECTED_MESSAGE);
                 log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
-                self.clean();
                 return TLS_FAILURE;
             }
             resumption_required=true;
@@ -1384,12 +1364,9 @@ log(IO_DEBUG,"2. myh_s= ",0,Some(myh_s));
 // Transcript hash the Hellos 
         self.running_hash(&ch[0..chlen]);
         self.running_hash(&ext[0..extlen]);
-let mut myh: [u8;MAX_HASH]=[0;MAX_HASH]; let myh_s=&mut myh[0..hlen];
-self.transcript_hash(myh_s);
-log(IO_DEBUG,"3. myh_s= ",0,Some(myh_s));
         self.running_hash_io();      // Server Hello
         self.transcript_hash(hh_s);
-log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
+//log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
         let csk_s=&csk[0..sklen];
         let ss_s=&mut ss[0..sslen];
 
@@ -1398,29 +1375,174 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
         log(IO_DEBUG,"Shared Secret= ",0,Some(ss_s));
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
-        self.derive_handshake_secrets(ss_s,es_s,hh_s,hs_s);
+        self.derive_handshake_secrets(ss_s,es_s,hh_s);
 
         self.create_send_crypto_context();
         self.create_recv_crypto_context();
-        log(IO_DEBUG,"Handshake secret= ",0,Some(hs_s));
+        log(IO_DEBUG,"Handshake secret= ",0,Some(&self.hs[0..hlen]));
         log(IO_DEBUG,"Client Handshake Traffic secret= ",0,Some(&self.cts[0..hlen]));
         log(IO_DEBUG,"Server Handshake Traffic secret= ",0,Some(&self.sts[0..hlen]));
 
 // get encrypted extensions
-        let mut rtn=self.get_server_encrypted_extensions(&expected,&mut response);
+        rtn=self.get_server_encrypted_extensions(&expected,&mut response);
 //
 //
 //  <------------------------------------------------- {Encrypted Extensions}
 //
 //
         if self.bad_response(&rtn) {
-            self.clean();
             return TLS_FAILURE;
         }
         logger::log_enc_ext(&expected,&response);
         log(IO_DEBUG,"Encrypted extensions processed\n",0,None);
 
-        rtn=self.see_whats_next();
+        if resumption_required {
+            return TLS_RESUMPTION_REQUIRED;
+        }
+        return TLS_SUCCESS;
+    }
+
+// check that the server is trusted
+    fn server_trust(&mut self) -> usize {
+// Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
+// (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
+// on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
+        let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
+        let mut server_pk: [u8; MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];
+
+        let hash_type=sal::hash_type(self.cipher_suite);
+        let hlen=sal::hash_len(hash_type);
+// extract slices.. Depends on cipher suite
+        let mut hh: [u8;MAX_HASH]=[0;MAX_HASH]; let hh_s=&mut hh[0..hlen];
+        let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
+
+        let mut spklen=0;
+        let mut rtn=self.get_check_server_certificatechain(&mut server_pk,&mut spklen);
+//
+//
+//  <---------------------------------------------------------- {Certificate}
+//
+//
+        if self.bad_response(&rtn) {
+            return TLS_FAILURE;
+        }
+        let spk_s=&server_pk[0..spklen];
+        self.transcript_hash(hh_s);
+        log(IO_DEBUG,"Certificate Chain is valid\n",0,None);
+        log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(hh_s));  
+
+        let mut siglen=0;
+        let mut sigalg:u16=0;
+        rtn=self.get_server_cert_verify(&mut scvsig,&mut siglen,&mut sigalg);
+//
+//
+//  <---------------------------------------------------- {Certificate Verify}
+//
+//
+        if self.bad_response(&rtn) {
+            return TLS_FAILURE;
+        }
+        let scvsig_s=&mut scvsig[0..siglen];
+        self.transcript_hash(fh_s);
+        log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(fh_s));
+        log(IO_DEBUG,"Server Transcript Signature = ",0,Some(scvsig_s));
+        logger::log_sig_alg(IO_PROTOCOL,sigalg);
+        if !keys::check_server_cert_verifier(sigalg,scvsig_s,hh_s,spk_s) {
+            self.send_alert(DECRYPT_ERROR);
+            log(IO_DEBUG,"Server Cert Verification failed\n",0,None);
+            log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
+            return TLS_FAILURE;
+        }
+        log(IO_PROTOCOL,"Server Cert Verification OK - ",-1,Some(&self.hostname[0..self.hlen]));
+
+// get server finished
+        let mut fnlen=0;
+        let mut fin:[u8;MAX_HASH]=[0;MAX_HASH];
+        rtn=self.get_server_finished(&mut fin,&mut fnlen);
+//
+//
+//  <------------------------------------------------------ {Server Finished}
+//
+//
+        let fin_s=&fin[0..fnlen];
+        if self.bad_response(&rtn) {
+            return TLS_FAILURE;
+        }
+        if !keys::check_verifier_data(hash_type,fin_s,&self.sts[0..hlen],fh_s) {
+            self.send_alert(DECRYPT_ERROR);
+            log(IO_DEBUG,"Server Data is NOT verified\n",0,None);
+            log(IO_DEBUG,"Full Handshake failed\n",0,None);
+            return TLS_FAILURE;
+        }
+        log(IO_DEBUG,"\nServer Data is verified\n",0,None);
+        return TLS_SUCCESS;
+    }
+
+// client supplies trust to server, given servers list of acceptable signature types
+    fn client_trust(&mut self,csigalgs: &[u16] ) {
+        let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
+        let mut client_certchain:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];
+        let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
+
+        let hash_type=sal::hash_type(self.cipher_suite);
+        let hlen=sal::hash_len(hash_type);
+// extract slices.. Depends on cipher suite
+        let mut th: [u8;MAX_HASH]=[0;MAX_HASH]; let th_s=&mut th[0..hlen];
+        let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
+
+        let mut cclen=0;
+        let mut cklen=0;
+        let kind=certchain::get_client_credentials(csigalgs,&mut client_key,&mut cklen,&mut client_certchain,&mut cclen);
+        if kind!=0 { // Yes, I can do that signature
+            log(IO_PROTOCOL,"Client is authenticating\n",0,None);
+            let cc_s=&client_certchain[0..cclen];
+            let ck_s=&client_key[0..cklen];
+            self.send_client_certificate(Some(cc_s));
+//
+//
+//  {client Certificate} ---------------------------------------------------->
+//
+//
+            self.transcript_hash(th_s);
+            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(th_s)); 
+            cclen=keys::create_client_cert_verifier(kind,th_s,ck_s,&mut ccvsig);
+            self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
+            self.transcript_hash(fh_s);
+            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(fh_s));
+            log(IO_DEBUG,"Client Transcript Signature = ",0,Some(&ccvsig[0..cclen]));
+//
+//
+//  {Certificate Verify} ---------------------------------------------------->
+//
+//
+        } else { // No, I can't - send a null cert
+            self.send_client_certificate(None);
+        }
+    }
+
+// TLS1.3
+// FULL handshake
+    pub fn tls_full(&mut self) -> usize {
+        let mut resumption_required=false;
+
+// exchange client/server hellos
+        let rval=self.exchange_hellos();
+        if rval==TLS_FAILURE {
+            self.clean();
+            return rval;
+        }
+        if rval==TLS_RESUMPTION_REQUIRED {
+            resumption_required=true;
+        }
+        let hash_type=sal::hash_type(self.cipher_suite); // agreed cipher suite
+        let hlen=sal::hash_len(hash_type);
+// extract slices.. Depends on cipher suite
+        let mut hh: [u8;MAX_HASH]=[0;MAX_HASH]; let hh_s=&mut hh[0..hlen];
+        let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
+        let mut th: [u8;MAX_HASH]=[0;MAX_HASH]; let th_s=&mut th[0..hlen];
+        let mut chf: [u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
+
+        let mut rtn=self.see_whats_next();
         if self.bad_response(&rtn) {
             self.clean();
             return TLS_FAILURE;
@@ -1445,125 +1567,25 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
             log(IO_PROTOCOL,"Certificate Request received\n",0,None);
         }
 
-// Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
-// (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
-// on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
-
-        let mut server_pk: [u8; MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];
-        let mut spklen=0;
-        rtn=self.get_check_server_certificatechain(&mut server_pk,&mut spklen);
-//
-//
-//  <---------------------------------------------------------- {Certificate}
-//
-//
-        if self.bad_response(&rtn) {
+// Check that server has authenticated
+        let rval=self.server_trust();
+        if rval==TLS_FAILURE {
             self.clean();
-            return TLS_FAILURE;
+            return rval;
         }
-        let spk_s=&server_pk[0..spklen];
-        self.transcript_hash(hh_s);
-        log(IO_DEBUG,"Certificate Chain is valid\n",0,None);
-        log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(hh_s));  
-
-        let mut siglen=0;
-        let mut sigalg:u16=0;
-        rtn=self.get_server_cert_verify(&mut scvsig,&mut siglen,&mut sigalg);
-//
-//
-//  <---------------------------------------------------- {Certificate Verify}
-//
-//
-        if self.bad_response(&rtn) {
-            self.clean();
-            return TLS_FAILURE;
-        }
-        let scvsig_s=&mut scvsig[0..siglen];
-        self.transcript_hash(fh_s);
-        log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(fh_s));
-        log(IO_DEBUG,"Server Transcript Signature = ",0,Some(scvsig_s));
-        logger::log_sig_alg(IO_PROTOCOL,sigalg);
-        if !keys::check_server_cert_verifier(sigalg,scvsig_s,hh_s,spk_s) {
-            self.send_alert(DECRYPT_ERROR);
-            log(IO_DEBUG,"Server Cert Verification failed\n",0,None);
-            log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
-            self.clean();
-            return TLS_FAILURE;
-        }
-        log(IO_PROTOCOL,"Server Cert Verification OK - ",-1,Some(&self.hostname[0..self.hlen]));
-
-
-// get server finished
-        let mut fnlen=0;
-        let mut fin:[u8;MAX_HASH]=[0;MAX_HASH];
-        rtn=self.get_server_finished(&mut fin,&mut fnlen);
-//
-//
-//  <------------------------------------------------------ {Server Finished}
-//
-//
-        let fin_s=&fin[0..fnlen];
-        if self.bad_response(&rtn) {
-            self.clean();
-            return TLS_FAILURE;
-        }
-        if !keys::check_verifier_data(hash_type,fin_s,&self.sts[0..hlen],fh_s) {
-            self.send_alert(DECRYPT_ERROR);
-            log(IO_DEBUG,"Server Data is NOT verified\n",0,None);
-            log(IO_DEBUG,"Full Handshake failed\n",0,None);
-            self.clean();
-            return TLS_FAILURE;
-        }
-        log(IO_DEBUG,"\nServer Data is verified\n",0,None);
-        if !ccs_sent {
-            self.send_cccs();
-        }
+        self.send_cccs();
         self.transcript_hash(hh_s);
 
 // Now its the clients turn to respond
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
         if gotacertrequest { // Server wants a client certificate
             if HAVE_CLIENT_CERT { // do I have one?
-                let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
-                let mut client_certchain:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];
-                let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
-                let mut cclen=0;
-                let mut cklen=0;
-                let kind=certchain::get_client_credentials(&csigalgs[0..nccsalgs],&mut client_key,&mut cklen,&mut client_certchain,&mut cclen);
-                if kind!=0 { // Yes, I can do that signature
-                    log(IO_PROTOCOL,"Client is authenticating\n",0,None);
-                    let cc_s=&client_certchain[0..cclen];
-                    let ck_s=&client_key[0..cklen];
-                    self.send_client_certificate(Some(cc_s));
-//
-//
-//  {client Certificate} ---------------------------------------------------->
-//
-//
-                    self.transcript_hash(th_s);
-                    log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(th_s)); 
-                    cclen=keys::create_client_cert_verifier(kind,th_s,ck_s,&mut ccvsig);
-                    self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
-                    self.transcript_hash(fh_s);
-                    log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(fh_s));
-                    log(IO_DEBUG,"Client Transcript Signature = ",0,Some(&ccvsig[0..cclen]));
-//
-//
-//  {Certificate Verify} ---------------------------------------------------->
-//
-//
-                } else { // No, I can't - send a null cert
-                    self.send_client_certificate(None);
-                }
+                self.client_trust(&csigalgs[0..nccsalgs]);
             } else {
                 self.send_client_certificate(None);
             }
-            self.transcript_hash(th_s);
-        } else {
-            for i in 0..hlen {
-                th_s[i]=hh_s[i];
-            }
         }
+        self.transcript_hash(th_s);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]) = ",0,Some(th_s));
 
 // create client verify data
@@ -1580,7 +1602,7 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]+CF) = ",0,Some(fh_s));
 
 // calculate traffic and application keys from handshake secret and transcript hashes
-        self.derive_application_secrets(hs_s,hh_s,fh_s,None);
+        self.derive_application_secrets(hh_s,fh_s,None);
         self.create_send_crypto_context();
         self.create_recv_crypto_context();
         log(IO_DEBUG,"Client application traffic secret= ",0,Some(&self.cts[0..hlen]));
@@ -1591,7 +1613,6 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
             log(IO_PROTOCOL,"... after handshake resumption\n",0,None);
             return TLS_RESUMPTION_REQUIRED;
         }
-//println!("1. self.iolen= {}",self.iolen);
         return TLS_SUCCESS;
     }
 

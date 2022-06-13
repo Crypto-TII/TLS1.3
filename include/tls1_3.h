@@ -35,7 +35,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
-#define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
+//#define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
 #define ALLOW_SELF_SIGNED		  /**< allow self-signed server cert */
@@ -297,6 +297,8 @@ typedef struct
     int favourite_group;    /**< favourite key exchange group - may be changed on handshake retry */
     crypto K_send;          /**< Sending Key */
     crypto K_recv;          /**< Receiving Key */
+    octad HS;               /**< Handshake secret */
+    char hs[TLS_MAX_HASH];
     octad RMS;              /**< Resumption Master Secret */
     char rms[TLS_MAX_HASH];
     octad STS;              /**< Server Traffic secret */

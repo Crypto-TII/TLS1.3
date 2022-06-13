@@ -65,7 +65,7 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
     octad OWNER={0,sizeof(owner),owner};
     //char sc[TLS_MAX_ROOT_CERT_SIZE];  // server certificate
     char b[TLS_MAX_CERT_B64];  // maximum size for CA root signed certs in base64
-    octad SC={0,sizeof(b),b};       // optimization - share memory
+    octad SC={0,sizeof(b),b};       // optimization - share memory -  - can convert from base64 to binary in place
     char line[80]; int ptr=0;
 
     for (;;)
@@ -156,7 +156,7 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
     log(IO_DEBUG,(char *)"Checking Signature on Cert \n",NULL,0,NULL);
     //logSigAlg(sigAlg);
 
-    res=SAL_tlsSignatureVerify(sigAlg,CERT,SIG,PUBKEY); 
+    res=SAL_tlsSignatureVerify(sigAlg,CERT,SIG,PUBKEY);      // probably deepest into the stack at this stage.... (especially for Dilithium)
 
     if (res)
     {
@@ -173,9 +173,10 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
-    char sc[TLS_MAX_CERT_SIZE];  // X.509 .pem file (is it a cert or a cert chain??)
-    octad SC={0,sizeof(sc),sc};
     char b[TLS_MAX_CERT_B64];    // maximum size key/cert
+    //char sc[TLS_MAX_CERT_SIZE];  // X.509 .pem file (is it a cert or a cert chain??)
+    octad SC={0,sizeof(b),b};    // share memory - can convert from base64 to binary in place
+
     char line[80]; 
     
     OCT_kill(CERTCHAIN);
@@ -305,15 +306,14 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     octad SERVER_SIG={0,sizeof(server_sig),server_sig};
     char inter_sig[TLS_MAX_SIGNATURE_SIZE];  // signature on intermediate certificate
     octad INTER_SIG={0,sizeof(inter_sig),inter_sig};
+    char pk[TLS_MAX_SIG_PUB_KEY_SIZE];  // Public Key 
+    octad PK = {0, sizeof(pk), pk};
 
 // Clever re-use of memory - use pointers into cert chain rather than extracting certs
     octad SERVER_CERT;  // server certificate
     SERVER_CERT.len=0;
     octad INTER_CERT;  // signature on intermediate certificate
     INTER_CERT.len=0;
-
-    char pk[TLS_MAX_SIG_PUB_KEY_SIZE];  // Public Key 
-    octad PK = {0, sizeof(pk), pk};
 
     char issuer[TLS_X509_MAX_FIELD];  
     octad ISSUER={0,sizeof(issuer),issuer};
@@ -338,10 +338,10 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 		}
 	}
 
-    if (!checkHostnameInCert(&SERVER_CERT,hostname))
+    if (!checkHostnameInCert(&SERVER_CERT,hostname) && strcmp(hostname,"localhost")!=0)
     { // Check that certificate covers the server URL
         log(IO_PROTOCOL,(char *)"Hostname NOT found in certificate\n",NULL,0,NULL);
-        //if (strcmp(hostname,"localhost")!=0) return BAD_CERT_CHAIN;
+        // return BAD_CERT_CHAIN;
     }
 
 	if (rtn==SELF_SIGNED_CERT) 
@@ -364,7 +364,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;
     ptr+=len;   // skip certificate extensions
 
-    if (ptr<=CERTCHAIN->len)
+    if (ptr<CERTCHAIN->len)
         log(IO_PROTOCOL,(char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
 
 // Check and parse Intermediate Cert

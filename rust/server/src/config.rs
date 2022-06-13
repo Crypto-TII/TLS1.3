@@ -225,8 +225,6 @@ pub const EXTERNAL_PSK:usize =  2;      // External Pre-Shared Key
 // protocol returns..
 pub const TLS_FAILURE:usize = 0;
 pub const TLS_SUCCESS:usize = 1;
-//pub const TLS_RESUMPTION_REQUIRED:usize = 2;
-//pub const TLS_EARLY_DATA_ACCEPTED:usize = 3;
 
 //pub const SET_RECORD_LIMIT: bool=false;  // Max record size (non-standard?) extension
 pub const LOG_OUTPUT_TRUNCATION: usize= 512;       /**< Output Hex digits before truncation */
