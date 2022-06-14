@@ -37,6 +37,7 @@ pub struct SESSION {
     pub favourite_group: u16,   // favourite key exchange group 
     k_send: keys::CRYPTO,   // Sending Key 
     k_recv: keys::CRYPTO,   // Receiving Key 
+    hs: [u8;MAX_HASH],      // Handshake secret Secret  
     rms: [u8;MAX_HASH],     // Resumption Master Secret         
     sts: [u8;MAX_HASH],     // Server Traffic secret             
     cts: [u8;MAX_HASH],     // Client Traffic secret                
@@ -95,6 +96,7 @@ impl SESSION {
             favourite_group: 0,
             k_send: keys::CRYPTO::new(), 
             k_recv: keys::CRYPTO::new(),
+            hs: [0;MAX_HASH],
             rms: [0;MAX_HASH],
             sts: [0;MAX_HASH],
             cts: [0;MAX_HASH],   
@@ -215,7 +217,7 @@ impl SESSION {
     }
     
 // get Client and Server Handshake secrets for encrypting rest of handshake, from Shared secret SS and early secret ES
-    pub fn derive_handshake_secrets(&mut self,ss: &[u8],es: &[u8],h: &[u8],hs: &mut [u8]) {
+    pub fn derive_handshake_secrets(&mut self,ss: &[u8],es: &[u8],h: &[u8]) {
         let dr="derived";
         let ch="c hs traffic";
         let sh="s hs traffic";
@@ -225,13 +227,13 @@ impl SESSION {
         let hlen=sal::hash_len(htype);
         sal::hash_null(htype,&mut emh[0..hlen]);
         keys::hkdf_expand_label(htype,&mut ds[0..hlen],es,dr.as_bytes(),Some(&emh[0..hlen]));
-        sal::hkdf_extract(htype,&mut hs[0..hlen],Some(&ds[0..hlen]),ss);
-        keys::hkdf_expand_label(htype,&mut self.cts[0..hlen],&hs[0..hlen],ch.as_bytes(),Some(h));
-        keys::hkdf_expand_label(htype,&mut self.sts[0..hlen],&hs[0..hlen],sh.as_bytes(),Some(h));
+        sal::hkdf_extract(htype,&mut self.hs[0..hlen],Some(&ds[0..hlen]),ss);
+        keys::hkdf_expand_label(htype,&mut self.cts[0..hlen],&self.hs[0..hlen],ch.as_bytes(),Some(h));
+        keys::hkdf_expand_label(htype,&mut self.sts[0..hlen],&self.hs[0..hlen],sh.as_bytes(),Some(h));
     }
 
 // Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
-    pub fn derive_application_secrets(&mut self,hs: &[u8],sfh: &[u8],cfh: &[u8],ems: Option<&mut [u8]>) {
+    pub fn derive_application_secrets(&mut self,sfh: &[u8],cfh: &[u8],ems: Option<&mut [u8]>) {
         let dr="derived";
         let ch="c ap traffic";
         let sh="s ap traffic";
@@ -243,7 +245,7 @@ impl SESSION {
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
         sal::hash_null(htype,&mut emh);
-        keys::hkdf_expand_label(htype,&mut ds[0..hlen],hs,dr.as_bytes(),Some(&emh[0..hlen]));
+        keys::hkdf_expand_label(htype,&mut ds[0..hlen],&self.hs[0..hlen],dr.as_bytes(),Some(&emh[0..hlen]));
         sal::hkdf_extract(htype,&mut ms[0..hlen],Some(&ds[0..hlen]),&zk[0..hlen]);
         keys::hkdf_expand_label(htype,&mut self.cts[0..hlen],&ms[0..hlen],ch.as_bytes(),Some(sfh));
         keys::hkdf_expand_label(htype,&mut self.sts[0..hlen],&ms[0..hlen],sh.as_bytes(),Some(sfh));
@@ -1185,7 +1187,6 @@ impl SESSION {
         let hlen=sal::hash_len(hash_type);
         let mut es: [u8;MAX_HASH]=[0;MAX_HASH]; let es_s=&mut es[0..hlen];
         let mut hh: [u8;MAX_HASH]=[0;MAX_HASH]; let hh_s=&mut hh[0..hlen];
-        let mut hs: [u8;MAX_HASH]=[0;MAX_HASH]; let hs_s=&mut hs[0..hlen];
         let mut th: [u8;MAX_HASH]=[0;MAX_HASH]; let th_s=&mut th[0..hlen];
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
         let mut shf: [u8;MAX_HASH]=[0;MAX_HASH]; let shf_s=&mut shf[0..hlen];
@@ -1231,12 +1232,12 @@ impl SESSION {
 
             let sslen=sal::shared_secret_size(self.favourite_group);
             let ss_s=&ss[0..sslen];
-            self.derive_handshake_secrets(ss_s,es_s,hh_s,hs_s); 
+            self.derive_handshake_secrets(ss_s,es_s,hh_s); 
 
             self.create_send_crypto_context();
 
             log(IO_DEBUG,"Shared Secret= ",0,Some(ss_s));
-            log(IO_DEBUG,"Handshake Secret= ",0,Some(hs_s));
+            log(IO_DEBUG,"Handshake Secret= ",0,Some(&self.hs[0..hlen]));
             log(IO_DEBUG,"Server handshake traffic secret= ",0,Some(&self.sts[0..hlen]));
 
             self.send_encrypted_extensions(&ext[0..enclen]);
@@ -1370,11 +1371,11 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
 //
 
     // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
-            self.derive_handshake_secrets(ss_s,es_s,hh_s,hs_s);
+            self.derive_handshake_secrets(ss_s,es_s,hh_s);
 
             self.create_send_crypto_context();
             self.create_recv_crypto_context();
-            log(IO_DEBUG,"Handshake secret= ",0,Some(hs_s));
+            log(IO_DEBUG,"Handshake secret= ",0,Some(&self.hs[0..hlen]));
             log(IO_DEBUG,"Client Handshake Traffic secret= ",0,Some(&self.cts[0..hlen]));
             log(IO_DEBUG,"Server Handshake Traffic secret= ",0,Some(&self.sts[0..hlen]));
 
@@ -1518,7 +1519,7 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]+CF) = ",0,Some(fh_s));
 // calculate traffic and application keys from handshake secret and transcript hashes
 
-        self.derive_application_secrets(hs_s,hh_s,fh_s,None);
+        self.derive_application_secrets(hh_s,fh_s,None);
         self.create_send_crypto_context();
         self.create_recv_crypto_context();
         log(IO_DEBUG,"Client application traffic secret= ",0,Some(&self.cts[0..hlen]));
@@ -1589,6 +1590,7 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
         self.io.zeroize();
         self.cts.zeroize();
         self.sts.zeroize();
+        self.hs.zeroize();
         self.rms.zeroize();
         self.k_send.clear();
         self.k_recv.clear();

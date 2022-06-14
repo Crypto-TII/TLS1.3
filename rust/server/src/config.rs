@@ -46,7 +46,7 @@ pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size - was 
 // These all blow up post quantum
 pub const MAX_SIG_PUBLIC_KEY: usize = 1952;         // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
 pub const MAX_SIG_SECRET_KEY: usize = 4000;         // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)
-pub const MAX_SIGNATURE_SIZE: usize= 4096;          // Max digital signature size in bytes *** increased for DILITHIUM 
+pub const MAX_SIGNATURE_SIZE: usize= 3296;          // Max digital signature size in bytes *** increased for DILITHIUM 
 pub const MAX_KEX_PUBLIC_KEY: usize = 1184;         // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
 pub const MAX_KEX_CIPHERTEXT: usize = 1088;         // Max key exchange (KEM) ciphertext size
 pub const MAX_KEX_SECRET_KEY: usize = 2400;         // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)

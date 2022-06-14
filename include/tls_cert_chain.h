@@ -23,9 +23,10 @@ using namespace std;
 	@param CERTCHAIN the input certificate chain
     @param hostname the input Server name associated with the Certificate chain
     @param PUBKEY the Server's public key extracted from the Certificate chain 
+    @param SIG signature (supplied as workspace)
 	@return 0 if certificate chain is OK, else returns negative failure reason
  */
-extern int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY);  
+extern int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SIG);  
 
 /**	@brief Get Client private key and Certificate chain from .pem files
  *

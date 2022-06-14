@@ -513,7 +513,7 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
 }
 
 // Get certificate chain, and check its validity 
-ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
+ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG)
 {
     ret r;
     int nb,len;//,ptr=0;
@@ -551,7 +551,7 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY)
 // Update Transcript hash and rewind IO buffer
     runningHashIO(session);
 
-    r.err=checkServerCertChain(&CERTCHAIN,session->hostname,PUBKEY);
+    r.err=checkServerCertChain(&CERTCHAIN,session->hostname,PUBKEY,SIG);
 
     r.val=CERTIFICATE;
     return r;

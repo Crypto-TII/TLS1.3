@@ -300,7 +300,7 @@ static int TLS13_server_trust(TLS_session *session)
 // Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
 // on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
-    rtn=getCheckServerCertificateChain(session,&SERVER_PK);
+    rtn=getCheckServerCertificateChain(session,&SERVER_PK,&SCVSIG);  // note SCVSIG is used here as workspace
 //
 //
 //  <---------------------------------------------------------- {Certificate}

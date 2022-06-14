@@ -158,9 +158,10 @@ extern ret getServerHello(TLS_session *session,/*int &cipher,*/int &kex,octad *C
  *
 	@param session the TLS session structure
     @param PUBKEY the public key extracted from the Server certificate 
+    @param SIG signature (supplied as workspace)
 	@return response structure
  */
-extern ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY);
+extern ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG);
 
 /**	@brief process a Certificate Request
  *

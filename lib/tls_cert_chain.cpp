@@ -65,7 +65,7 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
     octad OWNER={0,sizeof(owner),owner};
     //char sc[TLS_MAX_ROOT_CERT_SIZE];  // server certificate
     char b[TLS_MAX_CERT_B64];  // maximum size for CA root signed certs in base64
-    octad SC={0,sizeof(b),b};       // optimization - share memory -  - can convert from base64 to binary in place
+    octad SC={0,sizeof(b),b};       // optimization - share memory - can convert from base64 to binary in place
     char line[80]; int ptr=0;
 
     for (;;)
@@ -297,13 +297,13 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
 // Assumes simple chain Server Cert->Intermediate Cert->CA cert
 // CA cert not read from chain (if its even there). 
 // Search for issuer of Intermediate Cert in cert store 
-int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
+int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SERVER_SIG)
 {
     ret r;
     int rtn,len,c,ptr=0;
     pktype sst,ist,spt,ipt;
-    char server_sig[TLS_MAX_SIGNATURE_SIZE];  // signature on server certificate
-    octad SERVER_SIG={0,sizeof(server_sig),server_sig};
+    //char server_sig[TLS_MAX_SIGNATURE_SIZE];  // signature on server certificate
+    //octad SERVER_SIG={0,sizeof(server_sig),server_sig};
     char inter_sig[TLS_MAX_SIGNATURE_SIZE];  // signature on intermediate certificate
     octad INTER_SIG={0,sizeof(inter_sig),inter_sig};
     char pk[TLS_MAX_SIG_PUB_KEY_SIZE];  // Public Key 
@@ -326,11 +326,11 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
     ptr+=len;   // skip certificate extensions
 
 // Check and parse Server Cert
-	rtn=parseCert(&SERVER_CERT,sst,&SERVER_SIG,&ISSUER,spt,PUBKEY);
+	rtn=parseCert(&SERVER_CERT,sst,SERVER_SIG,&ISSUER,spt,PUBKEY);
 	if (rtn != 0) {
 		if (rtn==SELF_SIGNED_CERT)
 		{
-			if (!checkCertSig(sst,&SERVER_CERT,&SERVER_SIG,PUBKEY)) {
+			if (!checkCertSig(sst,&SERVER_CERT,SERVER_SIG,PUBKEY)) {
 				return BAD_CERT_CHAIN;
 			}
 		} else {
@@ -373,7 +373,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY)
 		return BAD_CERT_CHAIN;
 	}
 
-    if (!checkCertSig(sst,&SERVER_CERT,&SERVER_SIG,&PK)) {  // Check intermediate signature on Server's certificate 
+    if (!checkCertSig(sst,&SERVER_CERT,SERVER_SIG,&PK)) {  // Check intermediate signature on Server's certificate 
         log(IO_DEBUG,(char *)"Server Certificate sig is NOT OK\n",NULL,0,NULL);
         return BAD_CERT_CHAIN;
     }
