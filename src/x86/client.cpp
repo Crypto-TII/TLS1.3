@@ -384,7 +384,8 @@ int main(int argc, char const *argv[])
 
 // Get server response, may attach resumption ticket to session
     int rtn=TLS13_recv(session,&RESP);
-    log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+    if (RESP.len>0)
+        log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 
     if (rtn<0)
         sendAlert(session,alert_from_cause(rtn));

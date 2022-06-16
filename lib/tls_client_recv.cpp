@@ -92,7 +92,7 @@ int getServerFragment(TLS_session *session)
         return TIMED_OUT;
 //printf("Getting a fragment 1\n");
     if (RH.val[0]==ALERT)
-    {
+    {  // plaintext alert
         left=getInt16(session->sockptr);
         getOctad(session->sockptr,&session->IO,left);
         return ALERT;
@@ -165,7 +165,7 @@ int getServerFragment(TLS_session *session)
     if (lb==APPLICATION)
         return APPLICATION;
     if (lb==ALERT)
-    { // Alert record received, delete anything in IO prior to alert, and just return 2-byte alert
+    { // Disguised Alert record received, delete anything in IO prior to alert, and just return 2-byte alert
         OCT_shift_left(&session->IO,pos);
         return ALERT;
     }
@@ -241,6 +241,7 @@ ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
     return r;
 }
 
+// Could have (a) received an alert, or (b) had problem with response, so need to send an alert
 // test for a bad response, log what happened and act accordingly
 // Very probably requires sending an alert to the server, and aborting
 // If Alert received, log it, and abort

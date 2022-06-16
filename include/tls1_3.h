@@ -35,7 +35,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
-//#define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
+#define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
 #define ALLOW_SELF_SIGNED		  /**< allow self-signed server cert */
@@ -43,7 +43,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Note that the IOBUFF is quite large, and therefore maybe better taken from the heap
 // on systems with a shallow stack. Define this to use the heap.
 
-#define IOBUFF_FROM_HEAP          /**< Get main IO buffer from heap, else stack */
+#define SHALLOW_STACK           /**< Get large arrays from heap, else stack */
 
 // comment out if no max record size. In practise TLS1.3 doesn't seem to support this record_size_limit extension, so use with caution
 // #define MAX_RECORD 1024     /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IO_SIZE below */
@@ -88,7 +88,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes    KYBER768 PQ - 2400 */
 #define TLS_MAX_SHARED_SECRET_SIZE 256	     /**< Max key exchange Shared secret size */
 
-#define TLS_MAX_TICKET_SIZE 2048         /**< maximum resumption ticket size */
+#define TLS_MAX_TICKET_SIZE 256         /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
 
 #define TLS_MAX_ECC_FIELD 66            /**< Max ECC field size in bytes */
@@ -306,7 +306,7 @@ typedef struct
     octad CTS;              /**< Client Traffic secret */
     char cts[TLS_MAX_HASH];
     octad IO;               /**< Main IO buffer for this connection */
-#ifndef IOBUFF_FROM_HEAP
+#ifndef SHALLOW_STACK
     char io[TLS_MAX_IO_SIZE];
 #endif
     int ptr;                /**< pointer into IO buffer */

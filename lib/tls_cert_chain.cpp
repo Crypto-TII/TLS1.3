@@ -64,8 +64,15 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
     char owner[TLS_X509_MAX_FIELD];
     octad OWNER={0,sizeof(owner),owner};
     //char sc[TLS_MAX_ROOT_CERT_SIZE];  // server certificate
+
+#ifdef SHALLOW_STACK
+    char *b=(char *)malloc(TLS_MAX_CERT_B64);
+    octad SC={0,TLS_MAX_CERT_B64,b};       // optimization - share memory - can convert from base64 to binary in place
+#else
     char b[TLS_MAX_CERT_B64];  // maximum size for CA root signed certs in base64
     octad SC={0,sizeof(b),b};       // optimization - share memory - can convert from base64 to binary in place
+#endif
+
     char line[80]; int ptr=0;
 
     for (;;)
@@ -97,10 +104,18 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
             if (st.type==pt.type || st.curve==pt.curve) 
             { // found CA cert 
                 if (st.type==X509_PQ || st.curve==pt.curve)
+                {
+#ifdef SHALLOW_STACK
+                    free(b);
+#endif
                     return true;
+                }
             }
         } 
     }
+#ifdef SHALLOW_STACK
+    free(b);
+#endif
     return false;  // couldn't find it
 }
 
@@ -173,10 +188,15 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
+
+#ifdef SHALLOW_STACK
+    char *b=(char *)malloc(TLS_MAX_CERT_B64);
+    octad SC={0,TLS_MAX_CERT_B64,b};       // optimization - share memory - can convert from base64 to binary in place
+#else
     char b[TLS_MAX_CERT_B64];    // maximum size key/cert
     //char sc[TLS_MAX_CERT_SIZE];  // X.509 .pem file (is it a cert or a cert chain??)
     octad SC={0,sizeof(b),b};    // share memory - can convert from base64 to binary in place
-
+#endif
     char line[80]; 
     
     OCT_kill(CERTCHAIN);
@@ -215,6 +235,10 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
     OCT_from_base64(&SC,b);
 
     pktype pk= X509_extract_private_key(&SC, PRIVKEY); // returns signature type
+
+#ifdef SHALLOW_STACK
+    free(b);
+#endif
 
 // figure out kind of signature client can apply - will be tested against client capabilities
 // Note that no hash type is specified - its just a private key, no algorithm specified
@@ -304,10 +328,6 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
     pktype sst,ist,spt,ipt;
     //char server_sig[TLS_MAX_SIGNATURE_SIZE];  // signature on server certificate
     //octad SERVER_SIG={0,sizeof(server_sig),server_sig};
-    char inter_sig[TLS_MAX_SIGNATURE_SIZE];  // signature on intermediate certificate
-    octad INTER_SIG={0,sizeof(inter_sig),inter_sig};
-    char pk[TLS_MAX_SIG_PUB_KEY_SIZE];  // Public Key 
-    octad PK = {0, sizeof(pk), pk};
 
 // Clever re-use of memory - use pointers into cert chain rather than extracting certs
     octad SERVER_CERT;  // server certificate
@@ -345,12 +365,13 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
     }
 
 	if (rtn==SELF_SIGNED_CERT) 
+    {
 #ifdef ALLOW_SELF_SIGNED
 		return 0;  // If self-signed, thats the end of the chain. And for development its acceptable
 #else
 		return rtn;
 #endif
-
+    }
     if (ptr==CERTCHAIN->len)
     {
         log(IO_DEBUG,(char *)"Non-self-signed Chain of length 1 ended unexpectedly\n",NULL,0,NULL);
@@ -367,14 +388,30 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
     if (ptr<CERTCHAIN->len)
         log(IO_PROTOCOL,(char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
 
+#ifdef SHALLOW_STACK
+    octad INTER_SIG={0,TLS_MAX_SIGNATURE_SIZE,(char *)malloc(TLS_MAX_SIGNATURE_SIZE)};
+    octad PK = {0, TLS_MAX_SIG_PUB_KEY_SIZE, (char *)malloc(TLS_MAX_SIG_PUB_KEY_SIZE)};
+#else
+    char inter_sig[TLS_MAX_SIGNATURE_SIZE];  // signature on intermediate certificate
+    octad INTER_SIG={0,sizeof(inter_sig),inter_sig};
+    char pk[TLS_MAX_SIG_PUB_KEY_SIZE];  // Public Key 
+    octad PK = {0, sizeof(pk), pk};
+#endif
+
 // Check and parse Intermediate Cert
 	rtn=parseCert(&INTER_CERT,ist,&INTER_SIG,&ISSUER,ipt,&PK);
 	if (rtn != 0) {
+#ifdef SHALLOW_STACK
+        free(INTER_SIG.val); free(PK.val);
+#endif
 		return BAD_CERT_CHAIN;
 	}
 
     if (!checkCertSig(sst,&SERVER_CERT,SERVER_SIG,&PK)) {  // Check intermediate signature on Server's certificate 
         log(IO_DEBUG,(char *)"Server Certificate sig is NOT OK\n",NULL,0,NULL);
+#ifdef SHALLOW_STACK
+        free(INTER_SIG.val); free(PK.val);
+#endif
         return BAD_CERT_CHAIN;
     }
     log(IO_DEBUG,(char *)"Server Certificate sig is OK\n",NULL,0,NULL);
@@ -383,16 +420,24 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
 // Find root certificate public key
     if (!findRootCA(&ISSUER,ist,&PK)) {
         log(IO_DEBUG,(char *)"Root Certificate not found\n",NULL,0,NULL);
+#ifdef SHALLOW_STACK
+        free(INTER_SIG.val); free(PK.val);
+#endif
         return CA_NOT_FOUND;
     }       
     log(IO_DEBUG,(char *)"\nPublic Key from root cert= ",NULL,0,&PK);
 
     if (!checkCertSig(ist,&INTER_CERT,&INTER_SIG,&PK)) {  // Check signature on intermediate cert with root cert public key
         log(IO_DEBUG,(char *)"Root Certificate sig is NOT OK\n",NULL,0,NULL);
+#ifdef SHALLOW_STACK
+        free(INTER_SIG.val); free(PK.val);
+#endif
         return BAD_CERT_CHAIN;
     }
     log(IO_DEBUG,(char *)"Root Certificate sig is OK\n",NULL,0,NULL);
-
+#ifdef SHALLOW_STACK
+    free(INTER_SIG.val); free(PK.val);
+#endif
     return 0;
 }
 

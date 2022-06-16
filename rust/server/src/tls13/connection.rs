@@ -541,6 +541,7 @@ impl SESSION {
         r=self.parse_int_pull(3); len=r.val; if r.err!=0 {return r;}   // get length of certificate chain
 	    if len==0 {
 		    r.err=EMPTY_CERT_CHAIN;
+            self.running_hash_io();
 		    return r;
 	    }
         let start=self.ptr;
@@ -1190,7 +1191,7 @@ impl SESSION {
         let mut th: [u8;MAX_HASH]=[0;MAX_HASH]; let th_s=&mut th[0..hlen];
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
         let mut shf: [u8;MAX_HASH]=[0;MAX_HASH]; let shf_s=&mut shf[0..hlen];
-
+        let mut delayed_alert=0;
         let mut resume=false;
         if rtn.val==TRY_RESUMPTION {
             resume=true;
@@ -1306,15 +1307,8 @@ impl SESSION {
             log(IO_PROTOCOL,"Attempting Full Handshake on port ",self.port as isize,None);
 
             if rtn.val==HANDSHAKE_RETRY { // try one more time
-let mut myh: [u8;MAX_HASH]=[0;MAX_HASH]; let myh_s=&mut myh[0..hlen];
-self.transcript_hash(myh_s);
-log(IO_DEBUG,"1. myh_s= ",0,Some(myh_s));
                 //self.running_synthetic_hash_io();            // contains synthetic hash of client Hello plus extensions
                 self.running_hash(&sh[0..shlen]);
-
-self.transcript_hash(myh_s);
-log(IO_DEBUG,"2. myh_s= ",0,Some(myh_s));
-
                 self.transcript_hash(hh_s);                                            //  *********CH+SH********  
 
                 self.send_message(HSHAKE,TLS1_2,&sh[0..shlen],None);
@@ -1344,12 +1338,8 @@ log(IO_DEBUG,"2. myh_s= ",0,Some(myh_s));
                 //self.running_hash_io(); // contains client Hello plus extensions
             }
             //self.running_hash_io(); // contains client Hello plus extensions
-let mut myh: [u8;MAX_HASH]=[0;MAX_HASH]; let myh_s=&mut myh[0..hlen];
-self.transcript_hash(myh_s);
-log(IO_DEBUG,"3. myh_s= ",0,Some(myh_s));
             self.running_hash(&sh[0..shlen]);
             self.transcript_hash(hh_s);                                   
-log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
             //log(IO_DEBUG,"Client Hello = ",0,Some(&self.io[0..self.iolen]));
             log(IO_DEBUG,"Client Hello processed\n",0,None);
             log(IO_DEBUG,"Host= ",-1,Some(&self.hostname[0..self.hlen]));
@@ -1431,6 +1421,7 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
             keys::derive_verifier_data(hash_type,shf_s,&self.sts[0..hlen],th_s);
             self.send_server_finish(shf_s);             
             self.transcript_hash(hh_s);
+log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT+SF) YYY = ",0,Some(hh_s));   
     //
     //
     //  {Server Finished} ---------------------------------------------------->
@@ -1446,53 +1437,59 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
                 let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
                 let mut cpklen=0;
                 rtn=self.get_check_client_certificatechain(&mut cpk,&mut cpklen);            // get full name
-                log(IO_DEBUG,"Received Client Certificate\n",0,None); 
     //
     //
     //  <---------------------------------------------------------- {Client Certificate}
     //
     //
-                if self.bad_response(&rtn) {
-                    self.clean();
-                    return TLS_FAILURE;
-                }
-                let cpk_s=&cpk[0..cpklen];
-                self.transcript_hash(fh_s);                                            //TH
-                log(IO_DEBUG,"Certificate Chain is valid\n",0,None);
-                log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(fh_s));         //TH
+                if rtn.err==EMPTY_CERT_CHAIN { // no certificate received, so nothing to verify, complain later
+                    delayed_alert=rtn.err;
+                    self.transcript_hash(th_s); 
+                } else {
+                    if self.bad_response(&rtn) {
+                        self.clean();
+                        return TLS_FAILURE;
+                    }
+                
+                    log(IO_DEBUG,"Received Client Certificate\n",0,None); 
+                    let cpk_s=&cpk[0..cpklen];
+                    self.transcript_hash(fh_s);                                            //TH
+                    log(IO_DEBUG,"Certificate Chain is valid\n",0,None);
+                    log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(fh_s));         //TH
 
-                let mut siglen=0;
-                let mut sigalg:u16=0;
-                rtn=self.get_client_cert_verify(&mut ccvsig,&mut siglen,&mut sigalg);
+                    let mut siglen=0;
+                    let mut sigalg:u16=0;
+                    rtn=self.get_client_cert_verify(&mut ccvsig,&mut siglen,&mut sigalg);
     //
     //
     //  <---------------------------------------------------- {Certificate Verify}
     //
     //
-                if self.bad_response(&rtn) {
-                    self.clean();
-                    return TLS_FAILURE;
+                    if self.bad_response(&rtn) {
+                        self.clean();
+                        return TLS_FAILURE;
+                    }
+                    let ccvsig_s=&mut ccvsig[0..siglen];
+                    self.transcript_hash(th_s);                                                //FH
+                    log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(th_s));        //FH
+                    log(IO_DEBUG,"Client Transcript Signature = ",0,Some(ccvsig_s));
+                    logger::log_sig_alg(sigalg);
+                    if !keys::check_client_cert_verifier(sigalg,ccvsig_s,fh_s,cpk_s) {         //TH
+                        delayed_alert=BAD_CERT_CHAIN;
+                    //self.send_alert(DECRYPT_ERROR);
+                        log(IO_DEBUG,"Client Cert Verification failed\n",0,None);
+                        log(IO_PROTOCOL,"Full Handshake will fail\n",0,None);
+                    //self.clean();
+                    //return TLS_FAILURE;
+                    }
+                    log(IO_PROTOCOL,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));                      // **** output client full name        
                 }
-                let ccvsig_s=&mut ccvsig[0..siglen];
-                self.transcript_hash(th_s);                                                //FH
-                log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(th_s));        //FH
-                log(IO_DEBUG,"Client Transcript Signature = ",0,Some(ccvsig_s));
-                logger::log_sig_alg(sigalg);
-                if !keys::check_client_cert_verifier(sigalg,ccvsig_s,fh_s,cpk_s) {         //TH
-                    self.send_alert(DECRYPT_ERROR);
-                    log(IO_DEBUG,"Client Cert Verification failed\n",0,None);
-                    log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
-                    self.clean();
-                    return TLS_FAILURE;
-                }
-                log(IO_PROTOCOL,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));                      // **** output client full name        
             } else {
                 for i in 0..hlen {
                     th_s[i]=hh_s[i];                                                        //FH
                 }            
             }
         }
-
         let mut fnlen=0;
         let mut fin:[u8;MAX_HASH]=[0;MAX_HASH];
         rtn=self.get_client_finished(&mut fin,&mut fnlen);   
@@ -1508,9 +1505,10 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
         log(IO_DEBUG,"Client Verify Data= ",0,Some(&fin[0..fnlen])); 
         let fin_s=&fin[0..fnlen];
 
+
         if !keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s) {          
-            self.send_alert(DECRYPT_ERROR);
-            log(IO_DEBUG,"Server Data is NOT verified\n",0,None);
+            //self.send_alert(DECRYPT_ERROR);                              // no point in sending alert - haven't calculated traffic keys yet
+            log(IO_DEBUG,"Client Data is NOT verified\n",0,None);
             self.clean();
             return TLS_FAILURE;
         }
@@ -1530,6 +1528,12 @@ log(IO_DEBUG,"hh_s= ",0,Some(hh_s));
         } else {
             log(IO_PROTOCOL,"FULL handshake succeeded\n",0,None);
         }
+
+        if delayed_alert != 0 { // there was a problem..
+            self.send_alert(alert_from_cause(delayed_alert));
+            return TLS_FAILURE;
+        }
+
         self.status=CONNECTED;
         return TLS_SUCCESS;
     }

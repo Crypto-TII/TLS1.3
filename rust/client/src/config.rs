@@ -65,7 +65,7 @@ pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes
 pub const MAX_FRAG:usize = 4;
 pub const MAX_RECORD:usize = 1024;
 
-pub const MAX_TICKET_SIZE:usize = 2048; 
+pub const MAX_TICKET_SIZE:usize = 256; 
 pub const MAX_EXTENSIONS:usize = 2048;       
 
 // message types 
@@ -141,7 +141,7 @@ pub const EMPTY_CERT_CHAIN:isize= -18;            // Empty Certificate Message
 pub const SELF_SIGNED_CERT:isize= -20;            // Self-signed certificate detected
 pub const TIME_OUT:isize= -21;                    // time out
 pub const ALERT_RECEIVED:isize=-22;               // alert received
-pub const BAD_MESSAGE:isize=-23;                        // Badly formed mesage
+pub const BAD_MESSAGE:isize=-23;                  // Badly formed mesage
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 

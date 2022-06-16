@@ -208,7 +208,7 @@ pub fn log_alert(detail: u8) {
         112 => log(IO_PROTOCOL,"Unrecognized name\n",0,None),
         113 => log(IO_PROTOCOL,"Bad certificate status response\n",0,None),
         115 => log(IO_PROTOCOL,"Unknown PSK identity\n",0,None),
-        116 => log(IO_PROTOCOL,"Certificate required\n",0,None),
+        116 => log(IO_PROTOCOL,"Valid Certificate required\n",0,None),
         120 => log(IO_PROTOCOL,"No application protocol\n",0,None),
         _ => log(IO_PROTOCOL,"Unrecognized alert\n",0,None)
     }
@@ -231,6 +231,7 @@ pub fn log_server_response(r: &RET) {
             AUTHENTICATION_FAILURE => log(IO_DEBUG,"Authentication Failure\n",0,None),
             BAD_RECORD => log(IO_DEBUG,"Malformed Record received (max size exceeded?)\n",0,None),
             BAD_TICKET => log(IO_DEBUG,"Malformed Ticket received\n",0,None),
+            EMPTY_CERT_CHAIN => log(IO_DEBUG,"Client Certificate required\n",0,None),
             _ => log(IO_DEBUG,"Unknown Error\n",0,None)
         }
     } else {

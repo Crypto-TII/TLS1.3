@@ -369,9 +369,8 @@ fn main() {
             } 
 // receive response
             let rplen=session.recv(&mut resp);
-            if rplen<0 { // error
-                session.send_alert(alert_from_cause(rplen));
-            } else { // data received - clean finish
+            if rplen>0 { // data received - clean finish
+                //session.send_alert(alert_from_cause(rplen));
                 log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
                 session.send_alert(CLOSE_NOTIFY);
             }

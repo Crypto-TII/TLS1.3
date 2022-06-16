@@ -306,7 +306,8 @@ void loop() {
     bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
     if (success) {
         TLS13_recv(session,&RESP);    // Server response + ticket
-        log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+        if (RESP.len>0)
+            log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
         TLS13_clean(session);   // but leave ticket intact
     }
 // drop the connection..

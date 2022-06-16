@@ -22,7 +22,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 	state.STS={0,TLS_MAX_HASH,state.sts};					// Server traffic secret
 	state.CTS={0,TLS_MAX_HASH,state.cts};					// Client traffic secret
 
-#ifdef IOBUFF_FROM_HEAP
+#ifdef SHALLOW_STACK
     state.IO= {0,TLS_MAX_IO_SIZE,(char *)malloc(TLS_MAX_IO_SIZE)};  // main input/output buffer
 #else
 	state.IO={0,TLS_MAX_IO_SIZE,state.io};
@@ -100,13 +100,18 @@ static int TLS13_exchange_hellos(TLS_session *session)
 	int groups[TLS_MAX_SUPPORTED_GROUPS];
 	nsg=SAL_groups(groups);
 
+#ifdef SHALLOW_STACK
+    octad CSK = {0, TLS_MAX_KEX_SECRET_KEY_SIZE, (char *)malloc(TLS_MAX_KEX_SECRET_KEY_SIZE)};
+    octad CPK = {0, TLS_MAX_KEX_PUB_KEY_SIZE, (char *)malloc(TLS_MAX_KEX_PUB_KEY_SIZE)}; 
+    octad SPK = {0, TLS_MAX_KEX_CIPHERTEXT_SIZE, (char *)malloc(TLS_MAX_KEX_CIPHERTEXT_SIZE)};   
+#else
     char csk[TLS_MAX_KEX_SECRET_KEY_SIZE];   // clients key exchange secret key
     octad CSK = {0, sizeof(csk), csk};
     char cpk[TLS_MAX_KEX_PUB_KEY_SIZE];      // Client key exchange Public Key (shared memory)
     octad CPK = {0, sizeof(cpk), cpk}; 
     char spk[TLS_MAX_KEX_CIPHERTEXT_SIZE];
     octad SPK = {0, sizeof(spk), spk};       // Server's key exchange Public Key/Ciphertext
-
+#endif
     char ss[TLS_MAX_SHARED_SECRET_SIZE];     // key exchange Shared Secret 
     octad SS = {0, sizeof(ss), ss};    
     char ch[TLS_MAX_HELLO];              // Client Hello
@@ -154,8 +159,12 @@ static int TLS13_exchange_hellos(TLS_session *session)
 //
 //
     if (badResponse(session,rtn)) 
+    {
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
         return TLS_FAILURE;
-
+    }
 // Find cipher-suite chosen by Server
     hashtype=0;
     for (i=0;i<nsc;i++)
@@ -169,6 +178,9 @@ static int TLS13_exchange_hellos(TLS_session *session)
         logCipherSuite(session->cipher_suite);
         log(IO_DEBUG,(char *)"Cipher_suite not valid\n",NULL,0,NULL);
         log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
         return TLS_FAILURE;
     }
     logCipherSuite(session->cipher_suite);
@@ -189,6 +201,9 @@ static int TLS13_exchange_hellos(TLS_session *session)
             sendAlert(session,ILLEGAL_PARAMETER);
             log(IO_DEBUG,(char *)"No change as result of HRR\n",NULL,0,NULL);   
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
             return TLS_FAILURE;
         }
 
@@ -219,13 +234,20 @@ static int TLS13_exchange_hellos(TLS_session *session)
 //
 //
         if (badResponse(session,rtn)) 
+        {
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
             return TLS_FAILURE;
-        
+        }
         if (rtn.val==HANDSHAKE_RETRY)
         { // only one retry allowed
             log(IO_DEBUG,(char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
             sendAlert(session,UNEXPECTED_MESSAGE);
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
             return TLS_FAILURE;
         }
         resumption_required=true;
@@ -257,7 +279,9 @@ static int TLS13_exchange_hellos(TLS_session *session)
     log(IO_DEBUG,(char *)"Server handshake traffic secret= ",NULL,0,&session->STS);
     log(IO_DEBUG,(char *)"Server handshake key= ",NULL,0,&(session->K_recv.K));
     log(IO_DEBUG,(char *)"Server handshake iv= ",NULL,0,&(session->K_recv.IV));
-
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
 // 1. get encrypted extensions
     rtn=getServerEncryptedExtensions(session,&enc_ext_expt,&enc_ext_resp);   
 //
@@ -282,11 +306,15 @@ static int TLS13_server_trust(TLS_session *session)
 	int nsa,nsc,nsg,nsac;
     bool ccs_sent=false;
 
+#ifdef SHALLOW_STACK
+    octad SERVER_PK = {0,TLS_MAX_SIG_PUB_KEY_SIZE,(char *)malloc(TLS_MAX_SIG_PUB_KEY_SIZE)};  // Server's cert sig public key
+    octad SCVSIG={0,TLS_MAX_SIGNATURE_SIZE,(char *)malloc(TLS_MAX_SIGNATURE_SIZE)};           // Server's digital signature on transcript
+#else
     char server_pk[TLS_MAX_SIG_PUB_KEY_SIZE];
     octad SERVER_PK = {0,sizeof(server_pk),server_pk}; // Server's cert sig public key
     char scvsig[TLS_MAX_SIGNATURE_SIZE];
     octad SCVSIG={0,sizeof(scvsig),scvsig};           // Server's digital signature on transcript
-
+#endif
     char hh[TLS_MAX_HASH];               
     octad HH={0,sizeof(hh),hh};          // Transcript hashes
     char fh[TLS_MAX_HASH];
@@ -306,9 +334,13 @@ static int TLS13_server_trust(TLS_session *session)
 //  <---------------------------------------------------------- {Certificate}
 //
 //
-    if (badResponse(session,rtn))     
+    if (badResponse(session,rtn))
+    {    
+#ifdef SHALLOW_STACK
+        free(SERVER_PK.val); free (SCVSIG.val);
+#endif
         return TLS_FAILURE;
-    
+    }
     transcriptHash(session,&HH); // HH = hash of clientHello+serverHello+encryptedExtensions+CertChain
     log(IO_DEBUG,(char *)"Certificate Chain is valid\n",NULL,0,NULL);
     log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+CT) = ",NULL,0,&HH); 
@@ -322,8 +354,12 @@ static int TLS13_server_trust(TLS_session *session)
 //
 //
     if (badResponse(session,rtn)) 
+    {
+#ifdef SHALLOW_STACK
+        free(SERVER_PK.val); free (SCVSIG.val);
+#endif
         return TLS_FAILURE;
-    
+    }
     transcriptHash(session,&FH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify
     log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV) = ",NULL,0,&FH);
     log(IO_DEBUG,(char *)"Server Transcript Signature= ",NULL,0,&SCVSIG);
@@ -334,10 +370,15 @@ static int TLS13_server_trust(TLS_session *session)
         sendAlert(session,DECRYPT_ERROR);
         log(IO_DEBUG,(char *)"Server Cert Verification failed\n",NULL,0,NULL);
         log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+#ifdef SHALLOW_STACK
+        free(SERVER_PK.val); free (SCVSIG.val);
+#endif
         return TLS_FAILURE;
     }
     log(IO_DEBUG,(char *)"Server Cert Verification OK\n",NULL,0,NULL);
-
+#ifdef SHALLOW_STACK
+    free(SERVER_PK.val); free (SCVSIG.val);
+#endif
 // 4. get Server Finished
     rtn=getServerFinished(session,&FIN);
 //
@@ -345,9 +386,10 @@ static int TLS13_server_trust(TLS_session *session)
 //  <------------------------------------------------------ {Server Finished}
 //
 //
+
     if (badResponse(session,rtn))
         return TLS_FAILURE;
-
+    
     if (!checkVeriferData(hashtype,&FIN,&session->STS,&FH))
     {
         sendAlert(session,DECRYPT_ERROR);
@@ -366,13 +408,18 @@ static void TLS13_client_trust(TLS_session *session,int nsa,int *sa)
     int hashtype;
 	int nsc,nsg,nsac;
 
+#ifdef SHALLOW_STACK
+    octad CLIENT_KEY={0,TLS_MAX_SIG_SECRET_KEY_SIZE,(char *)malloc(TLS_MAX_SIG_SECRET_KEY_SIZE)};   // Client secret key
+    octad CLIENT_CERTCHAIN={0,TLS_MAX_CHAIN_SIZE,(char *)malloc(TLS_MAX_CHAIN_SIZE)};   // Client certificate chain
+    octad CCVSIG={0,TLS_MAX_SIGNATURE_SIZE,(char *)malloc(TLS_MAX_SIGNATURE_SIZE)}; 
+#else 
     char client_key[TLS_MAX_SIG_SECRET_KEY_SIZE];           
     octad CLIENT_KEY={0,sizeof(client_key),client_key};   // Client secret key
     char client_certchain[TLS_MAX_CHAIN_SIZE];           
     octad CLIENT_CERTCHAIN={0,sizeof(client_certchain),client_certchain};   // Client certificate chain
     char ccvsig[TLS_MAX_SIGNATURE_SIZE];
     octad CCVSIG={0,sizeof(ccvsig),ccvsig};           // Client's digital signature on transcript
-
+#endif
     char th[TLS_MAX_HASH];
     octad TH={0,sizeof(th),th};  // Transcript hash
 
@@ -394,9 +441,12 @@ static void TLS13_client_trust(TLS_session *session,int nsa,int *sa)
 //  {Certificate Verify} ---------------------------------------------------->
 //
 //
-    } else { // No, I can't - send a null cert
+    } else { // No, I can't - send a null cert, and no verifier
         sendClientCertificateChain(session,NULL);
     }
+#ifdef SHALLOW_STACK
+    free(CLIENT_KEY.val); free(CLIENT_CERTCHAIN.val); free(CCVSIG.val);
+#endif
 }
 
 // TLS1.3 full handshake - connect to server
@@ -462,6 +512,8 @@ static int TLS13_full(TLS_session *session)
     sendCCCS(session);  // send Client Cipher Change
     transcriptHash(session,&HH); // hash of clientHello+serverHello+encryptedExtensions+CertChain+serverCertVerify+serverFinish
 
+    log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF) YYY = ",NULL,0,&HH);
+
 // Now its the clients turn to respond
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
     if (gotacertrequest)
@@ -478,7 +530,7 @@ static int TLS13_full(TLS_session *session)
 // TH is client finished hash
 // both are needed
 
-    log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]) = ",NULL,0,&TH);
+    log(IO_DEBUG,(char *)"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV])  XXXX = ",NULL,0,&TH);
 
 // create client verify data
 // .... and send it to Server
@@ -517,13 +569,18 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     int hashtype,kex,pskid,nsc,nsa,nsg,nsac;
     ret rtn;
 
+#ifdef SHALLOW_STACK
+    octad CSK = {0, TLS_MAX_KEX_SECRET_KEY_SIZE, (char *)malloc(TLS_MAX_KEX_SECRET_KEY_SIZE)};
+    octad CPK = {0, TLS_MAX_KEX_PUB_KEY_SIZE, (char *)malloc(TLS_MAX_KEX_PUB_KEY_SIZE)}; 
+    octad SPK = {0, TLS_MAX_KEX_CIPHERTEXT_SIZE, (char *)malloc(TLS_MAX_KEX_CIPHERTEXT_SIZE)};   
+#else
     char csk[TLS_MAX_KEX_SECRET_KEY_SIZE];   
     octad CSK = {0, sizeof(csk), csk};   // clients key exchange secret key
     char cpk[TLS_MAX_KEX_PUB_KEY_SIZE];
     octad CPK = {0, sizeof(cpk), cpk};   // Client's key exchange Public Key
     char spk[TLS_MAX_KEX_CIPHERTEXT_SIZE];
     octad SPK = {0, sizeof(spk), spk};   // Server's key exchange Public Key/Ciphertext
-
+#endif
     char es[TLS_MAX_HASH];               // Early Secret
     octad ES = {0,sizeof(es),es};
     char ss[TLS_MAX_SHARED_SECRET_SIZE];
@@ -683,6 +740,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         sendAlert(session,CLOSE_NOTIFY);
         log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         TLS13_clean(session);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
         return TLS_FAILURE;
     }
 
@@ -691,6 +751,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         sendAlert(session,ILLEGAL_PARAMETER);
         log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         TLS13_clean(session);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
         return TLS_FAILURE;
 	}
 
@@ -698,6 +761,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     {
         sendAlert(session,CLOSE_NOTIFY);
         TLS13_clean(session);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
         return TLS_FAILURE;
     }
     logServerHello(session->cipher_suite,pskid,&SPK,&COOK);
@@ -709,6 +775,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         log(IO_DEBUG,(char *)"No change possible as result of HRR\n",NULL,0,NULL); 
         log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         TLS13_clean(session);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
         return TLS_FAILURE;
     }
     log(IO_DEBUG,(char *)"serverHello= ",NULL,0,&session->IO); 
@@ -723,6 +792,10 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     log(IO_DEBUG,(char *)"Handshake Secret= ",NULL,0,&session->HS);
     log(IO_DEBUG,(char *)"Client handshake traffic secret= ",NULL,0,&session->CTS);
     log(IO_DEBUG,(char *)"Server handshake traffic secret= ",NULL,0,&session->STS);
+
+#ifdef SHALLOW_STACK
+    free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
 
 // 1. get encrypted extensions
     rtn=getServerEncryptedExtensions(session,&enc_ext_expt,&enc_ext_resp);
@@ -967,7 +1040,7 @@ void TLS13_end(TLS_session *session)
 {
     TLS13_clean(session);
     endTicketContext(&session->T);
-#ifdef IOBUFF_FROM_HEAP
+#ifdef SHALLOW_STACK
     free(session->IO.val);
 #endif
 }
