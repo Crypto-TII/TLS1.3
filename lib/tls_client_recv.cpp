@@ -87,17 +87,14 @@ int getServerFragment(TLS_session *session)
     rtn=getOctad(session->sockptr,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
 
 // Need to check RH.val for correctness
-//printf("Getting a fragment\n");
     if (rtn<0)
         return TIMED_OUT;
-//printf("Getting a fragment 1\n");
     if (RH.val[0]==ALERT)
     {  // plaintext alert
         left=getInt16(session->sockptr);
         getOctad(session->sockptr,&session->IO,left);
         return ALERT;
     }
-//printf("Getting a fragment 2\n");
     if (RH.val[0]==CHANGE_CIPHER)
     { // read it, and ignore it
         char sccs[10];
@@ -122,7 +119,6 @@ int getServerFragment(TLS_session *session)
 		log(IO_DEBUG,(char *)"Record received of length= ",(char *)"%d",left+pos,NULL);
         return MEM_OVERFLOW;   // record is too big - memory overflow
     }
-//printf("Getting a fragment 3\n");
     if (!session->K_recv.active)
     { // not encrypted
 		if (left>TLS_MAX_PLAIN_FRAG)
@@ -135,8 +131,6 @@ int getServerFragment(TLS_session *session)
 	rlen=left-taglen; // plaintext record length
 	if (left>TLS_MAX_CIPHER_FRAG)
 		return MAX_EXCEEDED;
-
-//printf("record length= %d\n",rlen);
 
     getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
 
@@ -371,15 +365,12 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
             break;
 
 		case RECORD_SIZE_LIMIT:
-
-//	printf("*****RECORD_SIZE_LIMIT EXTENSION RECEIVED*****\n");
 			r=parseIntorPull(session,2); mfl=r.val; if (r.err) return r;
 			len-=tlen;
             if (tlen!=2 || mfl<64) {
                 r.err=UNRECOGNIZED_EXT;
                 return r;
             } 
-//	printf("server max record = %d\n",mfl);
 
 			session->max_record=mfl;
 			break;
