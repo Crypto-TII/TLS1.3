@@ -53,9 +53,9 @@ pub const MAX_KEX_SECRET_KEY: usize = 2400;         // Maximum Secret key size -
 pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
 
 pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
-pub const MAX_CIPHER_SUITES: usize = 16;            // *********************
-pub const MAX_SUPPORTED_GROUPS: usize = 16;         // *********************
-pub const MAX_SUPPORTED_SIGS: usize = 16;
+pub const MAX_CIPHER_SUITES: usize = 128;            // *********************
+pub const MAX_SUPPORTED_GROUPS: usize = 24;         // *********************
+pub const MAX_SUPPORTED_SIGS: usize = 32;
 
 //pub const MAX_COOKIE: usize = 128;             // Max Cookie size  
 pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes 

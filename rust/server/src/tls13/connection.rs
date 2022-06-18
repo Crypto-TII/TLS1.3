@@ -668,7 +668,7 @@ impl SESSION {
     // Also generate extensions that are to be encrypted
     fn process_client_hello(&mut self,sh: &mut [u8],shlen: &mut usize,encext: &mut [u8],enclen: &mut usize,ss: &mut [u8],sig_algs: &mut [u16],nsa: &mut usize,early_indication: &mut bool,is_retry: bool) -> RET {
         let mut host:[u8;MAX_SERVER_NAME]=[0;MAX_SERVER_NAME];
-        let mut alpn:[u8;16]=[0;16];
+        let mut alpn:[u8;32]=[0;32];
         let mut rn: [u8;32]=[0;32];
         let mut tick:[u8;MAX_TICKET_SIZE]=[0;MAX_TICKET_SIZE];
         let nccs:usize;
@@ -707,7 +707,7 @@ impl SESSION {
         left-=32;
 
         r=self.parse_int_pull(1); let cilen=r.val; if r.err!=0 {return r;}
-        if cilen!=32 {
+        if cilen!=32 { // could be 0?
             r.err=BAD_HELLO;
             return r;
         }

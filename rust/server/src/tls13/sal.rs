@@ -144,7 +144,7 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
 
 // provide list of supported key exchange groups
 pub fn groups(groups: &mut [u16]) -> usize {
-    let n=5;
+    let n=3;
     groups[0]=config::X25519;
     groups[1]=config::SECP256R1;
     groups[2]=config::SECP384R1;
@@ -155,7 +155,7 @@ pub fn groups(groups: &mut [u16]) -> usize {
 
 // provide list of supported signature algorithms (for TLS)
 pub fn sigs(sig_algs: &mut [u16]) -> usize {
-    let n=4;
+    let n=3;
     sig_algs[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs[1]=config::RSA_PSS_RSAE_SHA256;
     sig_algs[2]=config::ECDSA_SECP384R1_SHA384;
@@ -165,7 +165,7 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
 
 // provide list of supported signature algorithms (for Certificates)
 pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
-    let n=6;
+    let n=5;
     sig_algs_cert[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs_cert[1]=config::RSA_PKCS1_SHA256;
     sig_algs_cert[2]=config::ECDSA_SECP384R1_SHA384;
