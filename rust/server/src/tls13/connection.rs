@@ -30,7 +30,7 @@ pub struct SESSION {
     pub sockptr: TcpStream,   // Pointer to socket 
     iolen: usize,           // IO buffer length - input decrypted data
     ptr: usize,             // IO buffer pointer - consumed portion
-    session_id:[u8;32],  // legacy session ID
+    session_id:[u8;33],  // legacy session ID
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
     pub hlen: usize,        // hostname length
     cipher_suite: u16,      // agreed cipher suite 
@@ -89,7 +89,7 @@ impl SESSION {
             sockptr: stream,
             iolen: 0,
             ptr: 0,
-            session_id: [0;32],
+            session_id: [0;33],
             hostname: [0; MAX_SERVER_NAME],
             hlen: 0,
             cipher_suite: 0,  //AES_128_GCM_SHA256,
@@ -610,8 +610,8 @@ impl SESSION {
             socket::get_bytes(&mut self.sockptr,&mut sccs[0..left]);
             socket::get_bytes(&mut self.sockptr,&mut rh[0..3]);
         }
-        if rh[0]!=HSHAKE && rh[0]!=APPLICATION {
-            return WRONG_MESSAGE;
+        if rh[0]!=HSHAKE && rh[0]!=APPLICATION { // rh[0]=0x80 means SSLv2 connection attempted - reject it
+            return NOT_TLS1_3;
         }
         let left=socket::get_int16(&mut self.sockptr);
         utils::append_int(&mut rh,3,left,2);
@@ -707,26 +707,26 @@ impl SESSION {
         left-=32;
 
         r=self.parse_int_pull(1); let cilen=r.val; if r.err!=0 {return r;}
-        if cilen!=32 { // could be 0?
+        if cilen!=32 && cilen!=0 { // could be 0?
             r.err=BAD_HELLO;
             return r;
         }
-
-        let mut legacy_id:[u8;32]=[0;32];
+        self.session_id[0]=cilen as u8;
         left-=1;
-        r=self.parse_bytes_pull(&mut legacy_id); if r.err!=0 {return r;}
 
-        left-=cilen;  
-        for i in 0..cilen {
-            self.session_id[i]=legacy_id[i];
+        if cilen==32 {
+            let mut legacy_id:[u8;32]=[0;32];
+            r=self.parse_bytes_pull(&mut legacy_id); if r.err!=0 {return r;}
+            left-=cilen;  
+            for i in 0..cilen {
+                self.session_id[i+1]=legacy_id[i];
+            }
         }
-
         r=self.parse_int_pull(2); nccs=r.val/2; if r.err!=0 {return r;}
         for i in 0..nccs {
             r=self.parse_int_pull(2); ccs[i]=r.val as u16; if r.err!=0 {return r;}
         }
         left-=2+2*nccs;
-
         r=self.parse_int_pull(2); if r.err!=0 {return r;}
         left-=2;
         if r.val!=0x0100 {
@@ -895,9 +895,6 @@ impl SESSION {
             if r.err!=0 {return r;}
         }
         let mut retry=false;
- //   ptr=self.ptr;
-
-//println!("iolen= {} ptr= {}",self.iolen,self.ptr);
 
         if !resume { // check for agreement on cipher suite and group - might need to ask for a handshake retry
             let mut scs:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES]; // choose a cipher suite
@@ -905,9 +902,9 @@ impl SESSION {
             let mut chosen=false;
             for i in 0..nccs { // start with their favourite
                 for j in 0..nscs {
-                    if ccs[j]==scs[i] {
+                    if ccs[i]==scs[j] {
                         chosen=true;
-                        self.cipher_suite=scs[i];
+                        self.cipher_suite=scs[j];
                         break;
                     }
                 }
@@ -918,7 +915,6 @@ impl SESSION {
                 return r;
             }
 // did we agree a group?
-
             if !agreed { // but if one of mine is also one of theirs, will try a HRR
                 if ncg>0 {
                     for i in 0..ncg {
@@ -986,8 +982,11 @@ impl SESSION {
         ptr=utils::append_int(sh,ptr,72+extlen,3);
         ptr=utils::append_int(sh,ptr,TLS1_2,2);
         ptr=utils::append_bytes(sh,ptr,&rn[0..32]);
-        ptr=utils::append_int(sh,ptr,32,1);
-        ptr=utils::append_bytes(sh,ptr,&self.session_id);
+        if self.session_id[0]==0 {
+            ptr=utils::append_byte(sh,ptr,0,1);
+        } else {
+            ptr=utils::append_bytes(sh,ptr,&self.session_id);
+        }
         ptr=utils::append_int(sh,ptr,self.cipher_suite as usize,2);
         ptr=utils::append_int(sh,ptr,0,1); // no compression
         ptr=utils::append_int(sh,ptr,extlen,2);
@@ -1131,7 +1130,6 @@ impl SESSION {
 // now receive Binder, that is the rest of the client Hello
         let mut rbnd:[u8;MAX_HASH]=[0;MAX_HASH]; let rbnd_s=&mut rbnd[0..hlen];
         
-//println!("self.iolen= {}",self.iolen);
         let mut r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
         r=self.parse_int_pull(1); let bnlen=r.val; if r.err!=0 {return r;}
 
@@ -1149,7 +1147,6 @@ impl SESSION {
         }
         self.running_hash_io(); // hashes in remainder of client Hello
         self.transcript_hash(hh_s);
-//println!("self.iolen= {}",self.iolen);
         log(IO_DEBUG,"Hash of Completed client Hello",0,Some(hh_s));
 
         let mut cets:[u8;MAX_HASH]=[0;MAX_HASH]; let cets_s=&mut cets[0..hlen];
@@ -1255,7 +1252,6 @@ impl SESSION {
             self.send_server_finish(shf_s);                    
             self.transcript_hash(hh_s);
 
-//println!("3. self.iolen= {}",self.iolen);
 //
 //   server Finish sent ----------------------------------------------------------------> 
 //
@@ -1407,7 +1403,6 @@ impl SESSION {
             log(IO_DEBUG,"Server is sending certificate verifier\n",0,None);
             self.transcript_hash(th_s);
             sclen=keys::create_server_cert_verifier(kind,th_s,sk_s,&mut scvsig);
-//println!("sclen= {}",sclen);
             self.send_server_cert_verify(kind,&scvsig[0..sclen]);                           
             self.transcript_hash(th_s);
     //

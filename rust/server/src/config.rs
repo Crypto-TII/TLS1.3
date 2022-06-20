@@ -41,9 +41,7 @@ pub const MAX_CHAIN_LEN:usize = 2;                  // Maximum Chain length
 pub const MAX_CERT_SIZE:usize = 6144;               // Max key/cert                                      **** increased for Dilithium 3
 pub const MAX_CHAIN_SIZE:usize = MAX_CHAIN_LEN*MAX_CERT_SIZE;
 
-pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size - was 256 pre-quantum
-
-// These all blow up post quantum
+// These all blow up for post quantum
 pub const MAX_SIG_PUBLIC_KEY: usize = 1952;         // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
 pub const MAX_SIG_SECRET_KEY: usize = 4000;         // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)
 pub const MAX_SIGNATURE_SIZE: usize= 3296;          // Max digital signature size in bytes *** increased for DILITHIUM 
@@ -52,11 +50,13 @@ pub const MAX_KEX_CIPHERTEXT: usize = 1088;         // Max key exchange (KEM) ci
 pub const MAX_KEX_SECRET_KEY: usize = 2400;         // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)
 pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
 
-pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
-pub const MAX_CIPHER_SUITES: usize = 128;            // *********************
-pub const MAX_SUPPORTED_GROUPS: usize = 24;         // *********************
-pub const MAX_SUPPORTED_SIGS: usize = 32;
+// Bloated by testing clients offering pre TLS1.3 suites and groups
+pub const MAX_HELLO: usize = 6144;                  // Maximum Hello size - was 256 pre-quantum
+pub const MAX_CIPHER_SUITES: usize = 384;           // *********************
+pub const MAX_SUPPORTED_GROUPS: usize = 64;         // *********************
+pub const MAX_SUPPORTED_SIGS: usize = 64;           // *********************
 
+pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
 //pub const MAX_COOKIE: usize = 128;             // Max Cookie size  
 pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes 
 pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes 

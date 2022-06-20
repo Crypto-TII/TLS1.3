@@ -8,6 +8,9 @@
 // Root Certificate Store begins here
 
 // First cert is our own experimental DILITHIUM3 root certificate
+// Second is our own secp256r1 root certificate
+
+
 
 const char *cacerts=(char *)
 "-----BEGIN CERTIFICATE-----\n"
@@ -126,6 +129,17 @@ const char *cacerts=(char *)
 "NCLeo45ga84PLVNbYjekYmA+xEbKul3vFWUH/05GSrwTfaZg4ZTxo1XkTzb0olm8\n"
 "hTiCEqLq+QzsztYwM4JLakBHOqoZKC7cIFmNo7otPVRda3fZ9wQdP1OGh5HM0wkh\n"
 "QVpob6gRPD1tsNIAAAAAAAAAAAAAAAAAAAAAAAMIEBkgJg==\n"
+"-----END CERTIFICATE-----\n"
+"-----BEGIN CERTIFICATE-----
+"MIIBjTCCATOgAwIBAgIUcHYGLX7gR+DZ/koQ4R4X5sh+b64wCgYIKoZIzj0EAwIw\n"
+"HDEaMBgGA1UEAwwRVGlpZ2VyVExTIHJvb3QgQ0EwHhcNMjIwNjE4MTcwMjQ5WhcN\n"
+"MjMwNjE4MTcwMjQ5WjAcMRowGAYDVQQDDBFUaWlnZXJUTFMgcm9vdCBDQTBZMBMG\n"
+"ByqGSM49AgEGCCqGSM49AwEHA0IABDykEm+np9UKRf1UyTs/5Izx3IgEXStb8h6l\n"
+"diHUWdUKkZhUNMBXiQ9507gmEf3NS82UkLY1yAeQ9hVyAZQLH+ejUzBRMB0GA1Ud\n"
+"DgQWBBS1QHxpny/EgJ7/9v6lm1Lc6S7NpjAfBgNVHSMEGDAWgBS1QHxpny/EgJ7/\n"
+"9v6lm1Lc6S7NpjAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIQCu\n"
+"QEB7vcxKOgpS9VLSfHqUz5hJaTMidf4d04YmmNxGVAIgagRv5Ra4VdsVDKvqJzg0\n"
+"mgfunasodQNSeF1By8/susU=\n"
 "-----END CERTIFICATE-----\n"
 "-----BEGIN CERTIFICATE-----\n"                                       //   OU = GlobalSign ECC Root CA - R5 O  = GlobalSign CN = GlobalSign
 "MIICHjCCAaSgAwIBAgIRYFlJ4CYuu1X5CneKcflK2GwwCgYIKoZIzj0EAwMwUDEk\n"

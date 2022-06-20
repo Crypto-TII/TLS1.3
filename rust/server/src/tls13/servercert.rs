@@ -7,6 +7,8 @@
 // https://www.random.org/bytes/
 pub const TEK:[u8;32]=[0x45,0xcd,0x4e,0x84,0x30,0x53,0x6c,0x68,0x6d,0x24,0x3f,0x13,0x0a,0x91,0xbd,0xb6,0xa5,0xf1,0xd1,0xbc,0x33,0xf1,0xf4,0xbb,0x70,0x26,0xfa,0xfb,0x74,0xf7,0x6a,0x69];
 
+// This first is a self-signed certificate
+
 pub const MYPRIVATE: &str = 
 "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDQeJKwWO3tvqxs\
 9cQgtMA2KFLUlNncQXNm9DvmiLUAGxm2nHO+h+3SUzq/Qg2dN+bwNaqKVohwIRMp\
@@ -60,6 +62,34 @@ hD9ouS7uKXJN1ZWzbP7N1LJVh8NuItkdM/JEK+a0EOvzwj04DB4KYdHONolY+oQ+\
 0DqEsXLWT4iP1YjVkHCLbexQLJ+mzMb8IAW2QyNDpvJ4WDu/CJQXg7FMO37NzX29\
 lNTJwMVFxP1tgdl2aFF1AVjXMYoTjJgUT+7JBvaXtxt/6jBBnc33a8UfOVmpjysI\
 GbBrENLRcpCt1gJ5xvwTnZcDPQVzqKY="];
+
+// This is a Server + Intermediate CA chain based on the secp256r1 elliptic curve
+/*
+pub const MYPRIVATE: &str = 
+"MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDCohU4JXcVQaXXeNzeu\
+8XBZFbkEYmH2NkCPaYu46LiGh+EIp1GRASEeKgwpw8pjUKShZANiAASyuqexUjOj\
+IbQq0cqDmUqDPKsqfYFlNzWeyGNP12Dhd0ImXaMdEUclmCRAkdOxPshx1Jl9UZS8\
+7S9TarLheVbwjp0MbJtM6Kn1OHXDzRKkvNTIDY61wD1SqVTMh23pwj8=";
+
+pub const CHAINLEN:usize = 2;
+
+pub const MYCERTCHAIN: [&str;CHAINLEN] = [ 
+"MIIBQjCB6gIBATAKBggqhkjOPQQDAjAkMSIwIAYDVQQDDBlUaWlnZXJUTFMgaW50\
+ZXJtZWRpYXRlIENBMB4XDTIyMDYxODE3MTY0NloXDTIzMDYxODE3MTY0NlowGzEZ\
+MBcGA1UEAwwQVGlpZ2VyVExTIHNlcnZlcjB2MBAGByqGSM49AgEGBSuBBAAiA2IA\
+BLK6p7FSM6MhtCrRyoOZSoM8qyp9gWU3NZ7IY0/XYOF3QiZdox0RRyWYJECR07E+\
+yHHUmX1RlLztL1NqsuF5VvCOnQxsm0zoqfU4dcPNEqS81MgNjrXAPVKpVMyHbenC\
+PzAKBggqhkjOPQQDAgNHADBEAiBiZsiHAZhZbqA5FWMPpUKHMmek3rIk3rwl+817\
+bUC2AwIgP/EQYtDmWMmzxK8xUbksj3fYYNeCVPPodEy1wX2Uhts=",
+"MIIBUDCB+KADAgECAhRZHhOXcJdXeDJ9XEh6/fSqJttAbTAKBggqhkjOPQQDAjAc\
+MRowGAYDVQQDDBFUaWlnZXJUTFMgcm9vdCBDQTAeFw0yMjA2MTgxNzEzMDdaFw0y\
+MzA2MTgxNzEzMDdaMCQxIjAgBgNVBAMMGVRpaWdlclRMUyBpbnRlcm1lZGlhdGUg\
+Q0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARxqCSTOlSpTs9uc4yfL7E5qpPv\
+dXiiK+BBg4xyg+0leUJIQUORfaQL1vR+f9bPkMHNBPmvGsA2E8x1rgxt4mX7oxAw\
+DjAMBgNVHRMEBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIHmM8elCQ60NkTwtnQO+\
+njvwo949Pq3jnuVoaJGbhVmPAiAkuGq5lXtOHLcbrED6u6WwkI0ms8Vmn+/v/Njm\
+jlgr9Q=="];
+*/
 /*
 
 // Experimental Dilithium3 Server + Intermediate CA chain
