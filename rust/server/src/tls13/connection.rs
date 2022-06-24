@@ -342,16 +342,43 @@ impl SESSION {
     fn send_server_certificate(&mut self,certchain: &[u8]) {
         let mut pt:[u8;8]=[0;8];
         let mut ptr=0;
+        let len=certchain.len();
 
         ptr=utils::append_byte(&mut pt,ptr,CERTIFICATE,1);
-        ptr=utils::append_int(&mut pt,ptr,4+certchain.len(),3);
+        ptr=utils::append_int(&mut pt,ptr,4+len,3);
         ptr=utils::append_byte(&mut pt,ptr,0,1);
-        ptr=utils::append_int(&mut pt,ptr,certchain.len(),3);
+        ptr=utils::append_int(&mut pt,ptr,len,3);
 
         self.running_hash(&pt[0..ptr]);
         self.running_hash(certchain);
 
-        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(certchain));
+// Certificate chain might be too long - break it up into record fragments
+
+        let pieces=(ptr+len+self.max_record-1)/self.max_record;
+        let size=(ptr+len)/pieces;
+        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(&certchain[0..size-ptr]));
+//println!("Sent bytes {}",size);
+        let mut left=len+ptr-size;
+
+//        println!("pieces= {}",pieces);
+//        println!("len= {}",len);
+//        println!("size= {}",size);
+//        println!("left= {}",left);
+//        println!("max record= {}",self.max_record);
+
+        if left>0 {
+            let mut start=size-ptr;
+            while left>size {
+                self.send_message(HSHAKE,TLS1_2,&certchain[start..start+size],None);
+//println!("Sent bytes {}",size);
+                start+=size;
+                left-=size;
+            }
+            self.send_message(HSHAKE,TLS1_2,&certchain[start..len],None);
+//println!("Sent bytes {}",len-start);
+        }
+
+        //self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(certchain));
     }
 
 // Send Encrypted Extensions
@@ -380,6 +407,7 @@ impl SESSION {
         self.running_hash(&pt[0..ptr]);
         self.running_hash(scvsig);
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(scvsig));
+//println!("Verify size= {}",scvsig.len()+ptr)
     }
 
 // Send Server Certificate Request 
@@ -845,7 +873,7 @@ impl SESSION {
                     }
                 },
                 MAX_FRAG_LENGTH => {
-                    r=self.parse_int_pull(1); mfl_mode=r.val; self.max_record=1<<(1+mfl_mode); if r.err!=0 {return r;}
+                    r=self.parse_int_pull(1); mfl_mode=r.val; self.max_record=1<<(8+mfl_mode); if r.err!=0 {return r;}
                 },
                 RECORD_SIZE_LIMIT => {
                     r=self.parse_int_pull(2); self.max_record=r.val; if r.err!=0 {return r;}

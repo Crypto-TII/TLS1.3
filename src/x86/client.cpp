@@ -28,6 +28,10 @@ static void storeTicket(TLS_session *session)
     fprintf(fp,"%x\n",session->T.favourite_group);
     fprintf(fp,"%x\n",session->T.origin);
     fclose(fp);
+
+//printf("PSK.len= %d\n",session->T.PSK.len);
+//printf("YYY Lifetime= %x\n",session->T.lifetime);
+
 }
 
 // restore ticket into session from cookie file
@@ -58,6 +62,9 @@ static bool recoverTicket(TLS_session *session)
     if (fscanf(fp,"%x",&session->T.favourite_group)) {};
     if (fscanf(fp,"%x",&session->T.origin)) {};
     fclose(fp);
+
+//printf("XXX Lifetime= %x\n",session->T.lifetime);
+
     session->T.valid=true;
     return true;
 }
@@ -358,6 +365,7 @@ int main(int argc, char const *argv[])
         if (!recoverTicket(session))
             HAVE_TICKET=false;
     }
+
 //    removeTicket();    // old tickets MAY be re-used, so don't remove
 
 // Make TLS connection, and try to send early data. 

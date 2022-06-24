@@ -15,7 +15,7 @@ pub fn millis() -> usize {
 pub struct TICKET {
     pub valid: bool,                     // Is ticket valid? 
     pub tick:[u8;MAX_TICKET_SIZE],   // Ticket bytes 
-    pub nonce:[u8;MAX_KEY],          // 32-byte nonce 
+    pub nonce:[u8;256],          // 32-byte nonce 
     pub psk:[u8;MAX_HASH],           // pre-shared key 
     pub tklen: usize,
     pub nnlen: usize,
@@ -46,7 +46,7 @@ impl TICKET {
         for i in 0..MAX_TICKET_SIZE {
             self.tick[i]=0;
         }
-        for i in 0..MAX_KEY {
+        for i in 0..256 {
             self.nonce[i]=0;
         }
         for i in 0..MAX_HASH {

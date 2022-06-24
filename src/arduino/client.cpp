@@ -288,7 +288,6 @@ void loop() {
         hostname[i]=0;
     }    
 
-
     state=TLS13_start(&client,hostname);
     log(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
 
@@ -303,6 +302,7 @@ void loop() {
  		return;
     }
 
+    start = millis();
     bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
     if (success) {
         TLS13_recv(session,&RESP);    // Server response + ticket
@@ -312,6 +312,9 @@ void loop() {
     }
 // drop the connection..
     client.stop();
+    elapsed = (millis() - start);
+    Serial.print("Full TLS connection (ms)= "); Serial.println(elapsed);
+
     log(IO_PROTOCOL,(char *)"Connection closed\n\n",NULL,0,NULL);
     delay(5000);
 
@@ -324,6 +327,7 @@ void loop() {
  		return;
     }
 
+    start = millis();
     success=TLS13_connect(session,&GET);  // Resumption handshake and connection to server
     if (success) {
         TLS13_recv(session,&RESP);    // Server response + ticket
@@ -332,7 +336,9 @@ void loop() {
         log(IO_APPLICATION,(char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
     }
     client.stop();
-// drop the connection..
+    elapsed = (millis() - start);
+    Serial.print("Resumed TLS connection (ms)= "); Serial.println(elapsed);
+// dropped the connection..
     log(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
 
 #ifdef ESP32

@@ -599,6 +599,7 @@ int X509_extract_cert(octad *sc, octad *cert)
 }
 
 // Extract Public Key from inside Certificate
+// if key==NULL just return type
 pktype X509_extract_public_key(octad *c, octad *key)
 {
     int i, j, fin, len, sj;
@@ -707,6 +708,8 @@ pktype X509_extract_public_key(octad *c, octad *key)
     len--; // skip bit shift (hopefully 0!)
 
 // extract key
+    if (key==NULL)
+        return ret;
     if (ret.type == X509_ECC || ret.type == X509_ECD || ret.type == X509_PQ)
     {
         key->len = len;

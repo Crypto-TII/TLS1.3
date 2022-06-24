@@ -36,27 +36,37 @@ pub const MAX_IO: usize = 16384+256;                // Maximum Input/Output buff
 pub const MAX_PLAIN_FRAG: usize = 16384;            // Max Plaintext Fragment size 
 pub const MAX_CIPHER_FRAG: usize = 16384+256;       // Max Ciphertext Fragment size 
 
-// Certificate size limits
-pub const MAX_CHAIN_LEN:usize = 2;                  // Maximum Chain length
-pub const MAX_CERT_SIZE:usize = 6144;               // Max key/cert                                      **** increased for Dilithium 3
-pub const MAX_CHAIN_SIZE:usize = MAX_CHAIN_LEN*MAX_CERT_SIZE;
+pub const TINY_ECC: usize = 0;          // ECC only
+pub const TYPICAL: usize = 1;           // ECC + RSA
+pub const POST_QUANTUM: usize = 2;      // POST_QUANTUM
+
+// These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
+// Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
+pub const MAX_CERT_SIZE:usize = 6144;               // Max cert size 
+pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size (less extensions) KEX public key is largest component
 
 // These all blow up for post quantum
-pub const MAX_SIG_PUBLIC_KEY: usize = 1952;         // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
-pub const MAX_SIG_SECRET_KEY: usize = 4000;         // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)
-pub const MAX_SIGNATURE_SIZE: usize= 3296;          // Max digital signature size in bytes *** increased for DILITHIUM 
-pub const MAX_KEX_PUBLIC_KEY: usize = 1184;         // Maximum Public key size (also Encapsulation size for KEM) - was 136 pre-quantum
-pub const MAX_KEX_CIPHERTEXT: usize = 1088;         // Max key exchange (KEM) ciphertext size
-pub const MAX_KEX_SECRET_KEY: usize = 2400;         // Maximum Secret key size - was 64 pre-quantum (maybe includes the public key?)
+pub const MAX_SIG_PUBLIC_KEY: usize = 1952;         // Maximum signature Public key size Dilithium 3
+pub const MAX_SIG_SECRET_KEY: usize = 4000;         // Maximum signature Public key size Dilithium 3
+pub const MAX_SIGNATURE_SIZE: usize = 3296;         // Maximum signature size in bytes - Dilithium 3  
+pub const MAX_KEX_PUBLIC_KEY: usize = 1184;         // Maximum key exchange public key size (also Encapsulation size for KEM) - was 136 pre-quantum
+pub const MAX_KEX_CIPHERTEXT: usize = 1088;         // Maximum key exchange (KEM) ciphertext size
+pub const MAX_KEX_SECRET_KEY: usize = 2400;         // Maximum key exchange Secret key size
+
+
 pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
 
+// Certificate size limits
+pub const MAX_CHAIN_LEN:usize = 2;                  // Maximum Chain length
+pub const MAX_CHAIN_SIZE:usize = MAX_CHAIN_LEN*MAX_CERT_SIZE;
+
+
 // Bloated by testing clients offering pre TLS1.3 suites and groups
-pub const MAX_HELLO: usize = 6144;                  // Maximum Hello size - was 256 pre-quantum
 pub const MAX_CIPHER_SUITES: usize = 384;           // *********************
 pub const MAX_SUPPORTED_GROUPS: usize = 64;         // *********************
 pub const MAX_SUPPORTED_SIGS: usize = 64;           // *********************
 
-pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
+pub const MAX_SERVER_NAME: usize = 128;          // Max server name size in bytes 
 //pub const MAX_COOKIE: usize = 128;             // Max Cookie size  
 pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes 
 pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes 
@@ -232,9 +242,10 @@ pub const LOG_OUTPUT_TRUNCATION: usize= 512;       /**< Output Hex digits before
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true; // allow self-signed server certs
+pub const CRYPTO_SETTING: usize = TINY_ECC; // Decide on crypto setting
 pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates 
 //pub const TLS_PROTOCOL: bool=true;       // ALPN extension
 pub const APPLICATION_PROTOCOL:&str="http/1.1";
-pub const CERTIFICATE_REQUEST: bool=false; // Does server require client authentication?
+pub const CERTIFICATE_REQUEST: bool=true; // Does server require client authentication?
 pub const TICKET_LIFETIME: u32 = 86400;   // 86400 seconds in a day
 pub const MAX_EARLY_DATA: usize = 1024;     // maximum amount of early data a client can send 

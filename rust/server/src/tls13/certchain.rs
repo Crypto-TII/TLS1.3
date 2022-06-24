@@ -170,17 +170,42 @@ pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
 
     let nccsalgs=csigalgs.len();
     let mut ptr=0;
-    for i in 0..servercert::CHAINLEN {
-        let b=servercert::MYCERTCHAIN[i].as_bytes();
-        let sclen=decode_b64(&b,&mut sc);
-        ptr=utils::append_int(certchain,ptr,sclen,3);
-        ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-        ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
+    let mut key:&str="";
+
+    if CRYPTO_SETTING==TYPICAL {
+        key=servercert::SS_PRIVATE;
+        for i in 0..servercert::SS_CERTCHAIN.len() {
+            let b=servercert::SS_CERTCHAIN[i].as_bytes();
+            let sclen=decode_b64(&b,&mut sc);
+            ptr=utils::append_int(certchain,ptr,sclen,3);
+            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
+            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
+        }
     }
+    if CRYPTO_SETTING==TINY_ECC {
+        key=servercert::TE_PRIVATE;
+        for i in 0..servercert::TE_CERTCHAIN.len() {
+            let b=servercert::TE_CERTCHAIN[i].as_bytes();
+            let sclen=decode_b64(&b,&mut sc);
+            ptr=utils::append_int(certchain,ptr,sclen,3);
+            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
+            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
+        }
+    }
+    if CRYPTO_SETTING==POST_QUANTUM {
+        key=servercert::PQ_PRIVATE;
+        for i in 0..servercert::PQ_CERTCHAIN.len() {
+            let b=servercert::PQ_CERTCHAIN[i].as_bytes();
+            let sclen=decode_b64(&b,&mut sc);
+            ptr=utils::append_int(certchain,ptr,sclen,3);
+            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
+            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
+        }
+    }
+
     *cclen=ptr;
 // next get secret key
-    let b=servercert::MYPRIVATE.as_bytes();
-    let sclen=decode_b64(&b,&mut sc);
+    let sclen=decode_b64(&key.as_bytes(),&mut sc);
     let pk=x509::extract_private_key(&sc[0..sclen],privkey);
 
     *sklen=pk.len;

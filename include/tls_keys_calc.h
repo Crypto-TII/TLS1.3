@@ -28,13 +28,27 @@ extern void initTranscriptHash(TLS_session *session);
  */
 extern void runningHash(TLS_session *session,octad *O);
 
-/**	@brief Accumulate transcript hash and rewind IO buffer
+/**	@brief Accumulate transcript hash from IO buffer
  *
 	@param session the TLS session structure
-    @param O an octad to be included in hash
 
  */
 extern void runningHashIO(TLS_session *session);
+
+/**	@brief rewind the IO buffer
+ *
+	@param session the TLS session structure
+
+ */
+extern void rewindIO(TLS_session *session);
+
+
+/**	@brief Accumulate transcript hash and from IO buffer, and rewind IO buffer
+ *
+	@param session the TLS session structure
+
+ */
+extern void runningHashIOrewind(TLS_session *session);
 
 
 /**	@brief Output current hash value

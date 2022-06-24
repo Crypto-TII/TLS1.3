@@ -10,9 +10,8 @@
 // First cert is our own experimental DILITHIUM3 root certificate
 // Second is our own secp256r1 root certificate
 
-
-
 const char *cacerts=(char *)
+#if CRYPTO_SETTING == POST_QUANTUM
 "-----BEGIN CERTIFICATE-----\n"
 "MIIVfjCCCImgAwIBAgIUasq9hKzKYhZKDB2NiSb57u05bTIwDQYLKwYBBAECggsH\n"
 "BgUwFzEVMBMGA1UEAwwMVGlpZ2VyVExTIENBMB4XDTIyMDUyNTExMzgzOVoXDTIz\n"
@@ -130,7 +129,9 @@ const char *cacerts=(char *)
 "hTiCEqLq+QzsztYwM4JLakBHOqoZKC7cIFmNo7otPVRda3fZ9wQdP1OGh5HM0wkh\n"
 "QVpob6gRPD1tsNIAAAAAAAAAAAAAAAAAAAAAAAMIEBkgJg==\n"
 "-----END CERTIFICATE-----\n"
-"-----BEGIN CERTIFICATE-----
+#endif
+#if CRYPTO_SETTING == TINY_ECC
+"-----BEGIN CERTIFICATE-----\n"
 "MIIBjTCCATOgAwIBAgIUcHYGLX7gR+DZ/koQ4R4X5sh+b64wCgYIKoZIzj0EAwIw\n"
 "HDEaMBgGA1UEAwwRVGlpZ2VyVExTIHJvb3QgQ0EwHhcNMjIwNjE4MTcwMjQ5WhcN\n"
 "MjMwNjE4MTcwMjQ5WjAcMRowGAYDVQQDDBFUaWlnZXJUTFMgcm9vdCBDQTBZMBMG\n"
@@ -141,6 +142,7 @@ const char *cacerts=(char *)
 "QEB7vcxKOgpS9VLSfHqUz5hJaTMidf4d04YmmNxGVAIgagRv5Ra4VdsVDKvqJzg0\n"
 "mgfunasodQNSeF1By8/susU=\n"
 "-----END CERTIFICATE-----\n"
+#endif
 "-----BEGIN CERTIFICATE-----\n"                                       //   OU = GlobalSign ECC Root CA - R5 O  = GlobalSign CN = GlobalSign
 "MIICHjCCAaSgAwIBAgIRYFlJ4CYuu1X5CneKcflK2GwwCgYIKoZIzj0EAwMwUDEk\n"
 "MCIGA1UECxMbR2xvYmFsU2lnbiBFQ0MgUm9vdCBDQSAtIFI1MRMwEQYDVQQKEwpH\n"

@@ -57,35 +57,51 @@ int SAL_ciphers(int *ciphers)
 
 int SAL_groups(int *groups)
 {
-    int n=4;
+    int n;
+#if CRYPTO_SETTING==POST_QUANTUM
+    n=4;
+    groups[0]=KYBER768;
+    groups[1]=X25519;
+    groups[2]=SECP256R1; 
+    groups[3]=SECP384R1;
+#else
+    n=3;
     groups[0]=X25519;
-    groups[1]=SECP256R1;
+    groups[1]=SECP256R1; 
     groups[2]=SECP384R1;
-    groups[3]=KYBER768;
+#endif
     return n;
 }
 
 int SAL_sigs(int *sigAlgs)
 {
-    int n=5;
+    int n=3;
     sigAlgs[0]=ECDSA_SECP256R1_SHA256;
-    sigAlgs[1]=RSA_PSS_RSAE_SHA256;
-    sigAlgs[2]=ECDSA_SECP384R1_SHA384;
-    sigAlgs[3]=ED25519;
-    sigAlgs[4]=DILITHIUM3;
+    sigAlgs[1]=ECDSA_SECP384R1_SHA384;
+    sigAlgs[2]=ED25519;
+#if CRYPTO_SETTING>TINY_ECC
+    sigAlgs[3]=RSA_PSS_RSAE_SHA256; n++;
+#endif
+#if CRYPTO_SETTING==POST_QUANTUM
+    sigAlgs[4]=DILITHIUM3; n++;
+#endif
     return n;
 }
 
 int SAL_sigCerts(int *sigAlgsCert)
 {
-    int n=7;
+    int n=3;
     sigAlgsCert[0]=ECDSA_SECP256R1_SHA256;
-    sigAlgsCert[1]=RSA_PKCS1_SHA256;
-    sigAlgsCert[2]=ECDSA_SECP384R1_SHA384;
-    sigAlgsCert[3]=RSA_PKCS1_SHA384;
-    sigAlgsCert[4]=RSA_PKCS1_SHA512;
-    sigAlgsCert[5]=ED25519;
-    sigAlgsCert[6]=DILITHIUM3;
+    sigAlgsCert[1]=ECDSA_SECP384R1_SHA384;
+    sigAlgsCert[2]=ED25519;
+#if CRYPTO_SETTING>TINY_ECC
+    sigAlgsCert[3]=RSA_PKCS1_SHA256; n++;
+    sigAlgsCert[4]=RSA_PKCS1_SHA384; n++;
+    sigAlgsCert[5]=RSA_PKCS1_SHA512; n++;
+#endif
+#if CRYPTO_SETTING==POST_QUANTUM
+    sigAlgsCert[6]=DILITHIUM3; n++;
+#endif
     return n;
 }
 

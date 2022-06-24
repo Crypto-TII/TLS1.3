@@ -63,8 +63,6 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
 {
     char owner[TLS_X509_MAX_FIELD];
     octad OWNER={0,sizeof(owner),owner};
-    //char sc[TLS_MAX_ROOT_CERT_SIZE];  // server certificate
-
 #ifdef SHALLOW_STACK
     char *b=(char *)malloc(TLS_MAX_CERT_B64);
     octad SC={0,TLS_MAX_CERT_B64,b};       // optimization - share memory - can convert from base64 to binary in place
@@ -125,7 +123,7 @@ static pktype stripDownCert(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJECT)
     int c,ic,len;
 
     pktype sg=X509_extract_cert_sig(CERT,SIG);
-    X509_extract_cert(CERT,CERT);
+    X509_extract_cert(CERT,CERT);  // modifies CERT which is in the IO buffer!
 
     ic = X509_find_issuer(CERT);
     createFullName(ISSUER,CERT,ic);
@@ -188,6 +186,8 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
+    bool first=true;
+    pktype pk;
 
 #ifdef SHALLOW_STACK
     char *b=(char *)malloc(TLS_MAX_CERT_B64);
@@ -220,22 +220,30 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
         OCT_append_int(CERTCHAIN,SC.len,3);
         OCT_append_octad(CERTCHAIN,&SC);
         OCT_append_int(CERTCHAIN,0,2);  // add no certificate extensions
+        if (first)
+        { // get public key type
+            X509_extract_cert(&SC, &SC);
+            pk=X509_extract_public_key(&SC,NULL);
+            first=false;
+        }
     }
 
-    ptr=0; i=0;
-    readaline(line,myprivate,ptr);
-    for (;;)
-    {
-        len=readaline(line,myprivate,ptr);
-        if (line[0]=='-') break;
-        for (int j=0;j<len;j++)
-            b[i++]=line[j];
-        b[i]=0;
+    if (myprivate!=NULL)
+    { // unless private key is in protected hardware, so SAL has it already
+        ptr=0; i=0;
+        readaline(line,myprivate,ptr);
+        for (;;)
+        {
+            len=readaline(line,myprivate,ptr);
+            if (line[0]=='-') break;
+            for (int j=0;j<len;j++)
+                b[i++]=line[j];
+            b[i]=0;
+        }
+        OCT_from_base64(&SC,b);
+
+        X509_extract_private_key(&SC, PRIVKEY); // returns signature type
     }
-    OCT_from_base64(&SC,b);
-
-    pktype pk= X509_extract_private_key(&SC, PRIVKEY); // returns signature type
-
 #ifdef SHALLOW_STACK
     free(b);
 #endif
@@ -278,6 +286,7 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
     octad ISSUER={0,sizeof(issuer),issuer};
 
     sst=stripDownCert(SCERT,SSIG,&ISSUER,&SUBJECT);    // break down Cert and extract signature
+
 	if (!checkCertNotExpired(SCERT)) {
         log(IO_DEBUG,(char *)"Certificate has expired\n",NULL,0,NULL);
 		return  CERT_OUTOFDATE;
@@ -339,13 +348,12 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
     octad ISSUER={0,sizeof(issuer),issuer};
 
 // Extract and process Server Cert
-    r=parseInt(CERTCHAIN,3,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;// get length of first (server) certificate
+    r=parseInt(CERTCHAIN,3,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN; // get length of first (server) certificate
     r=parseoctadptr(&SERVER_CERT,len,CERTCHAIN,ptr); if (r.err) return BAD_CERT_CHAIN;
-
     r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;
     ptr+=len;   // skip certificate extensions
-
 // Check and parse Server Cert
+
 	rtn=parseCert(&SERVER_CERT,sst,SERVER_SIG,&ISSUER,spt,PUBKEY);
 	if (rtn != 0) {
 		if (rtn==SELF_SIGNED_CERT)

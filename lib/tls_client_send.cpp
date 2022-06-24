@@ -181,7 +181,7 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
 // ALL Client to Server output goes via this function 
 // Send a client message CM|EXT (as a single record). AEAD encrypted if send!=NULL
 // May need to break up into multiple records??
-void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT)
+void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT,bool flush)
 {
     int reclen,taglen;
     char tag[TLS_MAX_TAG_SIZE];
@@ -189,8 +189,8 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
 
     int rbytes=SAL_randomByte()%16; // random padding bytes
 
-    OCT_kill(&session->IO);
-    session->ptr=0;
+    //OCT_kill(&session->IO);
+    //session->ptr=0;
 
     reclen=CM->len;
     if (EXT!=NULL) reclen+=EXT->len;
@@ -219,11 +219,16 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
         incrementCryptoContext(&session->K_send);  // increment IV
         OCT_append_octad(&session->IO,&TAG);
     }
-    sendOctad(session->sockptr,&session->IO);     // transmit it
+    if (flush)
+    {
+        sendOctad(session->sockptr,&session->IO);     // transmit it
+        OCT_kill(&session->IO);
+        session->ptr=0;
+    }
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
-void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agreed,octad *EXTENSIONS,int extra,bool resume)
+void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agreed,octad *EXTENSIONS,int extra,bool resume,bool flush)
 {
     char rn[32];
     octad RN = {0, sizeof(rn), rn};
@@ -265,18 +270,21 @@ void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agr
     OCT_append_int(CH,extlen,2);              // 2
 
 // transmit it
-    sendClientMessage(session,HSHAKE,version,CH,EXTENSIONS);
+    sendClientMessage(session,HSHAKE,version,CH,EXTENSIONS,flush);
 }
 
 // Send "binder",
-void sendBinder(TLS_session *session,octad *B,octad *BND)
+void sendBinder(TLS_session *session,octad *BND)
 {
+    char b[TLS_MAX_HASH+3];
+    octad B={0,sizeof(b),b};
     int tlen2=BND->len+1;
-    OCT_kill(B);
-    OCT_append_int(B,tlen2,2);
-    OCT_append_int(B,BND->len,1);
-    OCT_append_octad(B,BND);
-    sendClientMessage(session,HSHAKE,TLS1_2,B,NULL);
+    //OCT_kill(B);
+    OCT_append_int(&B,tlen2,2);
+    OCT_append_int(&B,BND->len,1);
+    OCT_append_octad(&B,BND);
+    runningHash(session,&B);
+    sendClientMessage(session,HSHAKE,TLS1_2,&B,NULL,true);
 }
 
 // send client alert - might be encrypted if send!=NULL
@@ -288,7 +296,7 @@ void sendAlert(TLS_session *session,int type)
     //octad BUFF={0,sizeof(buff),buff};
     OCT_append_byte(&PT,0x02,1);  // alerts are always fatal
     OCT_append_byte(&PT,type,1);  // alert type
-    sendClientMessage(session,ALERT,TLS1_2,&PT,NULL);
+    sendClientMessage(session,ALERT,TLS1_2,&PT,NULL,true);
     log(IO_PROTOCOL,(char *)"Alert sent to Server - ",NULL,0,NULL);
     logAlert(type);
 }
@@ -304,7 +312,7 @@ void sendClientFinish(TLS_session *session,octad *CHF)
 
     runningHash(session,&PT);
     runningHash(session,CHF);
-    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CHF);
+    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CHF,true);
 }
 
 /* Send Client Cert Verify */
@@ -318,7 +326,7 @@ void sendClientCertVerify(TLS_session *session, int sigAlg, octad *CCVSIG)
     OCT_append_int(&PT,CCVSIG->len,2);
     runningHash(session,&PT);
     runningHash(session,CCVSIG);
-    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CCVSIG);
+    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CCVSIG,true);
 }
 
 // Send Client Certificate 
@@ -340,7 +348,7 @@ void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN)
         runningHash(session,&PT);
         runningHash(session,CERTCHAIN);
     }
-    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CERTCHAIN);
+    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CERTCHAIN,true);
 } 
 
 // if early data was accepted, send this to indicate early data is finished
@@ -351,7 +359,7 @@ void sendEndOfEarlyData(TLS_session *session)
     OCT_append_byte(&ED,END_OF_EARLY_DATA,1);
     OCT_append_int(&ED,0,3);
     runningHash(session,&ED);
-    sendClientMessage(session,HSHAKE,TLS1_2,&ED,NULL);
+    sendClientMessage(session,HSHAKE,TLS1_2,&ED,NULL,true);
 }
 
 //

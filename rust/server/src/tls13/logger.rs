@@ -232,7 +232,8 @@ pub fn log_server_response(r: &RET) {
             BAD_RECORD => log(IO_DEBUG,"Malformed Record received (max size exceeded?)\n",0,None),
             BAD_TICKET => log(IO_DEBUG,"Malformed Ticket received\n",0,None),
             EMPTY_CERT_CHAIN => log(IO_DEBUG,"Client Certificate required\n",0,None),
-            _ => log(IO_DEBUG,"Unknown Error\n",0,None)
+            BAD_PROTOCOL => log(IO_DEBUG,"Wrong ALPN protocol\n",0,None),
+            _ => log(IO_DEBUG,"Unknown Error\n",0,None),
         }
     } else {
         match rtn as u8 {

@@ -234,7 +234,7 @@ void logTicket(ticket *T)
     log(IO_DEBUG,(char *)"Ticket = ",NULL,0,&T->TICK); 
     unsign32 minutes=T->lifetime/60;
     log(IO_DEBUG,(char *)"life time in minutes = ",(char *)"%d",minutes,NULL);
-    log(IO_DEBUG,(char *)"Pre-Shared Key = ",NULL,0,&T->PSK); 
+    log(IO_DEBUG,(char *)"PSK = ",NULL,0,&T->PSK); 
     log(IO_DEBUG,(char *)"max_early_data = ",(char *)"%d",T->max_early_data,NULL);
     log(IO_DEBUG,(char *)"\n",NULL,0,NULL);
 #endif

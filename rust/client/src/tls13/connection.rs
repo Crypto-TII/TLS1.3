@@ -69,7 +69,7 @@ impl SESSION {
             cts: [0;MAX_HASH],   
             io: [0;MAX_IO],
             tlshash:{UNIHASH{state:[0;MAX_HASH_STATE],htype:0}},
-            t: {TICKET{valid: false,tick: [0;MAX_TICKET_SIZE],nonce: [0;MAX_KEY],psk : [0;MAX_HASH],psklen: 0,tklen: 0,nnlen: 0,age_obfuscator: 0,max_early_data: 0,birth: 0,lifetime: 0,cipher_suite: 0,favourite_group: 0,origin: 0}}
+            t: {TICKET{valid: false,tick: [0;MAX_TICKET_SIZE],nonce: [0;256],psk : [0;MAX_HASH],psklen: 0,tklen: 0,nnlen: 0,age_obfuscator: 0,max_early_data: 0,birth: 0,lifetime: 0,cipher_suite: 0,favourite_group: 0,origin: 0}}
         }; 
         let dst=host.as_bytes();
         this.hlen=dst.len();
@@ -239,8 +239,8 @@ impl SESSION {
 // message comes in two halves - cm and (optional) ext
 // message is constructed in IO buffer, and finally written to the socket
 // note that IO buffer is overwritten
-    fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>) {
-        let mut ptr=0;
+    fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>,flush: bool) {
+        let mut ptr=self.iolen;
         let rbytes=(sal::random_byte()%16) as usize;
         if !self.k_send.active { // no encryption
             ptr=utils::append_byte(&mut self.io,ptr,rectype,1);
@@ -278,12 +278,15 @@ impl SESSION {
             self.k_send.increment_crypto_context(); //increment iv
             ptr=utils::append_bytes(&mut self.io,ptr,&tag[0..taglen]);
         }
-        self.sockptr.write(&self.io[0..ptr]).unwrap();
-        self.clean_io();
+        self.iolen=ptr;
+        if flush {
+            self.sockptr.write(&self.io[0..ptr]).unwrap();
+            self.clean_io();
+        }
     }   
 
 // Send Client Hello
-    pub fn send_client_hello(&mut self,version:usize,ch: &mut [u8],already_agreed: bool,ext: &[u8],extra: usize,resume: bool) -> usize {
+    pub fn send_client_hello(&mut self,version:usize,ch: &mut [u8],already_agreed: bool,ext: &[u8],extra: usize,resume: bool,flush: bool) -> usize {
         let mut rn: [u8;32]=[0;32];
         let mut cs: [u8;2+2*MAX_CIPHER_SUITES]=[0;2+2*MAX_CIPHER_SUITES];
         let mut total=8;
@@ -314,18 +317,20 @@ impl SESSION {
         ptr=utils::append_int(ch,ptr,cm,2);
         ptr=utils::append_int(ch,ptr,extlen,2);
 
-        self.send_message(HSHAKE,version,&ch[0..ptr],Some(&ext));
-        return ptr
+        self.send_message(HSHAKE,version,&ch[0..ptr],Some(&ext),flush);
+        return ptr;
     }
 
 // Send "binder",
-    pub fn send_binder(&mut self,b:&mut [u8],bnd: &[u8]) -> usize {
+    pub fn send_binder(&mut self,bnd: &[u8]) -> usize {
+        let mut b:[u8;MAX_HASH+3]=[0;MAX_HASH+3];
         let tlen2=bnd.len()+1;  
         let mut ptr=0;
-        ptr=utils::append_int(b,ptr,tlen2,2);
-        ptr=utils::append_int(b,ptr,bnd.len(),1);
-        ptr=utils::append_bytes(b,ptr,bnd);
-        self.send_message(HSHAKE,TLS1_2,&b[0..ptr],None);
+        ptr=utils::append_int(&mut b,ptr,tlen2,2);
+        ptr=utils::append_int(&mut b,ptr,bnd.len(),1);
+        ptr=utils::append_bytes(&mut b,ptr,bnd);
+        self.running_hash(&b[0..ptr]);
+        self.send_message(HSHAKE,TLS1_2,&b[0..ptr],None,true);
         return ptr;
     }
 
@@ -352,7 +357,7 @@ impl SESSION {
 // Send an alert to the Server
     pub fn send_alert(&mut self,kind: u8) {
         let pt: [u8;2]=[0x02,kind];
-        self.send_message(ALERT,TLS1_2,&pt[0..2],None);
+        self.send_message(ALERT,TLS1_2,&pt[0..2],None,true);
         log(IO_PROTOCOL,"Alert sent to Server - ",0,None);
         logger::log_alert(kind);
     }
@@ -370,7 +375,7 @@ impl SESSION {
         ptr=utils::append_byte(&mut ed,ptr,END_OF_EARLY_DATA,1);
         ptr=utils::append_int(&mut ed,ptr,0,3);
         self.running_hash(&ed[0..ptr]);
-        self.send_message(HSHAKE,TLS1_2,&ed[0..ptr],None);
+        self.send_message(HSHAKE,TLS1_2,&ed[0..ptr],None,true);
     }
 
 // Send Client Certificate
@@ -390,7 +395,7 @@ impl SESSION {
             ptr=utils::append_int(&mut pt,ptr,0,3);
             self.running_hash(&pt[0..ptr]);
         }
-        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],certchain);
+        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],certchain,true);
     }
 
 // Send Client Certificate Verify 
@@ -403,7 +408,7 @@ impl SESSION {
         ptr=utils::append_int(&mut pt,ptr,ccvsig.len(),2);
         self.running_hash(&pt[0..ptr]);
         self.running_hash(ccvsig);
-        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(ccvsig));
+        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(ccvsig),true);
 }
 
 // Send final client handshake verification data
@@ -414,7 +419,7 @@ impl SESSION {
         ptr=utils::append_int(&mut pt,ptr,chf.len(),3); // .. and its length
         self.running_hash(&pt[0..ptr]);
         self.running_hash(chf);
-        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(chf));
+        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(chf),true);
     }
 
 // build client's chosen set of extensions, and assert expectation of server responses
@@ -1005,7 +1010,6 @@ impl SESSION {
             psk[i]=self.t.psk[i];
         }
         let psk_s=&mut psk[0..self.t.psklen];
-        let mut bl:[u8;MAX_HASH+3]=[0;MAX_HASH+3];
 
         self.init_transcript_hash();
         let external_psk:bool;
@@ -1053,7 +1057,7 @@ impl SESSION {
         extlen=extensions::add_presharedkey(&mut ext,extlen,age,&self.t.tick[0..self.t.tklen],hlen,&mut extra);
 
 // create and send Client Hello octad
-        let chlen=self.send_client_hello(TLS1_2,&mut ch,true,&ext[0..extlen],extra,false);  
+        let chlen=self.send_client_hello(TLS1_2,&mut ch,true,&ext[0..extlen],extra,false,false);  // don't transmit just yet - wait for binders
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -1063,15 +1067,14 @@ impl SESSION {
         self.running_hash(&ext[0..extlen]);
         self.transcript_hash(hh_s); // hh = hash of Truncated clientHello
         log(IO_DEBUG,"Hash of Truncated client Hello",0,Some(hh_s));
-        log(IO_DEBUG,"Client Hello sent\n",0,None);
+        
         keys::derive_verifier_data(htype,bnd_s,bk_s,hh_s);  
-        let blen=self.send_binder(&mut bl,bnd_s);
-//  -----------------------------------------------------------> Send rest of client Hello
-        self.running_hash(&bl[0..blen]);
+        self.send_binder(bnd_s);
+        log(IO_DEBUG,"Client Hello + Binder sent\n",0,None);
+//  -----------------------------------------------------------> rest of client Hello
         self.transcript_hash(hh_s); // hh = hash of complete clientHello
         log(IO_DEBUG,"Hash of Completed client Hello",0,Some(hh_s));
-        log(IO_DEBUG,"BND= ",0,Some(bnd_s));
-        log(IO_DEBUG,"Sending Binders\n",0,None);   // only sending one
+        log(IO_DEBUG,"Binder= ",0,Some(bnd_s));
 
         if have_early_data {
             self.send_cccs();
@@ -1085,7 +1088,7 @@ impl SESSION {
         if have_early_data {
             if let Some(searly) = early {
                 log(IO_APPLICATION,"Sending some early data\n",0,None);
-                self.send_message(APPLICATION,TLS1_2,searly,None);
+                self.send_message(APPLICATION,TLS1_2,searly,None,true);
 //
 //
 //   ----------------------------------------------------------> (Early Data)
@@ -1258,7 +1261,7 @@ impl SESSION {
 // add chosen extensions
         let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,0);
 // build and transmit client hello
-        let mut chlen=self.send_client_hello(TLS1_0,&mut ch,false,&ext[0..extlen],0,false);
+        let mut chlen=self.send_client_hello(TLS1_0,&mut ch,false,&ext[0..extlen],0,false,true);
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -1331,7 +1334,7 @@ impl SESSION {
             }
             self.send_cccs();
 // send new client hello
-            chlen=self.send_client_hello(TLS1_2,&mut ch,true,&ext[0..extlen],0,true);
+            chlen=self.send_client_hello(TLS1_2,&mut ch,true,&ext[0..extlen],0,true,true);
 //
 //
 //  ---------------------------------------------------> Resend Client Hello
@@ -1647,7 +1650,7 @@ impl SESSION {
 // send a message post-handshake
     pub fn send(&mut self,mess: &[u8]) {
         log(IO_APPLICATION,"Sending Application Message \n\n",-1,Some(mess));
-        self.send_message(APPLICATION,TLS1_2,mess,None);       
+        self.send_message(APPLICATION,TLS1_2,mess,None,true);       
     }
 
 // Process Server records received post-handshake

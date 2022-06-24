@@ -9,7 +9,7 @@ pub const TEK:[u8;32]=[0x45,0xcd,0x4e,0x84,0x30,0x53,0x6c,0x68,0x6d,0x24,0x3f,0x
 
 // This first is a self-signed certificate
 
-pub const MYPRIVATE: &str = 
+pub const SS_PRIVATE: &str = 
 "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDQeJKwWO3tvqxs\
 9cQgtMA2KFLUlNncQXNm9DvmiLUAGxm2nHO+h+3SUzq/Qg2dN+bwNaqKVohwIRMp\
 HxiL46M5Q0g8nHPNfmsvtvVkyFo/j8IDpwmExgi7jmkc7G50te+V5j3XhWWe1mbG\
@@ -37,9 +37,7 @@ S6H9gm943CgjlvMCMNcARWhnQKiXivzJgsBzl9ovJGBkbRIQOeehRZx6NpEXh/ae\
 WzyutIYpiMMa+VciXE/sRXvYRHtb2MFFaexkRbKoFT8+cZmIxHMC70C+ktQmj6v0\
 ulhjc7NkrGAP3kftzHIcYOo=";
 
-pub const CHAINLEN:usize = 1;
-
-pub const MYCERTCHAIN: [&str;CHAINLEN] = [ 
+pub const SS_CERTCHAIN: [&str;1] = [ 
 "MIIEAzCCAuugAwIBAgIUD64Dndat7YOHiILkJU3W2Sv3bF0wDQYJKoZIhvcNAQEL\
 BQAwgZAxCzAJBgNVBAYTAkFFMRIwEAYDVQQIDAlBYnUgRGhhYmkxFDASBgNVBAcM\
 C01hc2RhciBDaXR5MQwwCgYDVQQKDANUSUkxDzANBgNVBAsMBkNyeXB0bzETMBEG\
@@ -64,16 +62,14 @@ lNTJwMVFxP1tgdl2aFF1AVjXMYoTjJgUT+7JBvaXtxt/6jBBnc33a8UfOVmpjysI\
 GbBrENLRcpCt1gJ5xvwTnZcDPQVzqKY="];
 
 // This is a Server + Intermediate CA chain based on the secp256r1 elliptic curve
-/*
-pub const MYPRIVATE: &str = 
+
+pub const TE_PRIVATE: &str = 
 "MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDCohU4JXcVQaXXeNzeu\
 8XBZFbkEYmH2NkCPaYu46LiGh+EIp1GRASEeKgwpw8pjUKShZANiAASyuqexUjOj\
 IbQq0cqDmUqDPKsqfYFlNzWeyGNP12Dhd0ImXaMdEUclmCRAkdOxPshx1Jl9UZS8\
 7S9TarLheVbwjp0MbJtM6Kn1OHXDzRKkvNTIDY61wD1SqVTMh23pwj8=";
 
-pub const CHAINLEN:usize = 2;
-
-pub const MYCERTCHAIN: [&str;CHAINLEN] = [ 
+pub const TE_CERTCHAIN: [&str;2] = [ 
 "MIIBQjCB6gIBATAKBggqhkjOPQQDAjAkMSIwIAYDVQQDDBlUaWlnZXJUTFMgaW50\
 ZXJtZWRpYXRlIENBMB4XDTIyMDYxODE3MTY0NloXDTIzMDYxODE3MTY0NlowGzEZ\
 MBcGA1UEAwwQVGlpZ2VyVExTIHNlcnZlcjB2MBAGByqGSM49AgEGBSuBBAAiA2IA\
@@ -89,12 +85,11 @@ dXiiK+BBg4xyg+0leUJIQUORfaQL1vR+f9bPkMHNBPmvGsA2E8x1rgxt4mX7oxAw\
 DjAMBgNVHRMEBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIHmM8elCQ60NkTwtnQO+\
 njvwo949Pq3jnuVoaJGbhVmPAiAkuGq5lXtOHLcbrED6u6WwkI0ms8Vmn+/v/Njm\
 jlgr9Q=="];
-*/
-/*
+
 
 // Experimental Dilithium3 Server + Intermediate CA chain
 
-pub const MYPRIVATE: &str = 
+pub const PQ_PRIVATE: &str = 
 "MIIXWgIBADANBgsrBgEEAQKCCwcGBQSCF0QEghdA+Oejs5fgT3H/fSO+uqfPv3Dy\
 qsBEi2xPzKkDgWKTNxTE2OFIT0F2+KNQ5QQkbcV1YLTZWyiqqFrFVx5YHlgSBUI4\
 K7bGb9u0sEzCvgLk6wWRs8yZArOGkr5PQr0khpfaBRFTcjVnU1ZXcXOEUjETdoVG\
@@ -221,9 +216,7 @@ MNwdCIydvgkvyrhaeYqHz7SvxNtAUiUccT4leCxqfjow3QHPgUpXtutCV6/A47tz\
 EfNFz+QrKkLVr710DyGZNAWqZYQqToGtg2t62vCFMQ2Ii0s44xLyN7LsNhRf8Oom\
 Z/sB6zuEWOM8DBxCmlt/nG18kIVL9Tt9ZkKNsP/V";
 
-pub const CHAINLEN:usize = 2;
-
-pub const MYCERTCHAIN: [&str;CHAINLEN] = [ 
+pub const PQ_CERTCHAIN: [&str;2] = [ 
 "MIIVIjCCCC0CAQEwDQYLKwYBBAECggsHBgUwJDEiMCAGA1UEAwwZVGlpZ2VyVExT\
 IGludGVybWVkaWF0ZSBDQTAeFw0yMjA1MjUxMTQwMDVaFw0yMzA1MjUxMTQwMDVa\
 MBsxGTAXBgNVBAMMEFRpaWdlclRMUyBzZXJ2ZXIwgge0MA0GCysGAQQBAoILBwYF\
@@ -451,4 +444,3 @@ jfdPjwfHezeWIfzJdO4VhlJChFeq1FQyfXcobifpGrNYUHx1nNgItuGxg0CNSzyA\
 5x9x6cvSANS098Thpu0j8ctDAe6RI6qzuQfGlQHxMAL6lbAQ3deiDuwSXSngaLX3\
 vTmu/jD57qPmqeKyEcaGI4/d7vACLTtATHbNPLP+CkWdoLW99QpSdoZCS1pjlKa5\
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUMDxYaIQ=="];
-*/

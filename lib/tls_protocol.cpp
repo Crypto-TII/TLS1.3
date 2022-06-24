@@ -143,7 +143,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
 	buildExtensions(session,&EXT,&CPK,&enc_ext_expt,0);
 
 // create and send Client Hello octad
-    sendClientHello(session,TLS1_0,&CH,false,&EXT,0,false);  
+    sendClientHello(session,TLS1_0,&CH,false,&EXT,0,false,true);  
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -194,7 +194,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     {
         log(IO_DEBUG,(char *)"Server HelloRetryRequest= ",NULL,0,&session->IO);
         runningSyntheticHash(session,&CH,&EXT); // RFC 8446 section 4.4.1
-        runningHashIO(session);      // Hash of helloRetryRequest
+        runningHashIOrewind(session);      // Hash of helloRetryRequest
 
         if (kex==session->favourite_group)
         { // its the same one I chose !?
@@ -220,7 +220,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
         sendCCCS(session);  // send Client Cipher Change
 
 // create and send new Client Hello octad
-        sendClientHello(session,TLS1_2,&CH,false,&EXT,0,true);
+        sendClientHello(session,TLS1_2,&CH,false,&EXT,0,true,true);
 //
 //
 //  ---------------------------------------------------> Resend Client Hello
@@ -258,7 +258,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
 // Hash Transcript the Hellos 
     runningHash(session,&CH);
     runningHash(session,&EXT);
-    runningHashIO(session);
+    runningHashIOrewind(session);
     transcriptHash(session,&HH);        // HH = hash of clientHello+serverHello
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
@@ -518,7 +518,7 @@ static int TLS13_full(TLS_session *session)
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
     if (gotacertrequest)
     {
-#ifdef HAVE_A_CLIENT_CERT
+#if CLIENT_CERT != NOCERT
         TLS13_client_trust(session,nccsalgs,csigAlgs);
 #else
         sendClientCertificateChain(session,NULL);
@@ -606,8 +606,8 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad COOK={0,sizeof(cook),cook};   // Cookie
     char bnd[TLS_MAX_HASH];
     octad BND={0,sizeof(bnd),bnd};
-    char bl[TLS_MAX_HASH+3];
-    octad BL={0,sizeof(bl),bl};
+    //char bl[TLS_MAX_HASH+3];
+    //octad BL={0,sizeof(bl),bl};
     char psk[TLS_MAX_HASH];
     octad PSK={0,sizeof(psk),psk};      // Pre-shared key
     char bk[TLS_MAX_HASH];
@@ -651,7 +651,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         external_psk=false;
         deriveEarlySecrets(hashtype,&PSK,&ES,NULL,&BK);   // compute early secret and Binder Key from PSK
     }
-    log(IO_DEBUG,(char *)"PSK= ",NULL,0,&PSK); 
+    //log(IO_DEBUG,(char *)"PSK= ",NULL,0,&PSK); 
     log(IO_DEBUG,(char *)"Binder Key= ",NULL,0,&BK); 
     log(IO_DEBUG,(char *)"Early Secret= ",NULL,0,&ES);
 
@@ -670,22 +670,24 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 	
     if (have_early_data)
     {
-        addEarlyDataExt(&EXT); enc_ext_expt.early_data=true;                 // try sending client message as early data if allowed
+        addEarlyDataExt(&EXT); enc_ext_expt.early_data=true;   // try sending client message as early data if allowed
     }
     age=0;
     if (!external_psk)
     { // Its NOT an external pre-shared key
         time_ticket_used=(unsign32)millis();
         age=time_ticket_used-time_ticket_received; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
+//printf("Ticket age= %d\n",age);
+//age+=500;
         log(IO_DEBUG,(char *)"Ticket age= ",(char *)"%x",age,NULL);
         age+=age_obfuscator;
         log(IO_DEBUG,(char *)"obfuscated age = ",(char *)"%x",age,NULL);
     }
 
-    int extra=addPreSharedKeyExt(&EXT,age,&session->T.TICK,SAL_hashLen(hashtype));
+    int extra=addPreSharedKeyExt(&EXT,age,&session->T.TICK,SAL_hashLen(hashtype)); // must be last extension..
 
 // create and send Client Hello octad
-    sendClientHello(session,TLS1_2,&CH,true,&EXT,extra,false);  
+    sendClientHello(session,TLS1_2,&CH,true,&EXT,extra,false,false);  // don't transmit yet - wait for binders
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -693,17 +695,15 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 //
     runningHash(session,&CH); 
     runningHash(session,&EXT);
-
     transcriptHash(session,&HH);            // HH = hash of Truncated clientHello
-    log(IO_DEBUG,(char *)"Client Hello sent\n",NULL,0,NULL);
-
+    log(IO_DEBUG,(char *)"Hash of Truncated client Hello",NULL,0,&HH);
     deriveVeriferData(hashtype,&BND,&BK,&HH);
-    sendBinder(session,&BL,&BND);
-    runningHash(session,&BL);
+    sendBinder(session,&BND);               // Send Binders
+    log(IO_DEBUG,(char *)"Client Hello + Binder sent\n",NULL,0,NULL);
+    log(IO_DEBUG,(char *)"Binder= ",NULL,0,&BND);
+  
     transcriptHash(session,&HH);            // HH = hash of full clientHello
-
-    log(IO_DEBUG,(char *)"BND= ",NULL,0,&BND);
-    log(IO_DEBUG,(char *)"Sending Binders\n",NULL,0,NULL);   // only sending one
+    log(IO_DEBUG,(char *)"Hash of Completed client Hello",NULL,0,&HH);
 
     if (have_early_data)
         sendCCCS(session);
@@ -715,7 +715,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     if (have_early_data)
     {
         log(IO_APPLICATION,(char *)"Sending some early data\n",NULL,0,NULL);
-        sendClientMessage(session,APPLICATION,TLS1_2,EARLY,NULL);
+        sendClientMessage(session,APPLICATION,TLS1_2,EARLY,NULL,true);
 //
 //
 //   ----------------------------------------------------------> (Early Data)
@@ -731,7 +731,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 //
 //
     //runningHash(session,&session->IO); // Hashing Server Hello
-    runningHashIO(session); // Hashing Server Hello
+    runningHashIOrewind(session); // Hashing Server Hello
     transcriptHash(session,&HH);       // HH = hash of clientHello+serverHello
 
     if (pskid<0)
@@ -743,7 +743,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);
 #endif
-        return TLS_FAILURE;
+        return TLS_FAILURE; 
     }
 
 	if (pskid>0)
@@ -908,7 +908,7 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
 void TLS13_send(TLS_session *state,octad *GET)
 {
     log(IO_APPLICATION,(char *)"Sending Application Message\n\n",GET->val,0,NULL);
-    sendClientMessage(state,APPLICATION,TLS1_2,GET,NULL);
+    sendClientMessage(state,APPLICATION,TLS1_2,GET,NULL,true);
 }
 
 // Process Server records received post-handshake
@@ -921,6 +921,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
     ret r;
     int nce,nb,len,te,type,nticks,kur,rtn;//,ptr=0;
     bool fin=false;
+    //bool gotaticket=false;
     unsign32 time_ticket_received;
     octad TICK;  // Ticket raw data
     TICK.len=0;
@@ -947,6 +948,15 @@ int TLS13_recv(TLS_session *session,octad *REC)
                 switch (nb)
                 {
                 case TICKET :   // keep last ticket
+                   /* if (gotaticket)
+                    {
+                        session->ptr+=len;
+
+                        if (session->ptr==session->IO.len)
+                            fin=true; // record finished
+                        if (fin) break;
+                            continue;
+                    } */
                     r=parseoctadorPullptrX(session,&TICK,len);    // just copy out pointer to this
                     nticks++;
                     rtn=parseTicket(&TICK,(unsign32)millis(),&session->T);       // extract into ticket structure T, and keep for later use  
@@ -965,6 +975,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         fin=true; // record finished
                         //OCT_shift_left(&session->IO,session->ptr); // rewind IO buffer
                     }
+                    //gotaticket=true;
                     if (fin) break;
                     continue;
 
@@ -1015,6 +1026,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
     if (session->T.valid)
     { // if ticket received, recover PSK
         recoverPSK(session); // recover PSK using NONCE and RMS, and store it with ticket
+//printf("2. PSK.len= %d\n",session->T.PSK.len);
         session->T.origin=TLS_FULL_HANDSHAKE;
     } else {
         log(IO_PROTOCOL,(char *)"No ticket provided \n",NULL,0,NULL);

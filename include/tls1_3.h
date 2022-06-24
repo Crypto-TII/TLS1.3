@@ -27,23 +27,32 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define IO_DEBUG 3          /**< print lots of debug information + protocol progress + application progress */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application progress + bytes on the wire */
 
+// Cryptographic Environment
+#define TINY_ECC 0          /**< ECC keys only */
+#define TYPICAL 1           /**< Mixture of RSA and ECC - for use with most standard web servers */
+#define POST_QUANTUM 2      /**< Post quantum (Dilithium+Kyber?) */    
 
-//#ifdef TLS_ARDUINO
-//#define POPULAR_ROOT_CERTS        /**< Define this to limit root CAs to most popular only */
-//#endif
+// Client Certificate Chain + Key
+#define NOCERT 0  // Don't have a Client Cert
+#define RSA_SS 1  // self signed RSA
+#define ECC_SS 2  // self signed ECC
+#define DLT_SS 3  // self signed Dilithium
+#define HW_1 4    // Hardware 1
+#define HW_2 5    // Hardware 2
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
-#define HAVE_A_CLIENT_CERT        /**< Indicate willingness to authenticate with a cert plus signing key */
+#define CLIENT_CERT ECC_SS        /**< Indicate capability of authenticating with a cert plus signing key */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
 #define ALLOW_SELF_SIGNED		  /**< allow self-signed server cert */
+#define CRYPTO_SETTING TYPICAL   /**< Determine Cryptography settings */
 
-// Note that the IOBUFF is quite large, and therefore maybe better taken from the heap
+// Note that the IOBUFF, Certificates and crypto keys can be quite large, and therefore maybe better taken from the heap
 // on systems with a shallow stack. Define this to use the heap.
 
-#define SHALLOW_STACK           /**< Get large arrays from heap, else stack */
+//#define SHALLOW_STACK           /**< Get large arrays from heap, else stack */
 
 // comment out if no max record size. In practise TLS1.3 doesn't seem to support this record_size_limit extension, so use with caution
 // #define MAX_RECORD 1024     /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IO_SIZE below */
@@ -71,24 +80,52 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
 #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
 
+#if CRYPTO_SETTING==TYPICAL
+ #define TLS_MAX_CERT_SIZE 2048       /**< I checked - current max for root CAs is 2016 */
+ #define TLS_MAX_CERT_B64 2800        /**< In base64 - current max for root CAs is 2688 */
+ #define TLS_MAX_HELLO 1024           /**< Max client hello size (less extensions) KEX public key is largest component */
+
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 512        /**< Max signature public key size in bytes		RSA */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE 512     /**< Max signature private key size in bytes       RSA */
+ #define TLS_MAX_SIGNATURE_SIZE 512          /**< Max digital signature size in bytes           RSA */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes		ECC */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        ECC */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    ECC */
+#endif
+
+#if CRYPTO_SETTING == POST_QUANTUM
+ #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for Dilithium!*/
+ #define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
+ #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
+
+// These all blow up post quantum
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max signature public key size in bytes     DILITHIUM3 */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max signature private key size in bytes    DILITHIUM3 (maybe includes the public key?) */
+ #define TLS_MAX_SIGNATURE_SIZE 3296          /**< Max signature size in bytes                DILITHIUM3 */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 1184        /**< Max key exchange public key size in bytes  KYBER768   */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088     /**< Max key exchange (KEM) ciphertext size     KYBER768   */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes KYBER768   */
+#endif
+
+#if CRYPTO_SETTING==TINY_ECC
+ #define TLS_MAX_CERT_SIZE 2048      /**< I checked - current max for root CAs is 2016 */
+ #define TLS_MAX_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
+ #define TLS_MAX_HELLO 1024          /**< Max client hello size (less extensions) KEX public key is largest component */
+
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 133        /**< Max signature public key size in bytes		ECC */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE 66      /**< Max signature private key size in bytes       ECC */
+ #define TLS_MAX_SIGNATURE_SIZE 132          /**< Max signature size in bytes                   ECC */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes		ECC */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        ECC */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    ECC */
+#endif
+
 // Certificate size limits
 #define TLS_MAX_CHAIN_LEN 2             /**< Maximum Certificate chain length */
 #define TLS_MAX_CHAIN_SIZE (TLS_MAX_CHAIN_LEN*TLS_MAX_CERT_SIZE)
-#define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 */
-#define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
 
-#define TLS_MAX_HELLO 2048               /**< Max client hello size (less extensions) KEX public key is largest component */
-
-// These all blow up post quantum
-#define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max key exchange public key size in bytes		DILITHIUM3 PQ - 1952 */
-#define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max key exchange private key size in bytes    DILITHIUM3 PQ - 4000 (maybe includes the public key?) */
-#define TLS_MAX_SIGNATURE_SIZE 3296          /**< Max digital signature size in bytes  DILITHIUM3 PQ - 3293 */
-#define TLS_MAX_KEX_PUB_KEY_SIZE 1184        /**< Max key exchange public key size in bytes		KYBER768 PQ - 1184 */
-#define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088     /**< Max key exchange (KEM) ciphertext size        KYBER768 PQ - 1088 - assume less than Public Key ?*/
-#define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes    KYBER768 PQ - 2400 */
 #define TLS_MAX_SHARED_SECRET_SIZE 256	     /**< Max key exchange Shared secret size */
-
-#define TLS_MAX_TICKET_SIZE 256         /**< maximum resumption ticket size */
+#define TLS_MAX_TICKET_SIZE 512         /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
 
 #define TLS_MAX_ECC_FIELD 66            /**< Max ECC field size in bytes */
@@ -264,7 +301,7 @@ typedef struct
 {
     bool valid;                         /**< Is ticket valid? */
     char tick[TLS_MAX_TICKET_SIZE];     /**< Ticket bytes */
-    char nonce[TLS_MAX_KEY];            /**< 32-byte nonce */
+    char nonce[256];                    /**< nonce */
     char psk[TLS_MAX_HASH];             /**< pre-shared key */
     octad TICK;                         /**< Ticket or external PSK label as octad */
     octad NONCE;                        /**< Nonce as octad */

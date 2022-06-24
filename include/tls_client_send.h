@@ -151,16 +151,16 @@ extern int cipherSuites(octad *CS,int ncs,int *ciphers);
     @param version TLS version indication
     @param CM the client message to be sent
     @param EXT extensions to be added (or NULL if there are none)
+    @param flush transmit immediately if true
  */
-extern void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT);
+extern void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT,bool flush);
 
 /**	@brief Send a preshared key binder message to the Server
  *
 	@param session the TLS session structure
-    @param B workspace octad in which to construct binder message
     @param BND binding HMAC of truncated transcript hash
  */
-extern void sendBinder(TLS_session *session,octad *B,octad *BND);
+extern void sendBinder(TLS_session *session,octad *BND);
 
 /**	@brief Prepare and send Client Hello message to the Server, appending prepared extensions
  *
@@ -171,8 +171,9 @@ extern void sendBinder(TLS_session *session,octad *B,octad *BND);
     @param EXTENSIONS pre-prepared extensions
     @param extra length of preshared key binder to be sent later
     @param resume true if this hello is for handshae resumption
+    @param flush transmit immediately
  */
-extern void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agreed,octad *EXTENSIONS,int extra,bool resume);
+extern void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agreed,octad *EXTENSIONS,int extra,bool resume,bool flush);
 
 /**	@brief Prepare and send an Alert message to the Server
  *

@@ -5,7 +5,7 @@
 // Root Certificate Store begins here
 //
 
-// First cert is our own experimental DILITHIUM3 root certificate
+// First cert is our own experimental DILITHIUM3 root certificate (Remove it to save memory)
 // Second is our own secp256r1 root certificate
 
 pub const CERT_STORE_SIZE:usize=138+2;

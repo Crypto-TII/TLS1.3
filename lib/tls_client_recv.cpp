@@ -418,7 +418,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     }
 
 // Update Transcript hash and rewind IO buffer
-    runningHashIO(session);
+    runningHashIOrewind(session);
 
     if (unexp>0)    
         log(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
@@ -492,7 +492,7 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
     }
 
 // Update Transcript hash and rewind IO buffer
-    runningHashIO(session);
+    runningHashIOrewind(session);
 
     if (nalgs==0) { // must specify at least one signature algorithm
         r.err=UNRECOGNIZED_EXT;
@@ -538,12 +538,13 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG
 		return r;
 	}
 
+
     r=parseoctadorPullptrX(session,&CERTCHAIN,len); if (r.err) return r; // get pointer to certificate chain
 
 // Update Transcript hash and rewind IO buffer
-    runningHashIO(session);
-
+    runningHashIO(session);     // Got to do this here, as checkServerCertChain may modify IO buffer contents
     r.err=checkServerCertChain(&CERTCHAIN,session->hostname,PUBKEY,SIG);
+    rewindIO(session); // now save to rewind
 
     r.val=CERTIFICATE;
     return r;
@@ -585,7 +586,7 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
     }
 
 // Update Transcript hash and rewind IO buffer
-    runningHashIO(session);
+    runningHashIOrewind(session);
 
     r.val=CERT_VERIFY;
     return r;
@@ -612,7 +613,7 @@ ret getServerFinished(TLS_session *session,octad *HFIN)
     r=parseoctadorPull(session,HFIN,len); if (r.err) return r;
 
 // Update Transcript hash and rewind IO buffer
-    runningHashIO(session);
+    runningHashIOrewind(session);
 
     r.val=FINISHED;
     return r;
@@ -721,11 +722,13 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 // process extensions
     while (extLen>0)
     {
+//printf("Extlen = %d\n",extLen);
         r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
         extLen-=2;
         r=parseIntorPull(session,2); tmplen=r.val; if (r.err) break;
         extLen-=2;
         extLen-=tmplen;
+//printf("Ext = %d\n",ext);
         switch (ext)
         {
         case KEY_SHARE :

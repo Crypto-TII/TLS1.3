@@ -91,7 +91,7 @@ fn handle_client(stream: TcpStream,port: u16) {
             if r>0 {
                 mslen=r as usize;
              } else {
-                println!("Error");
+                println!("No message received");
                 return;
             }
         }
@@ -168,6 +168,20 @@ fn main() {
     let listener = TcpListener::bind("0.0.0.0:4433").unwrap();
     // accept connections and process them, spawning a new thread for each one
     println!("Server listening on port 4433");
+
+    if CRYPTO_SETTING==TYPICAL {
+        println!("Configured for typical RSA/ECC TLS client connections");
+    }
+    if CRYPTO_SETTING==TINY_ECC {
+        println!("Configured for Small ECC TLS client connections");
+    }
+    if CRYPTO_SETTING==POST_QUANTUM {
+        println!("Configured for Post Quantum TLS client connections");
+    }
+    if CERTIFICATE_REQUEST {
+        println!("Looking for Client Authentication");
+    }
+
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {

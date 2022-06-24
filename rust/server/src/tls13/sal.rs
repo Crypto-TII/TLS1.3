@@ -144,34 +144,44 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
 
 // provide list of supported key exchange groups
 pub fn groups(groups: &mut [u16]) -> usize {
-    let n=3;
+    let mut n=3;
     groups[0]=config::X25519;
     groups[1]=config::SECP256R1;
     groups[2]=config::SECP384R1;
-    groups[3]=config::KYBER768;
-    groups[4]=config::SIDH;
+    if config::CRYPTO_SETTING==config::POST_QUANTUM {
+        groups[3]=config::KYBER768; n+=1;
+        groups[4]=config::SIDH; n+=1;
+    }
     return n;
 }
 
 // provide list of supported signature algorithms (for TLS)
 pub fn sigs(sig_algs: &mut [u16]) -> usize {
-    let n=3;
+    let mut n=2;
     sig_algs[0]=config::ECDSA_SECP256R1_SHA256;
-    sig_algs[1]=config::RSA_PSS_RSAE_SHA256;
-    sig_algs[2]=config::ECDSA_SECP384R1_SHA384;
-    sig_algs[3]=config::DILITHIUM3;
+    sig_algs[1]=config::ECDSA_SECP384R1_SHA384;
+    if config::CRYPTO_SETTING>config::TINY_ECC {
+        sig_algs[2]=config::RSA_PSS_RSAE_SHA256; n+=1;
+    }
+    if config::CRYPTO_SETTING==config::POST_QUANTUM {
+        sig_algs[3]=config::DILITHIUM3; n+=1;
+    }
     return n;
 }
 
 // provide list of supported signature algorithms (for Certificates)
 pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
-    let n=5;
+    let mut n=2;
     sig_algs_cert[0]=config::ECDSA_SECP256R1_SHA256;
-    sig_algs_cert[1]=config::RSA_PKCS1_SHA256;
-    sig_algs_cert[2]=config::ECDSA_SECP384R1_SHA384;
-    sig_algs_cert[3]=config::RSA_PKCS1_SHA384;
-    sig_algs_cert[4]=config::RSA_PKCS1_SHA512;   
-    sig_algs_cert[5]=config::DILITHIUM3; 
+    sig_algs_cert[1]=config::ECDSA_SECP384R1_SHA384;
+    if config::CRYPTO_SETTING>config::TINY_ECC {
+        sig_algs_cert[2]=config::RSA_PKCS1_SHA256; n+=1;
+        sig_algs_cert[3]=config::RSA_PKCS1_SHA384; n+=1;
+        sig_algs_cert[4]=config::RSA_PKCS1_SHA512; n+=1;
+    }
+    if config::CRYPTO_SETTING==config::POST_QUANTUM {
+        sig_algs_cert[5]=config::DILITHIUM3; n+=1;   
+    }
     return n;
 }
 

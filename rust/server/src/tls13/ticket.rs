@@ -21,7 +21,7 @@ pub struct TICKET {
     ticket_lifetime:u32,
     ticket_age_add:u32,
     nnlen: usize
-    nonce: [u8;MAX_KEY],
+    nonce: [u8;256],
     tklen: usize,
     tick: [u8;MAX_TICKET_SIZE],
     max_early_data: u32,
@@ -41,7 +41,7 @@ impl TICKET {
             ticket_lifetime:TICKET_LIFETIME,
             ticket_age_add: sal::random_word(),
             nnlen: 32,
-            nonce: [0;MAX_KEY],
+            nonce: [0;32],
             eslen: 0,
             encrypted_state: [0;MAX_TICKET_SIZE],
             max_early_data: MAX_EARLY_DATA

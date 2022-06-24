@@ -3,6 +3,8 @@
 // My private key and my certificate
 //
 
+// ECC-SS keys
+
 pub const MYPRIVATE: &str = 
 "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgkYO7LpVcia9BoJSQ\
 Ls2rOGluxjkah3LzRChLGt8oyXShRANCAAQpVUJz1HzNuFR9QfLaQz5eO9BMSrHT\

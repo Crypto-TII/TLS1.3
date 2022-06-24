@@ -22,8 +22,18 @@ void runningHash(TLS_session *session,octad *O)
 void runningHashIO(TLS_session *session)
 {
     SAL_hashProcessArray(&session->tlshash,session->IO.val,session->ptr);
+}
+
+void rewindIO(TLS_session *session)
+{
     OCT_shift_left(&session->IO,session->ptr);  // Shift octad left - rewind IO buffer to start 
     session->ptr=0;
+}
+
+void runningHashIOrewind(TLS_session *session)
+{
+    runningHashIO(session);
+    rewindIO(session);
 }
 
 // Output transcript hash 
