@@ -164,7 +164,7 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
 
 // get server credentials
 pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
-    let mut sc:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];
+    let mut sc:[u8;MAX_SERVER_CHAIN_SIZE]=[0;MAX_SERVER_CHAIN_SIZE];
 // first get certificate chain
 // Should check against hostname to pick right certificate - we could have more than one
 

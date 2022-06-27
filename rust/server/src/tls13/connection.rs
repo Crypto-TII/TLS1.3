@@ -1406,7 +1406,7 @@ impl SESSION {
             }
 
             let mut server_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
-            let mut server_certchain:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];   // assume max chain length of 2
+            let mut server_certchain:[u8;MAX_SERVER_CHAIN_SIZE]=[0;MAX_SERVER_CHAIN_SIZE];   // assume max chain length of 2
             let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
             let mut sclen=0;
             let mut sklen=0;
@@ -1456,7 +1456,7 @@ log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT+SF) YYY = ",0,Some(hh_s));
     // Server now receives certificate chain and verifier from Client. Need to parse these out, check CA signature on the cert
     // (maybe its self-signed), extract public key from cert, and use this public key to check client's signature 
     // on the "verifier". Note Certificate signature might use old methods, but client will use PSS padding for its signature (or ECC).
-                let mut cpk: [u8; MAX_KEX_PUBLIC_KEY]=[0;MAX_KEX_PUBLIC_KEY];
+                let mut cpk: [u8; MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];
                 let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
                 let mut cpklen=0;
                 rtn=self.get_check_client_certificatechain(&mut cpk,&mut cpklen);            // get full name

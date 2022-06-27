@@ -986,7 +986,7 @@ impl SESSION {
         self.favourite_group=self.t.favourite_group;
         let origin=self.t.origin;
 
-        if max_early_data>0 {
+        if TRY_EARLY_DATA && max_early_data>0 {
             if let Some(_) = early {
                 have_early_data=true; // early data allowed - and I have some
             }
@@ -1484,7 +1484,7 @@ impl SESSION {
 // client supplies trust to server, given servers list of acceptable signature types
     fn client_trust(&mut self,csigalgs: &[u16] ) {
         let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
-        let mut client_certchain:[u8;MAX_CHAIN_SIZE]=[0;MAX_CHAIN_SIZE];
+        let mut client_certchain:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
         let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
 
         let hash_type=sal::hash_type(self.cipher_suite);

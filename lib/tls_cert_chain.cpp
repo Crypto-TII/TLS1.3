@@ -214,7 +214,10 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
                 b[i++]=line[j];
             b[i]=0;
         }
+//printf("b len= %d\n",i);
         OCT_from_base64(&SC,b);
+
+//printf("SC len= %d\n",SC.len);
 
 // add to Certificate Chain
         OCT_append_int(CERTCHAIN,SC.len,3);
@@ -227,6 +230,10 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
             first=false;
         }
     }
+
+
+//printf("Certchain len= %d\n",CERTCHAIN->len);
+
 
     if (myprivate!=NULL)
     { // unless private key is in protected hardware, so SAL has it already
@@ -243,7 +250,14 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
         OCT_from_base64(&SC,b);
 
         X509_extract_private_key(&SC, PRIVKEY); // returns signature type
+
+//printf("Privkey len= %d\n",PRIVKEY->len);
+
     }
+
+
+
+
 #ifdef SHALLOW_STACK
     free(b);
 #endif

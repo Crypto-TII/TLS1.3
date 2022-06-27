@@ -57,8 +57,10 @@ pub const MAX_KEX_SECRET_KEY: usize = 2400;         // Maximum key exchange Secr
 pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
 
 // Certificate size limits
-pub const MAX_CHAIN_LEN:usize = 2;                  // Maximum Chain length
-pub const MAX_CHAIN_SIZE:usize = MAX_CHAIN_LEN*MAX_CERT_SIZE;
+//pub const MAX_SERVER_CHAIN_LEN:usize = 2;                  // Maximum Server Chain length (omit Root Cert)
+//pub const MAX_SERVER_CHAIN_SIZE:usize = MAX_SERVER_CHAIN_LEN*MAX_CERT_SIZE;
+pub const MAX_CLIENT_CHAIN_LEN:usize = 1;                  // Maximum Client Chain length
+pub const MAX_CLIENT_CHAIN_SIZE:usize = MAX_CLIENT_CHAIN_LEN*MAX_CERT_SIZE;
 
 pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
 pub const MAX_CIPHER_SUITES: usize = 5;
@@ -240,4 +242,5 @@ pub const HAVE_CLIENT_CERT:bool= true;     // client-side authentication
 pub const THIS_YEAR: usize = 2022;         // Set to this year - crudely used to deprecate old certificates 
 pub const TLS_PROTOCOL: bool=true;         // ALPN extension
 pub const APPLICATION_PROTOCOL:&str="http/1.1";
+pub const TRY_EARLY_DATA:bool=true;        // Try sending early data on resumption
 

@@ -131,6 +131,8 @@ static void nameSigAlg(int sigAlg)
 void myloop( void *pvParameters );
 #endif
 
+#define STACKSIZE 65536
+
 // This rather strange program structure is required by the Arduino development environment
 // A hidden main() functions calls setup() once, and then repeatedly calls loop()
 // This actually makes a lot of sense in an embedded environment
@@ -157,13 +159,76 @@ void setup()
     xTaskCreatePinnedToCore(
         myloop
         ,  "client"   // A name just for humans
-        ,  65536  // This stack size can be checked & adjusted by reading the Stack Highwater
+        ,  STACKSIZE  // This stack size can be checked & adjusted by reading the Stack Highwater
         ,  NULL
         ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
         ,  NULL 
         ,  ARDUINO_RUNNING_CORE);
 #endif
 
+}
+
+void testTLSconnect(Socket *client,char *hostname,int port)
+{
+    char get[256];
+    octad GET={0,sizeof(get),get};     // initial message
+    char resp[40];
+    octad RESP={0,sizeof(resp),resp};  // response
+    int start,elapsed;
+    TLS_session state=TLS13_start(client,hostname);
+    TLS_session *session=&state;
+    log(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
+
+    make_client_message(&GET,hostname);
+
+// make connection using full handshake...
+    if (!client->connect(hostname,port))
+    {
+        log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
+        while (Serial.available() == 0) {}
+        Serial.read(); 
+ 		return;
+    }
+
+    start = millis();
+    bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
+    if (success) {
+        TLS13_recv(session,&RESP);    // Server response + ticket
+        if (RESP.len>0)
+            log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+        TLS13_clean(session);   // but leave ticket intact
+    }
+// drop the connection..
+    client->stop();
+    elapsed = (millis() - start);
+    Serial.print("Full TLS connection (ms)= "); Serial.println(elapsed);
+
+    log(IO_PROTOCOL,(char *)"Connection closed\n\n",NULL,0,NULL);
+    delay(5000);
+
+// try to resume connection using...
+    if (!client->connect(hostname,port))
+    {
+        log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
+        while (Serial.available() == 0) {}
+        Serial.read(); 
+ 		return;
+    }
+
+    start = millis();
+    success=TLS13_connect(session,&GET);  // Resumption handshake and connection to server
+    if (success) {
+        TLS13_recv(session,&RESP);    // Server response + ticket
+        log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+    } else {
+        log(IO_APPLICATION,(char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
+    }
+    client->stop();
+    elapsed = (millis() - start);
+    Serial.print("Resumed TLS connection (ms)= "); Serial.println(elapsed);
+// dropped the connection..
+    log(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
+    TLS13_end(session);
 }
 
 #ifdef ESP32
@@ -174,22 +239,16 @@ void loop()
 
 void myloop(void *pvParameters) {
     (void) pvParameters;
-    TLS_session state;
-    TLS_session *session=&state;
     while (1)
     {
 #else
 void loop() {
-    TLS_session state;
-    TLS_session *session=&state;
 #endif
-    char get[256];
-    octad GET={0,sizeof(get),get};     // initial message
-    char resp[40];
-    octad RESP={0,sizeof(resp),resp};  // response
+
     Socket client;
     int i,len,port=443;
     char hostname[128];
+    int start,elapsed;
 
 // Initialise Security Abstraction Layer
     bool retn=SAL_initLib();
@@ -202,12 +261,11 @@ void loop() {
 
     Serial.print("Enter URL (e.g. www.bbc.co.uk) = ");
     len=readLine(hostname);
-
+    Serial.println("");
     if (len==0)
     {
         int ns,iterations;
         int nt[20];
-        int start,elapsed;
         Serial.print("\nCryptography by "); Serial.println(SAL_name());
         ns=SAL_groups(nt);
         Serial.println("SAL supported Key Exchange groups");
@@ -287,63 +345,17 @@ void loop() {
         port = atoi(port_part);
         hostname[i]=0;
     }    
+#ifdef ESP32
+    int start_stack=STACKSIZE-uxTaskGetStackHighWaterMark(NULL);
+    Serial.print("Initial Stack memory used ");     // useful information!
+    Serial.println(start_stack);
+#endif
 
-    state=TLS13_start(&client,hostname);
-    log(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
-
-    make_client_message(&GET,hostname);
-
-// make connection using full handshake...
-    if (!client.connect(hostname,port))
-    {
-        log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
-        while (Serial.available() == 0) {}
-        Serial.read(); 
- 		return;
-    }
-
-    start = millis();
-    bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
-    if (success) {
-        TLS13_recv(session,&RESP);    // Server response + ticket
-        if (RESP.len>0)
-            log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-        TLS13_clean(session);   // but leave ticket intact
-    }
-// drop the connection..
-    client.stop();
-    elapsed = (millis() - start);
-    Serial.print("Full TLS connection (ms)= "); Serial.println(elapsed);
-
-    log(IO_PROTOCOL,(char *)"Connection closed\n\n",NULL,0,NULL);
-    delay(5000);
-
-// try to resume connection using...
-    if (!client.connect(hostname,port))
-    {
-        log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
-        while (Serial.available() == 0) {}
-        Serial.read(); 
- 		return;
-    }
-
-    start = millis();
-    success=TLS13_connect(session,&GET);  // Resumption handshake and connection to server
-    if (success) {
-        TLS13_recv(session,&RESP);    // Server response + ticket
-        log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-    } else {
-        log(IO_APPLICATION,(char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
-    }
-    client.stop();
-    elapsed = (millis() - start);
-    Serial.print("Resumed TLS connection (ms)= "); Serial.println(elapsed);
-// dropped the connection..
-    log(IO_PROTOCOL,(char *)"Connection closed\n",NULL,0,NULL);
+    testTLSconnect(&client,hostname,port);
 
 #ifdef ESP32
-    Serial.print("Amount of unused stack memory ");     // useful information!
-    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    Serial.print("Stack memory used ");     // useful information!
+    Serial.println(STACKSIZE-uxTaskGetStackHighWaterMark(NULL)-start_stack);
     SAL_endLib();
     delay(5000);
     }
@@ -351,7 +363,6 @@ void loop() {
     SAL_endLib();
     delay(5000);
 #endif
-    TLS13_end(session);
     while (Serial.available() == 0) {}
     Serial.read(); 
 }

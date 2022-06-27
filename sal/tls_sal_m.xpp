@@ -711,26 +711,36 @@ static void RSA_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 // SAL signature verification
 bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
 {
+    bool result;
     switch (sigAlg) {
         case RSA_PKCS1_SHA256 :
-            return RSA_PKCS15_VERIFY(32,BUFF,SIG,PUBKEY);
+            result= RSA_PKCS15_VERIFY(32,BUFF,SIG,PUBKEY);
+            break;
         case ECDSA_SECP256R1_SHA256 :
-            return SECP256R1_ECDSA_VERIFY(32,BUFF,SIG,PUBKEY); 
+            result= SECP256R1_ECDSA_VERIFY(32,BUFF,SIG,PUBKEY); 
+            break;
         case RSA_PKCS1_SHA384 :
-            return RSA_PKCS15_VERIFY(48,BUFF,SIG,PUBKEY); 
+            result= RSA_PKCS15_VERIFY(48,BUFF,SIG,PUBKEY);
+            break;        
         case ECDSA_SECP384R1_SHA384 :
-            return SECP384R1_ECDSA_VERIFY(48,BUFF,SIG,PUBKEY);
+            result= SECP384R1_ECDSA_VERIFY(48,BUFF,SIG,PUBKEY);
+            break;
         case RSA_PKCS1_SHA512 :
-            return RSA_PKCS15_VERIFY(64,BUFF,SIG,PUBKEY); 
+            result= RSA_PKCS15_VERIFY(64,BUFF,SIG,PUBKEY);
+            break;        
         case RSA_PSS_RSAE_SHA256:
-            return RSA_PSS_RSAE_VERIFY(32,BUFF,SIG,PUBKEY);
+            result= RSA_PSS_RSAE_VERIFY(32,BUFF,SIG,PUBKEY);
+            break;
         case ED25519:
-            return Ed25519_VERIFY(BUFF,SIG,PUBKEY);
+            result= Ed25519_VERIFY(BUFF,SIG,PUBKEY);
+            break;
         case DILITHIUM3:
-            return DILITHIUM3_VERIFY(BUFF,SIG,PUBKEY);
+            result= DILITHIUM3_VERIFY(BUFF,SIG,PUBKEY);
+            break;
         default:
-            return false;
+            result=false;
     }
+    return result;
 }
 
 // Form Transcript Signature 

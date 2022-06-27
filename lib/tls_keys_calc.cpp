@@ -439,7 +439,7 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     OCT_append_octad(&CCV,H);    // add Transcript Hash 
 
     SAL_tlsSignature(sigAlg,KEY,&CCV,CCVSIG);
-
+//printf("KEY len= %d\n",KEY->len);
 // adjustment for ECDSA signatures
     if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384)
     {
@@ -448,6 +448,9 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
             hts=TLS_SHA384_T;
         parse_in_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,CCVSIG);
     }
+//printf("SIG len= %d\n",CCVSIG->len);
+
+
     return;
 }
 

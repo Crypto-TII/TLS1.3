@@ -48,6 +48,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
 #define ALLOW_SELF_SIGNED		  /**< allow self-signed server cert */
 #define CRYPTO_SETTING TYPICAL   /**< Determine Cryptography settings */
+#define TRY_EARLY_DATA           /**< Try to send early data on resumptions */
 
 // Note that the IOBUFF, Certificates and crypto keys can be quite large, and therefore maybe better taken from the heap
 // on systems with a shallow stack. Define this to use the heap.
@@ -76,11 +77,11 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Max Frag length must be less than TLS_MAX_IO_SIZE
 #define TLS_MAX_FRAG 4					/**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
 
-#define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
-#define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
-#define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
-
 #if CRYPTO_SETTING==TYPICAL
+ #define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
+ #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
+
  #define TLS_MAX_CERT_SIZE 2048       /**< I checked - current max for root CAs is 2016 */
  #define TLS_MAX_CERT_B64 2800        /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 1024           /**< Max client hello size (less extensions) KEX public key is largest component */
@@ -94,6 +95,11 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #endif
 
 #if CRYPTO_SETTING == POST_QUANTUM
+
+ #define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
+ #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
+
  #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for Dilithium!*/
  #define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
@@ -108,6 +114,10 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #endif
 
 #if CRYPTO_SETTING==TINY_ECC
+ #define TLS_MAX_IO_SIZE (4096+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_PLAIN_FRAG 4096		 /**< Max Plaintext Fragment size */
+ #define TLS_MAX_CIPHER_FRAG (4096+256)  /**< Max Ciphertext Fragment size */
+
  #define TLS_MAX_CERT_SIZE 2048      /**< I checked - current max for root CAs is 2016 */
  #define TLS_MAX_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 1024          /**< Max client hello size (less extensions) KEX public key is largest component */
@@ -121,11 +131,15 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #endif
 
 // Certificate size limits
-#define TLS_MAX_CHAIN_LEN 2             /**< Maximum Certificate chain length */
-#define TLS_MAX_CHAIN_SIZE (TLS_MAX_CHAIN_LEN*TLS_MAX_CERT_SIZE)
+#define TLS_MAX_SERVER_CHAIN_LEN 2             /**< Maximum Server Certificate chain length - omitting root CA */
+#define TLS_MAX_SERVER_CHAIN_SIZE (TLS_MAX_SERVER_CHAIN_LEN*TLS_MAX_CERT_SIZE)
+#define TLS_MAX_CLIENT_CHAIN_LEN 1             /**< Maximum Client Certificate chain length - one self signed here */
+#define TLS_MAX_CLIENT_CHAIN_SIZE (TLS_MAX_CLIENT_CHAIN_LEN*TLS_MAX_CERT_SIZE)
 
-#define TLS_MAX_SHARED_SECRET_SIZE 256	     /**< Max key exchange Shared secret size */
-#define TLS_MAX_TICKET_SIZE 512         /**< maximum resumption ticket size */
+
+
+#define TLS_MAX_SHARED_SECRET_SIZE 256	 /**< Max key exchange Shared secret size */
+#define TLS_MAX_TICKET_SIZE 512          /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
 
 #define TLS_MAX_ECC_FIELD 66            /**< Max ECC field size in bytes */

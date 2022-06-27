@@ -410,12 +410,12 @@ static void TLS13_client_trust(TLS_session *session,int nsa,int *sa)
 
 #ifdef SHALLOW_STACK
     octad CLIENT_KEY={0,TLS_MAX_SIG_SECRET_KEY_SIZE,(char *)malloc(TLS_MAX_SIG_SECRET_KEY_SIZE)};   // Client secret key
-    octad CLIENT_CERTCHAIN={0,TLS_MAX_CHAIN_SIZE,(char *)malloc(TLS_MAX_CHAIN_SIZE)};   // Client certificate chain
+    octad CLIENT_CERTCHAIN={0,TLS_MAX_CLIENT_CHAIN_SIZE,(char *)malloc(TLS_MAX_CLIENT_CHAIN_SIZE)};   // Client certificate chain
     octad CCVSIG={0,TLS_MAX_SIGNATURE_SIZE,(char *)malloc(TLS_MAX_SIGNATURE_SIZE)}; 
 #else 
     char client_key[TLS_MAX_SIG_SECRET_KEY_SIZE];           
     octad CLIENT_KEY={0,sizeof(client_key),client_key};   // Client secret key
-    char client_certchain[TLS_MAX_CHAIN_SIZE];           
+    char client_certchain[TLS_MAX_CLIENT_CHAIN_SIZE];           
     octad CLIENT_CERTCHAIN={0,sizeof(client_certchain),client_certchain};   // Client certificate chain
     char ccvsig[TLS_MAX_SIGNATURE_SIZE];
     octad CCVSIG={0,sizeof(ccvsig),ccvsig};           // Client's digital signature on transcript
@@ -516,6 +516,9 @@ static int TLS13_full(TLS_session *session)
 
 // Now its the clients turn to respond
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
+    OCT_kill(&session->IO);
+    session->ptr=0;
+
     if (gotacertrequest)
     {
 #if CLIENT_CERT != NOCERT
@@ -617,7 +620,11 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     int origin,lifetime=0;
     unsign32 age,age_obfuscator=0;
     unsign32 max_early_data=0;
+#ifdef TRY_EARLY_DATA
     bool have_early_data=true;       // Hope to send client message as early data
+#else
+    bool have_early_data=false;
+#endif
     bool external_psk=false;
     ee_status enc_ext_resp={false,false,false,false};  // encrypted extensions responses 
     ee_status enc_ext_expt={false,false,false,false};  // encrypted extensions expectations
@@ -698,7 +705,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     transcriptHash(session,&HH);            // HH = hash of Truncated clientHello
     log(IO_DEBUG,(char *)"Hash of Truncated client Hello",NULL,0,&HH);
     deriveVeriferData(hashtype,&BND,&BK,&HH);
-    sendBinder(session,&BND);               // Send Binders
+    sendBinder(session,&BND,true);               // Send Binders
     log(IO_DEBUG,(char *)"Client Hello + Binder sent\n",NULL,0,NULL);
     log(IO_DEBUG,(char *)"Binder= ",NULL,0,&BND);
   
@@ -721,7 +728,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 //   ----------------------------------------------------------> (Early Data)
 //
 //
-    }
+    } 
 
 // Process Server Hello
     rtn=getServerHello(session,kex,&COOK,&SPK,pskid);

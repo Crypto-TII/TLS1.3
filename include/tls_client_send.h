@@ -144,6 +144,12 @@ extern int clientRandom(octad *RN);
  */
 extern int cipherSuites(octad *CS,int ncs,int *ciphers); 
 
+/**	@brief Flush IO buffer
+ *
+	@param session the TLS session structure
+ */
+extern void sendFlushIO(TLS_session *session);
+
 /**	@brief Send a generic client message (as a single record) to the Server
  *
 	@param session the TLS session structure
@@ -159,8 +165,9 @@ extern void sendClientMessage(TLS_session *session,int rectype,int version,octad
  *
 	@param session the TLS session structure
     @param BND binding HMAC of truncated transcript hash
+    @param flush transmit immediately if true
  */
-extern void sendBinder(TLS_session *session,octad *BND);
+extern void sendBinder(TLS_session *session,octad *BND,bool flush);
 
 /**	@brief Prepare and send Client Hello message to the Server, appending prepared extensions
  *

@@ -178,6 +178,14 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
     return CS->len;
 }
 
+// flush out IO buffer
+void sendFlushIO(TLS_session *session)
+{
+    sendOctad(session->sockptr,&session->IO);     // transmit it
+    OCT_kill(&session->IO);
+    session->ptr=0;
+}
+
 // ALL Client to Server output goes via this function 
 // Send a client message CM|EXT (as a single record). AEAD encrypted if send!=NULL
 // May need to break up into multiple records??
@@ -220,11 +228,7 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
         OCT_append_octad(&session->IO,&TAG);
     }
     if (flush)
-    {
-        sendOctad(session->sockptr,&session->IO);     // transmit it
-        OCT_kill(&session->IO);
-        session->ptr=0;
-    }
+        sendFlushIO(session);
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
@@ -274,7 +278,7 @@ void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agr
 }
 
 // Send "binder",
-void sendBinder(TLS_session *session,octad *BND)
+void sendBinder(TLS_session *session,octad *BND,bool flush)
 {
     char b[TLS_MAX_HASH+3];
     octad B={0,sizeof(b),b};
@@ -284,7 +288,7 @@ void sendBinder(TLS_session *session,octad *BND)
     OCT_append_int(&B,BND->len,1);
     OCT_append_octad(&B,BND);
     runningHash(session,&B);
-    sendClientMessage(session,HSHAKE,TLS1_2,&B,NULL,true);
+    sendClientMessage(session,HSHAKE,TLS1_2,&B,NULL,flush);
 }
 
 // send client alert - might be encrypted if send!=NULL
@@ -348,7 +352,15 @@ void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN)
         runningHash(session,&PT);
         runningHash(session,CERTCHAIN);
     }
-    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CERTCHAIN,true);
+    if (CERTCHAIN->len>4000)
+    { // Break up exceptionally big record that can arise for PQ certs
+        octad FIRST={2048,2048,&CERTCHAIN->val[0]};
+        octad SECOND={CERTCHAIN->len-2048,CERTCHAIN->max-2048,&CERTCHAIN->val[2048]};
+        sendClientMessage(session,HSHAKE,TLS1_2,&PT,&FIRST,true);
+        sendClientMessage(session,HSHAKE,TLS1_2,&SECOND,NULL,true);
+    } else {
+        sendClientMessage(session,HSHAKE,TLS1_2,&PT,CERTCHAIN,true);
+    }
 } 
 
 // if early data was accepted, send this to indicate early data is finished

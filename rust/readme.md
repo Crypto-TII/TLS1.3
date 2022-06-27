@@ -41,7 +41,7 @@ Next fire up your favourite browser and navigate to
 
 	https://127.0.0.1:4433
 
-The browser connects to the local server and displays a message. Observe the number of TLS connections actually made by the browser. In this cased the ticket is stored as a browser cookie.
+The browser connects to the local server and displays a message. Observe the number of TLS connections actually made by the browser. In this case the ticket is stored as a browser cookie.
 
 
 
