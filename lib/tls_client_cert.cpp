@@ -48,7 +48,7 @@ const char *mycert=(char *)
 "N3LS48xHSqpLhHlVnvOvWqyhE8v+ZX4Jzlo7Z9LGOG537EeldBeGjYijAjAAMAoGCCqGSM49BAMC\n"
 "A0kAMEYCIQC9O1l85YX1+9vZ0t/SHQ3zFH5e7Vc8XtrZ+mTtMc5riwIhAL/SektrG3C0JwII0VV5\n"
 "pSR9RRnuwo810km81P4S56/m\n"
-"-----END CERTIFICATE-----\n"
+"-----END CERTIFICATE-----\n";
 #endif
 
 #if CLIENT_CERT == HW_2
@@ -63,7 +63,7 @@ const char *mycert=(char *)
 "NDLBHfvIPZh05hoVnR3LO4+Ho91dMbN38tVM71opoTzPtIWrj5L6WI6jAjAAMAoGCCqGSM49BAMC\n"
 "A0kAMEYCIQDgqosqLRntTyehtDCuWcY6WP41sfwx1k78W6EkLpoDyQIhAPzxQawMjI9mLeePF6Kk\n"
 "BzPRSurX7+nLFDC6u3pfmEY8\n"
-"-----END CERTIFICATE-----\n"
+"-----END CERTIFICATE-----\n";
 #endif
 
 /*
