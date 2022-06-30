@@ -57,7 +57,6 @@ extern ret parseoctadptr(octad *E,int len,octad *M,int &ptr);
 /**	@brief Read a record from the Server, a fragment of a full protocol message
  *
 	@param session the TLS session structure
-    @param IO the received record, a protocol message fragment
 	@return a positive indication of the record type, or a negative error return
  */
 extern int getServerFragment(TLS_session *session);
@@ -66,7 +65,6 @@ extern int getServerFragment(TLS_session *session);
  *
 	@param session the TLS session structure
 	@param len the number of bytes in integer
-    @param ptr a pointer into IO, which advances after use
 	@return the unsigned integer, and an error flag
  */
 extern ret parseIntorPull(TLS_session *session,int len);
@@ -76,7 +74,6 @@ extern ret parseIntorPull(TLS_session *session,int len);
 	@param session the TLS session structure
     @param O the output octad
     @param len the expected length of the output octad O
-    @param ptr a pointer into IO, which advances after use
 	@return the actual length of O extracted, and an error flag
  */
 extern ret parseoctadorPull(TLS_session *session,octad *O,int len);
@@ -87,7 +84,6 @@ extern ret parseoctadorPull(TLS_session *session,octad *O,int len);
 	@param session the TLS session structure
     @param o the output bytes
     @param len the expected length of the output
-    @param ptr a pointer into IO, which advances after use
 	@return the actual length of o extracted, and an error flag
  */
 extern ret parsebytesorPull(TLS_session *session,char *o,int len);
@@ -97,7 +93,6 @@ extern ret parsebytesorPull(TLS_session *session,char *o,int len);
 	@param session the TLS session structure
     @param O a pointer to an octad contained within an octad IO
     @param len the expected length of the octad O
-    @param ptr a pointer into IO, which advances after use
 	@return the actual length of O extracted, and an error flag
  */
 extern ret parseoctadorPullptrX(TLS_session *session,octad *O,int len);
@@ -137,7 +132,7 @@ extern ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg);
 
 /**	@brief Get final handshake message from Server, a HMAC on the transcript hash
  *
-	@param client the socket connection to the Server
+	@param session the TLS session structure
     @param HFIN an octad containing HMAC on transcript as calculated by Server
 	@return response structure
  */

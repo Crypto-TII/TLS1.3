@@ -1,7 +1,7 @@
 # Description
 
-This C++ version is really just C plus namespaces plus pass-by-reference. These the only features of C++ that are used. The Rust version will come later.
-Documentation can be found in the doxygen generated file doc/refman.pdf
+This C++ project implements a TLS1.3 client. There is also a Rust version available. This C++ version is really just C plus namespaces plus pass-by-reference. These the only features 
+of C++ that are used. Documentation can be found in the doxygen generated file doc/refman.pdf
 
 # Linux Installation
 
@@ -127,9 +127,9 @@ The output should (if IO_DEBUG has been selected) look something like this
 	Alert sent to Server - Close notify
 	Connection closed
 
-To attempt a fast resumption, based on a resumption ticket (generated and stored in a file cookie.txt)
+To attempt a fast resumption, based on a resumption ticket (generated and stored in a file cookie.txt), attempt another connection to the same site
 
-	./client -r swifttls.org
+	./client swifttls.org
 
 The output should look something like
 

@@ -4,7 +4,7 @@ TLS Client
 
 # Building
 
-The TLS library is designed to support crypto agility by chaning cryptographic providers. There are three cryptographic providers one can choose from.
+The TLS library is designed to support crypto agility by changing cryptographic providers. There are three cryptographic providers one can choose from.
 
 ## Miracl
 

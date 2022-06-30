@@ -64,12 +64,7 @@ extern void SAL_endLib();
     @return hash function output length
 */
 extern int SAL_hashType(int cipher_suite);
-/** @brief return hash type associated with a signature algorithm
-*
-    @param sigAlg a TLS signature algorithm
-    @return hash function output length
-*/
-//extern int SAL_hashTypeSig(int sigAlg);
+
 /** @brief return output length of hash function associated with a hash type
 *
     @param hash_type a TLS hash type
@@ -209,7 +204,7 @@ extern void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS);
 /**	@brief Verify a generic TLS signature
  *
     @param sigAlg the signature type
-    @param BUFF the input data hash that was signed
+    @param TRANS the signed input transcript hash 
     @param SIG the input signature
     @param PUBKEY the public key used to verify the signature
     @return true if signature is valid, else false

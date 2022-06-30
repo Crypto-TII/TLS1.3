@@ -1,5 +1,5 @@
 /**
- * @file tls_cacerts.h
+ * @file tls_certs.h
  * @author Mike Scott
  * @brief Certificate Authority root certificate store
  *

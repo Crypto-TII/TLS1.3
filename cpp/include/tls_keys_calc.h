@@ -60,9 +60,9 @@ extern void transcriptHash(TLS_session *session,octad *O);
 
 /**	@brief Calculate special synthetic hash calculation for first clientHello after retry request (RFC 8446 section 4.4.1)
  *
+ 	@param session the TLS session structure
     @param O an octad containing clientHello
     @param E an octad containing clientHello extensions 
-    @param h a hashing context
 
  */
 extern void runningSyntheticHash(TLS_session *session,octad *O,octad *E);
@@ -139,7 +139,6 @@ extern void deriveLaterSecrets(int htype,octad *H,octad *ES,octad *CETS,octad *E
 /**	@brief Extract Handshake Secret from Shared Secret and Early Secret. Use Handshake Secret to extract Client and Server Handshake Traffic secrets 
  *
  	@param session the TLS session structure
-    @param htype hash algorithm
     @param SS input Shared Secret
     @param ES the input early secret key
     @param H a partial transcript hash

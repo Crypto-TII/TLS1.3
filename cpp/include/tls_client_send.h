@@ -186,7 +186,6 @@ extern void sendClientHello(TLS_session *session,int version,octad *CH,bool alre
  *
 	@param session the TLS session structure
     @param type the type of the Alert
-    @param send the cryptographic key under which the alert message is encrypted (or NULL if no encryption)
  */
 extern void sendAlert(TLS_session *session,int type);
 

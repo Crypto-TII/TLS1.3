@@ -33,12 +33,12 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define POST_QUANTUM 2      /**< Post quantum (Dilithium+Kyber?) */    
 
 // Client Certificate Chain + Key
-#define NOCERT 0  // Don't have a Client Cert
-#define RSA_SS 1  // self signed RSA
-#define ECC_SS 2  // self signed ECC
-#define DLT_SS 3  // self signed Dilithium
-#define HW_1 4    // Hardware 1
-#define HW_2 5    // Hardware 2
+#define NOCERT 0  /**< Don't have a Client Cert */
+#define RSA_SS 1  /**< self signed RSA cert */
+#define ECC_SS 2  /**< self signed ECC cert */
+#define DLT_SS 3  /**< self signed Dilithium cert */
+#define HW_1 4    /**< RP2040 1 Hardware cert */
+#define HW_2 5    /**< RP2040 2 Hardware cert */
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
@@ -132,9 +132,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 // Certificate size limits
 #define TLS_MAX_SERVER_CHAIN_LEN 2             /**< Maximum Server Certificate chain length - omitting root CA */
-#define TLS_MAX_SERVER_CHAIN_SIZE (TLS_MAX_SERVER_CHAIN_LEN*TLS_MAX_CERT_SIZE)
+#define TLS_MAX_SERVER_CHAIN_SIZE (TLS_MAX_SERVER_CHAIN_LEN*TLS_MAX_CERT_SIZE) /**< Maximum Server Certificate chain length in bytes */
 #define TLS_MAX_CLIENT_CHAIN_LEN 1             /**< Maximum Client Certificate chain length - one self signed here */
-#define TLS_MAX_CLIENT_CHAIN_SIZE (TLS_MAX_CLIENT_CHAIN_LEN*TLS_MAX_CERT_SIZE)
+#define TLS_MAX_CLIENT_CHAIN_SIZE (TLS_MAX_CLIENT_CHAIN_LEN*TLS_MAX_CERT_SIZE) /**< Maximum Client Certificate chain length in bytes */
 
 
 
@@ -268,14 +268,14 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 #define LOG_OUTPUT_TRUNCATION 256       /**< Output Hex digits before truncation */
 
-#define TLS13_DISCONNECTED 0
-#define TLS13_CONNECTED 1
+#define TLS13_DISCONNECTED 0            /**< TLS1.3 Connection is broken */
+#define TLS13_CONNECTED 1               /**< TLS1.3 Connection is made */ 
 
 // protocol returns..
-#define TLS_FAILURE 0
-#define TLS_SUCCESS 1
-#define TLS_RESUMPTION_REQUIRED 2
-#define TLS_EARLY_DATA_ACCEPTED 3
+#define TLS_FAILURE 0                   /**< Failed to cmake TLS1.3 connection */
+#define TLS_SUCCESS 1                   /**< Succeeded in making TLS1.3 connection */ */
+#define TLS_RESUMPTION_REQUIRED 2       /**< Connection succeeded, but handshake retry was needed */
+#define TLS_EARLY_DATA_ACCEPTED 3       /**< Connection succeeded, and early data was accepted */
 
 /**
  * @brief function return structure */
@@ -299,7 +299,7 @@ typedef struct
  * @brief crypto context structure */
 typedef struct
 {
-    bool active;
+    bool active;            /**< Indicates if encryption has been activated */
     char k[TLS_MAX_KEY];    /**< AEAD cryptographic Key bytes */
     char iv[12];            /**< AEAD cryptographic IV bytes */
     octad K;                /**< Key as octad */
@@ -329,6 +329,8 @@ typedef struct
     int origin;                         /**< Origin of initial handshake - Full or PSK? */
 } ticket;
 
+/**
+ * @brief Universal Hash Function */
 typedef struct 
 {
     char state[TLS_MAX_HASH_STATE];   /**< hash function state */
@@ -342,23 +344,23 @@ typedef struct
     int status;             /**< Connection status */
 	int max_record;         /**< max record size I should send */
     Socket *sockptr;        /**< Pointer to socket */
-	char id[32];
+	char id[32];            /**< Session ID */
     char hostname[TLS_MAX_SERVER_NAME];     /**< Server name for connection */
     int cipher_suite;       /**< agreed cipher suite */
     int favourite_group;    /**< favourite key exchange group - may be changed on handshake retry */
     crypto K_send;          /**< Sending Key */
     crypto K_recv;          /**< Receiving Key */
     octad HS;               /**< Handshake secret */
-    char hs[TLS_MAX_HASH];
+    char hs[TLS_MAX_HASH];  /**< Handshake secret data */
     octad RMS;              /**< Resumption Master Secret */
-    char rms[TLS_MAX_HASH];
+    char rms[TLS_MAX_HASH]; /**< Resumption Master Secret data */
     octad STS;              /**< Server Traffic secret */
-    char sts[TLS_MAX_HASH];
+    char sts[TLS_MAX_HASH]; /**< Server Traffic secret data */
     octad CTS;              /**< Client Traffic secret */
-    char cts[TLS_MAX_HASH];
+    char cts[TLS_MAX_HASH]; /**< Client Traffic secret data */
     octad IO;               /**< Main IO buffer for this connection */
 #ifndef SHALLOW_STACK
-    char io[TLS_MAX_IO_SIZE];
+    char io[TLS_MAX_IO_SIZE]; /**< Byte array for main IO buffer for this connection */
 #endif
     int ptr;                /**< pointer into IO buffer */
     unihash tlshash;        /**< Transcript hash recorder */

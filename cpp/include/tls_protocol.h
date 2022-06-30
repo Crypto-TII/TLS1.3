@@ -30,21 +30,6 @@ extern TLS_session TLS13_start(Socket *client,char *hostname);
  */
 extern void TLS13_end(TLS_session *session);
 
-/**	@brief TLS 1.3 perform full handshake
- *
-    @param session an initialised TLS session structure
-    @return 0 for failure, otherwise success
- */
-//extern int TLS13_full(TLS_session *session);
-
-/**	@brief TLS 1.3 perform resumption handshake
- *
-    @param session an initialised TLS session structure
-    @param EARLY some early data to be transmitted
-    @return 0 for failure, otherwise success
- */
-//extern int TLS13_resume(TLS_session *session,octad *EARLY);
-
 /**	@brief TLS 1.3 forge connection
  *
     @param session an initialised TLS session structure
@@ -58,7 +43,7 @@ extern bool TLS13_connect(TLS_session *session,octad *EARLY);
     @param session an initialised TLS session structure
     @param DATA some data to be transmitted
  */
-extern void TLS13_send(TLS_session *,octad *DATA);
+extern void TLS13_send(TLS_session *session,octad *DATA);
 
 /**	@brief TLS 1.3 receive data
  *
@@ -66,7 +51,7 @@ extern void TLS13_send(TLS_session *,octad *DATA);
     @param DATA that has been received
     @return 0 for failure, otherwise success
  */
-extern int TLS13_recv(TLS_session *,octad *DATA);
+extern int TLS13_recv(TLS_session *session,octad *DATA);
 
 /**	@brief TLS 1.3 end session, delete keys, clean up buffers
  *
