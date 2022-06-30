@@ -1,0 +1,27 @@
+
+			Allow early data	Extra Certs in Chain	Resumes Server SSL Labs Report  Arduino RP2040
+www.bbc.co.uk			No			Yes		  Yes		B		OK
+www.protonmail.com		No			Yes		  Yes 		A+		OK
+www.miracl.com			No			Yes               Yes		A+		OK
+www.facebook.com		No			No		  Yes		B		OK
+tls13.ulfheim.net		No			Yes		  Yes		A+		OK
+tls13.cloudfare.com		No			No		  Yes		B		Rare fails on ECC608?
+www.google.com			No			Yes		  No	 (?)	B		OK
+slack.com			No			No                Yes		A+		OK
+owasp.org			No			No                Sometimes	A+		OK
+mozilla.org			No			Yes		  Sometimes	A		OK
+swifttls.org			Yes			Yes		  Yes		A		OK	
+tls13.1d.pw			No			Yes		  No		A		OK
+realpython.com                  Yes			No		  Yes		B		OK
+www.padok.fr                    Yes			No		  Yes		B		OK
+
+www.fitbit.com			No			Yes		  No		A		OK
+www.st.com			No			Yes		  Yes		A		OK
+www.academia.edu		Terrible Cert Chain! X+X+W+Y+Z-> ca ? Yes No		A+		No
+www.rsaconference.com		Yes			No		  Yes		B		OK
+blog.knowbe4.com		Yes			No		  Yes		B		OK
+ec.europa.eu			No			Yes		  No		B		OK
+www.crowdsupply.com		No			No		  Yes		A+		OK
+iscc2021.unipi.gr               Misconfigured cert chain ?		  No		B		No
+www.kinvaraskincare.com		Yes			Yes		  Yes		A		OK
+www.bundledocs.com		No			Yes		  No		A		OK
