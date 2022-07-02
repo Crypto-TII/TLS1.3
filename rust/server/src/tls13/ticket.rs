@@ -1,14 +1,15 @@
-// Process resumption tickets
-//
+//! Process resumption tickets
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config::*;
 use crate::sal;
 
+/// Get system time as milliseconds since epoch
 pub fn millis() -> usize {
     return SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis() as usize;    
 }
 
+/// Ticket Structure
 pub struct TICKET {
     timestamp:u32,
     cipher_suite:u16,
@@ -68,6 +69,7 @@ impl TICKET {
     }
 }
 
+/// Serialize a ticket for transmission
 pub fn send_ticket(&self,tick: &mut [u8]) {
     let mut ptr=0;
     let ticket_age_add = sal::random_word();
@@ -116,7 +118,7 @@ pub fn send_ticket(&self,tick: &mut [u8]) {
 
 }
 
-// recover Pre-Shared-Key from Resumption Master Secret
+/// Recover Pre-Shared-Key from Resumption Master Secret
 fn recover_psk(&mut self,t: &mut TICKET) { 
     let rs="resumption";
     let htype=sal::hash_type(self.cipher_suite);
@@ -124,7 +126,7 @@ fn recover_psk(&mut self,t: &mut TICKET) {
     keys::hkdf_expand_label(htype,&mut t.psk[0..hlen],&self.rms[0..hlen],rs.as_bytes(),Some(&t.nonce[0..t.nnlen]));
     self.t.psklen=hlen;
 }
-
+/*
 pub fn create_ticket_message(&mut self,tickdata: &mut [u8]) -> usize {
 // first grab the state
     let mut s=STATE::new(self.cipher_suite,self.group);
@@ -135,4 +137,4 @@ pub fn create_ticket_message(&mut self,tickdata: &mut [u8]) -> usize {
     recover_psk(
 
 }
-
+*/

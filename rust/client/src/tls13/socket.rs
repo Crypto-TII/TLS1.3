@@ -1,6 +1,9 @@
+//! Read data from a socket
+
 use std::net::{TcpStream};
 use std::io::{Read};
 
+/// Read bytes into buffer
 pub fn get_bytes(stream:&mut TcpStream,buf: &mut [u8]) -> bool {
     match stream.read_exact(buf) {
         Ok(_) => {
@@ -12,6 +15,7 @@ pub fn get_bytes(stream:&mut TcpStream,buf: &mut [u8]) -> bool {
     }
 }
 
+/// Read in 16-bit number
 pub fn get_int16(stream:&mut TcpStream) -> usize {
     let mut b:[u8;2]=[0;2];
     get_bytes(stream,&mut b[0..2]);

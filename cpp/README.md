@@ -1,31 +1,32 @@
-# TII TLS C
+# TIIGER TLS C++
 
-TLS Client
+This C++ project implements a TLS1.3 client. There is also a Rust version available from this site. This C++ version is really just C plus namespaces plus pass-by-reference. These the only features 
+of C++ that are used. Documentation can be found in the doxygen generated file doc/refman.pdf
 
 # Building
 
-The TLS library is designed to support crypto agility by changing cryptographic providers. There are three cryptographic providers one can choose from.
+The TLS library is designed to support crypto agility by allowing a mix of cryptographic providers. This functionality is provided by the SAL (Security Abstraction Layer). 
+Below are two examples to choose from. The SAL API documentation is provided in sal/sal.pdf, and guided by this it should be possible to create your own SAL.
+To build the client on an IoT node like the Arduino RP2040, see the readme file in the src/arduino directory.
+
 
 ## Miracl
 
-```
-./scripts/build.sh -1
-```
+This build gets all of it cryptography from the MIRACL core library https://github.com/miracl/core/cpp
+
+	./scripts/build.sh -1
 
 ## Miracl + LibSodium
 
-```
-./scripts/build.sh -2
-```
+To use a SAL which includes some functionality from the well known sodium crypto library https://libsodium.gitbook.io/doc/, install sodium, then
 
-## Custom Crypto Library
+	./scripts/build.sh -2
 
-```
-./scripts/build.sh -3
-```
+# Try it out
 
+After the build complete successfully, the example executable client and the TiigerTLS library libtiitls.a are generated in the build directory
 
-To see the Security Abstraction Layer (SAL) capabilities
+To see the Security Abstraction Layer (SAL) capabilities, navigate to the build directory
 	
 	./client -s
 
@@ -186,6 +187,11 @@ Also try
 	
 Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
 
+Resumption tickets can be deleted by
+
+	./client -r
+
+
 See doc/list.txt for some websites that work OK and test different functionality.
 
 ## Client side Authentication
@@ -220,3 +226,4 @@ Again we will use OpenSSL to mimic a TLS1.3 server
 and connect via
 
 	./client -p 42 localhost
+

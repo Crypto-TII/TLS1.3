@@ -1,44 +1,67 @@
 
-// Main TII TLS 1.3 Configuration File for constants and structures
+//! Main TII TLS 1.3 Configuration File for constants and structures
 
 pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";  
 pub const DISCONNECTED: usize = 0;
 pub const CONNECTED: usize = 1;
 
 // Cipher Suites 
-pub const AES_128_GCM_SHA256: u16 = 0x1301;       // AES128/SHA256/GCM cipher suite
-pub const AES_256_GCM_SHA384: u16 =  0x1302;      // AES256/SHA384/GCM cipher suite 
-pub const CHACHA20_POLY1305_SHA256: u16 = 0x1303; // CHACHA20/SHA256/POLY1305 cipher suite 
+/// AES128/SHA256/GCM cipher suite
+pub const AES_128_GCM_SHA256: u16 = 0x1301;       
+/// AES256/SHA384/GCM cipher suite 
+pub const AES_256_GCM_SHA384: u16 =  0x1302;      
+/// CHACHA20/SHA256/POLY1305 cipher suite 
+pub const CHACHA20_POLY1305_SHA256: u16 = 0x1303; 
 //pub const AES_128_CCM_SHA256: u16 = 0x1304;       // AES/SHA256/CCM cipher suite - optional 
 //pub const AES_128_CCM_8_SHA256: u16 = 0x1305;     // AES/SHA256/CCM 8 cipher suite - optional 
 
 // Signature algorithms for TLS1.3 and Certs that we can handle 
-pub const ECDSA_SECP256R1_SHA256: u16 = 0x0403;   // Supported ECDSA Signature algorithm 
-pub const ECDSA_SECP384R1_SHA384: u16 = 0x0503;   // Supported ECDSA Signature algorithm 
-pub const RSA_PSS_RSAE_SHA256: u16 = 0x0804;      // Supported RSA Signature algorithm  
-pub const RSA_PSS_RSAE_SHA384: u16 = 0x0805;      // Supported RSA Signature algorithm 
-pub const RSA_PSS_RSAE_SHA512: u16 = 0x0806;      // Supported RSA Signature algorithm 
-pub const RSA_PKCS1_SHA256: u16 = 0x0401;         // Supported RSA Signature algorithm 
-pub const RSA_PKCS1_SHA384: u16 = 0x0501;         // Supported RSA Signature algorithm 
-pub const RSA_PKCS1_SHA512: u16 = 0x0601;         // Supported RSA Signature algorithm 
-pub const DILITHIUM3: u16 = 0x0903;               // Dilithium3 Signature algorithm
+/// Supported ECDSA Signature algorithm 
+pub const ECDSA_SECP256R1_SHA256: u16 = 0x0403;   
+/// Supported ECDSA Signature algorithm
+pub const ECDSA_SECP384R1_SHA384: u16 = 0x0503; 
+/// Supported RSA Signature algorithm
+pub const RSA_PSS_RSAE_SHA256: u16 = 0x0804; 
+/// Supported RSA Signature algorithm
+pub const RSA_PSS_RSAE_SHA384: u16 = 0x0805;
+/// Supported RSA Signature algorithm
+pub const RSA_PSS_RSAE_SHA512: u16 = 0x0806; 
+/// Supported RSA Signature algorithm
+pub const RSA_PKCS1_SHA256: u16 = 0x0401; 
+/// Supported RSA Signature algorithm
+pub const RSA_PKCS1_SHA384: u16 = 0x0501;
+/// Supported RSA Signature algorithm
+pub const RSA_PKCS1_SHA512: u16 = 0x0601;  
+/// Dilithium3 Signature algorithm
+pub const DILITHIUM3: u16 = 0x0903;               
 //pub const ED25519: usize = 0x0807;                  // Ed25519 EdDSA Signature algorithm 
 
 // Maximum sizes for stack arrays
-pub const MAX_ECC_FIELD:usize = 66;                  // Max ECC field size in bytes 
-pub const MAX_HASH_STATE:usize = 768;               // Maximum memory required to store hash function state 
-pub const MAX_HASH: usize = 64;                     // Maximum hash output length in bytes 
-pub const MAX_KEY: usize = 32;                      // Maximum key length in bytes 
-pub const MAX_X509_FIELD:usize = 256;               // Maximum X.509 field size 
+/// Max ECC field size in bytes
+pub const MAX_ECC_FIELD:usize = 66;                  
+/// Maximum memory required to store hash function state
+pub const MAX_HASH_STATE:usize = 768;     
+/// Maximum hash output length in bytes 
+pub const MAX_HASH: usize = 64;         
+/// Maximum key length in bytes
+pub const MAX_KEY: usize = 32;           
+/// Maximum X.509 field size 
+pub const MAX_X509_FIELD:usize = 256;               
 
 // IO buffer limits
-pub const MAX_IO: usize = 16384+256;                // Maximum Input/Output buffer size.
-pub const MAX_PLAIN_FRAG: usize = 16384;            // Max Plaintext Fragment size 
-pub const MAX_CIPHER_FRAG: usize = 16384+256;       // Max Ciphertext Fragment size 
+/// Maximum Input/Output buffer size.
+pub const MAX_IO: usize = 16384+256;         
+/// Max Plaintext Fragment size 
+pub const MAX_PLAIN_FRAG: usize = 16384;        
+/// Max Ciphertext Fragment size 
+pub const MAX_CIPHER_FRAG: usize = 16384+256;       
 
-pub const TINY_ECC: usize = 0;          // ECC only
-pub const TYPICAL: usize = 1;           // ECC + RSA
-pub const POST_QUANTUM: usize = 2;      // POST_QUANTUM
+/// ECC only support only
+pub const TINY_ECC: usize = 0;  
+/// ECC + RSA support
+pub const TYPICAL: usize = 1;  
+/// POST_QUANTUM support
+pub const POST_QUANTUM: usize = 2;      
 
 // These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
@@ -185,6 +208,7 @@ pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connec
 pub const NO_APPLICATION_PROTOCOL: u8 = 0x78;     // Wrong Application protocol
 pub const HANDSHAKE_FAILURE: u8 = 0x28;           // Handshake failed
 
+/// Universal Hash Function structure 
 pub struct UNIHASH {
     pub state: [u8;MAX_HASH_STATE],
     pub htype: usize
@@ -197,9 +221,7 @@ pub const IO_APPLICATION:usize= 2;    // Report application traffic + errors
 pub const IO_PROTOCOL:usize= 3;       // Report protocol progress + application traffic 
 pub const IO_DEBUG:usize= 4;          // print lots of debug information + protocol progress + application progress 
 
-//
-// map causes to alerts
-//
+/// map causes to alerts
 pub fn alert_from_cause(rtn: isize) -> u8
 {
     match rtn {
@@ -244,9 +266,8 @@ pub const LOG_OUTPUT_TRUNCATION: usize= 512;       /**< Output Hex digits before
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true; // allow self-signed server certs
 pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting
-pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates 
-//pub const TLS_PROTOCOL: bool=true;       // ALPN extension
-pub const APPLICATION_PROTOCOL:&str="http/1.1";
+pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates       
+pub const APPLICATION_PROTOCOL:&str="http/1.1";  // ALPN extension
 pub const CERTIFICATE_REQUEST: bool=false; // Does server require client authentication?
 pub const TICKET_LIFETIME: u32 = 86400;   // 86400 seconds in a day
 pub const MAX_EARLY_DATA: usize = 1024;     // maximum amount of early data a client can send 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Make sure script is run from main repo location
-if [[ ! -f CMakeLists.txt ]] ; then
+if [ ! -f CMakeLists.txt ] ; then
     echo "Please run this script from the main repo like:"
     echo "\tsh scripts/build.sh"
     exit

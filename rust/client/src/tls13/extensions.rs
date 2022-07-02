@@ -1,10 +1,9 @@
-// Build TLS1.3 extensions
-//
+//! Build TLS1.3 extensions
 
 use crate::tls13::utils;
 use crate::config::*;
 
-// create cipher suite bytes for Client Hello
+/// Create cipher suite bytes for Client Hello
 pub fn cipher_suites(cs: &mut [u8],nsc:usize,ciphers: &[u16]) -> usize {
     let mut ptr=0;
     ptr=utils::append_int(cs,ptr,2*nsc,2);
@@ -16,7 +15,7 @@ pub fn cipher_suites(cs: &mut [u8],nsc:usize,ciphers: &[u16]) -> usize {
 
 // Functions to build clientHello Extensions based on our preferences/capabilities
 
-// Build Servername Extension
+/// Build Servername Extension
 pub fn add_server_name(ext: &mut [u8],ptr: usize,name: &[u8],len: usize) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,SERVER_NAME,2);  // This extension is SERVER_NAME(0)
@@ -28,7 +27,7 @@ pub fn add_server_name(ext: &mut [u8],ptr: usize,name: &[u8],len: usize) -> usiz
     return nptr;
 }
 
-// Build Supported Groups Extension
+/// Build Supported Groups Extension
 pub fn add_supported_groups(ext: &mut [u8],ptr: usize, nsg: usize, groups: &[u16]) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
@@ -40,7 +39,7 @@ pub fn add_supported_groups(ext: &mut [u8],ptr: usize, nsg: usize, groups: &[u16
     return nptr;
 }
 
-// Build Signature algorithms Extension
+/// Build Signature algorithms Extension
 pub fn add_supported_sigs(ext: &mut [u8],ptr: usize, nsa: usize, sig_algs: &[u16]) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,SIG_ALGS,2); // This extension is SUPPORTED GROUPS(0x0a)
@@ -52,7 +51,7 @@ pub fn add_supported_sigs(ext: &mut [u8],ptr: usize, nsa: usize, sig_algs: &[u16
     return nptr;
 }
 
-// Build Signature algorithms Cert Extension
+/// Build Signature algorithms Cert Extension
 pub fn add_supported_sigcerts(ext: &mut [u8],ptr: usize, nsac: usize, sig_alg_certs: &[u16]) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,SIG_ALGS_CERT,2); // This extension is SUPPORTED GROUPS(0x0a)
@@ -64,7 +63,7 @@ pub fn add_supported_sigcerts(ext: &mut [u8],ptr: usize, nsac: usize, sig_alg_ce
     return nptr;
 }
 
-// Add Client Key Share extension
+/// Add Client Key Share extension
 // Offer just one public key
 pub fn add_key_share(ext: &mut [u8],ptr: usize,alg: u16,pk: &[u8]) -> usize {
     let mut nptr=ptr;
@@ -78,7 +77,7 @@ pub fn add_key_share(ext: &mut [u8],ptr: usize,alg: u16,pk: &[u8]) -> usize {
     return nptr;
 }
 
-// Add ALPN extension
+/// Add ALPN extension
 // Offer just one option
 pub fn add_alpn(ext: &mut [u8],ptr: usize,ap: &[u8]) -> usize {
     let tlen=ap.len()+1;
@@ -91,7 +90,7 @@ pub fn add_alpn(ext: &mut [u8],ptr: usize,ap: &[u8]) -> usize {
     return nptr;
 }
 
-// indicate supported PSK mode
+/// Indicate supported PSK mode
 pub fn add_psk(ext: &mut [u8],ptr: usize,mode: usize) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,PSK_MODE,2);
@@ -101,7 +100,7 @@ pub fn add_psk(ext: &mut [u8],ptr: usize,mode: usize) -> usize {
     return nptr;
 }
 
-// indicate TLS version support
+/// Indicate TLS version support
 pub fn add_version(ext: &mut [u8],ptr: usize,version: usize) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,TLS_VER,2);
@@ -111,7 +110,7 @@ pub fn add_version(ext: &mut [u8],ptr: usize,version: usize) -> usize {
     return nptr;
 }
 
-// indicate preferred maximum fragment length
+/// Indicate preferred maximum fragment length
 pub fn add_mfl(ext: &mut [u8],ptr: usize, mode: usize) -> usize {
     let mut nptr=ptr;
     if mode>0 {
@@ -122,7 +121,7 @@ pub fn add_mfl(ext: &mut [u8],ptr: usize, mode: usize) -> usize {
     return nptr;
 }
 
-// indicate preferred maximum record size
+/// Indicate preferred maximum record size
 pub fn add_rsl(ext: &mut [u8],ptr: usize, size: usize) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,RECORD_SIZE_LIMIT,2);
@@ -131,7 +130,7 @@ pub fn add_rsl(ext: &mut [u8],ptr: usize, size: usize) -> usize {
     return nptr;    
 }
 
-// add n padding bytes
+/// Add n padding bytes
 pub fn add_padding(ext: &mut [u8],ptr: usize, n: usize) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,PADDING,2);
@@ -140,7 +139,7 @@ pub fn add_padding(ext: &mut [u8],ptr: usize, n: usize) -> usize {
     return nptr;
 }
 
-// Add a cookie - useful for handshake resumption
+/// Add a cookie - useful for handshake resumption
 pub fn add_cookie(ext: &mut [u8],ptr: usize,ck: &[u8]) -> usize {
     let mut nptr=ptr;  
     nptr=utils::append_int(ext,nptr,COOKIE,2);
@@ -149,7 +148,7 @@ pub fn add_cookie(ext: &mut [u8],ptr: usize,ck: &[u8]) -> usize {
     return nptr;    
 }
 
-// indicate desire to send early data
+/// indicate desire to send early data
 pub fn add_early_data(ext: &mut [u8],ptr: usize) -> usize {
     let mut nptr=ptr; 
     nptr=utils::append_int(ext,nptr,EARLY_DATA,2);
@@ -157,8 +156,7 @@ pub fn add_early_data(ext: &mut [u8],ptr: usize) -> usize {
     return nptr;
 }
 
-// Add Pre-Shared-Key ...
-// ..but omit binding
+/// Add Pre-Shared-Key ....but omit binding
 pub fn add_presharedkey(ext: &mut [u8],ptr: usize,age: usize,ids: &[u8],sha: usize,extra: &mut usize) -> usize {
     let mut nptr=ptr;
     let mut tlen1=0;

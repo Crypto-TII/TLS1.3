@@ -1,44 +1,70 @@
 
-// Main TII TLS 1.3 Configuration File for constants and structures
+//! Main TII TLS 1.3 Configuration File for constants and structures
 
 pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";  
 pub const DISCONNECTED: usize = 0;
 pub const CONNECTED: usize = 1;
 
 // Cipher Suites 
-pub const AES_128_GCM_SHA256: u16 = 0x1301;       // AES128/SHA256/GCM cipher suite
-pub const AES_256_GCM_SHA384: u16 =  0x1302;      // AES256/SHA384/GCM cipher suite 
-pub const CHACHA20_POLY1305_SHA256: u16 = 0x1303; // CHACHA20/SHA256/POLY1305 cipher suite 
-//pub const AES_128_CCM_SHA256: u16 = 0x1304;       // AES/SHA256/CCM cipher suite - optional 
-//pub const AES_128_CCM_8_SHA256: u16 = 0x1305;     // AES/SHA256/CCM 8 cipher suite - optional 
+/// AES128/SHA256/GCM cipher suite
+pub const AES_128_GCM_SHA256: u16 = 0x1301;       
+/// AES256/SHA384/GCM cipher suite 
+pub const AES_256_GCM_SHA384: u16 =  0x1302;      
+/// CHACHA20/SHA256/POLY1305 cipher suite
+pub const CHACHA20_POLY1305_SHA256: u16 = 0x1303;  
+// AES/SHA256/CCM cipher suite - optional
+//pub const AES_128_CCM_SHA256: u16 = 0x1304;        
+// AES/SHA256/CCM 8 cipher suite - optional 
+//pub const AES_128_CCM_8_SHA256: u16 = 0x1305;     
 
 // Signature algorithms for TLS1.3 and Certs that we can handle 
-pub const ECDSA_SECP256R1_SHA256: u16 = 0x0403;   // Supported ECDSA Signature algorithm 
-pub const ECDSA_SECP384R1_SHA384: u16 = 0x0503;   // Supported ECDSA Signature algorithm 
-pub const RSA_PSS_RSAE_SHA256: u16 = 0x0804;      // Supported RSA Signature algorithm  
-pub const RSA_PSS_RSAE_SHA384: u16 = 0x0805;      // Supported RSA Signature algorithm 
-pub const RSA_PSS_RSAE_SHA512: u16 = 0x0806;      // Supported RSA Signature algorithm 
-pub const RSA_PKCS1_SHA256: u16 = 0x0401;         // Supported RSA Signature algorithm 
-pub const RSA_PKCS1_SHA384: u16 = 0x0501;         // Supported RSA Signature algorithm 
-pub const RSA_PKCS1_SHA512: u16 = 0x0601;         // Supported RSA Signature algorithm 
-pub const DILITHIUM3: u16 = 0x0903;               // Dilithium3 Signature algorithm
-//pub const ED25519: usize = 0x0807;                  // Ed25519 EdDSA Signature algorithm 
+/// Supported ECDSA Signature algorithm
+pub const ECDSA_SECP256R1_SHA256: u16 = 0x0403;    
+/// Supported ECDSA Signature algorithm 
+pub const ECDSA_SECP384R1_SHA384: u16 = 0x0503;   
+/// Supported RSA Signature algorithm 
+pub const RSA_PSS_RSAE_SHA256: u16 = 0x0804;  
+/// Supported RSA Signature algorithm 
+pub const RSA_PSS_RSAE_SHA384: u16 = 0x0805;      
+/// Supported RSA Signature algorithm 
+pub const RSA_PSS_RSAE_SHA512: u16 = 0x0806;     
+/// Supported RSA Signature algorithm 
+pub const RSA_PKCS1_SHA256: u16 = 0x0401;        
+/// Supported RSA Signature algorithm 
+pub const RSA_PKCS1_SHA384: u16 = 0x0501;       
+/// Supported RSA Signature algorithm 
+pub const RSA_PKCS1_SHA512: u16 = 0x0601;   
+/// Dilithium3 Signature algorithm
+pub const DILITHIUM3: u16 = 0x0903;   
+// Ed25519 EdDSA Signature algorithm
+//pub const ED25519: usize = 0x0807;                   
 
 // Maximum sizes for some stack arrays
-pub const MAX_ECC_FIELD:usize = 66;                 // Max ECC field size in bytes 
-pub const MAX_HASH_STATE:usize = 768;               // Maximum memory required to store hash function state 
-pub const MAX_HASH: usize = 64;                     // Maximum hash output length in bytes 
-pub const MAX_KEY: usize = 32;                      // Maximum key length in bytes 
-pub const MAX_X509_FIELD:usize = 256;               // Maximum X.509 field size 
+/// Max ECC field size in bytes 
+pub const MAX_ECC_FIELD:usize = 66;       
+/// Maximum memory required to store hash function state
+pub const MAX_HASH_STATE:usize = 768;           
+/// Maximum hash output length in bytes 
+pub const MAX_HASH: usize = 64;       
+/// Maximum key length in bytes 
+pub const MAX_KEY: usize = 32;             
+/// Maximum X.509 field size 
+pub const MAX_X509_FIELD:usize = 256;               
 
 // IO buffer limits
-pub const MAX_IO: usize = 16384+256;                // Maximum Input/Output buffer size.
-pub const MAX_PLAIN_FRAG: usize = 16384;            // Max Plaintext Fragment size 
-pub const MAX_CIPHER_FRAG: usize = 16384+256;       // Max Ciphertext Fragment size 
+/// Maximum Input/Output buffer size.
+pub const MAX_IO: usize = 16384+256;       
+/// Max Plaintext Fragment size 
+pub const MAX_PLAIN_FRAG: usize = 16384;         
+/// Max Ciphertext Fragment size
+pub const MAX_CIPHER_FRAG: usize = 16384+256;        
 
-pub const TINY_ECC: usize = 0;          // ECC only
-pub const TYPICAL: usize = 1;           // ECC + RSA
-pub const POST_QUANTUM: usize = 2;      // POST_QUANTUM
+/// ECC support only
+pub const TINY_ECC: usize = 0;   
+/// ECC + RSA support 
+pub const TYPICAL: usize = 1;        
+/// POST_QUANTUM support
+pub const POST_QUANTUM: usize = 2;      
 
 // These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
@@ -179,6 +205,7 @@ pub const DECODE_ERROR: u8 =  0x32;               // Decode error alert
 pub const RECORD_OVERFLOW: u8 =  0x16;            // Record Overflow 
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
 
+/// Universal Hash Function structure 
 pub struct UNIHASH {
     pub state: [u8;MAX_HASH_STATE],
     pub htype: usize
@@ -191,9 +218,7 @@ pub const IO_APPLICATION:usize= 2;    // Report application traffic + errors
 pub const IO_PROTOCOL:usize= 3;       // Report protocol progress + application traffic 
 pub const IO_DEBUG:usize= 4;          // print lots of debug information + protocol progress + application progress 
 
-//
-// map causes to alerts
-//
+/// Map causes to alerts
 pub fn alert_from_cause(rtn: isize) -> u8
 {
     match rtn {
@@ -232,7 +257,7 @@ pub const TLS_RESUMPTION_REQUIRED:usize = 2;
 pub const TLS_EARLY_DATA_ACCEPTED:usize = 3;
 
 pub const SET_RECORD_LIMIT: bool=false;  // Max record size (non-standard?) extension
-pub const LOG_OUTPUT_TRUNCATION: usize= 256;       /**< Output Hex digits before truncation */
+pub const LOG_OUTPUT_TRUNCATION: usize= 256;       // Output Hex digits before truncation 
 
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level

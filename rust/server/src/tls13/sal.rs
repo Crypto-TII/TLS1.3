@@ -1,7 +1,6 @@
-//
-// Security Abstraction Layer
-// This version uses only MIRACL core functions
-//
+
+//! Security Abstraction Layer. This version uses mainly MIRACL core functions, with post-quantum support from OQS
+
 #![allow(dead_code)]
 
 use zeroize::Zeroize;
@@ -22,11 +21,12 @@ extern crate rand;
 use oqs;
 use oqs::kem;
 
+/// Return SAL name
 pub fn name() -> &'static str {
     return "MIRACL Core";
 }
 
-// initialize SAL
+/// Initialize SAL
 pub fn init() -> bool {
     oqs::init();
     return true;
@@ -34,22 +34,24 @@ pub fn init() -> bool {
 
 // Assume a thread-safe global random number resource
 
-// return a random byte
+/// Return a random byte
 pub fn random_byte() -> u8 {
     return rand::random::<u8>();
 }
 
-// return a random word
+/// Return a random word
 pub fn random_word() -> u32 {
     return rand::random::<u32>();
 }
 
+/// Return an array of random bytes
 pub fn random_bytes(len: usize,rn: &mut [u8]){
     for i in 0..len {
         rn[i]=random_byte();
     }
 }
 
+/// Return size of key exchange secret key in bytes
 pub fn secret_key_size(group: u16) -> usize {
     if group==config::X25519 {
     	return 32;
@@ -71,6 +73,7 @@ pub fn secret_key_size(group: u16) -> usize {
     return 0;
 }
 
+/// Return size of clients key exchange public key in bytes
 pub fn client_public_key_size(group: u16) -> usize {
     if group==config::X25519 {
     	return 32;
@@ -92,6 +95,7 @@ pub fn client_public_key_size(group: u16) -> usize {
     return 0;
 }
 
+/// Return size of servers key exchange public key (or ciphertext) in bytes
 pub fn server_public_key_size(group: u16) -> usize {
     if group==config::X25519 {
     	return 32;
@@ -113,6 +117,7 @@ pub fn server_public_key_size(group: u16) -> usize {
     return 0;
 }
 
+/// Return shared secret size in bytes
 pub fn shared_secret_size(group: u16) -> usize {
     if group==config::X25519 {
     	return 32;
@@ -134,7 +139,7 @@ pub fn shared_secret_size(group: u16) -> usize {
     return 0;
 }
 
-// provide list of supported cipher suites
+/// Provide list of supported cipher suites
 pub fn ciphers(ciphers: &mut [u16]) -> usize {
     let n=2;
     ciphers[0]=config::AES_128_GCM_SHA256;
@@ -142,7 +147,7 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
     return n;
 }
 
-// provide list of supported key exchange groups
+/// Provide list of supported key exchange groups
 pub fn groups(groups: &mut [u16]) -> usize {
     let mut n=3;
     groups[0]=config::X25519;
@@ -155,7 +160,7 @@ pub fn groups(groups: &mut [u16]) -> usize {
     return n;
 }
 
-// provide list of supported signature algorithms (for TLS)
+/// Provide list of supported signature algorithms (for TLS)
 pub fn sigs(sig_algs: &mut [u16]) -> usize {
     let mut n=2;
     sig_algs[0]=config::ECDSA_SECP256R1_SHA256;
@@ -169,7 +174,7 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
     return n;
 }
 
-// provide list of supported signature algorithms (for Certificates)
+/// Provide list of supported signature algorithms (for Certificates)
 pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
     let mut n=2;
     sig_algs_cert[0]=config::ECDSA_SECP256R1_SHA256;
@@ -185,7 +190,7 @@ pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
     return n;
 }
 
-// return hashtype from cipher_suite
+/// Return hashtype from cipher_suite
 pub fn hash_type(cipher_suite: u16) -> usize {
     let mut htype=0;  
     if cipher_suite==config::AES_128_GCM_SHA256 {htype=config::SHA256_T;}
@@ -193,22 +198,8 @@ pub fn hash_type(cipher_suite: u16) -> usize {
     if cipher_suite==config::CHACHA20_POLY1305_SHA256 {htype=config::SHA256_T;}
     return htype;
 }
-/*
-// return hashtype from signature algorithm
-pub fn hash_type_sig(sigalg: u16) -> usize {
-    let mut htype=0;  
-    if sigalg==config::ECDSA_SECP256R1_SHA256 {htype=config::SHA256_T;}
-    if sigalg==config::ECDSA_SECP384R1_SHA384 {htype=config::SHA384_T;}
-    if sigalg==config::RSA_PSS_RSAE_SHA256 {htype=config::SHA256_T;}
-    if sigalg==config::RSA_PSS_RSAE_SHA384 {htype=config::SHA384_T;}
-    if sigalg==config::RSA_PSS_RSAE_SHA512 {htype=config::SHA512_T;}
-    if sigalg==config::RSA_PKCS1_SHA256 {htype=config::SHA256_T;}
-    if sigalg==config::RSA_PKCS1_SHA384 {htype=config::SHA384_T;}
-    if sigalg==config::RSA_PKCS1_SHA512 {htype=config::SHA512_T;}
-    return htype;
-}
-*/
-// return hash length from hash type
+
+/// Return hash length from hash type
 pub fn hash_len(hash_type: usize) -> usize {
     let mut hlen=0;
     if hash_type==config::SHA256_T {hlen=32;}
@@ -217,7 +208,7 @@ pub fn hash_len(hash_type: usize) -> usize {
     return hlen;
 }
 
-// get AEAD parameters
+/// Get AEAD key length parameter
 pub fn aead_key_len(cipher_suite:u16) -> usize {
     let mut klen=0;
     if cipher_suite==config::AES_128_GCM_SHA256 {
@@ -232,6 +223,7 @@ pub fn aead_key_len(cipher_suite:u16) -> usize {
     return klen;
 }
 
+/// Get AEAD tag length parameter
 pub fn aead_tag_len(cipher_suite:u16) -> usize {
     let mut tlen=0;
     if cipher_suite==config::AES_128_GCM_SHA256 {
@@ -246,27 +238,27 @@ pub fn aead_tag_len(cipher_suite:u16) -> usize {
     return tlen;
 }
 
-// Key derivation function
+/// Key derivation function
 pub fn hkdf_expand(htype:usize, okm: &mut [u8],prk: &[u8], info: &[u8])
 {
     let hlen=hash_len(htype);
     hmac:: hkdf_expand(hmac::MC_SHA2,hlen,okm,okm.len(),prk,info);
 }
 
-// hkdf - Extract secret from raw input
+/// HKDF - Extract secret from raw input
 pub fn hkdf_extract(htype: usize,prk: &mut [u8],salt: Option<&[u8]>,ikm: &[u8])
 {
     let hlen=hash_len(htype);
     hmac::hkdf_extract(hmac::MC_SHA2,hlen,prk,salt,ikm);
 }
 
-// hmac
+/// HMAC
 pub fn hmac(htype: usize,t: &mut [u8],k: &[u8],m: &[u8]) {
     let hlen=hash_len(htype);
     hmac::hmac1(hmac::MC_SHA2,hlen,t,hlen,k,m);
 }
 
-// Hash of NULL
+/// Hash of NULL
 pub fn hash_null(htype: usize,h: &mut [u8]) -> usize
 {
     let hlen=hash_len(htype);
@@ -288,7 +280,7 @@ pub fn hash_null(htype: usize,h: &mut [u8]) -> usize
     return hlen;    
 }
 
-// transcript hash code
+/// Initialise transcript hash
 pub fn hash_init(htype:usize,h: &mut config::UNIHASH)
 {
     if htype==config::SHA256_T {
@@ -306,6 +298,7 @@ pub fn hash_init(htype:usize,h: &mut config::UNIHASH)
     h.htype=htype;
 }
 
+/// Hash an array of bytes
 pub fn hash_process_array(h: &mut config::UNIHASH,b: &[u8])
 {
     if h.htype==config::SHA256_T {
@@ -328,6 +321,7 @@ pub fn hash_process_array(h: &mut config::UNIHASH,b: &[u8])
     }
 }
 
+/// Provide hash output
 pub fn hash_output(h: &config::UNIHASH,o: &mut [u8]) -> usize
 {
     let hlen=hash_len(h.htype);
@@ -352,8 +346,9 @@ pub fn hash_output(h: &config::UNIHASH,o: &mut [u8]) -> usize
     return hlen;
 }
 
+/// AEAD encryption assuming AES-GCM 
 pub fn aead_encrypt(send: &keys::CRYPTO,hdr: &[u8],pt: &mut [u8],tag: &mut [u8])
-{ // AEAD encryption assuming AES-GCM (but should check send.k.suite)
+{ 
     let mut g=GCM::new();
     let klen=aead_key_len(send.suite);
     g.init(klen,&send.k,12,&send.iv);
@@ -362,8 +357,9 @@ pub fn aead_encrypt(send: &keys::CRYPTO,hdr: &[u8],pt: &mut [u8],tag: &mut [u8])
     g.finish(&mut tag[0..send.taglen],true);
 }
 
+/// AEAD decryption assuming AES-GCM 
 pub fn aead_decrypt(recv: &keys::CRYPTO,hdr: &[u8],ct: &mut [u8],tag: &[u8]) -> bool
-{ // AEAD decryption AES-GCM
+{
     let mut ctag:[u8;config::MAX_TAG_SIZE]=[0;config::MAX_TAG_SIZE];
     let mut g=GCM::new();
     let klen=aead_key_len(recv.suite);
@@ -377,7 +373,7 @@ pub fn aead_decrypt(recv: &keys::CRYPTO,hdr: &[u8],ct: &mut [u8],tag: &[u8]) -> 
     return true;
 }
 
-// generate private/public key pair
+/// Generate key exchange private/public key pair
 pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
     if group==config::X25519 {
         use mcore::c25519::ecdh;
@@ -424,7 +420,7 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
     }
 }
 
-// Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
+/// Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
 pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) {
     let mut csk:[u8;config::MAX_KEX_SECRET_KEY]=[0;config::MAX_KEX_SECRET_KEY];
     if group==config::X25519 {
@@ -484,7 +480,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
     csk.zeroize();
 }
 
-// generate shared secret SS from secret key SK and public key PK
+/// Generate shared secret SS from secret key SK and public key PK
 pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
 {
     if group==config::X25519 {
@@ -528,18 +524,20 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
     }
 }
 
+/// Dilithium signature verification
 fn dilithium3_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::dilithium;
     return dilithium::verify(pubkey,cert,sig);
 }
 
+/// Dilithium signature 
 pub fn dilithium3_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::dilithium;
     dilithium::signature(&key[0..dilithium::SK_SIZE],mess,sig);
     return dilithium::SIG_SIZE;
 }
 
-// RSA 2048-bit PKCS1.5 signature verification
+/// RSA 2048-bit PKCS1.5 signature verification
 fn rsa_2048_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::rsa2048::rsa;
     let mut ms: [u8;rsa::RFS]=[0;rsa::RFS];
@@ -556,7 +554,7 @@ fn rsa_2048_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> b
     return res;
 }
 
-// RSA 4096-bit PKCS1.5 signature verification
+/// RSA 4096-bit PKCS1.5 signature verification
 fn rsa_4096_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::rsa4096::rsa;
     let mut ms: [u8;rsa::RFS]=[0;rsa::RFS];
@@ -573,6 +571,7 @@ fn rsa_4096_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> b
     return res;
 }
 
+/// RSA PKCS15 signature verification
 pub fn rsa_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     if pubkey.len()==256 {
         return rsa_2048_pkcs15_verify(hlen,cert,sig,pubkey);
@@ -583,6 +582,7 @@ pub fn rsa_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bo
     return false;
 }
 
+/// RSA 2048-bit PSS signature verification
 fn rsa_2048_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::rsa2048::rsa;
     let mut ms: [u8;rsa::RFS]=[0;rsa::RFS];
@@ -595,6 +595,7 @@ fn rsa_2048_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) ->
     return false;
 }
 
+/// RSA 4096-bit PSS signature verification
 fn rsa_4096_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::rsa4096::rsa;
     let mut ms: [u8;rsa::RFS]=[0;rsa::RFS];
@@ -607,7 +608,7 @@ fn rsa_4096_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) ->
     return false;
 }
 
-// RSA PSS signature verification
+/// RSA PSS signature verification
 pub fn rsa_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     if pubkey.len()==256 {
         return rsa_2048_pss_rsae_verify(hlen,mess,sig,pubkey);
@@ -618,7 +619,7 @@ pub fn rsa_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) -> 
     return false;
 }
 
-// NIST secp256r1 curve signature verification
+/// NIST secp256r1 curve signature verification
 pub fn secp256r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::nist256::ecdh;
     let mut res=ecdh::public_key_validate(pubkey);
@@ -633,7 +634,7 @@ pub fn secp256r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) 
     return true;
 }
 
-// NIST secp384r1 curve signature verification
+/// NIST secp384r1 curve signature verification
 pub fn secp384r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::nist384::ecdh;
     let mut res=ecdh::public_key_validate(pubkey);
@@ -648,7 +649,7 @@ pub fn secp384r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) 
     return true;
 }
 
-// Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
+/// Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::nist256::ecdh;
     let mut r:[u8;32]=[0;32];
@@ -666,7 +667,7 @@ pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) ->
     return 64;
 }
 
-// Use Curve SECP384R1 ECDSA to digitally sign a message using a private key 
+/// Use Curve SECP384R1 ECDSA to digitally sign a message using a private key 
 pub fn secp384r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::nist384::ecdh;
     let mut r:[u8;48]=[0;48];
@@ -684,7 +685,7 @@ pub fn secp384r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) ->
     return 96;
 }
 
-// Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
+/// Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
 fn rsa_2048_pss_rsae_sign(hlen: usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::rsa2048::rsa;
     let len=key.len()/5;
@@ -706,7 +707,7 @@ fn rsa_2048_pss_rsae_sign(hlen: usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> 
     return 256;
 }
 
-// Use RSA-4096 PSS-RSAE to digitally sign a message using a private key
+/// Use RSA-4096 PSS-RSAE to digitally sign a message using a private key
 fn rsa_4096_pss_rsae_sign(hlen: usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::rsa4096::rsa;
     let len=key.len()/5;
@@ -728,7 +729,7 @@ fn rsa_4096_pss_rsae_sign(hlen: usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> 
     return 512;
 }
 
-// RSA PSS transcript signature using secret key
+/// RSA PSS transcript signature using secret key
 pub fn rsa_pss_rsae_sign(hlen:usize,key:&[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     let len=key.len()/5;
     if len==128 {
@@ -743,7 +744,7 @@ pub fn rsa_pss_rsae_sign(hlen:usize,key:&[u8],mess: &[u8],sig: &mut [u8]) -> usi
 // RFC8446:     "A TLS-compliant application MUST support digital signatures with
 //              rsa_pkcs1_sha256 (for certificates), rsa_pss_rsae_sha256 (for
 //              CertificateVerify and certificates), and ecdsa_secp256r1_sha256."
-// SAL signature verification
+/// SAL signature verification
 pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -> bool {
     match sigalg {
         config::RSA_PKCS1_SHA256 => {return rsa_pkcs15_verify(32,buff,sig,pubkey);},
@@ -757,7 +758,7 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
     }
 }
 
-// Form Transcript Signature 
+/// Form Transcript Signature 
 pub fn tls_signature(sigalg: u16,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usize { // probably need to support more cases
     match sigalg {
         config:: RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_sign(32,key,trans,sig);},

@@ -1,3 +1,5 @@
+//! Read data from a socket
+
 use std::net::{TcpStream};
 use std::io::{Read};
 

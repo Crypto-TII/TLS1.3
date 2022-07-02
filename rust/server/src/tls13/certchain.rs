@@ -1,5 +1,5 @@
-// TLS1.3 X.509 Certificate Processing Code
-//
+//! TLS1.3 X.509 Certificate Processing Code
+
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::x509;
@@ -10,6 +10,7 @@ use crate::tls13::logger::log;
 use crate::tls13::cacerts;
 use crate::tls13::servercert;
 
+/// Certificate components
 pub struct CERT {
     pub sig:[u8;MAX_SIGNATURE_SIZE],
     pub sgt: PKTYPE,
@@ -39,7 +40,7 @@ impl CERT {
     }
 }
 
-// combine Common Name, Organisation Name and Unit Name to make unique determination
+/// Combine Common Name, Organisation Name and Unit Name to make unique determination
 fn create_full_name(fullname: &mut [u8],cert: &[u8],ic: usize) -> usize {
     let mut ptr=0;
     let mut ep=x509::find_entity_property(cert,&x509::MN,ic);
@@ -53,7 +54,7 @@ fn create_full_name(fullname: &mut [u8],cert: &[u8],ic: usize) -> usize {
     return ptr;
 }
 
-// just check year of issue
+/// Just check year of issue
 fn check_cert_not_expired(cert:&[u8]) -> bool {
     let ic=x509::find_validity(cert);
     let c=x509::find_expiry_date(cert,ic);
@@ -65,7 +66,7 @@ fn check_cert_not_expired(cert:&[u8]) -> bool {
     return true;
 }
 
-// base64 decoding
+/// base64 decoding
 fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in place
     let mut j=0;
     let mut k=0;
@@ -105,7 +106,7 @@ fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in place
     return k;
 }
 
-// find root CA (if it exists) from database
+/// Find root CA (if it exists) from database
 fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bool {
     let mut owner:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
     let mut sc:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
@@ -133,7 +134,7 @@ fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bo
     return false;
 }
 
-// Check signature on Certificate given signature type and public key
+/// Check signature on Certificate given signature type and public key
 fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     let mut sigalg:u16=0;
     if st.kind==x509::ECC && st.hash==x509::H256 && st.curve==x509::USE_NIST256 {
@@ -162,7 +163,7 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return res;
 }
 
-// get server credentials
+/// Get server credentials (cert+signing key) from servercert.rs
 pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
     let mut sc:[u8;MAX_SERVER_CHAIN_SIZE]=[0;MAX_SERVER_CHAIN_SIZE];
 // first get certificate chain
@@ -232,9 +233,7 @@ pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
     return 0;
 }
 
-// parse out certificate details
-// check that previous issuer is subject of this cert
-// update previous issuer
+/// parse out certificate details, check that previous issuer is subject of this cert, update previous issuer
 fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u8],pislen: &mut usize) -> CERT {
     let mut ct=CERT::new();
     ct.sgt=x509::extract_cert_sig(scert,&mut ct.sig);
@@ -286,11 +285,9 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     return ct;
 }
 
-// extract public key, and check validity of certificate chain
-// ensures that the hostname is same as that in Cert
-// Assumes simple chain Cert->Intermediate Cert->CA cert
-// CA cert not read from chain (if its even there). 
-// Search for issuer of Intermediate Cert in cert store 
+/// Extract public key, and check validity of certificate chain. Ensure that the hostname is same as that in Cert.
+/// Assumes simple chain Cert->Intermediate Cert->CA cert.
+/// CA cert not read from chain (if its even there) instead search for issuer of Intermediate Cert in cert store 
 pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pklen: &mut usize,identity: &mut[u8],idlen: &mut usize) -> isize {
     let mut ptr=0;
     let mut capk:[u8;MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];

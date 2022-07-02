@@ -1,6 +1,5 @@
-//
-// Main TLS1.3 protocol 
-//
+
+//! Main TLS1.3 protocol 
 
 use std::net::{TcpStream};
 use std::io::{Write};
@@ -21,6 +20,7 @@ use crate::tls13::logger::log;
 use crate::tls13::ticket;
 use crate::tls13::ticket::TICKET;
 
+/// TLS1.3 session structure
 pub struct SESSION {
     status: usize,     // Connection status 
     max_record: usize, // Server's max record size 
@@ -79,7 +79,7 @@ impl SESSION {
         return this;
     }
 
-// get an integer of length len bytes from io stream
+/// Get an integer of length len bytes from io stream
     fn parse_int_pull(&mut self,len:usize) -> RET {
         let mut r=utils::parse_int(&self.io[0..self.iolen],len,&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
@@ -96,7 +96,7 @@ impl SESSION {
         return r;
     }  
     
-// pull bytes into array
+/// Pull bytes from io into array
     fn parse_bytes_pull(&mut self,e: &mut[u8]) -> RET {
         let mut r=utils::parse_bytes(e,&self.io[0..self.iolen],&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
@@ -113,7 +113,7 @@ impl SESSION {
         return r;
     }
 
-// pull bytes into input buffer
+/// Pull bytes into input buffer
     fn parse_pull(&mut self,n: usize) -> RET { // get n bytes into self.io
         let mut r=RET{val:0,err:0};
         while self.ptr+n>self.iolen {
@@ -130,36 +130,36 @@ impl SESSION {
         return r;
     }
 
-// rewind iobuffer
+/// Rewind iobuffer
     fn rewind(&mut self) {
         self.iolen=utils::shift_left(&mut self.io[0..self.iolen],self.ptr); // rewind
         self.ptr=0;        
     }
 
-// Add I/O buffer self.io to transcript hash 
+/// Add I/O buffer self.io to transcript hash 
     fn running_hash_io(&mut self) {
         sal::hash_process_array(&mut self.tlshash,&self.io[0..self.ptr]);
         self.rewind();
     }
 
 
-// Initialise transcript hash
+/// Initialise transcript hash
     fn init_transcript_hash(&mut self) {
         let htype=sal::hash_type(self.cipher_suite);
         sal::hash_init(htype,&mut self.tlshash);
     }
 
-// Add octad to transcript hash 
+/// Add octad to transcript hash 
     fn running_hash(&mut self,o: &[u8]) {
         sal::hash_process_array(&mut self.tlshash,o);
     }
 
-// Output transcript hash 
+/// Output transcript hash 
     fn transcript_hash(&self,o: &mut [u8]) {
         sal::hash_output(&self.tlshash,o); 
     }
 
-// special case handling for first clientHello after retry request
+/// Special case handling for first clientHello after retry request
     fn running_synthetic_hash(&mut self,o: &[u8],e: &[u8]) {
         let htype=self.tlshash.htype; 
         let hlen=sal::hash_len(htype);
@@ -177,15 +177,17 @@ impl SESSION {
 //        self.ptr=0;
     }
 
+/// Create a sending crypto context
     pub fn create_send_crypto_context(&mut self) {
         self.k_send.init(self.cipher_suite,&self.cts);
     }
 
+/// Create a receiving crypto context
     pub fn create_recv_crypto_context(&mut self) {
         self.k_recv.init(self.cipher_suite,&self.sts);
     }
     
-// get Client and Server Handshake secrets for encrypting rest of handshake, from Shared secret SS and early secret ES
+/// Get Client and Server Handshake secrets for encrypting rest of handshake, from Shared secret SS and early secret ES
     pub fn derive_handshake_secrets(&mut self,ss: &[u8],es: &[u8],h: &[u8]) {
         let dr="derived";
         let ch="c hs traffic";
@@ -201,7 +203,7 @@ impl SESSION {
         keys::hkdf_expand_label(htype,&mut self.sts[0..hlen],&self.hs[0..hlen],sh.as_bytes(),Some(h));
     }
 
-// Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
+/// Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
     pub fn derive_application_secrets(&mut self,sfh: &[u8],cfh: &[u8],ems: Option<&mut [u8]>) {
         let dr="derived";
         let ch="c ap traffic";
@@ -226,7 +228,7 @@ impl SESSION {
         keys::hkdf_expand_label(htype,&mut self.rms[0..hlen],&ms[0..hlen],rh.as_bytes(),Some(cfh));
     }
 
-// recover Pre-Shared-Key from Resumption Master Secret
+/// Recover Pre-Shared-Key from Resumption Master Secret
     fn recover_psk(&mut self) { 
         let rs="resumption";
         let htype=sal::hash_type(self.cipher_suite);
@@ -235,10 +237,10 @@ impl SESSION {
         self.t.psklen=hlen;
     }
 
-// send a message - could/should be broken down into multiple records
-// message comes in two halves - cm and (optional) ext
-// message is constructed in IO buffer, and finally written to the socket
-// note that IO buffer is overwritten
+/// Send a message - could/should be broken down into multiple records.
+/// Message comes in two halves - cm and (optional) ext.
+/// message is constructed in IO buffer, and finally written to the socket.
+/// note that the IO buffer is overwritten
     fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>,flush: bool) {
         let mut ptr=self.iolen;
         let rbytes=(sal::random_byte()%16) as usize;
@@ -285,7 +287,7 @@ impl SESSION {
         }
     }   
 
-// Send Client Hello
+/// Send Client Hello
     pub fn send_client_hello(&mut self,version:usize,ch: &mut [u8],already_agreed: bool,ext: &[u8],extra: usize,resume: bool,flush: bool) -> usize {
         let mut rn: [u8;32]=[0;32];
         let mut cs: [u8;2+2*MAX_CIPHER_SUITES]=[0;2+2*MAX_CIPHER_SUITES];
@@ -321,7 +323,7 @@ impl SESSION {
         return ptr;
     }
 
-// Send "binder",
+/// Send "binder",
     pub fn send_binder(&mut self,bnd: &[u8]) -> usize {
         let mut b:[u8;MAX_HASH+3]=[0;MAX_HASH+3];
         let tlen2=bnd.len()+1;  
@@ -334,7 +336,7 @@ impl SESSION {
         return ptr;
     }
 
-// check for a bad response. If not happy with what received - send alert and close. If alert received from Server, log it and close.
+/// check for a bad response. If not happy with what received - send alert and close. If alert received from Server, log it and close.
     fn bad_response(&mut self,r: &RET) -> bool {
         logger::log_server_response(r);
         if r.err !=0 {
@@ -354,7 +356,7 @@ impl SESSION {
         return false;
     }
 
-// Send an alert to the Server
+/// Send an alert to the Server
     pub fn send_alert(&mut self,kind: u8) {
         let pt: [u8;2]=[0x02,kind];
         self.send_message(ALERT,TLS1_2,&pt[0..2],None,true);
@@ -362,13 +364,13 @@ impl SESSION {
         logger::log_alert(kind);
     }
 
-// send Change Cipher Suite - helps get past middleboxes (?)
+/// Send Change Cipher Suite - helps get past middleboxes (?)
     pub fn send_cccs(&mut self) {
         let cccs:[u8;6]=[0x14,0x03,0x03,0x00,0x01,0x01];
         self.sockptr.write(&cccs).unwrap();
     }
 
-// Send Early Data
+/// Send Early Data
     pub fn send_end_early_data(&mut self) {
         let mut ed:[u8;4]=[0;4];
         let mut ptr=0;
@@ -378,7 +380,7 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&ed[0..ptr],None,true);
     }
 
-// Send Client Certificate
+/// Send Client Certificate
     fn send_client_certificate(&mut self,certchain: Option<&[u8]>) {
         let mut pt:[u8;8]=[0;8];
         let mut ptr=0;
@@ -398,7 +400,7 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],certchain,true);
     }
 
-// Send Client Certificate Verify 
+/// Send Client Certificate Verify 
     fn send_client_cert_verify(&mut self, sigalg: u16,ccvsig: &[u8]) { 
         let mut pt:[u8;8]=[0;8];
         let mut ptr=0;
@@ -411,7 +413,7 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(ccvsig),true);
 }
 
-// Send final client handshake verification data
+/// Send final client handshake verification data
     fn send_client_finish(&mut self,chf: &[u8]) {
         let mut pt:[u8;4]=[0;4];
         let mut ptr=0;
@@ -422,8 +424,8 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(chf),true);
     }
 
-// build client's chosen set of extensions, and assert expectation of server responses
-// The User may want to change the mix of optional extensions
+/// Build client's chosen set of extensions, and assert expectation of server responses.
+/// The User may want to change the mix of optional extensions.
 // mode=0 - full handshake
 // mode=1 - resumption handshake
 // mode=2 = External PSK handshake
@@ -467,7 +469,7 @@ impl SESSION {
         return extlen;
     }
 
-// Receive Server Certificate Verifier
+/// Receive Server Certificate Verifier
     fn get_server_cert_verify(&mut self,scvsig: &mut [u8],siglen: &mut usize,sigalg: &mut u16) -> RET {
         //let mut ptr=0;
 
@@ -497,7 +499,7 @@ impl SESSION {
         return r;
     }
 
-// Receive Certificate Request - the Server wants the client to supply a certificate chain
+/// Receive Certificate Request - the Server wants the client to supply a certificate chain
     fn get_certificate_request(&mut self, nalgs: &mut usize,sigalgs: &mut [u16]) -> RET {
         //let mut ptr=0;
         let mut unexp=0;
@@ -572,7 +574,7 @@ impl SESSION {
         return r;
     }
 
-// Get handshake finish verifier data in hfin
+/// Get handshake finish verifier data in hfin
     fn get_server_finished(&mut self,hfin: &mut [u8],hflen: &mut usize) -> RET {
         //let mut ptr=0;
 
@@ -593,8 +595,8 @@ impl SESSION {
         return r;
     }
 
-// Receive a single record. Could be fragment of a full message. Could be encrypted.
-// returns +ve type of record, or negative error
+/// Receive a single record. Could be fragment of a full message. Could be encrypted.
+/// Returns +ve type of record, or negative error.
 // should I check version? RFC - "MUST be ignored for all purposes"
     pub fn get_record(&mut self) -> isize {
         let mut rh:[u8;5]=[0;5];
@@ -667,7 +669,7 @@ impl SESSION {
         return APPLICATION as isize;
     }
 
-// Get (unencrypted) Server Hello
+/// Get (unencrypted) Server Hello
     fn get_server_hello(&mut self,kex: &mut u16,cookie: &mut [u8],cklen:&mut usize,pk: &mut [u8],pskid: &mut isize) -> RET {
         let mut srn: [u8;32]=[0;32];
         let mut sid: [u8;32]=[0;32];
@@ -778,7 +780,7 @@ impl SESSION {
     }
 
 // Handshake Messages start with TYPE|<- LEN -> where TYPE is a byte, and LEN is 24 bits
-// Here we peek ahead for the TYPE in order to decide what to do next
+/// Peek ahead for the type of message in order to decide what to do next
 // Important to include TYPE in the transcript hash
 // See whats coming next
     fn see_whats_next(&mut self) -> RET {
@@ -794,7 +796,7 @@ impl SESSION {
         return r;
     }
 
-// Process server's encrypted extensions
+/// Process server's encrypted extensions
     pub fn get_server_encrypted_extensions(&mut self,expected: &EESTATUS,response: &mut EESTATUS) -> RET {
         let mut _unexp=0;
 
@@ -904,7 +906,7 @@ impl SESSION {
         return r;
     }
 
-// Get certificate chain, and check its validity 
+/// Get certificate chain, and check its validity 
     pub fn get_check_server_certificatechain(&mut self,spk:&mut [u8],spklen: &mut usize) -> RET {
         let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
@@ -939,7 +941,7 @@ impl SESSION {
         return r;
     }
 
-// clean up buffers, kill crypto keys
+/// Clean up buffers, kill crypto keys
     pub fn clean(&mut self) {
         self.status=DISCONNECTED;
         self.io.zeroize();
@@ -951,7 +953,7 @@ impl SESSION {
         self.k_recv.clear();
     }
 
-// clean out IO buffer
+/// Clean out IO buffer
     fn clean_io(&mut self) {
         for i in 0..self.iolen {
             self.io[i]=0;
@@ -960,8 +962,7 @@ impl SESSION {
         self.iolen=0;
     }
 
-// TLS1.3
-// RESUMPTION handshake. Can optionally start with some early data
+/// TLS1.3 RESUMPTION handshake. Can optionally start with some early data
     pub fn tls_resume(&mut self,early: Option<&[u8]>) -> usize {
         let mut expected=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
         let mut response=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
@@ -1230,7 +1231,7 @@ impl SESSION {
         return TLS_SUCCESS;
     }
 
-// Exchange Client/Server "Hellos"
+/// Exchange Client/Server "Hellos"
     fn exchange_hellos(&mut self) -> usize {
         let mut groups:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
         let mut ciphers:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
@@ -1405,7 +1406,7 @@ impl SESSION {
         return TLS_SUCCESS;
     }
 
-// check that the server is trusted
+/// Check that the server is trusted
     fn server_trust(&mut self) -> usize {
 // Client now receives certificate chain and verifier from Server. Need to parse these out, check CA signature on the cert
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
@@ -1481,7 +1482,7 @@ impl SESSION {
         return TLS_SUCCESS;
     }
 
-// client supplies trust to server, given servers list of acceptable signature types
+/// Client proves trustworthyness to server, given servers list of acceptable signature types
     fn client_trust(&mut self,csigalgs: &[u16] ) {
         let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
         let mut client_certchain:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
@@ -1523,8 +1524,7 @@ impl SESSION {
         }
     }
 
-// TLS1.3
-// FULL handshake
+/// TLS1.3 FULL handshake
     pub fn tls_full(&mut self) -> usize {
         let mut resumption_required=false;
 
@@ -1619,8 +1619,7 @@ impl SESSION {
         return TLS_SUCCESS;
     }
 
-// connect to server
-// first try resumption if session has a good ticket attached
+/// Connect to server. First try resumption if session has a good ticket attached
     pub fn connect(&mut self,early: Option<&[u8]>) -> bool {
         let rtn:usize;
         let mut early_went=false;
@@ -1647,15 +1646,13 @@ impl SESSION {
         return true;   // exiting with live session, ready to receive fresh ticket
     }
 
-// send a message post-handshake
+/// Send a message post-handshake
     pub fn send(&mut self,mess: &[u8]) {
         log(IO_APPLICATION,"Sending Application Message \n\n",-1,Some(mess));
         self.send_message(APPLICATION,TLS1_2,mess,None,true);       
     }
 
-// Process Server records received post-handshake
-// Should be mostly application data, but..
-// could be more handshake data disguised as application data
+/// Process Server records received post-handshake. Should be mostly application data, but could be more handshake data disguised as application data
 // For example could include a ticket. Also receiving key K_recv might be updated.
 // returns +ve length of message, or negative error
     pub fn recv(&mut self,mess: &mut [u8]) -> isize {

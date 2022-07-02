@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mcore = { path = "../../rust/mcore" }
+mcore = { path = "../../rust/mcore" }    # make sure this is correct
 zeroize = "1.5.4"
 rand = "0.8.5"
 oqs = "*"

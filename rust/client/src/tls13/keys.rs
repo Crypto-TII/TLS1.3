@@ -1,5 +1,4 @@
-// Generate and process cryptographic keys
-//
+//! Create and manage cryptographic keys
 
 use zeroize::Zeroize;
 
@@ -8,7 +7,7 @@ use crate::tls13::utils;
 use crate::tls13::sal;
 //use crate::tls13::logger::log;
 
-// create expanded HKDF label LB from label and context
+/// Create expanded HKDF label LB from label and context
 fn hkdf_label(lb: &mut [u8],len: usize,label:&[u8],ctx: Option<&[u8]>) -> usize {
     let mut ptr=0;
     let tls="tls13 ";
@@ -26,7 +25,7 @@ fn hkdf_label(lb: &mut [u8],len: usize,label:&[u8],ctx: Option<&[u8]>) -> usize 
     return ptr;
 }
 
-// HKDF extension for TLS1.3
+/// HKDF extension for TLS1.3
 pub fn hkdf_expand_label(htype: usize,okm: &mut [u8],prk: &[u8],label: &[u8],ctx: Option<&[u8]>)
 {
     let mut hl:[u8;MAX_HASH+24]=[0;MAX_HASH+24];
@@ -34,8 +33,7 @@ pub fn hkdf_expand_label(htype: usize,okm: &mut [u8],prk: &[u8],label: &[u8],ctx
     sal::hkdf_expand(htype,okm,prk,&hl[0..len]);
 }
 
-// Key Schedule code
-// Get Early Secret ES and optional Binder Key (either External or Resumption)
+/// Key Schedule code. Get Early Secret ES and optional Binder Key (either External or Resumption)
 pub fn derive_early_secrets(htype: usize,psk: Option<&[u8]>,es: &mut [u8],bke: Option<&mut [u8]>,bkr: Option<&mut [u8]>)
 {
     let mut emh:[u8;MAX_HASH]=[0;MAX_HASH];
@@ -63,7 +61,7 @@ pub fn derive_early_secrets(htype: usize,psk: Option<&[u8]>,es: &mut [u8],bke: O
     }
 }
 
-// Get Later Secrets (Client Early Traffic Secret CETS and Early Exporter Master Secret EEMS) - requires partial transcript hash H
+/// Get Later Secrets (Client Early Traffic Secret CETS and Early Exporter Master Secret EEMS) - requires partial transcript hash H
 pub fn derive_later_secrets(htype: usize,es: &[u8],h: &[u8], cets: Option<&mut [u8]>, eems: Option<&mut [u8]>) 
 {
     let ct="c e traffic";
@@ -76,7 +74,7 @@ pub fn derive_later_secrets(htype: usize,es: &[u8],h: &[u8], cets: Option<&mut [
     }
 }
 
-// Key and IV for AEAD
+/// Structure for Key and IV for AEAD
 pub struct CRYPTO {
     pub active: bool,
     pub k: [u8;MAX_KEY],        // AEAD cryptographic Key bytes     
@@ -97,6 +95,7 @@ impl CRYPTO {
             taglen: 0
         }
     }
+/// Initialize cipher suite
     pub fn init(&mut self,cipher_suite: u16,ts: &[u8])
     {
         let htype=sal::hash_type(cipher_suite);
@@ -112,7 +111,7 @@ impl CRYPTO {
         self.record=0;
         self.taglen=sal::aead_tag_len(cipher_suite);
     }
-
+/// Remove cipher suite
     pub fn clear(&mut self) {
         self.active=false;
         self.record=0;
@@ -122,11 +121,12 @@ impl CRYPTO {
         self.iv.zeroize();
     }
 
+/// Check if cipher-suite is active
     pub fn is_active(&mut self) -> bool {
         return self.active;
     }
 
-//  increment record, and update IV
+/// Increment record, and update IV
     pub fn increment_crypto_context(&mut self)
     { 
         let mut b:[u8;4]=[0;4];
@@ -148,7 +148,7 @@ impl CRYPTO {
         }
     }
 
-// update Traffic secret and associated traffic key and IV
+/// Update Traffic secret and associated traffic key and IV
     pub fn update(&mut self,ts: &mut [u8]) {
         let mut nts:[u8;MAX_HASH]=[0;MAX_HASH];
         let htype=sal::hash_type(self.suite);
@@ -170,7 +170,7 @@ impl CRYPTO {
     }  
 }
 
-// create ECDSA signature, needed in ASN.1 form 
+/// Create ECDSA signature, needed in ASN.1 form 
 fn parse_in_ecdsa_sig(htype: usize,ccvsig: &mut [u8]) -> usize {
     let mut c:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
     let mut d:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
@@ -215,7 +215,7 @@ fn parse_in_ecdsa_sig(htype: usize,ccvsig: &mut [u8]) -> usize {
     return ptr;
 }
 
-// Create Client Certificate Verifier
+/// Create Client Certificate Verifier
 pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut [u8]) -> usize {
     let mut ptr=0;
     let txt="TLS 1.3, client CertificateVerify";
@@ -236,8 +236,7 @@ pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut 
     return cclen;
 }
 
-// Convert DER encoded signature to ECDSA signature
-// parse out DER encoded (r,s) ECDSA signature into a single SIG r|s
+/// Parse out DER encoded (r,s) ECDSA signature into a single SIG r|s format
 fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
     let mut r:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
     let mut s:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
@@ -280,7 +279,7 @@ fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
     return 2*hlen; // length of signature
 }
 
-// Check Server Certificate Verifier - verify signature
+/// Check Server Certificate Verifier - verify signature
 pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk: &[u8]) -> bool {
     let mut scv:[u8;100+MAX_HASH]=[0;100+MAX_HASH];
     let mut ptr=0;
@@ -306,7 +305,7 @@ pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk:
     return sal::tls_signature_verify(sigalg,&scv[0..ptr],&scvsig[0..siglen],certpk);
 }
 
-// Derive verifier
+/// Derive verifier
 pub fn derive_verifier_data(htype:usize,cf: &mut [u8],chts: &[u8],h: &[u8]) {
     let mut fk:[u8;MAX_HASH]=[0;MAX_HASH];  
     let info="finished";
@@ -315,7 +314,7 @@ pub fn derive_verifier_data(htype:usize,cf: &mut [u8],chts: &[u8],h: &[u8]) {
     sal::hmac(htype,cf,&fk[0..hlen],h);
 }
 
-// Check verifier
+/// Check verifier
 pub fn check_verifier_data(htype: usize,sf: &[u8],shts: &[u8],h: &mut [u8]) -> bool {
     let mut vd:[u8;MAX_HASH]=[0;MAX_HASH];
     let hlen=sal::hash_len(htype);

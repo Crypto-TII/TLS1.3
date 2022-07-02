@@ -1,17 +1,16 @@
-// Process resumption tickets
-//
+//! Process resumption tickets
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::utils::RET;
 
+/// Get system time as milliseconds since epoch
 pub fn millis() -> usize {
     return SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis() as usize;    
 }
 
-/**
- * @brief ticket context structure */
+/// Ticket Structure
 pub struct TICKET {
     pub valid: bool,                     // Is ticket valid? 
     pub tick:[u8;MAX_TICKET_SIZE],   // Ticket bytes 
@@ -54,7 +53,7 @@ impl TICKET {
         }
     }
 
-// create ticket structure from byte stream
+/// Create ticket structure from incoming byte stream
     pub fn create(&mut self,birth: usize,tickdata: &[u8]) -> isize {
         if tickdata.len() == 0 {
             return BAD_TICKET;
@@ -97,7 +96,7 @@ impl TICKET {
         return 0;
     }
 
-// check if ticket is likely to work
+/// Check if ticket is likely to work
     pub fn still_good(&self) -> bool {
         if self.origin==EXTERNAL_PSK {
             return true;

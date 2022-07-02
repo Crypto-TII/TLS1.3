@@ -1,9 +1,5 @@
 
-//
-// Certificate data stored here
-// CA root certificates
-// Root Certificate Store begins here
-//
+//! CA root certificate store
 
 // First cert is our own experimental DILITHIUM3 root certificate (Remove it to save memory)
 // Second is our own secp256r1 root certificate

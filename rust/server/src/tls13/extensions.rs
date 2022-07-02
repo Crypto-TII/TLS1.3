@@ -1,11 +1,9 @@
-// Build TLS1.3 extensions
-//
+//! Build TLS1.3 extensions
 
 use crate::tls13::utils;
 use crate::config::*;
 
-// Add Client Key Share extension
-// Offer just one public key
+/// Add Key Share extension. Offer just one public key
 pub fn add_key_share(ext: &mut [u8],ptr: usize,alg: u16,pk: &[u8]) -> usize {
     let mut nptr=ptr;
     let tlen=pk.len()+4;
@@ -17,8 +15,7 @@ pub fn add_key_share(ext: &mut [u8],ptr: usize,alg: u16,pk: &[u8]) -> usize {
     return nptr;
 }
 
-// Add Client Key Share extension
-// Offer just one public key
+/// Add empty Key Share extension
 pub fn add_key_no_share(ext: &mut [u8],ptr: usize,alg: u16) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,KEY_SHARE,2); // This extension is KEY_SHARE(0x0033)
@@ -27,7 +24,7 @@ pub fn add_key_no_share(ext: &mut [u8],ptr: usize,alg: u16) -> usize {
     return nptr;
 }
 
-// indicate TLS version support
+/// Indicate TLS version support
 pub fn add_version(ext: &mut [u8],ptr: usize,version: usize) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,TLS_VER,2);
@@ -36,6 +33,7 @@ pub fn add_version(ext: &mut [u8],ptr: usize,version: usize) -> usize {
     return nptr;
 }
 
+/// Add Pre-Shared Key extension (accepting a key)
 pub fn add_presharedkey(ext: &mut [u8],ptr: usize,index: usize,) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,PRESHARED_KEY,2);
@@ -44,7 +42,7 @@ pub fn add_presharedkey(ext: &mut [u8],ptr: usize,index: usize,) -> usize {
     return nptr;
 }
 
-// indicate preferred maximum fragment length
+/// Indicate preferred maximum fragment length
 pub fn add_mfl(ext: &mut [u8],ptr: usize, mode: usize) -> usize {
     let mut nptr=ptr;
     if mode>0 {
@@ -55,7 +53,7 @@ pub fn add_mfl(ext: &mut [u8],ptr: usize, mode: usize) -> usize {
     return nptr;
 }
 
-// indicate preferred maximum record size
+/// Indicate preferred maximum record size
 #[allow(dead_code)]
 pub fn add_rsl(ext: &mut [u8],ptr: usize, size: usize) -> usize {
     let mut nptr=ptr;
@@ -65,7 +63,7 @@ pub fn add_rsl(ext: &mut [u8],ptr: usize, size: usize) -> usize {
     return nptr;    
 }
 
-// Build Servername Extension
+/// Build Servername Extension
 pub fn add_server_name(ext: &mut [u8],ptr: usize) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,SERVER_NAME,2);  // This extension is SERVER_NAME(0)
@@ -73,7 +71,7 @@ pub fn add_server_name(ext: &mut [u8],ptr: usize) -> usize {
     return nptr;
 }
 
-// Add ALPN extension
+/// Add ALPN extension
 // Offer just one option
 pub fn add_alpn(ext: &mut [u8],ptr: usize,ap: &[u8]) -> usize {
     let tlen=ap.len()+1;
@@ -86,7 +84,7 @@ pub fn add_alpn(ext: &mut [u8],ptr: usize,ap: &[u8]) -> usize {
     return nptr;
 }
 
-// indicate desire to send early data
+/// Indicate willingness to accept early data
 pub fn add_early_data(ext: &mut [u8],ptr: usize) -> usize {
     let mut nptr=ptr; 
     nptr=utils::append_int(ext,nptr,EARLY_DATA,2);

@@ -273,7 +273,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 // protocol returns..
 #define TLS_FAILURE 0                   /**< Failed to cmake TLS1.3 connection */
-#define TLS_SUCCESS 1                   /**< Succeeded in making TLS1.3 connection */ */
+#define TLS_SUCCESS 1                   /**< Succeeded in making TLS1.3 connection */ 
 #define TLS_RESUMPTION_REQUIRED 2       /**< Connection succeeded, but handshake retry was needed */
 #define TLS_EARLY_DATA_ACCEPTED 3       /**< Connection succeeded, and early data was accepted */
 

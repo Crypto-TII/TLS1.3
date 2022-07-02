@@ -1,9 +1,5 @@
 
-//
-// Certificate data stored here
-// CA root certificates
-// Root Certificate Store begins here
-//
+//! CA root certificate store
 
 pub const CERT_STORE_SIZE:usize=138;
 

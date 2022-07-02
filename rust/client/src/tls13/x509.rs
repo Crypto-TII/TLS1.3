@@ -1,5 +1,6 @@
-// X.509 Functions 
+//! X.509 Functions 
 
+/// Public Key type
 pub struct PKTYPE {
     pub kind: usize,
     pub hash: usize,
@@ -7,6 +8,7 @@ pub struct PKTYPE {
     pub len: usize,
 }
 
+/// X.509 Field type
 pub struct FDTYPE {
     pub index: usize,
     pub length: usize,
@@ -27,12 +29,12 @@ pub const H512:usize = 4;
 
 // Supported Curves
 
-pub const USE_NIST256:usize = 4;    /**< For the NIST 256-bit standard curve - WEIERSTRASS only */
-pub const USE_C25519:usize = 1;     /**< Bernstein's Modulus 2^255-19 - EDWARDS or MONTGOMERY only */
-//const USE_BRAINPOOL:usize = 2;    /**< For Brainpool 256-bit curve - WEIERSTRASS only */
-//const USE_ANSSI:usize = 3;        /**< For French 256-bit standard curve - WEIERSTRASS only */
-pub const USE_NIST384:usize = 10;   /**< For the NIST 384-bit standard curve - WEIERSTRASS only */
-pub const USE_NIST521:usize = 12;   /**< For the NIST 521-bit standard curve - WEIERSTRASS only */
+pub const USE_NIST256:usize = 4;    // For the NIST 256-bit standard curve - WEIERSTRASS only 
+pub const USE_C25519:usize = 1;     // Bernstein's Modulus 2^255-19 - EDWARDS or MONTGOMERY only 
+//const USE_BRAINPOOL:usize = 2;    // For Brainpool 256-bit curve - WEIERSTRASS only 
+//const USE_ANSSI:usize = 3;        // For French 256-bit standard curve - WEIERSTRASS only 
+pub const USE_NIST384:usize = 10;   // For the NIST 384-bit standard curve - WEIERSTRASS only 
+pub const USE_NIST521:usize = 12;   // For the NIST 521-bit standard curve - WEIERSTRASS only 
 
 const ANY: u8 = 0x00;
 const SEQ: u8 = 0x30;
@@ -84,6 +86,7 @@ pub const AN:[u8;3]=[0x55,0x1D,0x11]; // altName
 //pub const KU:[u8;3]=[0x55,0x1D,0x0F]; // keyUsage
 //pub const BC:[u8;3]=[0x55,0x1D,0x13]; // basicConstraints
 
+/// Get the length of a field
 fn getalen(tag: u8,b:&[u8],j:usize) -> usize {
     let mut k=j;
     let mut len:usize;
@@ -107,6 +110,7 @@ fn getalen(tag: u8,b:&[u8],j:usize) -> usize {
     return len;
 }
 
+/// Number of bytes in a length
 fn skip(len: usize) -> usize {
     if len<128 {
         return 2;
@@ -117,6 +121,7 @@ fn skip(len: usize) -> usize {
     return 4;
 }
 
+/// Round to multiple of 8
 fn bround(len:usize) -> usize {
     if len%8 == 0 {
         return len;
@@ -124,6 +129,7 @@ fn bround(len:usize) -> usize {
     return len+(8-len%8);
 }
 
+/// Public key type
 impl PKTYPE {
     pub fn new() -> PKTYPE {
         PKTYPE {
@@ -135,6 +141,7 @@ impl PKTYPE {
     }
 }
 
+/// Field type
 impl FDTYPE {
     pub fn new() -> FDTYPE {
         FDTYPE {
@@ -147,7 +154,7 @@ impl FDTYPE {
 // Input private key in PKCS#8 format
 // e.g. openssl req -x509 -nodes -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365
 // e.g. openssl req -x509 -nodes -days 3650 -newkey ec:<(openssl ecparam -name prime256v1) -keyout key.pem -out ecdsacert.pem
-// extract private key from uncompressed key.pem into octet
+/// Extract private key from uncompressed key.pem into octet
 // For RSA octet = p|q|dp|dq|c where pk->len is multiple of 5
 // For ECC octet = k
 pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
@@ -391,7 +398,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
     return ret;
 }
 
-//  Input signed cert as octet, and extract signature
+///  Input signed cert as octet, and extract signature
 //  Return 0 for failure, ECC for Elliptic Curve signature, RSA for RSA signature
 //  Note that signature type is not provided here - its the type of the public key that
 //  is used to verify it that matters, and which determines for example the curve to be used!
@@ -601,7 +608,7 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
     return ret;
 }
 
-// Extract pointer to cert inside signed cert, and return its length;
+/// Extract pointer to cert inside signed cert, and return its length
 // let c=&sc[ptr..ptr+len]
 pub fn extract_cert_ptr(sc: &[u8],ptr: &mut usize) -> usize {
     let mut j:usize=0;
@@ -623,7 +630,7 @@ pub fn extract_cert_ptr(sc: &[u8],ptr: &mut usize) -> usize {
     return fin-k;
 }
 
-// Extract certificate from signed cert
+/// Extract certificate from signed cert
 #[allow(dead_code)]
 pub fn extract_cert(sc: &[u8],cert: &mut [u8]) -> usize {
     let mut j:usize=0;
@@ -648,7 +655,7 @@ pub fn extract_cert(sc: &[u8],cert: &mut [u8]) -> usize {
     return fin-k;
 }
 
-// Extract Public Key from inside Certificate
+/// Extract Public Key from inside Certificate
 pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     let mut koid:[u8;12]=[0;12];
     let mut ret=PKTYPE::new();
@@ -830,6 +837,7 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     return ret; 
 }
 
+/// Find certificate issuer
 pub fn find_issuer(c: &[u8]) -> usize {
     let mut j:usize=0;
     let mut len=getalen(SEQ,c,j);
@@ -862,6 +870,7 @@ pub fn find_issuer(c: &[u8]) -> usize {
     return j;
 }
 
+/// Find certificate validity
 pub fn find_validity(c: &[u8]) -> usize {
     let mut j=find_issuer(c);
     let len=getalen(SEQ,c,j);
@@ -872,6 +881,7 @@ pub fn find_validity(c: &[u8]) -> usize {
     return j;
 }
 
+/// Find certificate subject
 pub fn find_subject(c: &[u8]) -> usize {
     let mut j=find_validity(c);
     let len=getalen(SEQ,c,j);
@@ -882,6 +892,7 @@ pub fn find_subject(c: &[u8]) -> usize {
     return j;
 }
 
+/// Check for self-signed certificate
 #[allow(dead_code)]
 pub fn self_signed(c: &[u8]) -> bool {
     let mut ksub=find_subject(c);
@@ -908,8 +919,7 @@ pub fn self_signed(c: &[u8]) -> bool {
 // So no memory is assigned to store cert info. It is the callers responsibility to allocate such memory if required, and copy
 // cert information into it.
 
-// Find entity property indicated by SOID, given start of issuer or subject field. Return index in cert, flen=length of field
-
+/// Find entity property indicated by SOID, given start of issuer or subject field. Return index in cert, flen=length of field
 pub fn find_entity_property(c: &[u8],soid: &[u8],start: usize) -> FDTYPE {
     let mut ret=FDTYPE::new();
     let mut foid:[u8;32]=[0;32];
@@ -959,6 +969,7 @@ pub fn find_entity_property(c: &[u8],soid: &[u8],start: usize) -> FDTYPE {
     return ret;
 }
 
+/// Find certificate date of issue
 #[allow(dead_code)]
 pub fn find_start_date(c: &[u8],start: usize) -> usize {
     let mut j=start;
@@ -982,6 +993,7 @@ pub fn find_start_date(c: &[u8],start: usize) -> usize {
     return j;
 }
 
+/// Find certificate expiry date
 pub fn find_expiry_date(c: &[u8],start: usize) -> usize {
     let mut j=start;
     let mut len=getalen(SEQ,c,j);
@@ -1013,6 +1025,7 @@ pub fn find_expiry_date(c: &[u8],start: usize) -> usize {
     return j;
 }
 
+/// Find certificate extensions
 pub fn find_extensions(c: &[u8]) -> usize {
     let mut j=find_subject(c);
 
@@ -1034,6 +1047,7 @@ pub fn find_extensions(c: &[u8]) -> usize {
     return j;
 }
 
+/// Find a particular extension
 pub fn find_extension(c: &[u8],soid: &[u8],start:usize) -> FDTYPE {
     let mut ret=FDTYPE::new();
     let mut foid:[u8;32]=[0;32];
@@ -1079,7 +1093,7 @@ pub fn find_extension(c: &[u8],soid: &[u8],start:usize) -> FDTYPE {
 // return 1 if name found, else 0, where name is URL
 // input cert, and pointer to SAN extension
 // Takes wild-card into consideration
-
+/// Find Alternate name (URL). Considers wild cards
 pub fn find_alt_name(c: &[u8],start: usize,name: &[u8]) -> bool {
     if start==0 {
         return false;

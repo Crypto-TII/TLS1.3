@@ -1,3 +1,4 @@
+//! Log protocol progress
 
 use crate::config::*;
 use crate::tls13::utils;
@@ -7,6 +8,7 @@ use crate::tls13::x509;
 use crate::tls13::ticket::TICKET;
 use crate::tls13::certchain::CERT;
 
+/// Log a significant event and/or data
 pub fn log(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
     if logit>VERBOSITY {
         return;
@@ -39,6 +41,7 @@ pub fn log(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
     }
 }
 
+/// Log the cipher suite
 pub fn log_cipher_suite(cipher_suite: u16) {
     log(IO_DEBUG,"Cipher Suite is ",0,None);
     match cipher_suite {
@@ -49,6 +52,7 @@ pub fn log_cipher_suite(cipher_suite: u16) {
     }
 }
 
+/// Log the signature algorithm
 pub fn log_sig_alg(level: usize,sigalg: u16) {
     log(level,"Signature Algorithm is ",0,None);
     match sigalg {
@@ -65,6 +69,7 @@ pub fn log_sig_alg(level: usize,sigalg: u16) {
     }     
 }
 
+/// Log the key exchange group
 pub fn log_key_exchange(level: usize,kex: u16) {
     log(level,"Key Exchange Group is ",0,None);
     match kex {
@@ -77,6 +82,7 @@ pub fn log_key_exchange(level: usize,kex: u16) {
     }
 }
 
+/// Log the Server Hello
 pub fn log_server_hello(cipher_suite: u16,pskid: isize,pk: &[u8],ck: &[u8]) {
     log(IO_DEBUG,"Parsing Server Hello\n",0,None);
     log_cipher_suite(cipher_suite);
@@ -92,6 +98,7 @@ pub fn log_server_hello(cipher_suite: u16,pskid: isize,pk: &[u8],ck: &[u8]) {
     }
 }
 
+/// Log a resumption ticket
 pub fn log_ticket(t: &TICKET) {
     log(IO_DEBUG,"\nParsing Ticket\n",0,None);
     log(IO_DEBUG,"Ticket = ",0,Some(&t.tick[0..t.tklen])); 
@@ -102,6 +109,7 @@ pub fn log_ticket(t: &TICKET) {
     log(IO_DEBUG,"\n",0,None);
 }
 
+/// Log client expectations and servers responses
 pub fn log_enc_ext(expected: &EESTATUS,response: &EESTATUS) {
     if expected.early_data {
         if response.early_data {
@@ -134,8 +142,7 @@ pub fn log_enc_ext(expected: &EESTATUS,response: &EESTATUS) {
     }
 }
 
-// log certificate details
-// log certificate details
+/// Log certificate details
 pub fn log_cert_details(d: &CERT)
 {
     log(IO_DEBUG,"Parsing Certificate\n",0,None);
@@ -179,7 +186,7 @@ pub fn log_cert_details(d: &CERT)
     log(IO_DEBUG,"Subject is ",-1,Some(&d.subject[0..d.sblen]));
 }
 
-
+/// Log a received alert
 pub fn log_alert(detail: u8) {
     //log(IO_PROTOCOL,"Alert received - ",0,None);
     match detail {
@@ -214,6 +221,7 @@ pub fn log_alert(detail: u8) {
     }
 }
 
+/// Log the Server's response
 pub fn log_server_response(r: &RET) {
     let rtn=r.err;
     if rtn==0 {

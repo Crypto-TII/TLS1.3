@@ -1,7 +1,5 @@
-//
-// Client Certificate data stored here
-// My private key and my certificate
-//
+
+//! Client Certificate and private key stored here
 
 // ECC-SS keys
 

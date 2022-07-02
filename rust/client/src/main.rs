@@ -1,5 +1,5 @@
-// TLS1.3 client example program
-//
+//! TLS1.3 client example program
+
 mod tls13;
 mod config;
 
@@ -22,7 +22,7 @@ const MIN_TIME: isize = 1;
 
 extern crate mcore;
 
-// create a test message to send to Server
+/// create a test message to send to Server
 fn make_client_message(get: &mut[u8],host: &str) -> usize {
     let mut ptr=0;
     let str1="GET / HTTP/1.1".as_bytes();
@@ -46,7 +46,7 @@ fn make_client_message(get: &mut[u8],host: &str) -> usize {
     return ptr;
 }
 
-// store ticket in cookie
+/// store ticket in cookie
 fn store_ticket(s: &SESSION,fname: &str) {
     let mut fp = File::create(fname).unwrap(); //expect("Unable to create file for ticket");
     for i in 0..s.hlen {
@@ -74,7 +74,7 @@ fn store_ticket(s: &SESSION,fname: &str) {
     writeln!(&mut fp,"{:016X}",s.t.origin).unwrap();
 }
 
-// retrieve ticket from cookie
+/// retrieve ticket from cookie
 fn recover_ticket(s: &mut SESSION,fname: &str) -> bool {
     match File::open(fname) {
         Ok(file) => {
@@ -143,6 +143,7 @@ fn recover_ticket(s: &mut SESSION,fname: &str) -> bool {
     return true;
 }
 
+/// Respond to bad input
 fn bad_input()
 {
     println!("Incorrect Usage");
@@ -158,6 +159,7 @@ fn bad_input()
     println!("Example:- client www.bbc.co.uk");
 }
 
+/// Name the cipher suite
 fn name_ciphers(cipher_suite: u16) {
     match cipher_suite {
         AES_128_GCM_SHA256 => println!("TLS_AES_128_GCM_SHA256"),
@@ -167,6 +169,7 @@ fn name_ciphers(cipher_suite: u16) {
     }
 }
 
+/// Name the key exchange group
 fn name_group(group: u16) {
     match group {
         X25519 => println!("X25519"),
@@ -178,6 +181,7 @@ fn name_group(group: u16) {
     }
 }
 
+/// Name the signature algorithm
 fn name_signature(sigalg: u16) {
     match sigalg {
         ECDSA_SECP256R1_SHA256 => println!("ECDSA_SECP256R1_SHA256"),
@@ -193,7 +197,7 @@ fn name_signature(sigalg: u16) {
     }
 }
 
-// delete ticket
+/// delete the ticket
 fn remove_ticket() {       
     match fs::remove_file("cookie.txt") {
         Ok(_) => return,
@@ -201,6 +205,7 @@ fn remove_ticket() {
     }
 }
 
+/// Main program
 fn main() {
     let mut args: Vec<String> = env::args().collect();
 
