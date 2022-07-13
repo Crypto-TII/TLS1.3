@@ -53,31 +53,31 @@ pub fn log_cipher_suite(cipher_suite: u16) {
 
 /// Log the signature algorithm
 pub fn log_sig_alg(sigalg: u16) {
-    log(IO_DEBUG,"Signature Algorithm is ",0,None);
+    log(IO_PROTOCOL,"Signature Algorithm is ",0,None);
     match sigalg {
-        ECDSA_SECP256R1_SHA256 => log(IO_DEBUG,"ECDSA_SECP256R1_SHA256\n",0,None),
-        RSA_PSS_RSAE_SHA256 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA256\n",0,None),
-        RSA_PKCS1_SHA256 => log(IO_DEBUG,"RSA_PKCS1_SHA256\n",0,None),
-        ECDSA_SECP384R1_SHA384 => log(IO_DEBUG,"ECDSA_SECP384R1_SHA384\n",0,None),
-        RSA_PSS_RSAE_SHA384 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA384\n",0,None),
-        RSA_PKCS1_SHA384 => log(IO_DEBUG,"RSA_PKCS1_SHA384\n",0,None),
-        RSA_PSS_RSAE_SHA512 => log(IO_DEBUG,"RSA_PSS_RSAE_SHA512\n",0,None),
-        RSA_PKCS1_SHA512 => log(IO_DEBUG,"RSA_PKCS1_SHA512\n",0,None),
-        DILITHIUM3 => log(IO_DEBUG,"DILITHIUM3\n",0,None),
-        _ => log(IO_DEBUG,"Non-standard\n",0,None)
+        ECDSA_SECP256R1_SHA256 => log(IO_PROTOCOL,"ECDSA_SECP256R1_SHA256\n",0,None),
+        RSA_PSS_RSAE_SHA256 => log(IO_PROTOCOL,"RSA_PSS_RSAE_SHA256\n",0,None),
+        RSA_PKCS1_SHA256 => log(IO_PROTOCOL,"RSA_PKCS1_SHA256\n",0,None),
+        ECDSA_SECP384R1_SHA384 => log(IO_PROTOCOL,"ECDSA_SECP384R1_SHA384\n",0,None),
+        RSA_PSS_RSAE_SHA384 => log(IO_PROTOCOL,"RSA_PSS_RSAE_SHA384\n",0,None),
+        RSA_PKCS1_SHA384 => log(IO_PROTOCOL,"RSA_PKCS1_SHA384\n",0,None),
+        RSA_PSS_RSAE_SHA512 => log(IO_PROTOCOL,"RSA_PSS_RSAE_SHA512\n",0,None),
+        RSA_PKCS1_SHA512 => log(IO_PROTOCOL,"RSA_PKCS1_SHA512\n",0,None),
+        DILITHIUM3 => log(IO_PROTOCOL,"DILITHIUM3\n",0,None),
+        _ => log(IO_PROTOCOL,"Non-standard\n",0,None)
     }     
 }
 
 /// Log the key exchange group
 pub fn log_key_exchange(kex: u16) {
-    log(IO_DEBUG,"Key Exchange Group is ",0,None);
+    log(IO_PROTOCOL,"Key Exchange Group is ",0,None);
     match kex {
-        X25519 => log(IO_DEBUG,"x25519\n",0,None),
-        SECP256R1 => log(IO_DEBUG,"secp256r1\n",0,None),
-        SECP384R1 => log(IO_DEBUG,"secp384r1\n",0,None),
-        KYBER768 => log(IO_DEBUG,"kyber768\n",0,None),
-        SIDH => log(IO_DEBUG,"sidh\n",0,None),
-        _  => log(IO_DEBUG,"Non-standard\n",0,None)
+        X25519 => log(IO_PROTOCOL,"X25519\n",0,None),
+        SECP256R1 => log(IO_PROTOCOL,"SECP256R1\n",0,None),
+        SECP384R1 => log(IO_PROTOCOL,"SECP384R1\n",0,None),
+        KYBER768 => log(IO_PROTOCOL,"KYBER768\n",0,None),
+        SIDH => log(IO_PROTOCOL,"SIDH\n",0,None),
+        _  => log(IO_PROTOCOL,"Non-standard\n",0,None)
     }
 }
 

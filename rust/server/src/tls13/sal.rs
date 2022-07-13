@@ -148,14 +148,15 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
 }
 
 /// Provide list of supported key exchange groups
+// Note that ordering here does not matter
 pub fn groups(groups: &mut [u16]) -> usize {
     let mut n=3;
     groups[0]=config::X25519;
     groups[1]=config::SECP256R1;
     groups[2]=config::SECP384R1;
     if config::CRYPTO_SETTING==config::POST_QUANTUM {
-        groups[3]=config::KYBER768; n+=1;
-        groups[4]=config::SIDH; n+=1;
+        groups[n]=config::KYBER768; n+=1;
+        groups[n]=config::SIDH; n+=1;
     }
     return n;
 }
@@ -166,10 +167,10 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
     sig_algs[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs[1]=config::ECDSA_SECP384R1_SHA384;
     if config::CRYPTO_SETTING>config::TINY_ECC {
-        sig_algs[2]=config::RSA_PSS_RSAE_SHA256; n+=1;
+        sig_algs[n]=config::RSA_PSS_RSAE_SHA256; n+=1;
     }
     if config::CRYPTO_SETTING==config::POST_QUANTUM {
-        sig_algs[3]=config::DILITHIUM3; n+=1;
+        sig_algs[n]=config::DILITHIUM3; n+=1;
     }
     return n;
 }
@@ -180,12 +181,12 @@ pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
     sig_algs_cert[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs_cert[1]=config::ECDSA_SECP384R1_SHA384;
     if config::CRYPTO_SETTING>config::TINY_ECC {
-        sig_algs_cert[2]=config::RSA_PKCS1_SHA256; n+=1;
-        sig_algs_cert[3]=config::RSA_PKCS1_SHA384; n+=1;
-        sig_algs_cert[4]=config::RSA_PKCS1_SHA512; n+=1;
+        sig_algs_cert[n]=config::RSA_PKCS1_SHA256; n+=1;
+        sig_algs_cert[n]=config::RSA_PKCS1_SHA384; n+=1;
+        sig_algs_cert[n]=config::RSA_PKCS1_SHA512; n+=1;
     }
     if config::CRYPTO_SETTING==config::POST_QUANTUM {
-        sig_algs_cert[5]=config::DILITHIUM3; n+=1;   
+        sig_algs_cert[n]=config::DILITHIUM3; n+=1;   
     }
     return n;
 }
@@ -527,14 +528,14 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
 /// Dilithium signature verification
 fn dilithium3_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::dilithium;
-    return dilithium::verify(pubkey,cert,sig);
+    return dilithium::verify_3(&pubkey[0..dilithium::PK_SIZE_3],cert,sig);
 }
 
 /// Dilithium signature 
 pub fn dilithium3_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::dilithium;
-    dilithium::signature(&key[0..dilithium::SK_SIZE],mess,sig);
-    return dilithium::SIG_SIZE;
+    dilithium::signature_3(&key[0..dilithium::SK_SIZE_3],mess,sig);
+    return dilithium::SIG_SIZE_3;
 }
 
 /// RSA 2048-bit PKCS1.5 signature verification

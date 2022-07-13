@@ -41,12 +41,17 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define HW_2 5    /**< RP2040 2 Hardware cert */
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
+
+// Note that favourite group (as used in client hello) is determined by the SAL ordering - see tls_sal.cpp
+// If server does not support it, an expensive Handshake Retry will be required
+// So best to place a popular group (such as X25519) at top of list in SAL
+
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
 #define CLIENT_CERT ECC_SS        /**< Indicate capability of authenticating with a cert plus signing key */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
-#define ALLOW_SELF_SIGNED		  /**< allow self-signed server cert */
+#define ALLOW_SELF_SIGNED		 /**< allow self-signed server cert */
 #define CRYPTO_SETTING TYPICAL   /**< Determine Cryptography settings */
 #define TRY_EARLY_DATA           /**< Try to send early data on resumptions */
 
@@ -137,7 +142,6 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_CLIENT_CHAIN_SIZE (TLS_MAX_CLIENT_CHAIN_LEN*TLS_MAX_CERT_SIZE) /**< Maximum Client Certificate chain length in bytes */
 
 
-
 #define TLS_MAX_SHARED_SECRET_SIZE 256	 /**< Max key exchange Shared secret size */
 #define TLS_MAX_TICKET_SIZE 512          /**< maximum resumption ticket size */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
@@ -166,7 +170,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define SECP384R1 0x0018                /**< NIST SECP384R1 elliptic curve key exchange */
 #define SECP521R1 0x0019				/**< NIST SECP521R1 elliptic curve key exchange */
 #define X448 0x001e						/**< X448 elliptic curve key exchange */
-#define KYBER768 0x4242                 /**< Kyber PQ key exchange */
+#define KYBER768 0x4242                 /**< Kyber PQ key exchange - NOTE I just made this up! Not generally recognised! */
 
 // Signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 

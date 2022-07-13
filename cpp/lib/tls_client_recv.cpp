@@ -284,8 +284,8 @@ ret seeWhatsNext(TLS_session *session)
 
     //session->ptr=0;
     r=parseIntorPull(session,1); 
-    session->ptr-=1;
     if (r.err) return r; 
+    session->ptr-=1;
 
 	nb=r.val;
 	if (nb==END_OF_EARLY_DATA || nb==KEY_UPDATE) { // Servers MUST NOT send this.... KEY_UPDATE should not happen at this stage

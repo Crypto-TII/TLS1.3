@@ -1402,6 +1402,7 @@ impl SESSION {
             }
 
             log(IO_PROTOCOL,"Server is authenticating\n",0,None);
+            logger::log_sig_alg(kind);
             let sc_s=&server_certchain[0..sclen];
             let sk_s=&server_key[0..sklen];
             self.send_server_certificate(sc_s);

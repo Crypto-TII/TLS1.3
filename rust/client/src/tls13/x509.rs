@@ -1092,7 +1092,6 @@ pub fn find_extension(c: &[u8],soid: &[u8],start:usize) -> FDTYPE {
 
 // return 1 if name found, else 0, where name is URL
 // input cert, and pointer to SAN extension
-// Takes wild-card into consideration
 /// Find Alternate name (URL). Considers wild cards
 pub fn find_alt_name(c: &[u8],start: usize,name: &[u8]) -> bool {
     if start==0 {

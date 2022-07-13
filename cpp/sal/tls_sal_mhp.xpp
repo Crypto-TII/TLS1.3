@@ -59,6 +59,7 @@ int SAL_ciphers(int *ciphers)
     return n;
 }
 
+// IMPORTANT - Favourite group (as used in client Hello) must be placed first in list
 int SAL_groups(int *groups)
 {
     int n;
@@ -83,10 +84,10 @@ int SAL_sigs(int *sigAlgs)
     sigAlgs[0]=ECDSA_SECP256R1_SHA256;
     sigAlgs[1]=ECDSA_SECP384R1_SHA384;
 #if CRYPTO_SETTING>TINY_ECC
-    sigAlgs[2]=RSA_PSS_RSAE_SHA256; n++;
+    sigAlgs[n]=RSA_PSS_RSAE_SHA256; n++;
 #endif
 #if CRYPTO_SETTING==POST_QUANTUM
-    sigAlgs[3]=DILITHIUM3; n++;
+    sigAlgs[n]=DILITHIUM3; n++;
 #endif
     return n;
 }
@@ -97,12 +98,12 @@ int SAL_sigCerts(int *sigAlgsCert)
     sigAlgsCert[0]=ECDSA_SECP256R1_SHA256;
     sigAlgsCert[1]=ECDSA_SECP384R1_SHA384;
 #if CRYPTO_SETTING>TINY_ECC
-    sigAlgsCert[2]=RSA_PKCS1_SHA256; n++;
-    sigAlgsCert[3]=RSA_PKCS1_SHA384; n++;
-    sigAlgsCert[4]=RSA_PKCS1_SHA512; n++;
+    sigAlgsCert[n]=RSA_PKCS1_SHA256; n++;
+    sigAlgsCert[n]=RSA_PKCS1_SHA384; n++;
+    sigAlgsCert[n]=RSA_PKCS1_SHA512; n++;
 #endif
 #if CRYPTO_SETTING==POST_QUANTUM
-    sigAlgsCert[5]=DILITHIUM3; n++;
+    sigAlgsCert[n]=DILITHIUM3; n++;
 #endif
     return n;
 }
@@ -444,7 +445,7 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         byte r64[64];
         for (int i=0;i<64;i++)
             r64[i]=SAL_randomByte();
-        KYBER_CCA_keypair(r64,&MC_SK,&MC_PK);
+        KYBER768_keypair(r64,&MC_SK,&MC_PK);
     }
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;
@@ -475,8 +476,7 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         NIST384::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
     }
     if (group==KYBER768) {
-        KYBER_CCA_decrypt(&MC_SK,&MC_PK,(byte *)MC_SS.val);
-        MC_SS.len=32;
+        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
     }
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;
@@ -488,7 +488,7 @@ static bool DILITHIUM3_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
     octet MC_CERT=octad_to_octet(CERT);
     octet MC_SIG=octad_to_octet(SIG);
     octet MC_PUBKEY=octad_to_octet(PUBKEY);
-    return DLTHM_verify(&MC_PUBKEY,&MC_CERT,&MC_SIG);    
+    return DLTHM_verify_3(&MC_PUBKEY,&MC_CERT,&MC_SIG);    
 }
 
 static void DILITHIUM3_SIGN(octad *KEY,octad *MESS,octad *SIG)
@@ -497,7 +497,7 @@ static void DILITHIUM3_SIGN(octad *KEY,octad *MESS,octad *SIG)
     octet MC_KEY=octad_to_octet(KEY);
     octet MC_SIG=octad_to_octet(SIG);
 
-    DLTHM_signature(&MC_KEY,&MC_MESS,&MC_SIG); 
+    DLTHM_signature_3(&MC_KEY,&MC_MESS,&MC_SIG); 
     SIG->len=MC_SIG.len;
 }
 

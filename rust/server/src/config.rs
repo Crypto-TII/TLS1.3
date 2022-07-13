@@ -1,4 +1,4 @@
-
+#![allow(dead_code)]
 //! Main TII TLS 1.3 Configuration File for constants and structures
 
 pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";  
@@ -265,7 +265,7 @@ pub const LOG_OUTPUT_TRUNCATION: usize= 512;       /**< Output Hex digits before
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true; // allow self-signed server certs
-pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting
+pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting - determines certificate chain
 pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates       
 pub const APPLICATION_PROTOCOL:&str="http/1.1";  // ALPN extension
 pub const CERTIFICATE_REQUEST: bool=false; // Does server require client authentication?

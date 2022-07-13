@@ -73,11 +73,11 @@ pub fn log_sig_alg(level: usize,sigalg: u16) {
 pub fn log_key_exchange(level: usize,kex: u16) {
     log(level,"Key Exchange Group is ",0,None);
     match kex {
-        X25519 => log(level,"x25519\n",0,None),
-        SECP256R1 => log(level,"secp256r1\n",0,None),
-        SECP384R1 => log(level,"secp384r1\n",0,None),
-        KYBER768 => log(level,"kyber768\n",0,None),
-        SIDH => log(level,"sidh\n",0,None),
+        X25519 => log(level,"X25519\n",0,None),
+        SECP256R1 => log(level,"SECP256R1\n",0,None),
+        SECP384R1 => log(level,"SECP384R1\n",0,None),
+        KYBER768 => log(level,"KYBER768\n",0,None),
+        SIDH => log(level,"SIDH\n",0,None),
         _  => log(level,"Non-standard\n",0,None)
     }
 }

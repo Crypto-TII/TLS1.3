@@ -1,4 +1,4 @@
-
+#![allow(dead_code)]
 //! Main TII TLS 1.3 Configuration File for constants and structures
 
 pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";  

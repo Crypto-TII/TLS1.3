@@ -786,8 +786,8 @@ impl SESSION {
     fn see_whats_next(&mut self) -> RET {
         //let mut ptr=0;
         let mut r=self.parse_int_pull(1);
-        self.ptr -= 1;  // put it back
         if r.err!=0 {return r;}
+        self.ptr -= 1;  // put it back
         let nb=r.val as u8;
         if nb==END_OF_EARLY_DATA || nb==KEY_UPDATE { // Servers MUST NOT send this.... KEY_UPDATE should not happen at this stage
             r.err=WRONG_MESSAGE;
@@ -1432,7 +1432,7 @@ impl SESSION {
         }
         let spk_s=&server_pk[0..spklen];
         self.transcript_hash(hh_s);
-        log(IO_DEBUG,"Certificate Chain is valid\n",0,None);
+        log(IO_DEBUG,"Server Certificate Chain is valid\n",0,None);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(hh_s));  
 
         let mut siglen=0;
@@ -1550,6 +1550,7 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
         }
+
         let mut nccsalgs=0;
         let mut csigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut gotacertrequest=false;
@@ -1661,9 +1662,7 @@ impl SESSION {
         let mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input \n",0,None);
-            //let mut ptr=0;
-//println!("self.iolen= {}",self.iolen);
-            //self.iolen=0;
+
             kind=self.get_record();  // get first fragment to determine type
             if kind<0 {
                 return kind;   // its an error
