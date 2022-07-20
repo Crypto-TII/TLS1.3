@@ -65,7 +65,7 @@ fn group_support(alg: u16) -> bool {
 
 /// Do I support this cipher-suite ?
 fn cipher_support(alg: u16) -> bool {
-    let mut cps:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
+    let mut cps:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
     let ncps=sal::ciphers(&mut cps);
     for i in 0..ncps {
         if alg == cps[i] {

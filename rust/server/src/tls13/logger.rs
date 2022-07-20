@@ -76,6 +76,7 @@ pub fn log_key_exchange(kex: u16) {
         SECP256R1 => log(IO_PROTOCOL,"SECP256R1\n",0,None),
         SECP384R1 => log(IO_PROTOCOL,"SECP384R1\n",0,None),
         KYBER768 => log(IO_PROTOCOL,"KYBER768\n",0,None),
+        HYBRID_KX => log(IO_PROTOCOL,"HYBRID KYBER+X25519\n",0,None),
         SIDH => log(IO_PROTOCOL,"SIDH\n",0,None),
         _  => log(IO_PROTOCOL,"Non-standard\n",0,None)
     }

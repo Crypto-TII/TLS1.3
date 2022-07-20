@@ -181,6 +181,9 @@ fn main() {
     if CRYPTO_SETTING==POST_QUANTUM {
         println!("Configured for Post Quantum TLS client connections");
     }
+    if CRYPTO_SETTING==HYBRID {
+        println!("Configured for Hybrid Post Quantum TLS client connections");
+    }
     if CERTIFICATE_REQUEST {
         println!("Looking for Client Authentication");
     }

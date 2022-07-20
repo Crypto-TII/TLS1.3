@@ -54,17 +54,35 @@ int SAL_ciphers(int *ciphers)
 int SAL_groups(int *groups)
 {
     int n;
+int SAL_groups(int *groups)
+{
+    int n=0;
+#if CRYPTO_SETTING==TINY_ECC
+    n=3;
+    groups[0]=X25519;
+    groups[1]=SECP256R1;
+    groups[2]=SECP384R1;
+#endif
+#if CRYPTO_SETTING==TYPICAL
+    n=3;
+    groups[0]=X25519;
+    groups[1]=SECP256R1;
+    groups[2]=SECP384R1;
+#endif
 #if CRYPTO_SETTING==POST_QUANTUM
     n=4;
     groups[0]=KYBER768;
     groups[1]=X25519;
-    groups[2]=SECP256R1; 
+    groups[2]=SECP256R1;
     groups[3]=SECP384R1;
-#else
-    n=3;
-    groups[0]=X25519;
-    groups[1]=SECP256R1; // maybe put it first, as we have h/w support for it. But many servers do not support it, and that leads to expensive handshake retries
-    groups[2]=SECP384R1;
+#endif
+#if CRYPTO_SETTING==HYBRID
+    n=5;
+    groups[0]=HYBRID_KX;
+    groups[1]=KYBER768;
+    groups[2]=X25519;
+    groups[3]=SECP256R1;
+    groups[4]=SECP384R1;
 #endif
     return n;
 }
@@ -394,21 +412,15 @@ bool SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad 
 // generate a public/private key pair in an approved group for a key exchange
 void SAL_generateKeyPair(int group,octad *SK,octad *PK)
 {
-// Random secret key
-
-    if (group==X25519)
-    { // RFC7748 the secret key
-        SAL_randomOctad(32,SK);
-        SK->val[31]&=248;  
-        SK->val[0]&=127;
-        SK->val[0]|=64;
-    }
-
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
     if (group==X25519)
     { // Note that this program maintains the private key in big-endian format
       // But X25519 assumes private and public keys are all in little-endian form (and are transmitted/received in that form)
+        SAL_randomOctad(32,SK);
+        SK->val[31]&=248;  
+        SK->val[0]&=127;
+        SK->val[0]|=64;
         C25519::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
         OCT_reverse(&MC_PK);  // public key must be transmitted in little-endian form
     }
@@ -432,6 +444,30 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         for (int i=0;i<64;i++)
             r64[i]=SAL_randomByte();
         KYBER768_keypair(r64,&MC_SK,&MC_PK);
+    }
+    if (group==HYBRID_KX)
+    {
+        byte r64[64];
+        for (int i=0;i<64;i++)
+            r64[i]=SAL_randomByte();
+        KYBER768_keypair(r64,&MC_SK,&MC_PK);
+
+        char mysk[32],mypk[32];
+        octet MYSK={0,sizeof(mysk),mysk};
+        octet MYPK={0,sizeof(mypk),mypk};
+
+        for (int i=0;i<32;i++)
+            MYSK.val[i]=SAL_randomByte();
+        MYSK.len=32;
+        MYSK.val[31]&=248;  
+        MYSK.val[0]&=127;
+        MYSK.val[0]|=64;
+
+        C25519::ECP_KEY_PAIR_GENERATE(NULL, &MYSK, &MYPK);
+        OCT_reverse(&MYPK);
+        OCT_joctet(&MC_SK,&MYSK);
+        OCT_joctet(&MC_PK,&MYPK);
+
     }
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;
@@ -462,6 +498,24 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
     }
     if (group==KYBER768) {
         KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
+    }
+    if (group==HYBRID_KX) {
+        char mysk[32],mypk[32],myss[32];
+        octet MYSK={0,sizeof(mysk),mysk};
+        octet MYPK={0,sizeof(mypk),mypk};
+        octet MYSS={0,sizeof(myss),myss};
+        OCT_chop(&MC_SK,&MYSK,MC_SK.len-32);
+        OCT_chop(&MC_PK,&MYPK,MC_PK.len-32);
+        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
+
+        OCT_reverse(&MYPK); // to big endian
+        C25519::ECP_SVDP_DH(&MYSK, &MYPK, &MYSS,0);
+        OCT_reverse(&MYPK); // back again
+        OCT_reverse(&MYSS);
+
+        OCT_joctet(&MC_SS,&MYSS);
+        OCT_joctet(&MC_SK,&MYSK);
+        OCT_joctet(&MC_PK,&MYPK);
     }
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;

@@ -11,7 +11,7 @@
 // Second is our own secp256r1 root certificate
 
 const char *cacerts=(char *)
-#if CRYPTO_SETTING == POST_QUANTUM
+#if CRYPTO_SETTING >= POST_QUANTUM
 "-----BEGIN CERTIFICATE-----\n"
 "MIIVfjCCCImgAwIBAgIUasq9hKzKYhZKDB2NiSb57u05bTIwDQYLKwYBBAECggsH\n"
 "BgUwFzEVMBMGA1UEAwwMVGlpZ2VyVExTIENBMB4XDTIyMDUyNTExMzgzOVoXDTIz\n"

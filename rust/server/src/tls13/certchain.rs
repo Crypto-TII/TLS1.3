@@ -193,7 +193,7 @@ pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
             ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
         }
     }
-    if CRYPTO_SETTING==POST_QUANTUM {
+    if CRYPTO_SETTING>=POST_QUANTUM {
         key=servercert::PQ_PRIVATE;
         for i in 0..servercert::PQ_CERTCHAIN.len() {
             let b=servercert::PQ_CERTCHAIN[i].as_bytes();

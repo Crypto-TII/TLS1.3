@@ -103,6 +103,9 @@ static void nameKeyExchange(int kex)
     case KYBER768:
         myprintf((char *)"KYBER768\n");
 		break;
+    case HYBRID_KX:
+        myprintf((char *)"KYBER + X25519\n");
+		break;
     default:
         myprintf((char *)"Non-standard\n");   
         break;

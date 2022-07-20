@@ -66,6 +66,10 @@ pub fn secret_key_size(group: u16) -> usize {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         return kem.length_secret_key();
     }
+    if group==config::HYBRID_KX {
+        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        return kem.length_secret_key()+32;
+    }
     if group==config::SIDH {
         let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
         return kem.length_secret_key();
@@ -87,6 +91,10 @@ pub fn client_public_key_size(group: u16) -> usize {
     if group==config::KYBER768 {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         return kem.length_public_key();              
+    }
+    if group==config::HYBRID_KX {
+        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        return kem.length_public_key()+32;    
     }
     if group==config::SIDH {
         let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
@@ -110,6 +118,10 @@ pub fn server_public_key_size(group: u16) -> usize {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         return kem.length_ciphertext(); 
     }
+    if group==config::HYBRID_KX {
+        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        return kem.length_ciphertext()+32;         
+    }
     if group==config::SIDH {
         let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
         return kem.length_ciphertext(); 
@@ -131,6 +143,10 @@ pub fn shared_secret_size(group: u16) -> usize {
     if group==config::KYBER768 {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         return kem.length_shared_secret(); 
+    }
+    if group==config::HYBRID_KX {
+        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        return kem.length_shared_secret()+32; 
     }
     if group==config::SIDH {
         let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
@@ -154,8 +170,9 @@ pub fn groups(groups: &mut [u16]) -> usize {
     groups[0]=config::X25519;
     groups[1]=config::SECP256R1;
     groups[2]=config::SECP384R1;
-    if config::CRYPTO_SETTING==config::POST_QUANTUM {
+    if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         groups[n]=config::KYBER768; n+=1;
+        groups[n]=config::HYBRID_KX; n+=1;
         groups[n]=config::SIDH; n+=1;
     }
     return n;
@@ -169,7 +186,7 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
     if config::CRYPTO_SETTING>config::TINY_ECC {
         sig_algs[n]=config::RSA_PSS_RSAE_SHA256; n+=1;
     }
-    if config::CRYPTO_SETTING==config::POST_QUANTUM {
+    if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         sig_algs[n]=config::DILITHIUM3; n+=1;
     }
     return n;
@@ -185,7 +202,7 @@ pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
         sig_algs_cert[n]=config::RSA_PKCS1_SHA384; n+=1;
         sig_algs_cert[n]=config::RSA_PKCS1_SHA512; n+=1;
     }
-    if config::CRYPTO_SETTING==config::POST_QUANTUM {
+    if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         sig_algs_cert[n]=config::DILITHIUM3; n+=1;   
     }
     return n;
@@ -407,6 +424,30 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
             csk[i]=skbytes[i];
         }
     }
+
+    if group==config::HYBRID_KX {
+        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        let (cpk, sk) = kem.keypair().unwrap();
+        let pkbytes=&cpk.as_ref();
+        let skbytes=&sk.as_ref();
+        for i in 0..pkbytes.len() {
+            pk[i]=pkbytes[i];
+        }
+        for i in 0..skbytes.len() {
+            csk[i]=skbytes[i];
+        }
+
+        use mcore::c25519::ecdh; // append an X25519
+        let startsk=secret_key_size(config::KYBER768);
+        let startpk=client_public_key_size(config::KYBER768);
+        random_bytes(32,&mut csk[startsk..startsk+32]);
+        csk[startsk+31] &= 248;
+        csk[startsk] &=127;
+        csk[startsk] |=64;
+        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[startsk..startsk+32], &mut pk[startpk..startpk+32]);
+        pk[startpk..startpk+32].reverse();
+    }
+
     if group==config::SIDH {
         let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
         let (cpk, sk) = kem.keypair().unwrap();
@@ -465,6 +506,44 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
             spk[i]=myct[i];
         }        
     }
+    if group==config::HYBRID_KX {
+
+        let startct=server_public_key_size(config::KYBER768);
+        let startpk=client_public_key_size(config::KYBER768);
+        let startss=shared_secret_size(config::KYBER768);
+
+
+        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        let pk=kem.public_key_from_bytes(&cpk[0..startpk]).unwrap().to_owned();
+        let (ct, share) = kem.encapsulate(&pk).unwrap();
+        let myss=share.as_ref();
+        for i in 0..myss.len() {
+            ss[i]=myss[i];
+        }
+        let myct=ct.as_ref();
+        for i in 0..myct.len() {
+            spk[i]=myct[i];
+        }     
+        
+        use mcore::c25519::ecdh; // append an X25519
+
+        let mut csk:[u8;32]=[0;32];
+        random_bytes(32,&mut csk);
+        csk[31] &= 248;
+        csk[0] &=127;
+        csk[0] |=64;
+        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[startct..startct+32]);
+        spk[startct..startct+32].reverse();
+        let mut rpk:[u8;32]=[0;32];
+        for i in 0..32 {
+            rpk[i]=cpk[startpk+i]
+        }
+        rpk[0..32].reverse();
+        ecdh::ecpsvdp_dh(&csk,&rpk[0..32],&mut ss[startss..startss+32],0);
+        ss[startss..startss+32].reverse();
+        csk.zeroize();
+
+    }
     if group==config::SIDH {
         let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
         let pk=kem.public_key_from_bytes(&cpk).unwrap().to_owned();
@@ -506,12 +585,36 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
     if group==config::KYBER768 {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         let ct=kem.ciphertext_from_bytes(&pk).unwrap().to_owned();
-        let sk=kem.secret_key_from_bytes(&sk).unwrap().to_owned();
-        let share = kem.decapsulate(&sk, &ct).unwrap();
+        let msk=kem.secret_key_from_bytes(&sk).unwrap().to_owned();
+        let share = kem.decapsulate(&msk, &ct).unwrap();
         let myss=share.as_ref();
         for i in 0..myss.len() {
             ss[i]=myss[i];
         }
+    }
+    if group==config::HYBRID_KX {
+        let startsk=secret_key_size(config::KYBER768);
+        let startct=server_public_key_size(config::KYBER768);
+        let startss=shared_secret_size(config::KYBER768);
+
+        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        let ct=kem.ciphertext_from_bytes(&pk[0..startct]).unwrap().to_owned();
+        let msk=kem.secret_key_from_bytes(&sk[0..startsk]).unwrap().to_owned();
+        let share = kem.decapsulate(&msk, &ct).unwrap();
+        let myss=share.as_ref();
+        for i in 0..myss.len() {
+            ss[i]=myss[i];
+        }
+
+        use mcore::c25519::ecdh;
+
+        let mut rpk:[u8;32]=[0;32];
+        for i in 0..32 {
+            rpk[i]=pk[startct+i]
+        }
+        rpk[0..32].reverse();
+        ecdh::ecpsvdp_dh(&sk[startsk..startsk+32],&rpk[0..32],&mut ss[startss..startss+32],0);
+        ss[startss..startss+32].reverse();
     }
     if group==config::SIDH {
         let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();

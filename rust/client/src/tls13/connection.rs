@@ -434,7 +434,7 @@ impl SESSION {
         let tls_version=TLS1_3;
         let protocol=APPLICATION_PROTOCOL;
         let alpn=protocol.as_bytes();
-        let mut groups:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
+        let mut groups:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
         let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut sig_alg_certs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut nsg=sal::groups(&mut groups);
@@ -1233,8 +1233,8 @@ impl SESSION {
 
 /// Exchange Client/Server "Hellos"
     fn exchange_hellos(&mut self) -> usize {
-        let mut groups:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
-        let mut ciphers:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
+        let mut groups:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
+        let mut ciphers:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
         let _nsg=sal::groups(&mut groups);
         let nsc=sal::ciphers(&mut ciphers);
         let mut resumption_required=false;

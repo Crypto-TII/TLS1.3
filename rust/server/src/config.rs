@@ -61,7 +61,9 @@ pub const TINY_ECC: usize = 0;
 /// ECC + RSA support
 pub const TYPICAL: usize = 1;  
 /// POST_QUANTUM support
-pub const POST_QUANTUM: usize = 2;      
+pub const POST_QUANTUM: usize = 2;    
+/// HYBRID support
+pub const HYBRID: usize = 3;
 
 // These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
@@ -72,9 +74,9 @@ pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size (less 
 pub const MAX_SIG_PUBLIC_KEY: usize = 1952;         // Maximum signature Public key size Dilithium 3
 pub const MAX_SIG_SECRET_KEY: usize = 4000;         // Maximum signature Public key size Dilithium 3
 pub const MAX_SIGNATURE_SIZE: usize = 3296;         // Maximum signature size in bytes - Dilithium 3  
-pub const MAX_KEX_PUBLIC_KEY: usize = 1184;         // Maximum key exchange public key size (also Encapsulation size for KEM) - was 136 pre-quantum
-pub const MAX_KEX_CIPHERTEXT: usize = 1088;         // Maximum key exchange (KEM) ciphertext size
-pub const MAX_KEX_SECRET_KEY: usize = 2400;         // Maximum key exchange Secret key size
+pub const MAX_KEX_PUBLIC_KEY: usize = 1184+32;         // Maximum key exchange public key size (also Encapsulation size for KEM) - was 136 pre-quantum
+pub const MAX_KEX_CIPHERTEXT: usize = 1088+32;         // Maximum key exchange (KEM) ciphertext size
+pub const MAX_KEX_SECRET_KEY: usize = 2400+32;         // Maximum key exchange Secret key size
 
 
 pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
@@ -126,6 +128,7 @@ pub const SECP256R1: u16 = 0x0017;
 pub const SECP384R1: u16 = 0x0018;
 pub const KYBER768: u16 = 0x4242;
 pub const SIDH: u16 = 0x4243;
+pub const HYBRID_KX: u16 = 0x421d;
 //pub const SECP521R1: u16 = 0x0019;
 //pub const X448: u16 = 0x001e;
 

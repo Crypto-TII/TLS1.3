@@ -66,18 +66,36 @@ int SAL_ciphers(int *ciphers)
 // IMPORTANT - Favourite group (as used in client Hello) must be placed first in list
 int SAL_groups(int *groups)
 {
+    int n=0;
+int SAL_groups(int *groups)
+{
     int n;
+#if CRYPTO_SETTING==TINY_ECC
+    n=3;
+    groups[0]=X25519;
+    groups[1]=SECP256R1;
+    groups[2]=SECP384R1;
+#endif
+#if CRYPTO_SETTING==TYPICAL
+    n=3;
+    groups[0]=X25519;
+    groups[1]=SECP256R1;
+    groups[2]=SECP384R1;
+#endif
 #if CRYPTO_SETTING==POST_QUANTUM
     n=4;
     groups[0]=KYBER768;
     groups[1]=X25519;
     groups[2]=SECP256R1;
     groups[3]=SECP384R1;
-#else
-    n=3;
-    groups[0]=X25519;
-    groups[1]=SECP256R1;
-    groups[2]=SECP384R1;
+#endif
+#if CRYPTO_SETTING==HYBRID
+    n=5;
+    groups[0]=HYBRID_KX;
+    groups[1]=KYBER768;
+    groups[2]=X25519;
+    groups[3]=SECP256R1;
+    groups[4]=SECP384R1;
 #endif
     return n;
 }
@@ -386,6 +404,7 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         OCT_reverse(SK);
         ec_public_key_gen_for_curve_id(&public_key, &private_key, E_CURVE_ID_X25519);
         ec_x25519_export_public_key(&public_key,(uint8_t *)PK->val);
+        PK->len=GFP_X25519_BYTELEN;
 
         OCT_reverse(PK);
 
@@ -398,8 +417,6 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
 //        for (int i=0;i<GFP_X25519_BYTELEN;i++)
 //            printf("%02x",(uint8_t)PK->val[i]);
 //        printf("\n");
-
-        PK->len=GFP_X25519_BYTELEN;
 
 //        printf("PK->len= %d\n",PK->len);
 //        printf("SK->len= %d\n",SK->len);
@@ -443,6 +460,44 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         octet MC_SK=octad_to_octet(SK);
         octet MC_PK=octad_to_octet(PK);
         KYBER768_keypair(r64,&MC_SK,&MC_PK);
+        SK->len=MC_SK.len;
+        PK->len=MC_PK.len;
+    }
+    if (group==HYBRID_KX)
+    {
+        byte r64[64];
+        for (int i=0;i<64;i++)
+            r64[i]=SAL_randomByte();
+        octet MC_SK=octad_to_octet(SK);
+        octet MC_PK=octad_to_octet(PK);
+        KYBER768_keypair(r64,&MC_SK,&MC_PK);
+
+        char mysk[32],mypk[32];
+        octet MYSK={0,sizeof(mysk),mysk};
+        octet MYPK={0,sizeof(mypk),mypk};
+
+        ec_private_key_init_for_curve_id(&private_key,E_CURVE_ID_X25519);
+        ec_public_key_init_for_curve_id(&public_key,E_CURVE_ID_X25519);
+
+        for (int i=0;i<GFP_X25519_BYTELEN;i++)
+            MYSK.val[i]=SAL_randomByte();
+        MYSK.len=32;
+        MYSK.val[31]&=248;  
+        MYSK.val[0]&=127;
+        MYSK.val[0]|=64;
+
+        OCT_reverse(&MYSK);
+        ec_x25519_import_private_key((uint8_t *)MYSK.val,&private_key);
+        OCT_reverse(&MYSK);
+        ec_public_key_gen_for_curve_id(&public_key, &private_key, E_CURVE_ID_X25519);
+        ec_x25519_export_public_key(&public_key,(uint8_t *)MYPK.val);
+        MYPK.len=GFP_X25519_BYTELEN;
+
+        OCT_reverse(&MYPK);
+
+        OCT_joctet(&MC_SK,&MYSK);
+        OCT_joctet(&MC_PK,&MYPK);
+
         SK->len=MC_SK.len;
         PK->len=MC_PK.len;
     }
@@ -509,6 +564,39 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         SK->len=MC_SK.len;
         PK->len=MC_PK.len;
         SS->len=32;
+    }
+    if (group==HYBRID_KX) {
+        octet MC_SK=octad_to_octet(SK);
+        octet MC_PK=octad_to_octet(PK);
+        octet MC_SS=octad_to_octet(SS);
+
+        char mysk[32],mypk[32],myss[32];
+        octet MYSK={0,sizeof(mysk),mysk};
+        octet MYPK={0,sizeof(mypk),mypk};
+        octet MYSS={0,sizeof(myss),myss};
+        OCT_chop(&MC_SK,&MYSK,MC_SK.len-32);
+        OCT_chop(&MC_PK,&MYPK,MC_PK.len-32);
+        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
+
+        ec_private_key_init_for_curve_id(&private_key,E_CURVE_ID_X25519);
+        ec_public_key_init_for_curve_id(&public_key,E_CURVE_ID_X25519);
+        
+        OCT_reverse(&MYSK);
+        ec_x25519_import_private_key((uint8_t *)MYSK.val,&private_key);
+        OCT_reverse(&MYSK);
+        ec_x25519_import_public_key((uint8_t *)MYPK.val,&public_key);
+
+        ecdh_key_agreement_for_curve_id((uint8_t *)MYSS.val, GFP_X25519_BYTELEN, &private_key, &public_key, E_CURVE_ID_X25519); 
+        MYSS.len=GFP_X25519_BYTELEN;
+        OCT_reverse(&MYSS);
+
+        OCT_joctet(&MC_SS,&MYSS);
+        OCT_joctet(&MC_SK,&MYSK);
+        OCT_joctet(&MC_PK,&MYPK);
+
+        SK->len=MC_SK.len;
+        PK->len=MC_PK.len;
+        SS->len=MC_SS.len;
     }
 }
 

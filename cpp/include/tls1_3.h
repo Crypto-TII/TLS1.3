@@ -30,7 +30,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Cryptographic Environment
 #define TINY_ECC 0          /**< ECC keys only */
 #define TYPICAL 1           /**< Mixture of RSA and ECC - for use with most standard web servers */
-#define POST_QUANTUM 2      /**< Post quantum (Dilithium+Kyber?) */    
+#define POST_QUANTUM 2      /**< Post quantum (Dilithium+Kyber?) */   
+#define HYBRID 3            /**< Hybrid, Kyber/Dilithium + X25519 */
 
 // Client Certificate Chain + Key
 #define NOCERT 0  /**< Don't have a Client Cert */
@@ -118,6 +119,26 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes KYBER768   */
 #endif
 
+#if CRYPTO_SETTING == HYBRID
+
+ #define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
+ #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
+
+ #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for Dilithium!*/
+ #define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
+ #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
+
+// These all blow up post quantum
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max signature public key size in bytes     DILITHIUM3 */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max signature private key size in bytes    DILITHIUM3 (maybe includes the public key?) */
+ #define TLS_MAX_SIGNATURE_SIZE 3296          /**< Max signature size in bytes                DILITHIUM3 */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 1184+32        /**< Max key exchange public key size in bytes  KYBER768+X25519   */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088+32     /**< Max key exchange (KEM) ciphertext size     KYBER768+X25519   */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400+32     /**< Max key exchange private key size in bytes KYBER768+X25519   */
+#endif
+
+
 #if CRYPTO_SETTING==TINY_ECC
  #define TLS_MAX_IO_SIZE (4096+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 4096		 /**< Max Plaintext Fragment size */
@@ -152,7 +173,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_COOKIE 128              /**< Max Cookie size */    
 
 #define TLS_MAX_SERVER_NAME 128         /**< Max server name size in bytes */
-#define TLS_MAX_SUPPORTED_GROUPS 5      /**< Max number of supported crypto groups */
+#define TLS_MAX_SUPPORTED_GROUPS 10      /**< Max number of supported crypto groups */
 #define TLS_MAX_SUPPORTED_SIGS 16       /**< Max number of supported signature schemes */    
 #define TLS_MAX_PSK_MODES 2             /**< Max preshared key modes */
 #define TLS_MAX_CIPHER_SUITES 5         /**< Max number of supported cipher suites */
@@ -171,6 +192,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define SECP521R1 0x0019				/**< NIST SECP521R1 elliptic curve key exchange */
 #define X448 0x001e						/**< X448 elliptic curve key exchange */
 #define KYBER768 0x4242                 /**< Kyber PQ key exchange - NOTE I just made this up! Not generally recognised! */
+#define HYBRID_KX 0x421d                /**< Hybrid key exchange, Kyber+X25519 */
 
 // Signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 
