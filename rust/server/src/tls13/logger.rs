@@ -64,6 +64,8 @@ pub fn log_sig_alg(sigalg: u16) {
         RSA_PSS_RSAE_SHA512 => log(IO_PROTOCOL,"RSA_PSS_RSAE_SHA512\n",0,None),
         RSA_PKCS1_SHA512 => log(IO_PROTOCOL,"RSA_PKCS1_SHA512\n",0,None),
         DILITHIUM3 => log(IO_PROTOCOL,"DILITHIUM3\n",0,None),
+        DILITHIUM2 => log(IO_PROTOCOL,"DILITHIUM2\n",0,None),
+        DILITHIUM2_P256 => log(IO_PROTOCOL,"DILITHIUM2 + P256\n",0,None),
         _ => log(IO_PROTOCOL,"Non-standard\n",0,None)
     }     
 }

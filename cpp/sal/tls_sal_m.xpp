@@ -89,6 +89,10 @@ int SAL_sigs(int *sigAlgs)
 #if CRYPTO_SETTING>=POST_QUANTUM
     sigAlgs[n]=DILITHIUM3; n++;
 #endif
+#if CRYPTO_SETTING==HYBRID
+    sigAlgs[n]=DILITHIUM2; n++;
+    sigAlgs[n]=DILITHIUM2_P256; n++;
+#endif
     return n;
 }
 
@@ -104,6 +108,10 @@ int SAL_sigCerts(int *sigAlgsCert)
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
     sigAlgsCert[n]=DILITHIUM3; n++;
+#endif
+#if CRYPTO_SETTING==HYBRID
+    sigAlgsCert[n]=DILITHIUM2; n++;
+    sigAlgsCert[n]=DILITHIUM2_P256; n++;
 #endif
     return n;
 }
@@ -460,6 +468,25 @@ static void DILITHIUM3_SIGN(octad *KEY,octad *MESS,octad *SIG)
     SIG->len=MC_SIG.len;
 }
 
+static bool DILITHIUM2_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+{
+    octet MC_CERT=octad_to_octet(CERT);
+    octet MC_SIG=octad_to_octet(SIG);
+    octet MC_PUBKEY=octad_to_octet(PUBKEY);
+    return DLTHM_verify_2(&MC_PUBKEY,&MC_CERT,&MC_SIG);    
+}
+
+static void DILITHIUM2_SIGN(octad *KEY,octad *MESS,octad *SIG)
+{
+    octet MC_MESS=octad_to_octet(MESS);
+    octet MC_KEY=octad_to_octet(KEY);
+    octet MC_SIG=octad_to_octet(SIG);
+
+    DLTHM_signature_2(&MC_KEY,&MC_MESS,&MC_SIG); 
+    SIG->len=MC_SIG.len;
+}
+
+
 // RSA 2048-bit PKCS1.5 signature verification
 static bool RSA_2048_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 {
@@ -772,6 +799,9 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
         case ECDSA_SECP256R1_SHA256 :
             result= SECP256R1_ECDSA_VERIFY(32,BUFF,SIG,PUBKEY); 
             break;
+        case ECDSA_SECP256R1_SHA384 :
+            result= SECP256R1_ECDSA_VERIFY(48,BUFF,SIG,PUBKEY); 
+            break;
         case RSA_PKCS1_SHA384 :
             result= RSA_PKCS15_VERIFY(48,BUFF,SIG,PUBKEY);
             break;        
@@ -789,6 +819,9 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
             break;
         case DILITHIUM3:
             result= DILITHIUM3_VERIFY(BUFF,SIG,PUBKEY);
+            break;
+        case DILITHIUM2:
+            result= DILITHIUM2_VERIFY(BUFF,SIG,PUBKEY);
             break;
         default:
             result=false;
@@ -810,11 +843,17 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
     case ECDSA_SECP256R1_SHA256:
         SECP256R1_ECDSA_SIGN(32,KEY,TRANS,SIG);
         break;
+    case ECDSA_SECP256R1_SHA384:
+        SECP256R1_ECDSA_SIGN(48,KEY,TRANS,SIG);
+        break;
     case ECDSA_SECP384R1_SHA384:
         SECP384R1_ECDSA_SIGN(48,KEY,TRANS,SIG);
         break;
     case DILITHIUM3:
         DILITHIUM3_SIGN(KEY,TRANS,SIG);
+        break;
+    case DILITHIUM2:
+        DILITHIUM2_SIGN(KEY,TRANS,SIG);
     }
 }
 

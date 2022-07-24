@@ -20,6 +20,7 @@ pub const ECC:usize = 1;
 pub const RSA:usize = 2;
 pub const ECD:usize = 3;  // for Ed25519
 pub const PQ:usize = 4;
+pub const HY:usize = 5;
 
 // Supported Hash functions
 
@@ -71,6 +72,7 @@ const RSASHA256:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b];
 const RSASHA384:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0];
 const RSASHA512:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d];
 const DILITHIUM3:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05];
+const HYBRID:[u8;6]=[0x2B, 0xCE, 0x0F, 0x02, 0x07, 0x01];
 // Cert details
 
 //pub const CN:[u8;3]=[0x55, 0x04, 0x06]; // countryName
@@ -149,6 +151,117 @@ impl FDTYPE {
             length: 0,
         }
     }
+}
+
+/// in-place ECDSA signature encoding from r|s to ASN.1
+// returns new expanded size
+pub fn ecdsa_sig_encode(siglen: usize,c: &mut[u8]) -> usize {
+    let mut r:[u8;66]=[0;66];
+    let mut s:[u8;66]=[0;66];
+    let mut ptr=0;   
+    let hlen=siglen/2;
+    for i in 0..hlen {
+        r[i]=c[i];
+        s[i]=c[hlen+i];
+    }
+    let mut rinc=false;
+    let mut sinc=false;
+    if r[0]&0x80 !=0 {
+        rinc=true;
+    }
+    if s[0]&0x80 !=0 {
+        sinc=true;
+    }
+    let mut len=2*hlen+4;
+    if rinc {len+=1;}
+    if sinc {len+=1;}    
+
+    c[ptr]=SEQ; ptr+=1;
+    c[ptr]=len as u8; ptr+=1;
+    c[ptr]=INT; ptr+=1;
+    if rinc {
+        c[ptr]=(hlen+1) as u8; ptr+=1;
+        c[ptr]=0; ptr+=1;
+    } else {
+        c[ptr]=hlen as u8; ptr+=1;
+    }
+    for i in 0..hlen {
+        c[ptr]=r[i]; ptr+=1;
+    }
+    c[ptr]=INT; ptr+=1;
+    if sinc {
+        c[ptr]=(hlen+1) as u8; ptr+=1;
+        c[ptr]=0; ptr+=1;
+    } else {
+        c[ptr]=hlen as u8; ptr+=1;
+    }
+    for i in 0..hlen {
+        c[ptr]=s[i]; ptr+=1;
+    }
+    return ptr;
+}
+
+/// in-place ECDSA signature decoding from ASN.1 to r|s
+// return final index into c, and length of r|s
+pub fn ecdsa_sig_decode(c: &mut[u8]) -> FDTYPE {
+    let mut j=0 as usize;
+    let mut ret=FDTYPE::new();
+    let mut len=getalen(SEQ,c,j);    // expecting 0x30, followed by length
+    if len==0 {
+        return ret;
+    }
+    j+=skip(len);            // move j over length field
+
+// pick up r part of signature
+    len=getalen(INT,c,j);   // read in INT and get length (32?)
+    if len==0 {
+        return ret;
+    }
+    j+=skip(len);            // skip over length field
+    if c[j]==0 { // skip leading zero
+        j+=1;
+        len-=1;
+    }
+    let mut rlen=bround(len);  // round off length
+    let mut ex=rlen-len;
+
+    let mut slen=0;
+    for _ in 0..ex {   // pad with leading zeros
+        c[slen]=0;
+        slen+=1;
+    }
+    let mut fin=j+len;
+    while j<fin {
+        c[slen]=c[j];   // get the rest of r
+        j+=1;
+        slen+=1;
+    }
+    // pick up s part of signature
+    len=getalen(INT,c,j);              // same for s
+    if len==0 {
+        return ret;
+    }
+    j+=skip(len);
+    if c[j]==0 { // skip leading zero
+        j+=1;
+        len-=1;
+    }
+    rlen=bround(len);
+    ex=rlen-len;
+    for _ in 0..ex {
+        c[slen]=0;
+        slen+=1;
+    }
+    fin=j+len;
+    while j<fin {
+        c[slen]=c[j];  // get rest of s
+        j+=1;
+        slen+=1;
+    }                              // slen indicates length of signature
+
+    ret.index=j;
+    ret.length=slen;  
+    return ret;
 }
 
 // Input private key in PKCS#8 format
@@ -246,41 +359,95 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
         ret.kind=PQ;
         ret.curve=8*tlen;
     }    
-    if ECPK == soid[0..slen] {
-        len=getalen(OID,c,j);
+    if HYBRID == soid[0..slen] {
+        len=getalen(OCT,c,j);
         if len==0 {
             return ret;
         }
         j+=skip(len);
+        len=getalen(OCT,c,j);
+        if len==0 {
+            return ret;
+        }
+        j+=skip(len);
+        let mut tlen=len;
+        if tlen>pk.len() {
+            tlen=pk.len();
+        }
+        j+=4; tlen-=4;    // jump over spurious length
+
+        let tot=j+tlen;
+        let mut len=getalen(SEQ,c,j);  // Check for expected SEQ clause, and get length
+        if len == 0  {                  // if not a SEQ clause, there is a problem, exit
+            return ret;
+        }
+        j+=skip(len); 
+        let end=j+len;
+
+        len=getalen(INT,c,j);
+        if len == 0  {               
+            return ret;
+        }
+        j+=skip(len)+len;
+
+        len=getalen(OCT,c,j);
+        if len==0 {
+            return ret;
+        }
+        j+=skip(len);
+        for i in 0..len {
+            pk[i]=c[j];
+            j+=1;
+        }
+
+        j=end; //skip ahead to PQ private key
+        tlen=tot-j;
+
+        for i in 0..tlen {
+            pk[len+i]=c[j];
+            j+=1;
+        }
+
+        ret.len=tlen;
+        ret.kind=HY;
+        ret.curve=8*tlen;
+    }    
+    if ECPK == soid[0..slen] {
+        len=getalen(OID,c,j);   // extract the length of an OID
+        if len==0 {
+            return ret;
+        }
+        j+=skip(len);   // jump over length field
         
         fin=j+len;
         slen=0;
         while j<fin {
-            soid[slen]=c[j];
+            soid[slen]=c[j];  // get the oid
             slen+=1;
             j+=1;
         }
         j=fin;
-        len=getalen(OCT,c,j);
+        len=getalen(OCT,c,j);  // get OCT length - this length of everything thats left
+        let end=j+len;
         if len==0 {
             return ret;
         }
-        j+=skip(len);
-        len=getalen(SEQ,c,j);
+        j+=skip(len);   // jump over length field
+        len=getalen(SEQ,c,j);   // get an 0x30 and length
         if len==0 {
             return ret;
         }
-        j+=skip(len);
-        len=getalen(INT,c,j);
+        j+=skip(len);           //  jump over length field
+        len=getalen(INT,c,j);   //  expect an INT field
         if len == 0  {     
             return ret;
         }
-        j+=skip(len)+len;    // jump over version
-        len=getalen(OCT,c,j);
+        j+=skip(len)+len;    // jump over length field and version
+        len=getalen(OCT,c,j);  // get OCT length
         if len==0 {
             return ret;
         }
-        j+=skip(len);
+        j+=skip(len);      // jump over length field
 
         ret.kind=ECC;
         let mut rlen=0;
@@ -296,14 +463,15 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
             ret.curve=USE_NIST521;
             rlen=66;
         }
-        ret.len=rlen;
-        for i in 0..rlen-len {
+        ret.len=rlen;    // get length of private key
+        for i in 0..rlen-len {  // put in leading zeros
             pk[i]=0;
         }
-        for i in rlen-len..rlen {
+        for i in rlen-len..rlen {  // extract private key
             pk[i]=c[j];
             j+=1;
         }
+        j=end;   // jump to end
     }
     if RSAPK == soid[0..slen] {
         len=getalen(NUL,c,j);
@@ -479,6 +647,10 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
         ret.kind=PQ;
         ret.hash=0; // hash type is implicit
     }
+    if HYBRID == soid[0..slen] {
+        ret.kind=HY;
+        ret.hash=0; // hash type is implicit
+    }
     if ret.kind==0 { 
         return ret;  // unsupported type
     }
@@ -511,6 +683,107 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
     }
 
     if ret.kind==ECC {
+        len=getalen(SEQ,sc,j);    // expecting 0x30, followed by length
+        if len==0 {
+            ret.kind=0;
+            return ret;
+        }
+        j+=skip(len);            // move j over length field
+
+        // pick up r part of signature
+        len=getalen(INT,sc,j);   // read in INT and get length (32?)
+        if len==0 {
+            ret.kind=0;
+            return ret;
+        }
+        j+=skip(len);            // skip over length field
+        if sc[j]==0 { // skip leading zero
+            j+=1;
+            len-=1;
+        }
+        let mut rlen=bround(len);  // round off length
+        let mut ex=rlen-len;
+        ret.len=2*rlen;
+
+        slen=0;
+        for _ in 0..ex {   // pad with leading zeros
+            sig[slen]=0;
+            slen+=1;
+        }
+        fin=j+len;
+        while j<fin {
+            sig[slen]=sc[j];   // get the rest of r
+            j+=1;
+            slen+=1;
+        }
+        // pick up s part of signature
+        len=getalen(INT,sc,j);              // same for s
+        if len==0 {
+            ret.kind=0;
+            return ret;
+        }
+        j+=skip(len);
+        if sc[j]==0 { // skip leading zero
+            j+=1;
+            len-=1;
+        }
+        rlen=bround(len);
+        ex=rlen-len;
+        for _ in 0..ex {
+            sig[slen]=0;
+            slen+=1;
+        }
+        fin=j+len;
+        while j<fin {
+            sig[slen]=sc[j];  // get rest of s
+            j+=1;
+            slen+=1;
+        }                              // slen indicates length of signature
+        if ret.hash==H256 {
+            ret.curve=USE_NIST256;
+        }
+        if ret.hash==H384 {
+            ret.curve=USE_NIST384;
+        }
+        if ret.hash==H512 {
+            ret.curve=USE_NIST521;
+        }
+    }
+    if ret.kind==RSA {
+        let rlen=bround(len);
+        let ex=rlen-len;
+        ret.len=rlen;
+        slen=0;
+        for _ in 0..ex {
+            sig[slen]=0;
+            slen+=1;
+        }
+        fin=j+len;
+        while j<fin {
+            sig[slen]=sc[j];
+            j+=1;
+            slen+=1;
+        }
+        ret.curve=8*rlen;
+    }
+    if ret.kind==PQ  {
+        ret.len=len;
+        slen=0;
+        fin=j+len;
+        while j<fin {
+            sig[slen]=sc[j];
+            j+=1;
+            slen+=1;
+        }
+        ret.curve=8*len;
+    }
+    if ret.kind==HY {
+        j+=4;
+        len-=4;  // jump over spurious length field
+        let end=j+len;  // length of entire blob of data
+
+// first get ECC sig
+
         len=getalen(SEQ,sc,j);
         if len==0 {
             ret.kind=0;
@@ -567,43 +840,16 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
             j+=1;
             slen+=1;
         }
-        if ret.hash==H256 {
-            ret.curve=USE_NIST256;
-        }
-        if ret.hash==H384 {
-            ret.curve=USE_NIST384;
-        }
-        if ret.hash==H512 {
-            ret.curve=USE_NIST521;
-        }
-    }
-    if ret.kind==RSA {
-        let rlen=bround(len);
-        let ex=rlen-len;
-        ret.len=rlen;
-        slen=0;
-        for _ in 0..ex {
-            sig[slen]=0;
-            slen+=1;
-        }
-        fin=j+len;
-        while j<fin {
+
+// now get DLT sig
+
+        ret.len+=end-j;
+        while j<end {
             sig[slen]=sc[j];
             j+=1;
             slen+=1;
         }
-        ret.curve=8*rlen;
-    }
-    if ret.kind==PQ {
-        ret.len=len;
-        slen=0;
-        fin=j+len;
-        while j<fin {
-            sig[slen]=sc[j];
-            j+=1;
-            slen+=1;
-        }
-        ret.curve=8*len;
+        ret.curve=USE_NIST256;
     }
     return ret;
 }
@@ -750,6 +996,9 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     if DILITHIUM3 == koid[0..slen] {
         ret.kind=PQ;
     }
+    if HYBRID == koid[0..slen] {
+        ret.kind=HY;
+    }
     if ret.kind==0 {
         return ret;
     }
@@ -792,7 +1041,11 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     j+=1;
     len-=1; // skip bit shift (hopefully 0!)
 
-    if ret.kind==ECC || ret.kind==ECD || ret.kind==PQ {
+    if ret.kind==ECC || ret.kind==ECD || ret.kind==PQ || ret.kind==HY {
+        if ret.kind==HY {
+            j+=4; // jump over redundant length field
+            len-=4;
+        }
         ret.len=len;
         fin=j+len;
         slen=0;
@@ -802,7 +1055,7 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
             j+=1;
         }
     }
-    if ret.kind==PQ {
+    if ret.kind==PQ || ret.kind==HY {
         ret.curve=8*len;
     }
     if ret.kind==RSA { // Key is (modulus,exponent) - assume exponent is 65537
@@ -920,7 +1173,6 @@ pub fn self_signed(c: &[u8]) -> bool {
 // cert information into it.
 
 /// Find entity property indicated by SOID, given start of issuer or subject field. Return index in cert, flen=length of field
-
 pub fn find_entity_property(c: &[u8],soid: &[u8],start: usize) -> FDTYPE {
     let mut ret=FDTYPE::new();
     let mut foid:[u8;32]=[0;32];

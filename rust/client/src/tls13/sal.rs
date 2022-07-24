@@ -208,6 +208,10 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         sig_algs[n]=config::DILITHIUM3; n+=1;
     }
+    if config::CRYPTO_SETTING==config::HYBRID {
+        sig_algs[n]=config::DILITHIUM2; n+=1;
+        sig_algs[n]=config::DILITHIUM2_P256; n+=1;
+    }
     return n;
 }
 
@@ -223,6 +227,10 @@ pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         sig_algs_cert[n]=config::DILITHIUM3; n+=1;   
+    }
+    if config::CRYPTO_SETTING==config::HYBRID {
+        sig_algs_cert[n]=config::DILITHIUM2; n+=1;  
+        sig_algs_cert[n]=config::DILITHIUM2_P256; n+=1;   
     }
     return n;
 }
@@ -675,6 +683,20 @@ pub fn dilithium3_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     return dilithium::SIG_SIZE_3;
 }
 
+/// Dilithium signature verification
+fn dilithium2_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+    use mcore::dilithium;
+    return dilithium::verify_2(&pubkey[0..dilithium::PK_SIZE_2],cert,sig);
+}
+
+/// Dilithium signature 
+pub fn dilithium2_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+    use mcore::dilithium;
+    dilithium::signature_2(&key[0..dilithium::SK_SIZE_2],mess,sig);
+    return dilithium::SIG_SIZE_2;
+}
+
+
 /// RSA 2048-bit PKCS1.5 signature verification
 fn rsa_2048_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::rsa2048::rsa;
@@ -887,11 +909,13 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
     match sigalg {
         config::RSA_PKCS1_SHA256 => {return rsa_pkcs15_verify(32,buff,sig,pubkey);},
         config::ECDSA_SECP256R1_SHA256 => {return secp256r1_ecdsa_verify(32,buff,sig,pubkey);}, 
+        config::ECDSA_SECP256R1_SHA384 => {return secp256r1_ecdsa_verify(48,buff,sig,pubkey);}, 
         config::RSA_PKCS1_SHA384 => {return rsa_pkcs15_verify(48,buff,sig,pubkey);},
         config::ECDSA_SECP384R1_SHA384 => {return secp384r1_ecdsa_verify(48,buff,sig,pubkey);},
         config::RSA_PKCS1_SHA512 => {return rsa_pkcs15_verify(64,buff,sig,pubkey);},
         config::RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_verify(32,buff,sig,pubkey);},
         config::DILITHIUM3 => {return dilithium3_verify(buff,sig,pubkey);},
+        config::DILITHIUM2 => {return dilithium2_verify(buff,sig,pubkey);},
         _ => {return false;}
     }
 }
@@ -901,8 +925,10 @@ pub fn tls_signature(sigalg: u16,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usiz
     match sigalg {
         config:: RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_sign(32,key,trans,sig);},
         config:: ECDSA_SECP256R1_SHA256 => {return secp256r1_ecdsa_sign(32,key,trans,sig);},
+        config:: ECDSA_SECP256R1_SHA384 => {return secp256r1_ecdsa_sign(48,key,trans,sig);},
         config:: ECDSA_SECP384R1_SHA384 => {return secp384r1_ecdsa_sign(48,key,trans,sig);},
         config:: DILITHIUM3 => {return dilithium3_sign(key,trans,sig);},
+        config:: DILITHIUM2 => {return dilithium2_sign(key,trans,sig);},
         _ => {return 0;}
     }
 }

@@ -4,6 +4,7 @@
 
 #include "tls_keys_calc.h"
 #include "tls_logger.h"
+#include "tls_x509.h"
 
 // Initialise transcript hash
 void initTranscriptHash(TLS_session *session)
@@ -377,6 +378,7 @@ void deriveApplicationSecrets(TLS_session *session,octad *SFH,octad *CFH,octad *
 }
 
 // Convert ECDSA signature to DER encoded form
+/*
 static void parse_in_ecdsa_sig(int sha,octad *CCVSIG)
 { // parse ECDSA signature into DER encoded (r,s) form
 	int shalen=SAL_hashLen(sha);
@@ -426,6 +428,7 @@ static void parse_in_ecdsa_sig(int sha,octad *CCVSIG)
     }
     OCT_append_octad(CCVSIG,&D);
 }
+*/
 
 // Create Client Cert Verify message, a digital signature using KEY on some TLS1.3 specific message+transcript hash
 void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
@@ -446,7 +449,8 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
         int hts=TLS_SHA256_T;
         if (sigAlg==ECDSA_SECP384R1_SHA384)
             hts=TLS_SHA384_T;
-        parse_in_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,CCVSIG);
+        //parse_in_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,CCVSIG);
+        ecdsa_sig_encode(CCVSIG);
     }
 //printf("SIG len= %d\n",CCVSIG->len);
 
@@ -455,6 +459,7 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
 }
 
 // Convert DER encoded signature to ECDSA signature
+/*
 static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
 { // parse out DER encoded (r,s) ECDSA signature into a single SIG 
     ret rt;
@@ -503,7 +508,7 @@ static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
     OCT_append_octad(SCVSIG,&S);
     return true;
 }
-
+*/
 // check that SCVSIG is digital signature (using sigAlg algorithm) of some TLS1.3 specific message+transcript hash, 
 // as verified by Server Certificate public key CERTPK
 
@@ -532,7 +537,8 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
         int hts=TLS_SHA256_T;
         if (sigAlg==ECDSA_SECP384R1_SHA384)
             hts=TLS_SHA384_T;
-        if (!parse_out_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,SCVSIG)) return false;
+        //if (!parse_out_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,SCVSIG)) return false;
+        if (!ecdsa_sig_decode(SCVSIG)) return false;
     }
     log(IO_DEBUG,(char *)"Certificate Signature = ",NULL,0,SCVSIG);
     return SAL_tlsSignatureVerify(sigAlg,&SCV,SCVSIG,CERTPK);

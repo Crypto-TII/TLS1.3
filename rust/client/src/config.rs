@@ -36,6 +36,12 @@ pub const RSA_PKCS1_SHA384: u16 = 0x0501;
 pub const RSA_PKCS1_SHA512: u16 = 0x0601;   
 /// Dilithium3 Signature algorithm
 pub const DILITHIUM3: u16 = 0x0903;   
+/// Dilithium2 Hybrid Signature algorithm
+pub const DILITHIUM2: u16 = 0x0902; 
+/// Non-standard - used in hybrid schemes 
+pub const ECDSA_SECP256R1_SHA384: u16 = 0x0413; 
+/// Dilithium2 Hybrid Signature algorithm
+pub const DILITHIUM2_P256: u16 = 0x09F2; // this type can be negotiated, but always implemented seperately by SAL
 // Ed25519 EdDSA Signature algorithm
 //pub const ED25519: usize = 0x0807;                   
 
@@ -75,9 +81,9 @@ pub const MAX_CERT_SIZE:usize = 6144;               // Max client private key/ce
 pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size (less extensions) KEX public key is largest component
 
 // These all blow up post quantum
-pub const MAX_SIG_PUBLIC_KEY: usize = 1952;         // Maximum signature Public key size Dilithium 3
-pub const MAX_SIG_SECRET_KEY: usize = 4000;         // Maximum signature Public key size Dilithium 3
-pub const MAX_SIGNATURE_SIZE: usize = 3296;         // Maximum signature size in bytes - Dilithium 3 
+pub const MAX_SIG_PUBLIC_KEY: usize = 1952+100;         // Maximum signature Public key size Dilithium 3
+pub const MAX_SIG_SECRET_KEY: usize = 4000+100;         // Maximum signature Public key size Dilithium 3
+pub const MAX_SIGNATURE_SIZE: usize = 3296+100;         // Maximum signature size in bytes - Dilithium 3 
 pub const MAX_KEX_PUBLIC_KEY: usize = 1184+32;         // Maximum key exchange public key size (also Encapsulation size for KEM) - was 136 pre-quantum
 pub const MAX_KEX_CIPHERTEXT: usize = 1088+32;         // Maximum key exchange (KEM) ciphertext size
 pub const MAX_KEX_SECRET_KEY: usize = 2400+32;         // Maximum key exchange Secret key size. The +32 is for hybrid with X25519

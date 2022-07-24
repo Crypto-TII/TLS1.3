@@ -5,6 +5,7 @@ use zeroize::Zeroize;
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::sal;
+use crate::tls13::x509;
 //use crate::tls13::logger::log;
 
 /// Create expanded HKDF label LB from label and context
@@ -171,7 +172,8 @@ impl CRYPTO {
 }
 
 /// Create ECDSA signature, needed in ASN.1 form 
-fn parse_in_ecdsa_sig(htype: usize,ccvsig: &mut [u8]) -> usize {
+/*
+pub fn parse_in_ecdsa_sig(htype: usize,ccvsig: &mut [u8]) -> usize {
     let mut c:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
     let mut d:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
     let hlen=sal::hash_len(htype);
@@ -214,7 +216,7 @@ fn parse_in_ecdsa_sig(htype: usize,ccvsig: &mut [u8]) -> usize {
     ptr=utils::append_bytes(ccvsig,ptr,&d[0..hlen]);
     return ptr;
 }
-
+*/
 /// Create Client Certificate Verifier
 pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut [u8]) -> usize {
     let mut ptr=0;
@@ -225,19 +227,30 @@ pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut 
     ptr=utils::append_byte(&mut ccv,ptr,0,1); 
     ptr=utils::append_bytes(&mut ccv,ptr,h);
 
+// *** if sigalg==DILITHIUM2_P256, extract both signing keys, create two signatures, and concatenate them
+    if sigalg==DILITHIUM2_P256 {
+        // whats private key look like?
+        let siglen=sal::tls_signature(ECDSA_SECP256R1_SHA384,&key[0..32],&ccv[0..ptr],ccvsig);
+        let mut cclen=x509::ecdsa_sig_encode(siglen,ccvsig);
+        sclen+=sal::tls_signature(DILITHIUM2,&key[32..],&ccv[0..ptr],&mut ccvsig[cclen..]); // append PQ sig
+        return cclen;
+    }
+
     let mut cclen=sal::tls_signature(sigalg,key,&ccv[0..ptr],ccvsig);
     if sigalg==ECDSA_SECP256R1_SHA256 || sigalg==ECDSA_SECP384R1_SHA384 {
-        let mut hts=SHA256_T;
-        if sigalg==ECDSA_SECP384R1_SHA384 {
-            hts=SHA384_T;
-        }
-        cclen=parse_in_ecdsa_sig(/*sal::hash_type_sig(sigalg)*/hts,ccvsig);
+        //let mut hts=SHA256_T;
+        //if sigalg==ECDSA_SECP384R1_SHA384 {
+        //    hts=SHA384_T;
+        //}
+        cclen=x509::ecdsa_sig_encode(cclen,ccvsig);
+        //cclen=parse_in_ecdsa_sig(/*sal::hash_type_sig(sigalg)*/hts,ccvsig);
     }
     return cclen;
 }
 
 /// Parse out DER encoded (r,s) ECDSA signature into a single SIG r|s format
-fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
+/*
+pub fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
     let mut r:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
     let mut s:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
     let hlen=sal::hash_len(htype);
@@ -245,7 +258,7 @@ fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
     let mut rt=utils::parse_int(scvsig,1,&mut ptr); let der=rt.val;
     if rt.err!=0 || der!=0x30 {return 0;}
     rt=utils::parse_int(scvsig,1,&mut ptr); let slen=rt.val;
-    if rt.err!=0 || slen+2!=scvsig.len() {return 0;}
+    if rt.err!=0  {return 0;}
 // get r
     rt=utils::parse_int(scvsig,1,&mut ptr); let mut int=rt.val;
     if rt.err!=0 || int!=2 {return 0;}
@@ -257,7 +270,6 @@ fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
         if rt.err!=0 || lzero!=0 {return 0;}
     }
     rt=utils::parse_bytes(&mut r[0..rlen],scvsig,&mut ptr); if rt.err!=0 {return 0;}
-
 // get s
     rt=utils::parse_int(scvsig,1,&mut ptr); int=rt.val;
     if rt.err!=0 || int!=2 {return 0;}
@@ -276,9 +288,9 @@ fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
         scvsig[i]=r[i];
         scvsig[hlen+i]=s[i];
     }
-    return 2*hlen; // length of signature
+    return ptr; // length of signature
 }
-
+*/
 /// Check Server Certificate Verifier - verify signature
 pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk: &[u8]) -> bool {
     let mut scv:[u8;100+MAX_HASH]=[0;100+MAX_HASH];
@@ -289,14 +301,32 @@ pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk:
     ptr=utils::append_byte(&mut scv,ptr,0,1);   // add 0
     ptr=utils::append_bytes(&mut scv,ptr,h);    // add transcript hash
 
+    if sigalg==DILITHIUM2_P256 {
+        let pub1=&certpk[0..65];
+        let pub2=&certpk[65..];
+        let ret=x509::ecdsa_sig_decode(scvsig);
+        let siglen=ret.length;
+        if siglen == 0 {
+            return false;
+        }   
+        let index=ret.index;
+
+        //let mut siglen=parse_out_ecdsa_sig(SHA256_T,scvsig);
+        //println!("siglen= {}",siglen);
+        //println!("{} {} {} {} {} {} {} {} ",scvsig[0],scvsig[1],scvsig[2],scvsig[3],scvsig[4],scvsig[5],scvsig[6],scvsig[7]);
+        return sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,&scv[0..ptr],&scvsig[0..siglen],pub1) && sal::tls_signature_verify(DILITHIUM2,&scv[0..ptr],&scvsig[index..],pub2);
+    }
+
     let mut siglen=scvsig.len();
 // Special case processing required here for ECDSA signatures -  scvsig is modified
     if sigalg==ECDSA_SECP256R1_SHA256 || sigalg==ECDSA_SECP384R1_SHA384 {
-        let mut hts=SHA256_T;
-        if sigalg==ECDSA_SECP384R1_SHA384 {
-            hts=SHA384_T;
-        }
-        siglen=parse_out_ecdsa_sig(/*sal::hash_type_sig(sigalg)*/hts,scvsig);
+        //let mut hts=SHA256_T;
+        //if sigalg==ECDSA_SECP384R1_SHA384 {
+        //    hts=SHA384_T;
+        //}
+        let ret=x509::ecdsa_sig_decode(scvsig);
+        siglen=ret.length;
+        //siglen=parse_out_ecdsa_sig(/*sal::hash_type_sig(sigalg)*/hts,scvsig);
         if siglen == 0 {
             return false;
         }    

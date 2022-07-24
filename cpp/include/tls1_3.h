@@ -164,7 +164,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 
 #define TLS_MAX_SHARED_SECRET_SIZE 256	 /**< Max key exchange Shared secret size */
-#define TLS_MAX_TICKET_SIZE 512          /**< maximum resumption ticket size */
+#define TLS_MAX_TICKET_SIZE 1024          /**< maximum resumption ticket size - beware some servers send much bigger tickets! */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
 
 #define TLS_MAX_ECC_FIELD 66            /**< Max ECC field size in bytes */
@@ -196,6 +196,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 // Signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 
+#define ECDSA_SECP256R1_SHA384 0x0413   /**< Non-standard ECDSA Signature algorithm */ 
 #define ECDSA_SECP384R1_SHA384 0x0503   /**< Supported ECDSA Signature algorithm */
 #define RSA_PSS_RSAE_SHA256 0x0804      /**< Supported RSA Signature algorithm */ 
 #define RSA_PSS_RSAE_SHA384 0x0805      /**< Supported RSA Signature algorithm */
@@ -204,7 +205,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define RSA_PKCS1_SHA384 0x0501         /**< Supported RSA Signature algorithm */
 #define RSA_PKCS1_SHA512 0x0601         /**< Supported RSA Signature algorithm */
 #define ED25519 0x0807                  /**< Ed25519 EdDSA Signature algorithm */
+#define DILITHIUM2 0x0902               /**< Dilithium2 Signature algorithm */
 #define DILITHIUM3 0x0903               /**< Dilithium3 Signature algorithm */
+#define DILITHIUM2_P256 0x09F2          /**< Dilithium2+SECP256R1 Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */

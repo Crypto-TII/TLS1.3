@@ -18,6 +18,7 @@
 #define X509_RSA 2      /**< RSA data type detected */
 #define X509_ECD 3      /**< Elliptic Curve (Ed25519) detected */
 #define X509_PQ 4       /**< Post Quantum method */
+#define X509_HY 5       /**< Hybrid Post_Quantum */
 
 // Supported Hash functions
 
@@ -56,6 +57,19 @@ typedef struct
     int curve; /**< elliptic curve used or RSA key length in bits  */
 } pktype;
 
+
+/** @brief in-place ECDSA signature encoding
+ *
+    @param c an ecdsa signature to be converted from r|s form to ASN.1
+*/
+extern void ecdsa_sig_encode(octad *c);
+
+/** @brief in-place ECDSA signature decoding
+ *
+    @param c an ecdsa signature to be converted from ASN.1 to simple r|s form
+    @return index into c where conversion ended
+*/
+extern int ecdsa_sig_decode(octad *c);
 
 /* X.509 functions */
 

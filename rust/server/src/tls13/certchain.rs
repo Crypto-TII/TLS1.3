@@ -124,7 +124,7 @@ fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bo
         if &owner[0..wlen]==issuer {
             let pkt=x509::extract_public_key(cert, pk);
             if st.kind==pkt.kind {
-                if st.kind==x509::PQ || st.curve==pkt.curve {  // In PQ world signature sizes and public key sizes are not the same
+                if st.kind==x509::PQ || st.kind==x509::HY || st.curve==pkt.curve {  // In PQ world signature sizes and public key sizes are not the same
                     *pklen=pkt.len;
                     return true;
                 }
@@ -136,31 +136,35 @@ fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bo
 
 /// Check signature on Certificate given signature type and public key
 fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    let mut sigalg:u16=0;
     if st.kind==x509::ECC && st.hash==x509::H256 && st.curve==x509::USE_NIST256 {
-        sigalg=ECDSA_SECP256R1_SHA256;
+        return sal::tls_signature_verify(ECDSA_SECP256R1_SHA256,cert,sig,pubkey);
     }
     if st.kind==x509::ECC && st.hash==x509::H384 && st.curve==x509::USE_NIST384 {
-        sigalg=ECDSA_SECP384R1_SHA384;
+        return sal::tls_signature_verify(ECDSA_SECP384R1_SHA384,cert,sig,pubkey);
     }
     if st.kind==x509::RSA && st.hash==x509::H256 {
-        sigalg=RSA_PKCS1_SHA256;
+        return sal::tls_signature_verify(RSA_PKCS1_SHA256,cert,sig,pubkey);
     }
     if st.kind==x509::RSA && st.hash==x509::H384 {
-        sigalg=RSA_PKCS1_SHA384;
+        return sal::tls_signature_verify(RSA_PKCS1_SHA384,cert,sig,pubkey);
     }
     if st.kind==x509::RSA && st.hash==x509::H512 {
-        sigalg=RSA_PKCS1_SHA512;
+        return sal::tls_signature_verify(RSA_PKCS1_SHA512,cert,sig,pubkey);
     }
     if st.kind==x509::PQ {
-        sigalg=DILITHIUM3;
+        return sal::tls_signature_verify(DILITHIUM3,cert,sig,pubkey);
     }
-    if sigalg==0 {
-//println!("Unsupported sig {} {} {}",st.kind,st.hash,st.curve);
+    if st.kind==x509::HY {
+        let sig1=&sig[0..64];
+        let sig2=&sig[64..]; 
+        let pub1=&pubkey[0..65];
+        let pub2=&pubkey[65..];
+        if sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,cert,sig1,pub1) && sal::tls_signature_verify(DILITHIUM2,cert,sig2,pub2) {
+            return true;
+        }
         return false;
     }
-    let res=sal::tls_signature_verify(sigalg,cert,sig,pubkey);
-    return res;
+    return false;
 }
 
 /// Get server credentials (cert+signing key) from servercert.rs
@@ -193,7 +197,7 @@ pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
             ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
         }
     }
-    if CRYPTO_SETTING>=POST_QUANTUM {
+    if CRYPTO_SETTING==POST_QUANTUM {
         key=servercert::PQ_PRIVATE;
         for i in 0..servercert::PQ_CERTCHAIN.len() {
             let b=servercert::PQ_CERTCHAIN[i].as_bytes();
@@ -203,7 +207,16 @@ pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
             ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
         }
     }
-
+    if CRYPTO_SETTING==HYBRID {
+        key=servercert::HY_PRIVATE;
+        for i in 0..servercert::HY_CERTCHAIN.len() {
+            let b=servercert::HY_CERTCHAIN[i].as_bytes();
+            let sclen=decode_b64(&b,&mut sc);
+            ptr=utils::append_int(certchain,ptr,sclen,3);
+            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
+            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
+        }
+    }
     *cclen=ptr;
 // next get secret key
     let sclen=decode_b64(&key.as_bytes(),&mut sc);
@@ -225,6 +238,9 @@ pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
 
     if pk.kind==x509::PQ {
         kind=DILITHIUM3;
+    }
+    if pk.kind==x509::HY {
+        kind=DILITHIUM2_P256;  // *** also need to check that secp256r1 is supported - kind indicates that both signature keys are in privkey
     }
 
     for i in 0..nccsalgs {

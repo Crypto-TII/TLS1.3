@@ -82,6 +82,9 @@ static octad RSASHA512 = {9, sizeof(rsasha512), (char *)rsasha512};
 static unsigned char dilithium3[11] = {0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05};
 static octad DILITHIUM3 = {11, sizeof(dilithium3), (char *)dilithium3};
 
+// DILITHIUM2 + P256
+static unsigned char hybrid[6] = {0x2B, 0xCE, 0x0F, 0x02, 0x07, 0x01};
+static octad HYBRID = {6,sizeof(hybrid), (char *)hybrid};
 
 // Cert details
 // countryName
@@ -168,6 +171,98 @@ static int bround(int len)
 
 }
 
+// in-place ECDSA signature encoding from r|s to ASN.1
+void ecdsa_sig_encode(octad *c) {
+    char r[66],s[66];
+    int i,ptr=0;
+    int hlen=c->len/2;
+    int rinc=0;
+    int sinc=0;
+    int len=2*hlen+4;
+
+    for (i=0;i<hlen;i++)
+    {
+        r[i]=c->val[i];
+        s[i]=c->val[hlen+i];
+    }
+
+    if (r[0]&0x80) {
+        rinc=1; len+=1;
+    }
+    if (s[0]&0x80) {
+        sinc=1; len+=1;
+    }
+    c->val[ptr++]=SEQ;
+    c->val[ptr++]=(char)len;
+    c->val[ptr++]=INT;
+    if (rinc)
+    {
+        c->val[ptr++]=(char)(hlen+1);
+        c->val[ptr++]=0;
+    } else {
+        c->val[ptr++]=(char)hlen;
+    }
+    for (i=0;i<hlen;i++)
+        c->val[ptr++]=r[i];
+
+    c->val[ptr++]=INT;
+    if (sinc)
+    {
+        c->val[ptr++]=(char)(hlen+1);
+        c->val[ptr++]=0;
+    } else {
+        c->val[ptr++]=(char)hlen;
+    }
+    for (i=0;i<hlen;i++)
+        c->val[ptr++]=s[i];
+    c->len=ptr;
+}
+
+// in-place ECDSA signature decoding from ASN.1 to r|s
+// return final index into c
+int ecdsa_sig_decode(octad *c) {
+    int i,j=0;
+    int ex,fin,rlen,slen,len=getalen(SEQ, c->val, j);
+    slen=0;
+    if (len < 0) return 0;        // if not a SEQ clause, there is a problem, exit
+    j += skip(len);  
+
+    len = getalen(INT, c->val, j);
+    if (len < 0) return 0;
+    j += skip(len);
+    if (c->val[j]==0)
+    { // leading zero
+        j++;
+        len-=1;
+    }
+    rlen=bround(len);
+    ex=rlen-len;
+    for (i=0;i<ex;i++)
+        c->val[slen++]=0;
+    fin=j+len;
+    while (j<fin)
+        c->val[slen++]=c->val[j++];
+    
+    len = getalen(INT, c->val, j);
+    if (len < 0) return 0;
+    j += skip(len);
+    if (c->val[j]==0)
+    { // leading zero
+        j++;
+        len-=1;
+    }
+    rlen=bround(len);
+    ex=rlen-len;
+   
+    for (i=0;i<ex;i++)
+        c->val[slen++]=0;
+    fin=j+len;
+    while (j<fin)
+        c->val[slen++]=c->val[j++];
+    c->len=slen;   // adjust length
+    return j;
+}
+
 // Input private key in PKCS#8 format
 // e.g. openssl req -x509 -nodes -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365
 // e.g. openssl req -x509 -nodes -days 3650 -newkey ec:<(openssl ecparam -name prime256v1) -keyout key.pem -out ecdsacert.pem
@@ -176,7 +271,7 @@ static int bround(int len)
 // For ECC octad = k
 pktype X509_extract_private_key(octad *c,octad *pk)
 {
-    int i, j, k, fin, len, rlen, flen, tlen, sj, ex;
+    int i, j, k, fin, len, rlen, flen, tlen, sj, ex, tot, end;
     char soid[12];
     octad SOID = {0, sizeof(soid), soid};
     pktype ret;
@@ -244,6 +339,45 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         ret.type=X509_PQ;
         ret.curve=8*tlen;
     }
+    if (OCT_compare(&HYBRID, &SOID))
+    { // Its a DILITHIUM3 key
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        tlen=len; 
+        if (tlen>pk->max)
+            tlen=pk->max;
+        j+=4; tlen-=4; 
+
+        tot=j+tlen;
+        len = getalen(SEQ, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        end=j+len;
+        len = getalen(INT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len)+len;
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+
+        for (i=0;i<len;i++)
+            pk->val[i]=c->val[j++];
+
+        j=end; // skip ahead to PQ private key
+        tlen=tot-j;
+
+        for (i=0;i<tlen;i++)
+            pk->val[len+i]=c->val[j++];
+
+        pk->len=tlen;
+        ret.type=X509_HY;
+        ret.curve=8*tlen;
+    }
+
     if (OCT_compare(&ECPK, &SOID))
     { // Its an ECC key
         len = getalen(OID, c->val, j);
@@ -372,7 +506,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
 
 pktype X509_extract_cert_sig(octad *sc, octad *sig)
 {
-    int i, j, k, fin, len, rlen, sj, ex;
+    int i, j, k, fin, len, rlen, slen, sj, ex, end, siglen;
     char soid[12];
     octad SOID = {0, sizeof(soid), soid};
     pktype ret;
@@ -444,11 +578,14 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         ret.type = X509_RSA;
         ret.hash = X509_H512;
     }
-//printf("Checking OID %d %x %x %x %x %x %x %x %x %x %x %x\n",SOID.len,SOID.val[0],SOID.val[1],SOID.val[2],SOID.val[3],SOID.val[4],SOID.val[5],SOID.val[6],SOID.val[7],SOID.val[8],SOID.val[9],SOID.val[10]);
     if (OCT_compare(&DILITHIUM3, &SOID))
     {
-//printf("Found OID\n");
         ret.type = X509_PQ;
+        ret.hash = 0; // hash type is implicit
+    }
+    if (OCT_compare(&HYBRID, &SOID))
+    {
+        ret.type = X509_HY;
         ret.hash = 0; // hash type is implicit
     }
     if (ret.type == 0) return ret; // unsupported type
@@ -571,6 +708,65 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
             sig->val[i++] = sc->val[j];
         ret.curve = 8*len;
     }
+    if (ret.type == X509_HY)
+    {
+        j+=4;
+        len-=4;
+        end=j+len;
+// first get ECC sig
+        len = getalen(SEQ, sc->val, j);
+        if (len < 0) {
+            ret.type=0;
+            return ret;
+        }
+        j += skip(len);
+        // pick up r part of signature
+        len = getalen(INT, sc->val, j);
+        if (len < 0) {
+            ret.type=0;
+            return ret;
+        }
+        j += skip(len);
+        if (sc->val[j]==0) {
+            j++;
+            len-=1;
+        }
+        rlen=bround(len);
+        ex=rlen-len;
+        siglen=2*rlen;
+        
+        slen=0;
+        for (i=0;i<ex;i++)
+            sig->val[slen++]=0;
+        fin=j+len;
+        while (j<fin)
+            sig->val[slen++]=sc->val[j++];
+        // pick up s part of signature
+        len = getalen(INT, sc->val, j);
+        if (len < 0) {
+            ret.type=0;
+            return ret;
+        }
+        j += skip(len);
+        if (sc->val[j]==0) {
+            j++;
+            len-=1;
+        }
+        rlen=bround(len);
+        ex=rlen-len;
+        for (i=0;i<ex;i++)
+            sig->val[slen++]=0;
+        fin=j+len;
+        while (j<fin)
+            sig->val[slen++]=sc->val[j++];
+
+// now get PQ sig
+        siglen+=end-j;
+        sc->len=siglen;
+        while (j<end)
+            sig->val[slen++]=sc->val[j++];
+        ret.curve=USE_NIST256;
+    }
     return ret;
 }
 
@@ -670,6 +866,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
     if (OCT_compare(&EDPK, &KOID)) ret.type = X509_ECD;
     if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
     if (OCT_compare(&DILITHIUM3, &KOID)) ret.type = X509_PQ;
+    if (OCT_compare(&HYBRID, &KOID)) ret.type = X509_HY;
 
     if (ret.type == 0) return ret;
 
@@ -710,16 +907,22 @@ pktype X509_extract_public_key(octad *c, octad *key)
 // extract key
     if (key==NULL)
         return ret;
-    if (ret.type == X509_ECC || ret.type == X509_ECD || ret.type == X509_PQ)
+    if (ret.type == X509_ECC || ret.type == X509_ECD || ret.type == X509_PQ || ret.type == X509_HY)
     {
+        if (ret.type==X509_HY)
+        {
+            j+=4;
+            len-=4;
+        }
         key->len = len;
         fin = j + len;
         for (i = 0; j < fin; j++)
             key->val[i++] = c->val[j];
 
     }
-    if (ret.type == X509_PQ) 
+    if (ret.type == X509_PQ  || ret.type == X509_HY) 
         ret.curve=8*len;
+
     if (ret.type == X509_RSA)
     {
         // Key is (modulus,exponent) - assume exponent is 65537
