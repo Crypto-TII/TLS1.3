@@ -101,7 +101,7 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
             pktype pt = X509_extract_public_key(&SC, PUBKEY);
             if (st.type==pt.type || st.curve==pt.curve) 
             { // found CA cert 
-                if (st.type==X509_PQ || st.curve==pt.curve)
+                if (st.type==X509_PQ || st.type==X509_HY || st.curve==pt.curve)
                 {
 #ifdef SHALLOW_STACK
                     free(b);
@@ -138,38 +138,38 @@ static pktype stripDownCert(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJECT)
 static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 {
 // determine signature algorithm
-    int sha=0;
     bool res=false;
-
-// determine certificate signature type, by parsing pktype
-    int sigAlg=0;
-    if (st.type== X509_ECC && st.hash==X509_H256 && st.curve==USE_NIST256)
-        sigAlg = ECDSA_SECP256R1_SHA256;
-    if (st.type== X509_ECC && st.hash==X509_H384 && st.curve==USE_NIST384)
-        sigAlg = ECDSA_SECP384R1_SHA384;
-    if (st.type== X509_ECD && st.curve==USE_C25519)
-        sigAlg = ED25519;
-    if (st.type== X509_RSA && st.hash==X509_H256)
-        sigAlg = RSA_PKCS1_SHA256;
-    if (st.type== X509_RSA && st.hash==X509_H384)
-        sigAlg = RSA_PKCS1_SHA384;
-    if (st.type== X509_RSA && st.hash==X509_H512)
-        sigAlg = RSA_PKCS1_SHA512;
-    if (st.type== X509_PQ)
-        sigAlg = DILITHIUM3;
-
-    if (sigAlg == 0)
-    {
-        log(IO_DEBUG,(char *)"Unable to check cert signature\n",NULL,0,NULL);
-        return false;
-    }
 
     log(IO_DEBUG,(char *)"Signature  = ",NULL,0,SIG);
     log(IO_DEBUG,(char *)"Public key = ",NULL,0,PUBKEY);
     log(IO_DEBUG,(char *)"Checking Signature on Cert \n",NULL,0,NULL);
-    //logSigAlg(sigAlg);
 
-    res=SAL_tlsSignatureVerify(sigAlg,CERT,SIG,PUBKEY);      // probably deepest into the stack at this stage.... (especially for Dilithium)
+// determine certificate signature type, by parsing pktype
+    if (st.type== X509_ECC && st.hash==X509_H256 && st.curve==USE_NIST256)
+        res=SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA256,CERT,SIG,PUBKEY);
+    if (st.type== X509_ECC && st.hash==X509_H384 && st.curve==USE_NIST384)
+        res=SAL_tlsSignatureVerify(ECDSA_SECP384R1_SHA384,CERT,SIG,PUBKEY);
+    if (st.type== X509_ECD && st.curve==USE_C25519)
+        res=SAL_tlsSignatureVerify(ED25519,CERT,SIG,PUBKEY);
+    if (st.type== X509_RSA && st.hash==X509_H256)
+        res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA256,CERT,SIG,PUBKEY);
+    if (st.type== X509_RSA && st.hash==X509_H384)
+        res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA384,CERT,SIG,PUBKEY);
+    if (st.type== X509_RSA && st.hash==X509_H512)
+        res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA512,CERT,SIG,PUBKEY);
+    if (st.type== X509_PQ)
+        res=SAL_tlsSignatureVerify(DILITHIUM3,CERT,SIG,PUBKEY);
+
+   // probably deepest into the stack at this stage.... (especially for Dilithium)
+
+    if (st.type==X509_HY)
+    {
+        octad FPUB={65,65,PUBKEY->val};
+        octad SPUB={PUBKEY->len-65,PUBKEY->len-65,&PUBKEY->val[65]};
+        octad FSIG={64,64,SIG->val};
+        octad SSIG={SIG->len-64,SIG->len-64,&SIG->val[64]};
+        res = SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA384,CERT,&FSIG,&FPUB) && SAL_tlsSignatureVerify(DILITHIUM2,CERT,&SSIG,&SPUB);
+    }
 
     if (res)
     {
@@ -277,6 +277,10 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
     if (pk.type==X509_PQ)
     {
         kind=DILITHIUM3;
+    }
+    if (pk.type==X509_HY)
+    {
+        kind=DILITHIUM2_P256;  
     }
     for (i=0;i<nccsalgs;i++)
     {

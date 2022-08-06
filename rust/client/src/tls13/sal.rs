@@ -18,8 +18,8 @@ use crate::tls13::keys;
 
 extern crate rand;
 
-use oqs;
-use oqs::kem;
+//use oqs;
+//use oqs::kem;
 
 /// Return SAL name
 pub fn name() -> &'static str {
@@ -28,7 +28,7 @@ pub fn name() -> &'static str {
 
 /// Initialize SAL
 pub fn init() -> bool {
-    oqs::init();
+//    oqs::init();
     return true;
 }
 
@@ -70,10 +70,7 @@ pub fn secret_key_size(group: u16) -> usize {
     if group==config::HYBRID_KX {
         return mcore::kyber::SECRET_CCA_SIZE_768+32;
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        return kem.length_secret_key();
-    }
+
     return 0;
 }
 
@@ -96,10 +93,7 @@ pub fn client_public_key_size(group: u16) -> usize {
     if group==config::HYBRID_KX {
         return mcore::kyber::PUBLIC_SIZE_768+32;
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        return kem.length_public_key();
-    }
+ 
     return 0;
 }
 
@@ -122,10 +116,7 @@ pub fn server_public_key_size(group: u16) -> usize {
     if group==config::HYBRID_KX {
         return mcore::kyber::CIPHTERTEXT_SIZE_768+32;
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        return kem.length_ciphertext(); 
-    }
+
     return 0;
 }
 
@@ -148,10 +139,7 @@ pub fn shared_secret_size(group: u16) -> usize {
     if group==config::HYBRID_KX {
         return mcore::kyber::SHARED_SECRET_768+32;
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        return kem.length_shared_secret(); 
-    }
+ 
     return 0;
 }
 
@@ -179,20 +167,18 @@ pub fn groups(groups: &mut [u16]) -> usize {
     }
     if config::CRYPTO_SETTING==config::POST_QUANTUM {
         groups[0]=config::KYBER768;
-        groups[1]=config::SIDH; 
-        groups[2]=config::X25519;
-        groups[3]=config::SECP256R1;
-        groups[4]=config::SECP384R1;
-        return 5;
+        groups[1]=config::X25519;
+        groups[2]=config::SECP256R1;
+        groups[3]=config::SECP384R1;
+        return 4;
     } 
     if config::CRYPTO_SETTING==config::HYBRID {
         groups[0]=config::HYBRID_KX;
         groups[1]=config::KYBER768;
-        groups[2]=config::SIDH; 
-        groups[3]=config::X25519;
-        groups[4]=config::SECP256R1;
-        groups[5]=config::SECP384R1;
-        return 6;
+        groups[2]=config::X25519;
+        groups[3]=config::SECP256R1;
+        groups[4]=config::SECP384R1;
+        return 5;
     }
     return 0;
 }
@@ -487,18 +473,7 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
         pk[startpk..startpk+32].reverse();
 
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        let (cpk, sk) = kem.keypair().unwrap();
-        let pkbytes=&cpk.as_ref();
-        let skbytes=&sk.as_ref();
-        for i in 0..pkbytes.len() {
-            pk[i]=pkbytes[i];
-        }
-        for i in 0..skbytes.len() {
-            csk[i]=skbytes[i];
-        }
-    }
+ 
 }
 
 /// Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
@@ -589,20 +564,6 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
 
     }
 
-
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        let pk=kem.public_key_from_bytes(&cpk).unwrap().to_owned();
-        let (ct, share) = kem.encapsulate(&pk).unwrap();
-        let myss=share.as_ref();
-        for i in 0..myss.len() {
-            ss[i]=myss[i];
-        }
-        let myct=ct.as_ref();
-        for i in 0..myct.len() {
-            spk[i]=myct[i];
-        }        
-    }
     
 }
 
@@ -657,16 +618,6 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
         rpk[0..32].reverse();
         ecdh::ecpsvdp_dh(&sk[startsk..startsk+32],&rpk[0..32],&mut ss[startss..startss+32],0);
         ss[startss..startss+32].reverse();
-    }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        let ct=kem.ciphertext_from_bytes(&pk).unwrap().to_owned();
-        let sk=kem.secret_key_from_bytes(&sk).unwrap().to_owned();
-        let share = kem.decapsulate(&sk, &ct).unwrap();
-        let myss=share.as_ref();
-        for i in 0..myss.len() {
-            ss[i]=myss[i];
-        }
     }
 }
 

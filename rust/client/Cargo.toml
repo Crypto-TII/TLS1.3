@@ -9,4 +9,4 @@ edition = "2021"
 mcore = { path = "../../rust/mcore" }  # may need changing...
 zeroize = "1.5.4"
 rand = "0.8.5"
-oqs = "*"
+#oqs = "*"

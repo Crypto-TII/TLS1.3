@@ -38,6 +38,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define RSA_SS 1  /**< self signed RSA cert */
 #define ECC_SS 2  /**< self signed ECC cert */
 #define DLT_SS 3  /**< self signed Dilithium cert */
+#define HYB_SS 6  /**< self signed Hybrid cert (Dilithium+ECC) */
 #define HW_1 4    /**< RP2040 1 Hardware cert */
 #define HW_2 5    /**< RP2040 2 Hardware cert */
 
@@ -130,9 +131,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
  #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
 
 // These all blow up post quantum
- #define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max signature public key size in bytes     DILITHIUM3 */
- #define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max signature private key size in bytes    DILITHIUM3 (maybe includes the public key?) */
- #define TLS_MAX_SIGNATURE_SIZE 3296          /**< Max signature size in bytes                DILITHIUM3 */
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 1312+65        /**< Max signature public key size in bytes     DILITHIUM2 + P256 */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE 2528+200     /**< Max signature private key size in bytes    DILITHIUM2 + P256 (maybe includes the public key?) */
+ #define TLS_MAX_SIGNATURE_SIZE 2420+100          /**< Max signature size in bytes                DILITHIUM2 + P256 (DER encoding for ECC sig) */
  #define TLS_MAX_KEX_PUB_KEY_SIZE 1184+32        /**< Max key exchange public key size in bytes  KYBER768+X25519   */
  #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088+32     /**< Max key exchange (KEM) ciphertext size     KYBER768+X25519   */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400+32     /**< Max key exchange private key size in bytes KYBER768+X25519   */

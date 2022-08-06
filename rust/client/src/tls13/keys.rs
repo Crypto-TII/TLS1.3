@@ -232,7 +232,7 @@ pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut 
         // whats private key look like?
         let siglen=sal::tls_signature(ECDSA_SECP256R1_SHA384,&key[0..32],&ccv[0..ptr],ccvsig);
         let mut cclen=x509::ecdsa_sig_encode(siglen,ccvsig);
-        sclen+=sal::tls_signature(DILITHIUM2,&key[32..],&ccv[0..ptr],&mut ccvsig[cclen..]); // append PQ sig
+        cclen+=sal::tls_signature(DILITHIUM2,&key[32..],&ccv[0..ptr],&mut ccvsig[cclen..]); // append PQ sig
         return cclen;
     }
 

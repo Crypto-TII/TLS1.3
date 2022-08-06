@@ -441,14 +441,26 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     OCT_append_byte(&CCV,0,1);   // add 0 character
     OCT_append_octad(&CCV,H);    // add Transcript Hash 
 
+    if (sigAlg==DILITHIUM2_P256)
+    {
+        octad FKEY={32,32,KEY->val};
+        octad SKEY={KEY->len-32,KEY->len-32,&KEY->val[32]};
+        SAL_tlsSignature(ECDSA_SECP256R1_SHA384,&FKEY,&CCV,CCVSIG);
+        ecdsa_sig_encode(CCVSIG);  // ASN.1 encode it - it grows
+        octad SSIG={0,TLS_MAX_SIGNATURE_SIZE-32,&CCVSIG->val[CCVSIG->len]};
+        SAL_tlsSignature(DILITHIUM2,&SKEY,&CCV,&SSIG); // append PQ sig
+        CCVSIG->len += SSIG.len;
+        return;
+    }
+
     SAL_tlsSignature(sigAlg,KEY,&CCV,CCVSIG);
 //printf("KEY len= %d\n",KEY->len);
 // adjustment for ECDSA signatures
     if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384)
     {
-        int hts=TLS_SHA256_T;
-        if (sigAlg==ECDSA_SECP384R1_SHA384)
-            hts=TLS_SHA384_T;
+        //int hts=TLS_SHA256_T;
+        //if (sigAlg==ECDSA_SECP384R1_SHA384)
+        //    hts=TLS_SHA384_T;
         //parse_in_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,CCVSIG);
         ecdsa_sig_encode(CCVSIG);
     }
@@ -532,11 +544,24 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
     OCT_append_byte(&SCV,0,1);   // add 0 character
     OCT_append_octad(&SCV,H);    // add Transcript Hash 
 
+    if (sigAlg==DILITHIUM2_P256)
+    {
+        octad FPUB={65,65,CERTPK->val};
+        octad SPUB={CERTPK->len-65,CERTPK->len-65,&CERTPK->val[65]};
+        int len=SCVSIG->len;   // full length
+        int index=ecdsa_sig_decode(SCVSIG); // ASN.1 decode it - it shrinks - return undecoded length
+        if (index==0) return false;
+        int mlen=SCVSIG->len;               // modified length
+        octad FSIG={mlen,mlen,SCVSIG->val};
+        octad SSIG={len-index,len-index,&SCVSIG->val[index]};
+        return SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA384,&SCV,&FSIG,&FPUB) && SAL_tlsSignatureVerify(DILITHIUM2,&SCV,&SSIG,&SPUB);
+    }
+
 // Special case processing required here for ECDSA signatures -  SCVSIG is modified
     if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384) {
-        int hts=TLS_SHA256_T;
-        if (sigAlg==ECDSA_SECP384R1_SHA384)
-            hts=TLS_SHA384_T;
+        //int hts=TLS_SHA256_T;
+        //if (sigAlg==ECDSA_SECP384R1_SHA384)
+        //    hts=TLS_SHA384_T;
         //if (!parse_out_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,SCVSIG)) return false;
         if (!ecdsa_sig_decode(SCVSIG)) return false;
     }

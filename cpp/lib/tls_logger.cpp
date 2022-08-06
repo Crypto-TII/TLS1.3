@@ -149,8 +149,14 @@ static void nameSigAlg(int sigAlg)
     case ED25519:
         myprintf((char *)"ED25519\n");   
         break;
+    case DILITHIUM2:
+        myprintf((char *)"DILITHIUM2\n");   
+        break;
     case DILITHIUM3:
         myprintf((char *)"DILITHIUM3\n");   
+        break;
+    case DILITHIUM2_P256:
+        myprintf((char *)"DILITHIUM2 + P256\n");   
         break;
     default:
         myprintf((char *)"Non-standard\n");   

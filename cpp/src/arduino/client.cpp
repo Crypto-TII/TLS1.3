@@ -56,6 +56,9 @@ static void nameGroup(int kex)
     case KYBER768:
         Serial.println("KYBER768");   
         break;
+    case HYBRID_KX:
+        Serial.println("KYBER768+X25519");   
+        break;
     default:
         Serial.println("Non-standard");   
         break;
@@ -112,8 +115,14 @@ static void nameSigAlg(int sigAlg)
     case ED25519:
         Serial.println("ED25519");   
         break;
+    case DILITHIUM2:
+        Serial.println("DILITHIUM2");   
+        break;
     case DILITHIUM3:
-        Serial.println("DILITHIUM3\n");   
+        Serial.println("DILITHIUM3");   
+        break;
+    case DILITHIUM2_P256:
+        Serial.println("DILITHIUM2 + P256");   
         break;
     default:
         Serial.println("Non-standard");   

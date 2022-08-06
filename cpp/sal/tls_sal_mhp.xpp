@@ -465,7 +465,7 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
             r64[i]=SAL_randomByte();
         KYBER768_keypair(r64,&MC_SK,&MC_PK);
     }
-    if (group==HYBRID) {
+    if (group==HYBRID_KX) {
         byte r64[64];
         for (int i=0;i<64;i++)
             r64[i]=SAL_randomByte();
@@ -694,32 +694,32 @@ static bool RSA_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY)
 // Curve SECP256R1 elliptic curve ECDSA verification
 static bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 {
-//    int res;
-
-    octet MC_CERT=octad_to_octet(CERT);
-    octet MC_SIG=octad_to_octet(SIG);
-    octet MC_PUBKEY=octad_to_octet(PUBKEY);
-
-// Assume its sha256 - the ECCX08 chip can do this!
-//    if (sha==32) {
-        byte h[32];
+    byte h[48];
+    if (sha==32) { // Software is faster!!
         core::hash256 sh;
         HASH256_init(&sh);
         for (int i=0;i<CERT->len;i++)
             HASH256_process(&sh,CERT->val[i]);
         HASH256_hash(&sh,(char *)h);
+    }
+    if (sha==48) { // Software is faster!!
+        core::hash384 sh;
+        HASH384_init(&sh);
+        for (int i=0;i<CERT->len;i++)
+            HASH384_process(&sh,CERT->val[i]);
+        HASH384_hash(&sh,(char *)h);
+    }
 
-// Software is faster!!
+    int didRun=ECCX08.ecdsaVerify(h,(const byte*)SIG->val,(const byte*)&PUBKEY->val[1]); // Skip the 0x04
+    if (!didRun) return false;
+    return true;
 
-        //ECCX08.beginSHA256();
-        //updateHash(CERT->val,CERT->len);
-        //ECCX08.endSHA256(h); 
-
-        int didRun=ECCX08.ecdsaVerify(h,(const byte*)MC_SIG.val,(const byte*)&MC_PUBKEY.val[1]); // Skip the 0x04
-        if (!didRun) return false;
-        return true;
-//    }
 /*
+    int res;
+    octet MC_CERT=octad_to_octet(CERT);
+    octet MC_SIG=octad_to_octet(SIG);
+    octet MC_PUBKEY=octad_to_octet(PUBKEY);
+
     res=NIST256::ECP_PUBLIC_KEY_VALIDATE(&MC_PUBKEY);
     if (res!=0) return false;
 
@@ -778,18 +778,21 @@ static bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 static void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 { 
-    byte h[32];
-
-    core::hash256 sh;
-    HASH256_init(&sh);
-    for (int i=0;i<MESS->len;i++)
-        HASH256_process(&sh,MESS->val[i]);
-    HASH256_hash(&sh,(char *)h);
-
-// Software is faster!!
-    //ECCX08.beginSHA256();
-    //updateHash(MESS->val,MESS->len);
-    //ECCX08.endSHA256(h);
+    byte h[48];
+    if (sha==32) {
+        core::hash256 sh;
+        HASH256_init(&sh);
+        for (int i=0;i<MESS->len;i++)
+            HASH256_process(&sh,MESS->val[i]);
+        HASH256_hash(&sh,(char *)h);
+    }
+    if (sha==48) {
+        core::hash384 sh;
+        HASH384_init(&sh);
+        for (int i=0;i<MESS->len;i++)
+            HASH384_process(&sh,MESS->val[i]);
+        HASH384_hash(&sh,(char *)h);
+    }
 
     ECCX08.ecSign(0,h,(byte *)SIG->val);  // Use on-board private key in slot 0 to sign 
     SIG->len=64;

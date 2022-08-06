@@ -4,7 +4,7 @@ use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::x509;
 use crate::tls13::x509::PKTYPE;
-use crate::tls13::keys;
+//use crate::tls13::keys;
 use crate::tls13::sal;
 use crate::tls13::logger;
 use crate::tls13::logger::log;
@@ -160,10 +160,7 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
         let sig2=&sig[64..]; 
         let pub1=&pubkey[0..65];
         let pub2=&pubkey[65..];
-        if sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,cert,sig1,pub1) && sal::tls_signature_verify(DILITHIUM2,cert,sig2,pub2) {
-            return true;
-        }
-        return false;
+        return sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,cert,sig1,pub1) && sal::tls_signature_verify(DILITHIUM2,cert,sig2,pub2);
     }
     return false;
 }

@@ -70,10 +70,7 @@ pub fn secret_key_size(group: u16) -> usize {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         return kem.length_secret_key()+32;
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        return kem.length_secret_key();
-    }
+
     return 0;
 }
 
@@ -96,10 +93,7 @@ pub fn client_public_key_size(group: u16) -> usize {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         return kem.length_public_key()+32;    
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        return kem.length_public_key();
-    }
+ 
     return 0;
 }
 
@@ -122,10 +116,7 @@ pub fn server_public_key_size(group: u16) -> usize {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         return kem.length_ciphertext()+32;         
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        return kem.length_ciphertext(); 
-    }
+
     return 0;
 }
 
@@ -148,10 +139,7 @@ pub fn shared_secret_size(group: u16) -> usize {
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         return kem.length_shared_secret()+32; 
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        return kem.length_shared_secret(); 
-    }
+ 
     return 0;
 }
 
@@ -173,7 +161,6 @@ pub fn groups(groups: &mut [u16]) -> usize {
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         groups[n]=config::KYBER768; n+=1;
         groups[n]=config::HYBRID_KX; n+=1;
-        groups[n]=config::SIDH; n+=1;
     }
     return n;
 }
@@ -456,18 +443,6 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
         pk[startpk..startpk+32].reverse();
     }
 
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        let (cpk, sk) = kem.keypair().unwrap();
-        let pkbytes=&cpk.as_ref();
-        let skbytes=&sk.as_ref();
-        for i in 0..pkbytes.len() {
-            pk[i]=pkbytes[i];
-        }
-        for i in 0..skbytes.len() {
-            csk[i]=skbytes[i];
-        }
-    }
 }
 
 /// Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
@@ -552,19 +527,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         csk.zeroize();
 
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        let pk=kem.public_key_from_bytes(&cpk).unwrap().to_owned();
-        let (ct, share) = kem.encapsulate(&pk).unwrap();
-        let myss=share.as_ref();
-        for i in 0..myss.len() {
-            ss[i]=myss[i];
-        }
-        let myct=ct.as_ref();
-        for i in 0..myct.len() {
-            spk[i]=myct[i];
-        }      
-    }
+
     csk.zeroize();
 }
 
@@ -624,16 +587,7 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
         ecdh::ecpsvdp_dh(&sk[startsk..startsk+32],&rpk[0..32],&mut ss[startss..startss+32],0);
         ss[startss..startss+32].reverse();
     }
-    if group==config::SIDH {
-        let kem = kem::Kem::new(kem::Algorithm::SidhP751).unwrap();
-        let ct=kem.ciphertext_from_bytes(&pk).unwrap().to_owned();
-        let sk=kem.secret_key_from_bytes(&sk).unwrap().to_owned();
-        let share = kem.decapsulate(&sk, &ct).unwrap();
-        let myss=share.as_ref();
-        for i in 0..myss.len() {
-            ss[i]=myss[i];
-        }
-    }
+ 
 }
 
 /// Dilithium signature verification

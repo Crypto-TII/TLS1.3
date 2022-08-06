@@ -121,6 +121,9 @@ static void nameGroup(int kex)
     case KYBER768:
         printf("KYBER768\n");   
         break;
+    case HYBRID_KX:
+        printf("KYBER768+X25519\n");   
+        break;
     default:
         printf("Non-standard\n");   
         break;
@@ -177,8 +180,14 @@ static void nameSigAlg(int sigAlg)
     case ED25519:
         printf("ED25519\n");   
         break;
+    case DILITHIUM2:
+        printf("DILITHIUM2\n");   
+        break;
     case DILITHIUM3:
         printf("DILITHIUM3\n");   
+        break;
+    case DILITHIUM2_P256:
+        printf("DILITHIUM2 + P256\n");   
         break;
     default:
         printf("Non-standard\n");   

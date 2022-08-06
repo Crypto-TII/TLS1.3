@@ -340,7 +340,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         ret.curve=8*tlen;
     }
     if (OCT_compare(&HYBRID, &SOID))
-    { // Its a DILITHIUM3 key
+    { // Its a P256 key followed by a DILITHIUM2 key
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
         j += skip(len);
