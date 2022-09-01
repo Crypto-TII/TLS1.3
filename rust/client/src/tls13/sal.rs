@@ -1,5 +1,5 @@
 
-//! Security Abstraction Layer. This version uses mainly MIRACL core functions, with post-quantum support from OQS
+//! Security Abstraction Layer. This version uses MIRACL core functions
 
 #![allow(dead_code)]
 
@@ -109,12 +109,12 @@ pub fn server_public_key_size(group: u16) -> usize {
         return 97;
     }
     if group==config::KYBER768 {
-        return mcore::kyber::CIPHTERTEXT_SIZE_768;
+        return mcore::kyber::CIPHERTEXT_SIZE_768;
         //let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         //return kem.length_ciphertext(); 
     }
     if group==config::HYBRID_KX {
-        return mcore::kyber::CIPHTERTEXT_SIZE_768+32;
+        return mcore::kyber::CIPHERTEXT_SIZE_768+32;
     }
 
     return 0;
@@ -517,7 +517,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         use mcore::kyber;
         let mut r32: [u8;32]=[0;32];
         random_bytes(32,&mut r32);
-        kyber::encrypt_768(&r32,&cpk[0..kyber::PUBLIC_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768],&mut spk[0..kyber::CIPHTERTEXT_SIZE_768]);
+        kyber::encrypt_768(&r32,&cpk[0..kyber::PUBLIC_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768],&mut spk[0..kyber::CIPHERTEXT_SIZE_768]);
         r32.zeroize();
 /*
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
@@ -537,7 +537,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         use mcore::kyber;
         let mut r32: [u8;32]=[0;32];
         random_bytes(32,&mut r32);
-        kyber::encrypt_768(&r32,&cpk[0..kyber::PUBLIC_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768],&mut spk[0..kyber::CIPHTERTEXT_SIZE_768]);
+        kyber::encrypt_768(&r32,&cpk[0..kyber::PUBLIC_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768],&mut spk[0..kyber::CIPHERTEXT_SIZE_768]);
         r32.zeroize();
 
 
@@ -591,7 +591,7 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
     }
     if group==config::KYBER768 {
         use mcore::kyber;
-        kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHTERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
+        kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
 /*
         let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
         let ct=kem.ciphertext_from_bytes(&pk).unwrap().to_owned();
@@ -604,7 +604,7 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
     }
     if group==config::HYBRID_KX {
         use mcore::kyber;
-        kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHTERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
+        kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
 
         use mcore::c25519::ecdh;
         let startsk=secret_key_size(config::KYBER768);
