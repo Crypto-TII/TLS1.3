@@ -20,10 +20,10 @@ The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calc
 2.	Copy in all from the cpp directory of https://github.com/miracl/core
 3.	Copy in all from the arduino directory of https://github.com/miracl/core
 4.	(If ever asked to overwrite a file, go ahead and overwrite it)
-5.	Copy in all of the TLS1.3 code from the lib/, include/, sal/ and src/arduino directories (but not from subdirectories)
+5.	Copy in all of the TLS1.3 C++ code from the lib/, include/, sal/ and src/arduino directories (but not from subdirectories)
 6.	Edit the file core.h to define CORE_ARDUINO (line 31)
 7.	Edit the file tls_sockets.h to define TLS_ARDUINO (line 13). Optionally define VERBOSITY in tls1_3.h as IO_DEBUG.
-8.	Edit the file client.cpp to set your wifi SSID and password (near line 62)
+8.	Edit the file client.cpp to set your wifi SSID and password (near line 150)
 9.	Run py config.py, and select options 2, 8, 41 and 43. This creates the SAL (in this case using miracl + ECC608A hardware).
 10.	Drop the working directory into where the Arduino IDE expects it. 
 11.	(In the IDE select File->Preferences and find the Sketchbook location - its the libraries directory off that.)
@@ -32,8 +32,8 @@ The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calc
 14.	Enter URL (e.g. www.bbc.co.uk) when prompted, and press return. A full TLS1.3 handshake followed by a resumption is attempted.
 15.	Click on Clear Output and Send to repeat for a different URL (or click Send again to see SAL capabilities).
 
-or before executing step 9, search for $*$*$*$* in config.py and make change as indicated. Copy x25519.S from https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
-into working directory. Replace step 9 with
-
-9a.	Run py config.py, and select options 8, 41 and 43. This creates the SAL (in this case using miracl + ECC608A hardware + Pornin's x25519).
+or before executing step 9, search for $*$*$*$* in config.py and make changes as indicated. 
+If using miracl alone, option 3 must be selected as well.
+If using assembly language code for X25519, copy x25519.S from https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
+into working directory and remove option 2. This creates the SAL (in this case using miracl + ECC608A hardware + Pornin's x25519).
 

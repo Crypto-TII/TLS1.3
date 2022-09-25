@@ -51,10 +51,10 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
 #define CLIENT_CERT ECC_SS        /**< Indicate capability of authenticating with a cert plus signing key */
+#define CRYPTO_SETTING TYPICAL   /**< Determine Cryptography settings */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
 #define ALLOW_SELF_SIGNED		 /**< allow self-signed server cert */
-#define CRYPTO_SETTING TYPICAL   /**< Determine Cryptography settings */
 #define TRY_EARLY_DATA           /**< Try to send early data on resumptions */
 
 // Note that the IOBUFF, Certificates and crypto keys can be quite large, and therefore maybe better taken from the heap

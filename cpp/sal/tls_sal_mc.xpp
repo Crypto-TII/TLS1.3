@@ -12,8 +12,10 @@
 #include "ecdh_C25519.h"
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
+#if CRYPTO_SETTING>=POST_QUANTUM
 #include "dilithium.h"
 #include "kyber.h"
+#endif
 
 // Use TIIcrypto - must suggest default curve for legacy support
 
@@ -67,9 +69,6 @@ int SAL_ciphers(int *ciphers)
 int SAL_groups(int *groups)
 {
     int n=0;
-int SAL_groups(int *groups)
-{
-    int n;
 #if CRYPTO_SETTING==TINY_ECC
     n=3;
     groups[0]=X25519;
@@ -460,6 +459,7 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
 
         PK->len=2*GFP_NIST_P384_BYTELEN+1;
     }
+#if CRYPTO_SETTING>=POST_QUANTUM
     if (group==KYBER768)
     {
         byte r64[64];
@@ -509,6 +509,7 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         SK->len=MC_SK.len;
         PK->len=MC_PK.len;
     }
+#endif
 }
 
 // generate shared secret SS from secret key SK and public key PK
@@ -564,6 +565,7 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         ecdh_key_agreement_for_curve_id((uint8_t *)SS->val, GFP_NIST_P384_BYTELEN, &private_key, &public_key, E_CURVE_ID_NIST_P384);  
         SS->len=GFP_NIST_P384_BYTELEN;
     }
+#if CRYPTO_SETTING>=POST_QUANTUM
     if (group==KYBER768) {
         octet MC_SK=octad_to_octet(SK);
         octet MC_PK=octad_to_octet(PK);
@@ -606,8 +608,10 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         PK->len=MC_PK.len;
         SS->len=MC_SS.len;
     }
+#endif
 }
 
+#if CRYPTO_SETTING>=POST_QUANTUM
 static bool DILITHIUM3_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 {
     octet MC_CERT=octad_to_octet(CERT);
@@ -643,6 +647,7 @@ static void DILITHIUM2_SIGN(octad *KEY,octad *MESS,octad *SIG)
     DLTHM_signature_2(&MC_KEY,&MC_MESS,&MC_SIG); 
     SIG->len=MC_SIG.len;
 }
+#endif
 
 // RSA 2048-bit PKCS1.5 signature verification
 static bool RSA_2048_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
@@ -997,12 +1002,14 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
         case ED25519:
             result= Ed25519_VERIFY(BUFF,SIG,PUBKEY);
             break;
+#if CRYPTO_SETTING>=POST_QUANTUM
         case DILITHIUM3:
             result= DILITHIUM3_VERIFY(BUFF,SIG,PUBKEY);
             break;
         case DILITHIUM2:
             result= DILITHIUM2_VERIFY(BUFF,SIG,PUBKEY);
             break;
+#endif
         default:
             result=false;
     }
@@ -1029,10 +1036,12 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
     case ECDSA_SECP384R1_SHA384:
         SECP384R1_ECDSA_SIGN(48,KEY,TRANS,SIG);
         break;
+#if CRYPTO_SETTING>=POST_QUANTUM
     case DILITHIUM3:
         DILITHIUM3_SIGN(KEY,TRANS,SIG);
         break;
     case DILITHIUM2:
         DILITHIUM2_SIGN(KEY,TRANS,SIG);
+#endif
     }
 }
