@@ -22,18 +22,19 @@ The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calc
 4.	(If ever asked to overwrite a file, go ahead and overwrite it)
 5.	Copy in all of the TLS1.3 C++ code from the lib/, include/, sal/ and src/arduino directories (but not from subdirectories)
 6.	Edit the file core.h to define CORE_ARDUINO (line 31)
-7.	Edit the file tls_sockets.h to define TLS_ARDUINO (line 13). Optionally define VERBOSITY in tls1_3.h as IO_DEBUG.
-8.	Edit the file client.cpp to set your wifi SSID and password (near line 150)
-9.	Run py config.py, and select options 2, 8, 41 and 43. This creates the SAL (in this case using miracl + ECC608A hardware).
-10.	Drop the working directory into where the Arduino IDE expects it. 
-11.	(In the IDE select File->Preferences and find the Sketchbook location - its the libraries directory off that.)
-12.	Open the Arduino app, and look in File->Examples->tiitls, and look for the example "client"
-13.	Upload to the board and run it. Open Tools->Serial Monitor to see the output. 
-14.	Enter URL (e.g. www.bbc.co.uk) when prompted, and press return. A full TLS1.3 handshake followed by a resumption is attempted.
-15.	Click on Clear Output and Send to repeat for a different URL (or click Send again to see SAL capabilities).
+7.	Edit the file tls_sockets.h to define TLS_ARDUINO (line 13). 
+8.	Edit tls1_3.h. Define VERBOSITY as IO_DEBUG for more debug output. Decide on CRYPTO_SETTING. Stack only, or Stack plus heap. 
+9.	Edit the file client.cpp to set your wifi SSID and password (near line 150)
+10.*	Run py config.py, and select options 2, 8, 41 and 43. This creates the default SAL (in this case using miracl + ECC608A hardware).
+11.	Drop the working directory into where the Arduino IDE expects it. 
+12.	(In the IDE select File->Preferences and find the Sketchbook location - its the libraries directory off that.)
+13.	Open the Arduino app, and look in File->Examples->tiitls, and look for the example "client"
+14.	Upload to the board and run it. Open Tools->Serial Monitor to see the output. 
+15.	Enter URL (e.g. www.bbc.co.uk) when prompted, and press return. A full TLS1.3 handshake followed by a resumption is attempted.
+16.	Click on Clear Output and Send to repeat for a different URL (or click Send again to see SAL capabilities).
 
-or before executing step 9, search for $*$*$*$* in config.py and make changes as indicated. 
-If using miracl alone, option 3 must be selected as well.
+* or before executing this step, search for $*$*$*$* in config.py (around line 1020) and make changes as indicated. 
+If using miracl alone, without hardware support, option 3 must be selected as well.
 If using assembly language code for X25519, copy x25519.S from https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
 into working directory and remove option 2. This creates the SAL (in this case using miracl + ECC608A hardware + Pornin's x25519).
-
+If experimenting with post-quantum primitives, also select options 45 and 46, for Kyber and Dilithium support. 
