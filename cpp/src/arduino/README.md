@@ -1,7 +1,7 @@
 
 # Configure the Arduino Nano RP2040
 
-This build is specifically for the Arduino Nano version of the Raspberry Pi Pico (RP2040)
+This build is specifically for the Arduino Nano version of the Raspberry Pi Pico (RP2040). Please use version 2.x.x of the Arduino IDE.
 
 First the board needs to be initialised and locked. To do this install the ArduinoECCX08 library and run the ECCX08SelfSignedCert example program. 
 
@@ -38,3 +38,13 @@ If using miracl alone, without hardware support, option 3 must be selected as we
 If using assembly language code for X25519, copy x25519.S from https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
 into working directory and remove option 2. This creates the SAL (in this case using miracl + ECC608A hardware + Pornin's x25519).
 If experimenting with post-quantum primitives, also select options 45 and 46, for Kyber and Dilithium support. 
+
+The example TLS1.3 client code first connects to the wireless network, and after that it should connect to standard websites, as
+long as they support TLS1.3. The example program first makes a full TLS handshake, and exits after receiving some HTML from the server.
+Then after a few seconds, if it has received a resumption ticket, it attempts a resumption handshake.
+
+The client can also be run in conjunction with our Rust server. Make sure that the CRYPTO\_SETTING parameter is the same for both client 
+and server. In our experimental set-up, the rust server runs from Windows, looking for connections on port 4433. Run ipconfig to get the 
+IP address of the server on the local network, which might look something like 192.168.1.186. Then run the client from the Arduino IDE, 
+and when prompted enter for example 192.168.1.186:4433. The client should now connect to the server. 
+

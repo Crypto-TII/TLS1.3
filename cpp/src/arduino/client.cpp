@@ -195,7 +195,7 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     {
         log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
         while (Serial.available() == 0) {}
-        Serial.read(); 
+        //Serial.read(); 
  		return;
     }
 
@@ -220,7 +220,7 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     {
         log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
         while (Serial.available() == 0) {}
-        Serial.read(); 
+        //Serial.read(); 
  		return;
     }
 
@@ -333,7 +333,7 @@ void loop() {
             nameSigAlg(nt[i]);
         }
         while (Serial.available() == 0) {}
-        Serial.read(); 
+        //Serial.read(); 
         return;
     }
 
@@ -373,5 +373,5 @@ void loop() {
     delay(5000);
 #endif
     while (Serial.available() == 0) {}
-    Serial.read(); 
+    //Serial.read(); 
 }

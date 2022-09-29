@@ -227,3 +227,12 @@ and connect via
 
 	./client -p 42 localhost
 
+
+
+An important setting in tls1_3.h is CRYPTO\_SETTING. For the above tests is is assumed that this is set to the default TYPICAL, which allows 
+interaction with standard websites. However it may also be set to TINY\_ECC, POST\_QUANTUM and HYBRID. These last three support interaction 
+with our own rust server. This setting impacts code size and memory resource allocation. It also controls the type of the self-signed 
+certificate provided by the client if it is asked to authenticate.
+
+The client choice of key exchange algorithms, and their preferred ordering, is set in the sal (tls_sal.cpp). The chosen CRYPTO\_SETTING
+impacts on this ordering. With the default setting the X25519 elliptic curve is preferred.

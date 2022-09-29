@@ -440,10 +440,11 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         SK->val[31]&=248;  
         SK->val[0]&=127;
         SK->val[0]|=64;
+        MC_SK.len=32;
 		OCT_reverse(&MC_SK);  // to little-endian
 		x25519((uint8_t *)MC_PK.val,g,(uint8_t *)MC_SK.val);
 		OCT_reverse(&MC_SK);  // convert back
-		MC_PK.len=MC_SK.len=32;
+		MC_PK.len=32;
 
     }
     if (group==SECP256R1)
@@ -934,6 +935,8 @@ static void RSA_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
 {
     bool result;
+    //int start,elapsed;
+    //start = millis();
     switch (sigAlg) {
         case RSA_PKCS1_SHA256 :
             result= RSA_PKCS15_VERIFY(32,BUFF,SIG,PUBKEY);
@@ -970,12 +973,16 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
         default:
             result=false;
     }
+//    elapsed=(millis()-start);
+//    Serial.print("        Verification= "); Serial.println(elapsed);
     return result;
 }
 
 // Form Transcript Signature 
 void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
 { // probably need to support more cases
+    //int start,elapsed;
+    //start = millis();
     switch (sigAlg)
     {
     case RSA_PSS_RSAE_SHA256:
@@ -1001,5 +1008,7 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
         DILITHIUM2_SIGN(KEY,TRANS,SIG);
 #endif
     }
+//    elapsed=(millis()-start);
+//    Serial.print("        Verification= "); Serial.println(elapsed);
 }
 
