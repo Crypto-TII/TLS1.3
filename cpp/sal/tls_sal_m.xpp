@@ -874,6 +874,6 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
 #endif
     }
 //    elapsed=(millis()-start);
-//    Serial.print("        Verification= "); Serial.println(elapsed);
+//    Serial.print("        Signature= "); Serial.println(elapsed);
 }
 
