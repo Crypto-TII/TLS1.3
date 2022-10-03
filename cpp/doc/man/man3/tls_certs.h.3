@@ -1,0 +1,61 @@
+.TH "C:/Users/mscot/TLS1.3/cpp/include/tls_certs.h" 3 "Mon Oct 3 2022" "Version 1.2" "TiigerTLS" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+C:/Users/mscot/TLS1.3/cpp/include/tls_certs.h \- Certificate Authority root certificate store\&.  
+
+.SH SYNOPSIS
+.br
+.PP
+\fC#include 'tls1_3\&.h'\fP
+.br
+
+.SS "Variables"
+
+.in +1c
+.ti -1c
+.RI "const char * \fBmyprivate\fP =NULL"
+.br
+.ti -1c
+.RI "const char * \fBmycert\fP"
+.br
+.ti -1c
+.RI "const char * \fBcacerts\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+Certificate Authority root certificate store\&. 
+
+
+.PP
+\fBAuthor\fP
+.RS 4
+Mike Scott  
+.RE
+.PP
+
+.SH "Variable Documentation"
+.PP 
+.SS "const char* cacerts\fC [extern]\fP"
+The Root Certificate store 
+.SS "const char * mycert\fC [extern]\fP"
+\fBInitial value:\fP
+.PP
+.nf
+=(char *) 
+"-----BEGIN CERTIFICATE-----\n"
+"MIIBKzCB0aADAgECAgEBMAoGCCqGSM49BAMCMB0xGzAZBgNVBAMTEjAxMjM0NjI0QjIwMjYwRDdF\n"
+"RTAeFw0yMTExMTgxMTAwMDBaFw0yNjExMTgxMTAwMDBaMB0xGzAZBgNVBAMTEjAxMjM0NjI0QjIw\n"
+"MjYwRDdFRTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDOFj/SnArwqM15cZs/bXppfTuAxgMzB\n"
+"N3LS48xHSqpLhHlVnvOvWqyhE8v+ZX4Jzlo7Z9LGOG537EeldBeGjYijAjAAMAoGCCqGSM49BAMC\n"
+"A0kAMEYCIQC9O1l85YX1+9vZ0t/SHQ3zFH5e7Vc8XtrZ+mTtMc5riwIhAL/SektrG3C0JwII0VV5\n"
+"pSR9RRnuwo810km81P4S56/m\n"
+"-----END CERTIFICATE-----\n"
+.fi
+Client certificate 
+.SS "const char * myprivate =NULL\fC [extern]\fP"
+Client private key 
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for TiigerTLS from the source code\&.

@@ -1,0 +1,243 @@
+.TH "C:/Users/mscot/TLS1.3/cpp/include/tls_logger.h" 3 "Mon Oct 3 2022" "Version 1.2" "TiigerTLS" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+C:/Users/mscot/TLS1.3/cpp/include/tls_logger.h \- TLS 1\&.3 logging\&.  
+
+.SH SYNOPSIS
+.br
+.PP
+\fC#include <string\&.h>\fP
+.br
+\fC#include 'tls1_3\&.h'\fP
+.br
+\fC#include 'tls_x509\&.h'\fP
+.br
+
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBmyprintf\fP (char *s)"
+.br
+.RI "internal printf function - all output funnels through this function "
+.ti -1c
+.RI "void \fBlog\fP (int logit, char *preamble, char *string, \fBunsign32\fP info, \fBoctad\fP *O)"
+.br
+.RI "basic logging function "
+.ti -1c
+.RI "void \fBlogServerHello\fP (int cipher_suite, int pskid, \fBoctad\fP *PK, \fBoctad\fP *CK)"
+.br
+.RI "logging the Server hello "
+.ti -1c
+.RI "void \fBlogTicket\fP (\fBticket\fP *T)"
+.br
+.RI "logging a resumption ticket "
+.ti -1c
+.RI "void \fBlogEncExt\fP (\fBee_status\fP *e, \fBee_status\fP *r)"
+.br
+.RI "logging server extended extensions responses vs expectations "
+.ti -1c
+.RI "void \fBlogCert\fP (\fBoctad\fP *CERT)"
+.br
+.RI "logging a Certificate in standard base 64 format "
+.ti -1c
+.RI "void \fBlogCertDetails\fP (\fBoctad\fP *PUBKEY, \fBpktype\fP pk, \fBoctad\fP *SIG, \fBpktype\fP sg, \fBoctad\fP *ISSUER, \fBoctad\fP *SUBJECT)"
+.br
+.RI "logging Certificate details "
+.ti -1c
+.RI "void \fBlogServerResponse\fP (\fBret\fP r)"
+.br
+.RI "log client processing of a Server response "
+.ti -1c
+.RI "void \fBlogAlert\fP (int detail)"
+.br
+.RI "log Server Alert "
+.ti -1c
+.RI "void \fBlogCipherSuite\fP (int cipher_suite)"
+.br
+.RI "log Cipher Suite "
+.ti -1c
+.RI "void \fBlogKeyExchange\fP (int kex)"
+.br
+.RI "log Key Exchange Group "
+.ti -1c
+.RI "void \fBlogSigAlg\fP (int sigAlg)"
+.br
+.RI "log Signature Algorithm "
+.in -1c
+.SH "Detailed Description"
+.PP 
+TLS 1\&.3 logging\&. 
+
+
+.PP
+\fBAuthor\fP
+.RS 4
+Mike Scott  
+.RE
+.PP
+
+.SH "Function Documentation"
+.PP 
+.SS "void log (int logit, char * preamble, char * string, \fBunsign32\fP info, \fBoctad\fP * O)"
+
+.PP
+basic logging function 
+.PP
+\fBParameters\fP
+.RS 4
+\fIlogit\fP logging level 
+.br
+\fIpreamble\fP a string to be output 
+.br
+\fIstring\fP another string, or a format specifier for info, or NULL 
+.br
+\fIinfo\fP an integer to be output 
+.br
+\fIO\fP an octad to be output (or NULL) 
+.RE
+.PP
+
+.SS "void logAlert (int detail)"
+
+.PP
+log Server Alert 
+.PP
+\fBParameters\fP
+.RS 4
+\fIdetail\fP the server's alert code 
+.RE
+.PP
+
+.SS "void logCert (\fBoctad\fP * CERT)"
+
+.PP
+logging a Certificate in standard base 64 format 
+.PP
+\fBParameters\fP
+.RS 4
+\fICERT\fP the certificate to be logged 
+.RE
+.PP
+
+.SS "void logCertDetails (\fBoctad\fP * PUBKEY, \fBpktype\fP pk, \fBoctad\fP * SIG, \fBpktype\fP sg, \fBoctad\fP * ISSUER, \fBoctad\fP * SUBJECT)"
+
+.PP
+logging Certificate details 
+.PP
+\fBParameters\fP
+.RS 4
+\fIPUBKEY\fP the certificate public key octad 
+.br
+\fIpk\fP the public key type 
+.br
+\fISIG\fP the signature on the certificate 
+.br
+\fIsg\fP the signature type 
+.br
+\fIISSUER\fP the (composite) certificate issuer 
+.br
+\fISUBJECT\fP the (composite) certificate subject 
+.RE
+.PP
+
+.SS "void logCipherSuite (int cipher_suite)"
+
+.PP
+log Cipher Suite 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcipher_suite\fP the Cipher Suite to be logged 
+.RE
+.PP
+
+.SS "void logEncExt (\fBee_status\fP * e, \fBee_status\fP * r)"
+
+.PP
+logging server extended extensions responses vs expectations 
+.PP
+\fBParameters\fP
+.RS 4
+\fIe\fP structure containing server expectations 
+.br
+\fIr\fP structure containing server responses 
+.RE
+.PP
+
+.SS "void logKeyExchange (int kex)"
+
+.PP
+log Key Exchange Group 
+.PP
+\fBParameters\fP
+.RS 4
+\fIkex\fP the Key Exchange Group to be logged 
+.RE
+.PP
+
+.SS "void logServerHello (int cipher_suite, int pskid, \fBoctad\fP * PK, \fBoctad\fP * CK)"
+
+.PP
+logging the Server hello 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcipher_suite\fP the chosen cipher suite 
+.br
+\fIpskid\fP the chosen preshared key (or -1 if none) 
+.br
+\fIPK\fP the Server Public Key 
+.br
+\fICK\fP a Cookie (if any) 
+.RE
+.PP
+
+.SS "void logServerResponse (\fBret\fP r)"
+
+.PP
+log client processing of a Server response 
+.PP
+\fBParameters\fP
+.RS 4
+\fIr\fP the Server response 
+.RE
+.PP
+
+.SS "void logSigAlg (int sigAlg)"
+
+.PP
+log Signature Algorithm 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsigAlg\fP the Signature Algorithm to be logged 
+.RE
+.PP
+
+.SS "void logTicket (\fBticket\fP * T)"
+
+.PP
+logging a resumption ticket 
+.PP
+\fBParameters\fP
+.RS 4
+\fIT\fP a resumption ticket 
+.RE
+.PP
+
+.SS "void myprintf (char * s)"
+
+.PP
+internal printf function - all output funnels through this function 
+.PP
+\fBParameters\fP
+.RS 4
+\fIs\fP a string to be output 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for TiigerTLS from the source code\&.

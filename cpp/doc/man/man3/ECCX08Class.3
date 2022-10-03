@@ -1,0 +1,103 @@
+.TH "ECCX08Class" 3 "Mon Oct 3 2022" "Version 1.2" "TiigerTLS" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+ECCX08Class
+.SH SYNOPSIS
+.br
+.PP
+.SS "Public Member Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBECCX08Class\fP (TwoWire &wire, uint8_t address)"
+.br
+.ti -1c
+.RI "int \fBbegin\fP ()"
+.br
+.ti -1c
+.RI "void \fBend\fP ()"
+.br
+.ti -1c
+.RI "int \fBserialNumber\fP (\fBbyte\fP sn[])"
+.br
+.ti -1c
+.RI "String \fBserialNumber\fP ()"
+.br
+.ti -1c
+.RI "long \fBrandom\fP (long max)"
+.br
+.ti -1c
+.RI "long \fBrandom\fP (long min, long max)"
+.br
+.ti -1c
+.RI "int \fBrandom\fP (\fBbyte\fP data[], size_t length)"
+.br
+.ti -1c
+.RI "int \fBgeneratePrivateKey\fP (int slot, \fBbyte\fP publicKey[])"
+.br
+.ti -1c
+.RI "int \fBgeneratePublicKey\fP (int slot, \fBbyte\fP publicKey[])"
+.br
+.ti -1c
+.RI "int \fBgenerateSharedKey\fP (int slot, \fBbyte\fP publicKey[], \fBbyte\fP sharedKey[])"
+.br
+.ti -1c
+.RI "int \fBecdsaVerify\fP (const \fBbyte\fP message[], const \fBbyte\fP signature[], const \fBbyte\fP pubkey[])"
+.br
+.ti -1c
+.RI "int \fBecSign\fP (int slot, const \fBbyte\fP message[], \fBbyte\fP signature[])"
+.br
+.ti -1c
+.RI "int \fBchallenge\fP (const \fBbyte\fP message[])"
+.br
+.ti -1c
+.RI "int \fBaesEncrypt\fP (\fBbyte\fP block[])"
+.br
+.ti -1c
+.RI "int \fBaesGFM\fP (\fBbyte\fP state[], \fBbyte\fP H[])"
+.br
+.ti -1c
+.RI "int \fBbeginSHA256\fP ()"
+.br
+.ti -1c
+.RI "int \fBbeginHMAC\fP (int slot)"
+.br
+.ti -1c
+.RI "int \fBupdateSHA256\fP (const \fBbyte\fP data[], int len)"
+.br
+.ti -1c
+.RI "int \fBendSHA256\fP (\fBbyte\fP result[])"
+.br
+.ti -1c
+.RI "int \fBendSHA256\fP (const \fBbyte\fP data[], int length, \fBbyte\fP result[])"
+.br
+.ti -1c
+.RI "int \fBreadSHA256\fP (\fBbyte\fP context[])"
+.br
+.ti -1c
+.RI "int \fBwriteSHA256\fP (\fBbyte\fP context[], int length)"
+.br
+.ti -1c
+.RI "int \fBreadSlot\fP (int slot, \fBbyte\fP data[], int length)"
+.br
+.ti -1c
+.RI "int \fBwriteSlot\fP (int slot, const \fBbyte\fP data[], int length)"
+.br
+.ti -1c
+.RI "int \fBlocked\fP ()"
+.br
+.ti -1c
+.RI "int \fBwriteConfiguration\fP (const \fBbyte\fP data[])"
+.br
+.ti -1c
+.RI "int \fBreadConfiguration\fP (\fBbyte\fP data[])"
+.br
+.ti -1c
+.RI "int \fBlock\fP ()"
+.br
+.in -1c
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for TiigerTLS from the source code\&.

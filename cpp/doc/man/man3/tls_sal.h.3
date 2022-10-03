@@ -1,0 +1,545 @@
+.TH "C:/Users/mscot/TLS1.3/cpp/include/tls_sal.h" 3 "Mon Oct 3 2022" "Version 1.2" "TiigerTLS" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+C:/Users/mscot/TLS1.3/cpp/include/tls_sal.h \- Security Abstraction Layer for TLS\&.  
+
+.SH SYNOPSIS
+.br
+.PP
+\fC#include 'tls1_3\&.h'\fP
+.br
+
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "char * \fBSAL_name\fP ()"
+.br
+.RI "Return name of SAL provider\&. "
+.ti -1c
+.RI "int \fBSAL_ciphers\fP (int *ciphers)"
+.br
+.RI "Return supported ciphers\&. "
+.ti -1c
+.RI "int \fBSAL_groups\fP (int *groups)"
+.br
+.RI "Return supported groups in preferred order\&. "
+.ti -1c
+.RI "int \fBSAL_sigs\fP (int *sigAlgs)"
+.br
+.RI "Return supported TLS signature algorithms in preferred order\&. "
+.ti -1c
+.RI "int \fBSAL_sigCerts\fP (int *sigAlgsCert)"
+.br
+.RI "Return supported TLS signature algorithms for Certificates in preferred order\&. "
+.ti -1c
+.RI "bool \fBSAL_initLib\fP ()"
+.br
+.RI "Initialise library for use\&. "
+.ti -1c
+.RI "void \fBSAL_endLib\fP ()"
+.br
+.RI "finish use of library "
+.ti -1c
+.RI "int \fBSAL_hashType\fP (int cipher_suite)"
+.br
+.RI "return hash type asspciated with a cipher suite "
+.ti -1c
+.RI "int \fBSAL_hashLen\fP (int hash_type)"
+.br
+.RI "return output length of hash function associated with a hash type "
+.ti -1c
+.RI "int \fBSAL_aeadKeylen\fP (int cipher_suite)"
+.br
+.RI "return key length associated with a cipher suite "
+.ti -1c
+.RI "int \fBSAL_aeadTaglen\fP (int cipher_suite)"
+.br
+.RI "return authentication tag length associated with a cipher suite "
+.ti -1c
+.RI "int \fBSAL_randomByte\fP ()"
+.br
+.RI "get a random byte "
+.ti -1c
+.RI "void \fBSAL_randomOctad\fP (int len, \fBoctad\fP *R)"
+.br
+.RI "get a random octad "
+.ti -1c
+.RI "void \fBSAL_hkdfExtract\fP (int sha, \fBoctad\fP *PRK, \fBoctad\fP *SALT, \fBoctad\fP *IKM)"
+.br
+.RI "HKDF Extract function\&. "
+.ti -1c
+.RI "void \fBSAL_hkdfExpand\fP (int htype, int olen, \fBoctad\fP *OKM, \fBoctad\fP *PRK, \fBoctad\fP *INFO)"
+.br
+.RI "Special HKDF Expand function (for TLS) "
+.ti -1c
+.RI "void \fBSAL_hmac\fP (int htype, \fBoctad\fP *T, \fBoctad\fP *K, \fBoctad\fP *M)"
+.br
+.RI "simple HMAC function "
+.ti -1c
+.RI "void \fBSAL_hashNull\fP (int sha, \fBoctad\fP *H)"
+.br
+.RI "simple HASH of nothing function "
+.ti -1c
+.RI "void \fBSAL_hashInit\fP (int hlen, \fBunihash\fP *h)"
+.br
+.RI "Initiate Hashing context\&. "
+.ti -1c
+.RI "void \fBSAL_hashProcessArray\fP (\fBunihash\fP *h, char *b, int len)"
+.br
+.RI "Hash process an array of bytes\&. "
+.ti -1c
+.RI "int \fBSAL_hashOutput\fP (\fBunihash\fP *h, char *d)"
+.br
+.RI "Hash finish and output\&. "
+.ti -1c
+.RI "void \fBSAL_aeadEncrypt\fP (\fBcrypto\fP *send, int hdrlen, char *hdr, int ptlen, char *pt, \fBoctad\fP *TAG)"
+.br
+.RI "AEAD encryption\&. "
+.ti -1c
+.RI "bool \fBSAL_aeadDecrypt\fP (\fBcrypto\fP *recv, int hdrlen, char *hdr, int ctlen, char *ct, \fBoctad\fP *TAG)"
+.br
+.RI "AEAD decryption\&. "
+.ti -1c
+.RI "void \fBSAL_generateKeyPair\fP (int group, \fBoctad\fP *SK, \fBoctad\fP *PK)"
+.br
+.RI "generate a public/private key pair in an approved group for a key exchange "
+.ti -1c
+.RI "void \fBSAL_generateSharedSecret\fP (int group, \fBoctad\fP *SK, \fBoctad\fP *PK, \fBoctad\fP *SS)"
+.br
+.RI "generate a Diffie-Hellman shared secret "
+.ti -1c
+.RI "bool \fBSAL_tlsSignatureVerify\fP (int sigAlg, \fBoctad\fP *TRANS, \fBoctad\fP *SIG, \fBoctad\fP *PUBKEY)"
+.br
+.RI "Verify a generic TLS signature\&. "
+.ti -1c
+.RI "void \fBSAL_tlsSignature\fP (int sigAlg, \fBoctad\fP *KEY, \fBoctad\fP *TRANS, \fBoctad\fP *SIG)"
+.br
+.RI "Apply a generic TLS transcript signature\&. "
+.in -1c
+.SH "Detailed Description"
+.PP 
+Security Abstraction Layer for TLS\&. 
+
+
+.PP
+\fBAuthor\fP
+.RS 4
+Mike Scott  
+.RE
+.PP
+
+.SH "Function Documentation"
+.PP 
+.SS "bool SAL_aeadDecrypt (\fBcrypto\fP * recv, int hdrlen, char * hdr, int ctlen, char * ct, \fBoctad\fP * TAG)"
+
+.PP
+AEAD decryption\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIrecv\fP the AES key and IV 
+.br
+\fIhdrlen\fP the length of the header 
+.br
+\fIhdr\fP the header bytes 
+.br
+\fIctlen\fP the ciphertext length 
+.br
+\fIct\fP the input ciphertext and output plaintext 
+.br
+\fITAG\fP the expected authentication tag 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+false if tag is wrong, else true 
+.RE
+.PP
+
+.SS "void SAL_aeadEncrypt (\fBcrypto\fP * send, int hdrlen, char * hdr, int ptlen, char * pt, \fBoctad\fP * TAG)"
+
+.PP
+AEAD encryption\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsend\fP the AES key and IV 
+.br
+\fIhdrlen\fP the length of the header 
+.br
+\fIhdr\fP the header bytes 
+.br
+\fIptlen\fP the plaintext length 
+.br
+\fIpt\fP the input plaintext and output ciphertext 
+.br
+\fITAG\fP the output authentication tag 
+.RE
+.PP
+
+.SS "int SAL_aeadKeylen (int cipher_suite)"
+
+.PP
+return key length associated with a cipher suite 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcipher_suite\fP a TLS cipher suite 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+key length 
+.RE
+.PP
+
+.SS "int SAL_aeadTaglen (int cipher_suite)"
+
+.PP
+return authentication tag length associated with a cipher suite 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcipher_suite\fP a TLS cipher suite 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+tag length 
+.RE
+.PP
+
+.SS "int SAL_ciphers (int * ciphers)"
+
+.PP
+Return supported ciphers\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIciphers\fP array of supported ciphers in preferred order 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+number of supported ciphers 
+.RE
+.PP
+
+.SS "void SAL_endLib ()"
+
+.PP
+finish use of library 
+.SS "void SAL_generateKeyPair (int group, \fBoctad\fP * SK, \fBoctad\fP * PK)"
+
+.PP
+generate a public/private key pair in an approved group for a key exchange 
+.PP
+\fBParameters\fP
+.RS 4
+\fIgroup\fP the cryptographic group used to generate the key pair 
+.br
+\fISK\fP the output Private Key 
+.br
+\fIPK\fP the output Public Key 
+.RE
+.PP
+
+.SS "void SAL_generateSharedSecret (int group, \fBoctad\fP * SK, \fBoctad\fP * PK, \fBoctad\fP * SS)"
+
+.PP
+generate a Diffie-Hellman shared secret 
+.PP
+\fBParameters\fP
+.RS 4
+\fIgroup\fP the cryptographic group used to generate the shared secret 
+.br
+\fISK\fP the input client private key 
+.br
+\fIPK\fP the input server public Key 
+.br
+\fISS\fP the output shared secret 
+.RE
+.PP
+
+.SS "int SAL_groups (int * groups)"
+
+.PP
+Return supported groups in preferred order\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIgroups\fP array of supported groups 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+number of supported groups 
+.RE
+.PP
+
+.SS "void SAL_hashInit (int hlen, \fBunihash\fP * h)"
+
+.PP
+Initiate Hashing context\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhlen\fP length in bytes of SHA2 hashing output 
+.br
+\fIh\fP a hashing context 
+.RE
+.PP
+
+.SS "int SAL_hashLen (int hash_type)"
+
+.PP
+return output length of hash function associated with a hash type 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhash_type\fP a TLS hash type 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+hash function output length 
+.RE
+.PP
+
+.SS "void SAL_hashNull (int sha, \fBoctad\fP * H)"
+
+.PP
+simple HASH of nothing function 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsha\fP the SHA2 function output length (32,48 or 64) 
+.br
+\fIH\fP the output hash 
+.RE
+.PP
+
+.SS "int SAL_hashOutput (\fBunihash\fP * h, char * d)"
+
+.PP
+Hash finish and output\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIh\fP a hashing context 
+.br
+\fId\fP the current output digest of an ongoing hashing operation 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+hash output length 
+.RE
+.PP
+
+.SS "void SAL_hashProcessArray (\fBunihash\fP * h, char * b, int len)"
+
+.PP
+Hash process an array of bytes\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIh\fP a hashing context 
+.br
+\fIb\fP the byte array to be included in hash 
+.br
+\fIlen\fP the array length 
+.RE
+.PP
+
+.SS "int SAL_hashType (int cipher_suite)"
+
+.PP
+return hash type asspciated with a cipher suite 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcipher_suite\fP a TLS cipher suite 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+hash function output length 
+.RE
+.PP
+
+.SS "void SAL_hkdfExpand (int htype, int olen, \fBoctad\fP * OKM, \fBoctad\fP * PRK, \fBoctad\fP * INFO)"
+
+.PP
+Special HKDF Expand function (for TLS) 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhtype\fP hash algorithm 
+.br
+\fIolen\fP is the desired length of the expanded key 
+.br
+\fIOKM\fP an expanded output Key 
+.br
+\fIPRK\fP is the fixed length input key 
+.br
+\fIINFO\fP is public label information 
+.RE
+.PP
+
+.SS "void SAL_hkdfExtract (int sha, \fBoctad\fP * PRK, \fBoctad\fP * SALT, \fBoctad\fP * IKM)"
+
+.PP
+HKDF Extract function\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsha\fP hash algorithm 
+.br
+\fIPRK\fP an output Key 
+.br
+\fISALT\fP public input salt 
+.br
+\fIIKM\fP raw secret keying material 
+.RE
+.PP
+
+.SS "void SAL_hmac (int htype, \fBoctad\fP * T, \fBoctad\fP * K, \fBoctad\fP * M)"
+
+.PP
+simple HMAC function 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhtype\fP hash algorithm 
+.br
+\fIT\fP an output tag 
+.br
+\fIK\fP an input key, or salt 
+.br
+\fIM\fP an input message 
+.RE
+.PP
+
+.SS "bool SAL_initLib ()"
+
+.PP
+Initialise library for use\&. 
+.PP
+\fBReturns\fP
+.RS 4
+return true if successful, else false 
+.RE
+.PP
+
+.SS "char * SAL_name ()"
+
+.PP
+Return name of SAL provider\&. 
+.PP
+\fBReturns\fP
+.RS 4
+name of SAL provider 
+.RE
+.PP
+
+.SS "int SAL_randomByte ()"
+
+.PP
+get a random byte 
+.PP
+\fBReturns\fP
+.RS 4
+a random byte 
+.RE
+.PP
+
+.SS "void SAL_randomOctad (int len, \fBoctad\fP * R)"
+
+.PP
+get a random octad 
+.PP
+\fBParameters\fP
+.RS 4
+\fIlen\fP number of random bytes 
+.br
+\fIR\fP octad to be filled with random bytes 
+.RE
+.PP
+
+.SS "int SAL_sigCerts (int * sigAlgsCert)"
+
+.PP
+Return supported TLS signature algorithms for Certificates in preferred order\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsigAlgsCert\fP array of supported signature algorithms for Certificates 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+number of supported groups 
+.RE
+.PP
+
+.SS "int SAL_sigs (int * sigAlgs)"
+
+.PP
+Return supported TLS signature algorithms in preferred order\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsigAlgs\fP array of supported signature algorithms 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+number of supported groups 
+.RE
+.PP
+
+.SS "void SAL_tlsSignature (int sigAlg, \fBoctad\fP * KEY, \fBoctad\fP * TRANS, \fBoctad\fP * SIG)"
+
+.PP
+Apply a generic TLS transcript signature\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsigAlg\fP the signature type 
+.br
+\fIKEY\fP the private key used to form the signature 
+.br
+\fITRANS\fP the input transcript hash to be signed 
+.br
+\fISIG\fP the output signature 
+.RE
+.PP
+
+.SS "bool SAL_tlsSignatureVerify (int sigAlg, \fBoctad\fP * TRANS, \fBoctad\fP * SIG, \fBoctad\fP * PUBKEY)"
+
+.PP
+Verify a generic TLS signature\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsigAlg\fP the signature type 
+.br
+\fITRANS\fP the signed input transcript hash 
+.br
+\fISIG\fP the input signature 
+.br
+\fIPUBKEY\fP the public key used to verify the signature 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+true if signature is valid, else false 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for TiigerTLS from the source code\&.

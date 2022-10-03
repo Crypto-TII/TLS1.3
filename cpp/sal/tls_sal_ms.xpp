@@ -379,10 +379,11 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         SK->val[31]&=248;  
         SK->val[0]&=127;
         SK->val[0]|=64;
+	MC_SK.len=32;
         OCT_reverse(&MC_SK);  // to little-endian
         crypto_scalarmult_base((unsigned char *)MC_PK.val, (unsigned char *)MC_SK.val);
         OCT_reverse(&MC_SK);  // convert back
-        MC_PK.len=MC_SK.len=32;
+        MC_PK.len=32;
     }
     if (group==SECP256R1)
     {

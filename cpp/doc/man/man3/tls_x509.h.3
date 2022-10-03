@@ -1,0 +1,467 @@
+.TH "C:/Users/mscot/TLS1.3/cpp/include/tls_x509.h" 3 "Mon Oct 3 2022" "Version 1.2" "TiigerTLS" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+C:/Users/mscot/TLS1.3/cpp/include/tls_x509.h \- X509 function Header File\&.  
+
+.SH SYNOPSIS
+.br
+.PP
+.SS "Classes"
+
+.in +1c
+.ti -1c
+.RI "struct \fBpktype\fP"
+.br
+.RI "Public key type\&. "
+.in -1c
+.SS "Macros"
+
+.in +1c
+.ti -1c
+.RI "#define \fBX509_ECC\fP   1"
+.br
+.ti -1c
+.RI "#define \fBX509_RSA\fP   2"
+.br
+.ti -1c
+.RI "#define \fBX509_ECD\fP   3"
+.br
+.ti -1c
+.RI "#define \fBX509_PQ\fP   4"
+.br
+.ti -1c
+.RI "#define \fBX509_HY\fP   5"
+.br
+.ti -1c
+.RI "#define \fBX509_H256\fP   2"
+.br
+.ti -1c
+.RI "#define \fBX509_H384\fP   3"
+.br
+.ti -1c
+.RI "#define \fBX509_H512\fP   4"
+.br
+.ti -1c
+.RI "#define \fBUSE_NIST256\fP   0"
+.br
+.ti -1c
+.RI "#define \fBUSE_C25519\fP   1"
+.br
+.ti -1c
+.RI "#define \fBUSE_NIST384\fP   10"
+.br
+.ti -1c
+.RI "#define \fBUSE_NIST521\fP   12"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBecdsa_sig_encode\fP (\fBoctad\fP *c)"
+.br
+.RI "in-place ECDSA signature encoding "
+.ti -1c
+.RI "int \fBecdsa_sig_decode\fP (\fBoctad\fP *c)"
+.br
+.RI "in-place ECDSA signature decoding "
+.ti -1c
+.RI "\fBpktype\fP \fBX509_extract_private_key\fP (\fBoctad\fP *c, \fBoctad\fP *pk)"
+.br
+.RI "Extract private key\&. "
+.ti -1c
+.RI "\fBpktype\fP \fBX509_extract_cert_sig\fP (\fBoctad\fP *c, \fBoctad\fP *s)"
+.br
+.RI "Extract certificate signature\&. "
+.ti -1c
+.RI "int \fBX509_extract_cert\fP (\fBoctad\fP *sc, \fBoctad\fP *c)"
+.br
+.ti -1c
+.RI "\fBpktype\fP \fBX509_extract_public_key\fP (\fBoctad\fP *c, \fBoctad\fP *k)"
+.br
+.ti -1c
+.RI "int \fBX509_find_issuer\fP (\fBoctad\fP *c)"
+.br
+.ti -1c
+.RI "int \fBX509_find_validity\fP (\fBoctad\fP *c)"
+.br
+.ti -1c
+.RI "int \fBX509_find_subject\fP (\fBoctad\fP *c)"
+.br
+.ti -1c
+.RI "int \fBX509_self_signed\fP (\fBoctad\fP *c)"
+.br
+.ti -1c
+.RI "int \fBX509_find_entity_property\fP (\fBoctad\fP *c, \fBoctad\fP *S, int s, int *f)"
+.br
+.ti -1c
+.RI "int \fBX509_find_start_date\fP (\fBoctad\fP *c, int s)"
+.br
+.ti -1c
+.RI "int \fBX509_find_expiry_date\fP (\fBoctad\fP *c, int s)"
+.br
+.ti -1c
+.RI "int \fBX509_find_extensions\fP (\fBoctad\fP *c)"
+.br
+.ti -1c
+.RI "int \fBX509_find_extension\fP (\fBoctad\fP *c, \fBoctad\fP *S, int s, int *f)"
+.br
+.ti -1c
+.RI "int \fBX509_find_alt_name\fP (\fBoctad\fP *c, int s, char *name)"
+.br
+.in -1c
+.SS "Variables"
+
+.in +1c
+.ti -1c
+.RI "\fBoctad\fP \fBX509_CN\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBX509_ON\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBX509_EN\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBX509_LN\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBX509_UN\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBX509_MN\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBX509_SN\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBX509_AN\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBX509_KU\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBX509_BC\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+X509 function Header File\&. 
+
+
+.PP
+\fBAuthor\fP
+.RS 4
+Mike Scott 
+.RE
+.PP
+defines structures declares functions 
+.SH "Macro Definition Documentation"
+.PP 
+.SS "#define USE_C25519   1"
+Bernstein's Modulus 2^255-19 - EDWARDS or MONTGOMERY only 
+.SS "#define USE_NIST256   0"
+For the NIST 256-bit standard curve - WEIERSTRASS only 
+.SS "#define USE_NIST384   10"
+For the NIST 384-bit standard curve - WEIERSTRASS only 
+.SS "#define USE_NIST521   12"
+For the NIST 521-bit standard curve - WEIERSTRASS only 
+.SS "#define X509_ECC   1"
+Elliptic Curve data type detected 
+.SS "#define X509_ECD   3"
+Elliptic Curve (Ed25519) detected 
+.SS "#define X509_H256   2"
+SHA256 hash algorithm used 
+.SS "#define X509_H384   3"
+SHA384 hash algorithm used 
+.SS "#define X509_H512   4"
+SHA512 hash algorithm used 
+.SS "#define X509_HY   5"
+Hybrid Post_Quantum 
+.SS "#define X509_PQ   4"
+Post Quantum method 
+.SS "#define X509_RSA   2"
+RSA data type detected 
+.SH "Function Documentation"
+.PP 
+.SS "int ecdsa_sig_decode (\fBoctad\fP * c)"
+
+.PP
+in-place ECDSA signature decoding 
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an ecdsa signature to be converted from ASN\&.1 to simple r|s form 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+index into c where conversion ended 
+.RE
+.PP
+
+.SS "void ecdsa_sig_encode (\fBoctad\fP * c)"
+
+.PP
+in-place ECDSA signature encoding 
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an ecdsa signature to be converted from r|s form to ASN\&.1 
+.RE
+.PP
+
+.SS "int X509_extract_cert (\fBoctad\fP * sc, \fBoctad\fP * c)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIsc\fP a signed certificate 
+.br
+\fIc\fP the extracted certificate 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure 
+.RE
+.PP
+
+.SS "\fBpktype\fP X509_extract_cert_sig (\fBoctad\fP * c, \fBoctad\fP * s)"
+
+.PP
+Extract certificate signature\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.br
+\fIs\fP the extracted signature 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or indicator of signature type (ECC or RSA) 
+.RE
+.PP
+
+.SS "\fBpktype\fP X509_extract_private_key (\fBoctad\fP * c, \fBoctad\fP * pk)"
+
+.PP
+Extract private key\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 private key 
+.br
+\fIpk\fP the extracted private key - for RSA octad = p|q|dp|dq|c, for ECC octad = k 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or indicator of private key type (ECC or RSA) 
+.RE
+.PP
+
+.SS "\fBpktype\fP X509_extract_public_key (\fBoctad\fP * c, \fBoctad\fP * k)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.br
+\fIk\fP the extracted key 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or indicator of public key type (ECC or RSA) 
+.RE
+.PP
+
+.SS "int X509_find_alt_name (\fBoctad\fP * c, int s, char * name)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.br
+\fIs\fP is a pointer to certificate extension SubjectAltNames 
+.br
+\fIname\fP is a URL 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, 1 if URL is in list of alt names 
+.RE
+.PP
+
+.SS "int X509_find_entity_property (\fBoctad\fP * c, \fBoctad\fP * S, int s, int * f)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.br
+\fIS\fP is OID of property we are looking for 
+.br
+\fIs\fP is a pointer to the section of interest in the cert 
+.br
+\fIf\fP is pointer to the length of the property 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or pointer to the property 
+.RE
+.PP
+
+.SS "int X509_find_expiry_date (\fBoctad\fP * c, int s)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.br
+\fIs\fP is a pointer to the start of the validity field 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or pointer to the expiry date 
+.RE
+.PP
+
+.SS "int X509_find_extension (\fBoctad\fP * c, \fBoctad\fP * S, int s, int * f)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.br
+\fIS\fP is OID of particular extension we are looking for 
+.br
+\fIs\fP is a pointer to the section of interest in the cert 
+.br
+\fIf\fP is pointer to the length of the extension 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or pointer to the extension 
+.RE
+.PP
+
+.SS "int X509_find_extensions (\fBoctad\fP * c)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure (or no extensions), or pointer to extensions field in cert 
+.RE
+.PP
+
+.SS "int X509_find_issuer (\fBoctad\fP * c)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or pointer to issuer field in cert 
+.RE
+.PP
+
+.SS "int X509_find_start_date (\fBoctad\fP * c, int s)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.br
+\fIs\fP is a pointer to the start of the validity field 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or pointer to the start date 
+.RE
+.PP
+
+.SS "int X509_find_subject (\fBoctad\fP * c)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or pointer to subject field in cert 
+.RE
+.PP
+
+.SS "int X509_find_validity (\fBoctad\fP * c)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on failure, or pointer to validity field in cert 
+.RE
+.PP
+
+.SS "int X509_self_signed (\fBoctad\fP * c)"
+
+.PP
+\fBParameters\fP
+.RS 4
+\fIc\fP an X\&.509 certificate 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+true if self-signed, else false 
+.RE
+.PP
+
+.SH "Variable Documentation"
+.PP 
+.SS "\fBoctad\fP X509_AN\fC [extern]\fP"
+Alternate Name 
+.SS "\fBoctad\fP X509_BC\fC [extern]\fP"
+Basic Constraints 
+.SS "\fBoctad\fP X509_CN\fC [extern]\fP"
+Country Name 
+.SS "\fBoctad\fP X509_EN\fC [extern]\fP"
+email 
+.SS "\fBoctad\fP X509_KU\fC [extern]\fP"
+Key Usage 
+.SS "\fBoctad\fP X509_LN\fC [extern]\fP"
+local name 
+.SS "\fBoctad\fP X509_MN\fC [extern]\fP"
+My Name (aka Common Name) 
+.SS "\fBoctad\fP X509_ON\fC [extern]\fP"
+organisation Name 
+.SS "\fBoctad\fP X509_SN\fC [extern]\fP"
+State Name 
+.SS "\fBoctad\fP X509_UN\fC [extern]\fP"
+Unit name (aka Organisation Unit OU) 
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for TiigerTLS from the source code\&.

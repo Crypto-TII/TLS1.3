@@ -1,0 +1,468 @@
+.TH "C:/Users/mscot/TLS1.3/cpp/include/tls_keys_calc.h" 3 "Mon Oct 3 2022" "Version 1.2" "TiigerTLS" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+C:/Users/mscot/TLS1.3/cpp/include/tls_keys_calc.h \- TLS 1\&.3 crypto support functions\&.  
+
+.SH SYNOPSIS
+.br
+.PP
+\fC#include 'tls1_3\&.h'\fP
+.br
+\fC#include 'tls_sal\&.h'\fP
+.br
+\fC#include 'tls_client_recv\&.h'\fP
+.br
+
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBinitTranscriptHash\fP (\fBTLS_session\fP *session)"
+.br
+.RI "Initialise Transcript hash\&. "
+.ti -1c
+.RI "void \fBrunningHash\fP (\fBTLS_session\fP *session, \fBoctad\fP *O)"
+.br
+.RI "Accumulate octad into ongoing hashing\&. "
+.ti -1c
+.RI "void \fBrunningHashIO\fP (\fBTLS_session\fP *session)"
+.br
+.RI "Accumulate transcript hash from IO buffer\&. "
+.ti -1c
+.RI "void \fBrewindIO\fP (\fBTLS_session\fP *session)"
+.br
+.RI "rewind the IO buffer "
+.ti -1c
+.RI "void \fBrunningHashIOrewind\fP (\fBTLS_session\fP *session)"
+.br
+.RI "Accumulate transcript hash and from IO buffer, and rewind IO buffer\&. "
+.ti -1c
+.RI "void \fBtranscriptHash\fP (\fBTLS_session\fP *session, \fBoctad\fP *O)"
+.br
+.RI "Output current hash value\&. "
+.ti -1c
+.RI "void \fBrunningSyntheticHash\fP (\fBTLS_session\fP *session, \fBoctad\fP *O, \fBoctad\fP *E)"
+.br
+.RI "Calculate special synthetic hash calculation for first clientHello after retry request (RFC 8446 section 4\&.4\&.1) "
+.ti -1c
+.RI "void \fBinitCryptoContext\fP (\fBcrypto\fP *C)"
+.br
+.RI "Initiate a Crypto Context\&. "
+.ti -1c
+.RI "void \fBupdateCryptoContext\fP (\fBcrypto\fP *C, \fBoctad\fP *K, \fBoctad\fP *IV)"
+.br
+.RI "Build a Crypto Context\&. "
+.ti -1c
+.RI "void \fBincrementCryptoContext\fP (\fBcrypto\fP *C)"
+.br
+.RI "Increment a Crypto Context for the next record, updating IV\&. "
+.ti -1c
+.RI "void \fBcreateCryptoContext\fP (int cipher, \fBoctad\fP *TS, \fBcrypto\fP *context)"
+.br
+.RI "Create a crypto context from an input raw Secret and an agreed cipher_suite\&. "
+.ti -1c
+.RI "void \fBcreateSendCryptoContext\fP (\fBTLS_session\fP *session, \fBoctad\fP *TS)"
+.br
+.RI "Build a crypto context for transmission from an input raw Secret and an agreed cipher_suite\&. "
+.ti -1c
+.RI "void \fBcreateRecvCryptoContext\fP (\fBTLS_session\fP *session, \fBoctad\fP *TS)"
+.br
+.RI "Build a crypto context for reception from an input raw Secret and an agreed cipher_suite\&. "
+.ti -1c
+.RI "void \fBrecoverPSK\fP (\fBTLS_session\fP *)"
+.br
+.RI "Recover pre-shared key from the Resumption Master Secret and store with ticket\&. "
+.ti -1c
+.RI "void \fBderiveEarlySecrets\fP (int htype, \fBoctad\fP *PSK, \fBoctad\fP *ES, \fBoctad\fP *BKE, \fBoctad\fP *BKR)"
+.br
+.RI "Extract Early Secret Key and Binder Key from Preshared Key (External or Resumption) "
+.ti -1c
+.RI "void \fBderiveLaterSecrets\fP (int htype, \fBoctad\fP *H, \fBoctad\fP *ES, \fBoctad\fP *CETS, \fBoctad\fP *EEMS)"
+.br
+.RI "Extract more secrets from Early Secret\&. "
+.ti -1c
+.RI "void \fBderiveHandshakeSecrets\fP (\fBTLS_session\fP *session, \fBoctad\fP *SS, \fBoctad\fP *ES, \fBoctad\fP *H)"
+.br
+.RI "Extract Handshake Secret from Shared Secret and Early Secret\&. Use Handshake Secret to extract Client and Server Handshake Traffic secrets\&. "
+.ti -1c
+.RI "void \fBderiveApplicationSecrets\fP (\fBTLS_session\fP *session, \fBoctad\fP *SFH, \fBoctad\fP *CFH, \fBoctad\fP *EMS)"
+.br
+.RI "Extract Application Secret from Handshake Secret and Early Secret\&. Use Handshake Secret to extract Client and Server Application Traffic secrets\&. "
+.ti -1c
+.RI "void \fBderiveUpdatedKeys\fP (\fBcrypto\fP *context, \fBoctad\fP *TS)"
+.br
+.RI "Perform a Key Update on a crypto context\&. "
+.ti -1c
+.RI "bool \fBcheckVeriferData\fP (int htype, \fBoctad\fP *SF, \fBoctad\fP *STS, \fBoctad\fP *H)"
+.br
+.RI "Test if data from Server is verified using server traffic secret and a transcript hash\&. "
+.ti -1c
+.RI "void \fBderiveVeriferData\fP (int htype, \fBoctad\fP *SF, \fBoctad\fP *CTS, \fBoctad\fP *H)"
+.br
+.RI "Create handshake verification data for Client to send to Server from client traffic secret and a transcript hash\&. "
+.ti -1c
+.RI "bool \fBcheckServerCertVerifier\fP (int sigalg, \fBoctad\fP *SCVSIG, \fBoctad\fP *H, \fBoctad\fP *CERTPK)"
+.br
+.RI "verify Server's signature on protocol transcript "
+.ti -1c
+.RI "void \fBcreateClientCertVerifier\fP (int sigAlg, \fBoctad\fP *H, \fBoctad\fP *KEY, \fBoctad\fP *CCVSIG)"
+.br
+.RI "Create Cert Verify message, as a digital signature on some TLS1\&.3 specific message+transcript hash\&. "
+.in -1c
+.SH "Detailed Description"
+.PP 
+TLS 1\&.3 crypto support functions\&. 
+
+
+.PP
+\fBAuthor\fP
+.RS 4
+Mike Scott  
+.RE
+.PP
+
+.SH "Function Documentation"
+.PP 
+.SS "bool checkServerCertVerifier (int sigalg, \fBoctad\fP * SCVSIG, \fBoctad\fP * H, \fBoctad\fP * CERTPK)"
+
+.PP
+verify Server's signature on protocol transcript 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsigalg\fP the algorithm used for digital signature 
+.br
+\fISCVSIG\fP the input signature on the transcript 
+.br
+\fIH\fP the transcript hash 
+.br
+\fICERTPK\fP the Server's public key 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+true if signature is verified, else returns false 
+.RE
+.PP
+
+.SS "bool checkVeriferData (int htype, \fBoctad\fP * SF, \fBoctad\fP * STS, \fBoctad\fP * H)"
+
+.PP
+Test if data from Server is verified using server traffic secret and a transcript hash\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhtype\fP hash algorithm 
+.br
+\fISF\fP the input verification data from Server 
+.br
+\fISTS\fP the input Server Traffic Secret 
+.br
+\fIH\fP the input partial transcript hash 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+true is data is verified, else false 
+.RE
+.PP
+
+.SS "void createClientCertVerifier (int sigAlg, \fBoctad\fP * H, \fBoctad\fP * KEY, \fBoctad\fP * CCVSIG)"
+
+.PP
+Create Cert Verify message, as a digital signature on some TLS1\&.3 specific message+transcript hash\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsigAlg\fP the signature algorithm 
+.br
+\fIH\fP a transcript hash to be signed 
+.br
+\fIKEY\fP the Client's private key 
+.br
+\fICCVSIG\fP the output digital signature 
+.RE
+.PP
+
+.SS "void createCryptoContext (int cipher, \fBoctad\fP * TS, \fBcrypto\fP * context)"
+
+.PP
+Create a crypto context from an input raw Secret and an agreed cipher_suite\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcipher\fP the chosen cipher site 
+.br
+\fITS\fP the input raw secret 
+.br
+\fIcontext\fP the output crypto conetext 
+.RE
+.PP
+
+.SS "void createRecvCryptoContext (\fBTLS_session\fP * session, \fBoctad\fP * TS)"
+
+.PP
+Build a crypto context for reception from an input raw Secret and an agreed cipher_suite\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP TLS session structure 
+.br
+\fITS\fP the input raw secret 
+.RE
+.PP
+
+.SS "void createSendCryptoContext (\fBTLS_session\fP * session, \fBoctad\fP * TS)"
+
+.PP
+Build a crypto context for transmission from an input raw Secret and an agreed cipher_suite\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP TLS session structure 
+.br
+\fITS\fP the input raw secret 
+.RE
+.PP
+
+.SS "void deriveApplicationSecrets (\fBTLS_session\fP * session, \fBoctad\fP * SFH, \fBoctad\fP * CFH, \fBoctad\fP * EMS)"
+
+.PP
+Extract Application Secret from Handshake Secret and Early Secret\&. Use Handshake Secret to extract Client and Server Application Traffic secrets\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.br
+ 
+.br
+\fISFH\fP an input partial transcript hash 
+.br
+\fICFH\fP an input partial transcript hash 
+.br
+\fIEMS\fP the output External Master Secret (or NULL if not required) 
+.RE
+.PP
+
+.SS "void deriveEarlySecrets (int htype, \fBoctad\fP * PSK, \fBoctad\fP * ES, \fBoctad\fP * BKE, \fBoctad\fP * BKR)"
+
+.PP
+Extract Early Secret Key and Binder Key from Preshared Key (External or Resumption) 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhtype\fP hash algorithm 
+.br
+\fIPSK\fP the input pre-shared key, or NULL if not available 
+.br
+\fIES\fP the output early secret key 
+.br
+\fIBKE\fP the output external binder key (or NULL if not required) 
+.br
+\fIBKR\fP the output resumption binder key (or NULL if not required) 
+.RE
+.PP
+
+.SS "void deriveHandshakeSecrets (\fBTLS_session\fP * session, \fBoctad\fP * SS, \fBoctad\fP * ES, \fBoctad\fP * H)"
+
+.PP
+Extract Handshake Secret from Shared Secret and Early Secret\&. Use Handshake Secret to extract Client and Server Handshake Traffic secrets\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.br
+\fISS\fP input Shared Secret 
+.br
+\fIES\fP the input early secret key 
+.br
+\fIH\fP a partial transcript hash 
+.RE
+.PP
+
+.SS "void deriveLaterSecrets (int htype, \fBoctad\fP * H, \fBoctad\fP * ES, \fBoctad\fP * CETS, \fBoctad\fP * EEMS)"
+
+.PP
+Extract more secrets from Early Secret\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhtype\fP hash algorithm 
+.br
+\fIH\fP a partial transcript hash 
+.br
+\fIES\fP the input early secret key 
+.br
+\fICETS\fP the output Client Early Traffic Secret (or NULL if not required) 
+.br
+\fIEEMS\fP the output Early Exporter Master Secret (or NULL if not required) 
+.RE
+.PP
+
+.SS "void deriveUpdatedKeys (\fBcrypto\fP * context, \fBoctad\fP * TS)"
+
+.PP
+Perform a Key Update on a crypto context\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIcontext\fP an AEAD encryption context 
+.br
+\fITS\fP the updated Traffic secret 
+.RE
+.PP
+
+.SS "void deriveVeriferData (int htype, \fBoctad\fP * SF, \fBoctad\fP * CTS, \fBoctad\fP * H)"
+
+.PP
+Create handshake verification data for Client to send to Server from client traffic secret and a transcript hash\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIhtype\fP hash algorithm 
+.br
+\fISF\fP the output verification data 
+.br
+\fICTS\fP the input Client Traffic Secret 
+.br
+\fIH\fP the input partial transcript hash 
+.RE
+.PP
+
+.SS "void incrementCryptoContext (\fBcrypto\fP * C)"
+
+.PP
+Increment a Crypto Context for the next record, updating IV\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIC\fP an AEAD encryption context 
+.RE
+.PP
+
+.SS "void initCryptoContext (\fBcrypto\fP * C)"
+
+.PP
+Initiate a Crypto Context\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIC\fP an AEAD encryption context 
+.RE
+.PP
+
+.SS "void initTranscriptHash (\fBTLS_session\fP * session)"
+
+.PP
+Initialise Transcript hash\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.RE
+.PP
+
+.SS "void recoverPSK (\fBTLS_session\fP * session)"
+
+.PP
+Recover pre-shared key from the Resumption Master Secret and store with ticket\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.RE
+.PP
+
+.SS "void rewindIO (\fBTLS_session\fP * session)"
+
+.PP
+rewind the IO buffer 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.RE
+.PP
+
+.SS "void runningHash (\fBTLS_session\fP * session, \fBoctad\fP * O)"
+
+.PP
+Accumulate octad into ongoing hashing\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.br
+\fIO\fP an octad to be included in hash 
+.RE
+.PP
+
+.SS "void runningHashIO (\fBTLS_session\fP * session)"
+
+.PP
+Accumulate transcript hash from IO buffer\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.RE
+.PP
+
+.SS "void runningHashIOrewind (\fBTLS_session\fP * session)"
+
+.PP
+Accumulate transcript hash and from IO buffer, and rewind IO buffer\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.RE
+.PP
+
+.SS "void runningSyntheticHash (\fBTLS_session\fP * session, \fBoctad\fP * O, \fBoctad\fP * E)"
+
+.PP
+Calculate special synthetic hash calculation for first clientHello after retry request (RFC 8446 section 4\&.4\&.1) 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.br
+\fIO\fP an octad containing clientHello 
+.br
+\fIE\fP an octad containing clientHello extensions 
+.RE
+.PP
+
+.SS "void transcriptHash (\fBTLS_session\fP * session, \fBoctad\fP * O)"
+
+.PP
+Output current hash value\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession\fP the TLS session structure 
+.br
+\fIO\fP an output octad containing current hash 
+.RE
+.PP
+
+.SS "void updateCryptoContext (\fBcrypto\fP * C, \fBoctad\fP * K, \fBoctad\fP * IV)"
+
+.PP
+Build a Crypto Context\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIC\fP an AEAD encryption context 
+.br
+\fIK\fP an encryption key 
+.br
+\fIIV\fP an encryption Initialisation Vector 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for TiigerTLS from the source code\&.

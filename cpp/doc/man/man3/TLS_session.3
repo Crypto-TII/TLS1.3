@@ -1,0 +1,134 @@
+.TH "TLS_session" 3 "Mon Oct 3 2022" "Version 1.2" "TiigerTLS" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+TLS_session \- TLS1\&.3 session state\&.  
+
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fC#include <tls1_3\&.h>\fP
+.SS "Public Attributes"
+
+.in +1c
+.ti -1c
+.RI "int \fBstatus\fP"
+.br
+.ti -1c
+.RI "int \fBmax_record\fP"
+.br
+.ti -1c
+.RI "\fBSocket\fP * \fBsockptr\fP"
+.br
+.ti -1c
+.RI "char \fBid\fP [32]"
+.br
+.ti -1c
+.RI "char \fBhostname\fP [\fBTLS_MAX_SERVER_NAME\fP]"
+.br
+.ti -1c
+.RI "int \fBcipher_suite\fP"
+.br
+.ti -1c
+.RI "int \fBfavourite_group\fP"
+.br
+.ti -1c
+.RI "\fBcrypto\fP \fBK_send\fP"
+.br
+.ti -1c
+.RI "\fBcrypto\fP \fBK_recv\fP"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBHS\fP"
+.br
+.ti -1c
+.RI "char \fBhs\fP [\fBTLS_MAX_HASH\fP]"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBRMS\fP"
+.br
+.ti -1c
+.RI "char \fBrms\fP [\fBTLS_MAX_HASH\fP]"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBSTS\fP"
+.br
+.ti -1c
+.RI "char \fBsts\fP [\fBTLS_MAX_HASH\fP]"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBCTS\fP"
+.br
+.ti -1c
+.RI "char \fBcts\fP [\fBTLS_MAX_HASH\fP]"
+.br
+.ti -1c
+.RI "\fBoctad\fP \fBIO\fP"
+.br
+.ti -1c
+.RI "char \fBio\fP [\fBTLS_MAX_IO_SIZE\fP]"
+.br
+.ti -1c
+.RI "int \fBptr\fP"
+.br
+.ti -1c
+.RI "\fBunihash\fP \fBtlshash\fP"
+.br
+.ti -1c
+.RI "\fBticket\fP \fBT\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+TLS1\&.3 session state\&. 
+.SH "Member Data Documentation"
+.PP 
+.SS "int TLS_session::cipher_suite"
+agreed cipher suite 
+.SS "\fBoctad\fP TLS_session::CTS"
+Client Traffic secret 
+.SS "char TLS_session::cts[\fBTLS_MAX_HASH\fP]"
+Client Traffic secret data 
+.SS "int TLS_session::favourite_group"
+favourite key exchange group - may be changed on handshake retry 
+.SS "char TLS_session::hostname[\fBTLS_MAX_SERVER_NAME\fP]"
+Server name for connection 
+.SS "\fBoctad\fP TLS_session::HS"
+Handshake secret 
+.SS "char TLS_session::hs[\fBTLS_MAX_HASH\fP]"
+Handshake secret data 
+.SS "char TLS_session::id[32]"
+Session ID 
+.SS "\fBoctad\fP TLS_session::IO"
+Main IO buffer for this connection 
+.SS "char TLS_session::io[\fBTLS_MAX_IO_SIZE\fP]"
+Byte array for main IO buffer for this connection 
+.SS "\fBcrypto\fP TLS_session::K_recv"
+Receiving Key 
+.SS "\fBcrypto\fP TLS_session::K_send"
+Sending Key 
+.SS "int TLS_session::max_record"
+max record size I should send 
+.SS "int TLS_session::ptr"
+pointer into IO buffer 
+.SS "\fBoctad\fP TLS_session::RMS"
+Resumption Master Secret 
+.SS "char TLS_session::rms[\fBTLS_MAX_HASH\fP]"
+Resumption Master Secret data 
+.SS "\fBSocket\fP* TLS_session::sockptr"
+Pointer to socket 
+.SS "int TLS_session::status"
+Connection status 
+.SS "\fBoctad\fP TLS_session::STS"
+Server Traffic secret 
+.SS "char TLS_session::sts[\fBTLS_MAX_HASH\fP]"
+Server Traffic secret data 
+.SS "\fBticket\fP TLS_session::T"
+resumption ticket 
+.SS "\fBunihash\fP TLS_session::tlshash"
+Transcript hash recorder 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for TiigerTLS from the source code\&.
