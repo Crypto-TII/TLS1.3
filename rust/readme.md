@@ -61,10 +61,11 @@ Next fire up your favourite browser and navigate to
 
 	https://127.0.0.1:4433
 
-The browser connects to the local server and displays a message. Observe the number of TLS connections actually made by the browser. In this case the ticket is stored as a browser cookie.
+The browser connects to the local server and displays a message. You may need to over-ride a warning from the browser. Observe the number of TLS connections actually made by the browser. In this case 
+the ticket is stored as a browser cookie. On a subsequent connection it should perform a resumption handshake.
 
 
-While still in the client window, enter
+While in the client window, enter
 
 	cargo run localhost
 
@@ -76,7 +77,7 @@ The local client now connects to the local server. Exit the server program, and 
 
 Now run the server and client again. This time the client responds to the certificate request and authenticates using its own built-in certificate. 
 
-With the the server running, open a new window and enter
+Set CERTIFICATE\-REQUEST back to false and run the server again. Now open a new window and enter
 
 	openssl s_client -tls1_3 -sess_out ticket.pem -host localhost
 

@@ -86,7 +86,7 @@ impl SESSION {
         let this=SESSION {
             port: pt,
             status:DISCONNECTED,
-            max_record: 0,
+            max_record: MAX_RECORD,
             sockptr: stream,
             iolen: 0,
             ptr: 0,

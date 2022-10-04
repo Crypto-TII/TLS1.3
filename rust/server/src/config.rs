@@ -104,7 +104,7 @@ pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes
 pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes 
 
 //pub const MAX_FRAG:usize = 4;
-//pub const MAX_RECORD:usize = 1024;
+pub const MAX_RECORD:usize = 4096;              // default Maximum Record size
 
 pub const MAX_TICKET_SIZE:usize = 256; 
 pub const MAX_EXTENSIONS:usize = 2048;       
