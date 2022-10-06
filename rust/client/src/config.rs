@@ -109,7 +109,7 @@ pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes
 pub const MAX_FRAG:usize = 4;
 pub const MAX_RECORD:usize = 1024;
 
-pub const MAX_TICKET_SIZE:usize = 512; 
+pub const MAX_TICKET_SIZE:usize = 1024; 
 pub const MAX_EXTENSIONS:usize = 2048;       
 
 // message types 

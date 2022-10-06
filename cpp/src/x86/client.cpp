@@ -250,8 +250,9 @@ int main(int argc, char const *argv[])
     if (strcmp(argv[ip],"-r")==0)
     {
         printf("Ticket removed\n");
-        removeTicket();
-        exit(0);
+        removeTicket(); ip++;
+		if (ip>=argc) exit(0);
+        //exit(0);
     }
 
     if (strcmp(argv[ip],"-s")==0)

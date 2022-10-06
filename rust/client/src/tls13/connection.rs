@@ -359,6 +359,7 @@ impl SESSION {
 /// Send an alert to the Server
     pub fn send_alert(&mut self,kind: u8) {
         let pt: [u8;2]=[0x02,kind];
+        self.clean_io();
         self.send_message(ALERT,TLS1_2,&pt[0..2],None,true);
         log(IO_PROTOCOL,"Alert sent to Server - ",0,None);
         logger::log_alert(kind);

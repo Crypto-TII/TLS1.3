@@ -105,6 +105,7 @@ pub fn log_server_hello(cipher_suite: u16,pskid: isize,pk: &[u8],ck: &[u8]) {
 pub fn log_ticket(t: &TICKET) {
     log(IO_DEBUG,"\nParsing Ticket\n",0,None);
     log(IO_DEBUG,"Ticket = ",0,Some(&t.tick[0..t.tklen])); 
+    log(IO_DEBUG,"Nonce = ",0,Some(&t.nonce[0..t.nnlen]));
     let minutes=t.lifetime/60;
     log(IO_DEBUG,"life time in minutes = ",minutes as isize,None);
     log(IO_DEBUG,"Pre-Shared Key = ",0,Some(&t.psk[0..t.psklen])); 
