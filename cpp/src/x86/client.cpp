@@ -102,6 +102,7 @@ static void bad_input()
     printf("Valid flags:- \n");
     printf("    -p <n> hostname (where <n> is preshared key identity)\n");
     printf("    -r remove stored ticket\n");
+    printf("    -r <hostname> remove stored ticket and connect to hostname\n");
     printf("    -s show SAL capabilities\n");
     printf("Example:- client www.bbc.co.uk\n");
 }

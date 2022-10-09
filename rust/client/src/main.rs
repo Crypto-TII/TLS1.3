@@ -158,6 +158,7 @@ fn bad_input()
     println!("Valid flags:- ");
     println!("    /p <n> (where <n> is preshared key label shared with localhost)");
     println!("    /r remove stored ticket");
+    println!("    /r <hostname> remove stored ticket and connect to hostname");
     println!("    /s show SAL capabilities");
     println!("Example:- client www.bbc.co.uk");
 }
@@ -223,12 +224,15 @@ fn main() {
         return;
     }
 
-    if args[1].as_str() == "/r" {
+    let mut ip=1;
+    if args[ip].as_str() == "/r" {
         println!("Ticket removed");
         remove_ticket();
-        return;
+        ip+=1; if ip>=args.len() {
+            return;
+        }   
     }
-    if args[1].as_str() == "/s" {
+    if args[ip].as_str() == "/s" {
         let mut nt:[u16;20]=[0;20];
         println!("Cryptography by {}",sal::name());
         println!("SAL supported Key Exchange groups");
@@ -297,13 +301,13 @@ fn main() {
     let mut have_psk=false;
     let psk:[u8;16]=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]; // fake a pre-shared key
     
-    if args[1].as_str() == "/p" { // psk label is in args[2]
+    if args[ip].as_str() == "/p" { // psk label is in args[2]
         println!("PSK mode selected");
         have_psk=true;
     }
 
     let mut localhost=false;
-    if args[1].as_str()=="localhost" || have_psk {
+    if args[ip].as_str()=="localhost" || have_psk {
         localhost=true;
     }
 
@@ -313,15 +317,15 @@ fn main() {
         host="localhost";
         fullhost="localhost:4433";
     } else {
-        let hn=args[1].as_str();
+        let hn=args[ip].as_str();
         let hlen=hn.len();
 
         if let Some(_index)=hn.find(':') { // already has a port
         } else {
             let port: &str = ":443";
-            args[1].push_str(port);
+            args[ip].push_str(port);
         }
-        fullhost = &args[1].as_str();
+        fullhost = &args[ip].as_str();
         host=&fullhost[0..hlen];
     }
 
