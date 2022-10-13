@@ -12,12 +12,6 @@
 #include "tls1_3.h" 
 #include "tls_client_recv.h"
 
-/**	@brief read milliseconds from a stop-watch 
- *
-	@return milliseconds read from stop-watch
- */
-extern unsigned long millis();
-
 /**	@brief parse a received ticket octad into a ticket structure 
  *
 	@param TICK the input ticket octad

@@ -6,6 +6,23 @@
 #include "tls_octads.h"
 //#include <stdio.h>
 
+// read milliseconds from a stop-watch
+// (Arduino has a built in function with the same name)
+#ifndef TLS_ARDUINO
+#include <sys/time.h>
+
+unsigned long millis()
+{
+    unsigned long milli_time, seconds, useconds;
+    struct timeval stop_watch;
+    gettimeofday(&stop_watch, NULL);
+    seconds=stop_watch.tv_sec;
+    useconds=stop_watch.tv_usec;
+    milli_time=((seconds) * 1000 + useconds/1000);
+    return milli_time;
+}
+#endif
+
 /* appends integer x of length len bytes to octad */
 void OCT_append_int(octad *y, unsigned int x, int len)
 {

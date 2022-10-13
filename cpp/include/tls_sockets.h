@@ -81,8 +81,8 @@ private:
         return sock;
     }
 
-
 public:
+
     bool connect(char *host,int port) {
         if(!this->is_af_unix) {
             char ip[40];

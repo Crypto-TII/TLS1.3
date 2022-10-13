@@ -12,6 +12,12 @@
 
 #include <stddef.h>
 
+/**	@brief read milliseconds from a stop-watch 
+ *
+	@return milliseconds read from stop-watch
+ */
+extern unsigned long millis();
+
 /**
 	@brief Safe representation of an octad
 */
