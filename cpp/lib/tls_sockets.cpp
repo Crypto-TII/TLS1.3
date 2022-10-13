@@ -124,8 +124,6 @@ void clearsoc(Socket &client,octad *IO)
 
 #endif
 
-
-
 // get expected bytes
 int getBytes(Socket *client,char *b,int expected)
 {

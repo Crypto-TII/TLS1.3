@@ -4,6 +4,9 @@
 use std::net::{TcpStream};
 use std::io::{Write};
 use std::time::{SystemTime, UNIX_EPOCH};
+//use std::time::Duration;
+//use std::thread;
+
 
 use zeroize::Zeroize;
 
@@ -303,7 +306,19 @@ impl SESSION {
             self.k_send.increment_crypto_context(); //increment iv
             ptr=utils::append_bytes(&mut self.io,ptr,&tag[0..taglen]);
         }
-        self.sockptr.write(&self.io[0..ptr]).unwrap();
+
+// trying to create TCP fragmentation
+//self.sockptr.set_nodelay(true);
+//        if ptr>20 {
+//            self.sockptr.write(&self.io[0..10]).unwrap();
+//let ten_millis = Duration::from_millis(1000);
+
+
+//thread::sleep(ten_millis);
+//            self.sockptr.write(&self.io[10..ptr]).unwrap();
+//        } else {
+            self.sockptr.write(&self.io[0..ptr]).unwrap();
+//        }
         self.clean_io();
     }   
 
@@ -602,6 +617,12 @@ impl SESSION {
         r.val=END_OF_EARLY_DATA as usize;
         return r;
     }
+
+// Protocol messages can be fragmented, and arrive as multiple records. 
+// Record contents are appended to the input buffer. 
+// Messages are read from the input buffer, and on reaching the end of the buffer, 
+// new records are pulled in to complete a message. 
+// Most records must be decrypted before being appended to the message buffer.
 
 /// Receive a single record. Could be fragment of a full message. Could be encrypted.
 /// Returns +ve type of record, or negative error.

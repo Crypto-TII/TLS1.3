@@ -69,12 +69,18 @@ ret parseInt(octad *M,int len,int &ptr)
 // ALL Server to Client records arrive via this function
 // Basic function for reading in a record, which may be only contain a fragment of a larger message
 
+// Protocol messages can be fragmented, and arrive as multiple records. 
+// Record contents are appended to the input buffer. 
+// Messages are read from the input buffer, and on reaching the end of the buffer, 
+// new records are pulled in to complete a message. 
+// Most records must be decrypted before being appended to the message buffer.
+
 // get another fragment of server response, in the form of a record. Record type encoded in its header
 // output message body to IO
 // If record is encrypted, decrypt and authenticate it
 // append its contents to the end of IO
 // returns record type, ALERT, APPLICATION or HSHAKE (or pseudo type TIMED_OUT)
-int getServerFragment(TLS_session *session)
+int getServerRecord(TLS_session *session)
 {
     int i,rtn,left,pos,rlen,taglen;
     char rh[5];
@@ -173,7 +179,7 @@ ret parseIntorPull(TLS_session *session,int len)
     ret r=parseInt(&session->IO,len,session->ptr);
     while (r.err)
     { // not enough bytes in IO - Pull in some more
-        int rtn=getServerFragment(session); 
+        int rtn=getServerRecord(session); 
         if (rtn!=HSHAKE) {  // Bad input from server (Authentication failure? Wrong record type?)
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IO.val[1];
@@ -190,7 +196,7 @@ ret parseoctadorPull(TLS_session *session,octad *O,int len)
     ret r=parseoctad(O,len,&session->IO,session->ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
-        int rtn=getServerFragment(session);
+        int rtn=getServerRecord(session);
         if (rtn!=HSHAKE) {
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IO.val[1];
@@ -207,7 +213,7 @@ ret parsebytesorPull(TLS_session *session,char *o,int len)
     ret r=parsebytes(o,len,&session->IO,session->ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
-        int rtn=getServerFragment(session);
+        int rtn=getServerRecord(session);
         if (rtn!=HSHAKE) {
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IO.val[1];
@@ -224,7 +230,7 @@ ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
     ret r=parseoctadptr(O,len,&session->IO,session->ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
-        int rtn=getServerFragment(session); 
+        int rtn=getServerRecord(session); 
         if (rtn!=HSHAKE) {
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IO.val[1];

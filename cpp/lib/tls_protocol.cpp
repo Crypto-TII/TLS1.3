@@ -938,7 +938,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
     {
         log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
         OCT_kill(&session->IO); session->ptr=0;
-        type=getServerFragment(session);  // get first fragment to determine type
+        type=getServerRecord(session);  // get first fragment to determine type
         if (type<0)
             return type;   // its an error
         if (type==TIMED_OUT)

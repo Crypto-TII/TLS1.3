@@ -59,7 +59,7 @@ extern ret parseoctadptr(octad *E,int len,octad *M,int &ptr);
 	@param session the TLS session structure
 	@return a positive indication of the record type, or a negative error return
  */
-extern int getServerFragment(TLS_session *session);
+extern int getServerRecord(TLS_session *session);
 
 /**	@brief Parse out an unsigned integer from a pointer into an octad, if necessary pulling in a new fragment
  *

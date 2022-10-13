@@ -596,6 +596,13 @@ impl SESSION {
         return r;
     }
 
+
+// Protocol messages can be fragmented, and arrive as multiple records. 
+// Record contents are appended to the input buffer. 
+// Messages are read from the input buffer, and on reaching the end of the buffer, 
+// new records are pulled in to complete a message. 
+// Most records must be decrypted before being appended to the message buffer.
+
 /// Receive a single record. Could be fragment of a full message. Could be encrypted.
 /// Returns +ve type of record, or negative error.
 // should I check version? RFC - "MUST be ignored for all purposes"
