@@ -562,23 +562,28 @@ impl SESSION {
             r.err=WRONG_MESSAGE;
             return r;
         }
-        let mut r=self.parse_int_pull(3); let mut len=r.val; if r.err!=0 {return r;}         // message length   
+        let mut r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}         // message length   
         log(IO_DEBUG,"Certificate Chain Length= ",len as isize,None);
         r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r;} 
         if nb!=0x00 {
             r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
             return r;
         }
-        r=self.parse_int_pull(3); len=r.val; if r.err!=0 {return r;}   // get length of certificate chain
-	    if len==0 {
+        r=self.parse_int_pull(3); let tlen=r.val; if r.err!=0 {return r;}   // get length of certificate chain
+	    if tlen==0 {
 		    r.err=EMPTY_CERT_CHAIN;
             self.running_hash_io();
 		    return r;
 	    }
+	    if tlen+4!=len {
+		    r.err=BAD_CERT_CHAIN;
+            self.running_hash_io();
+		    return r;
+	    }
         let start=self.ptr;
-        r=self.parse_pull(len); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
+        r=self.parse_pull(tlen); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
 // Update Transcript hash
-        r.err=certchain::check_certchain(&self.io[start..start+len],None,cpk,cpklen,&mut self.clientid,&mut self.cidlen); 
+        r.err=certchain::check_certchain(&self.io[start..start+tlen],None,cpk,cpklen,&mut self.clientid,&mut self.cidlen); 
         self.running_hash_io();
         r.val=CERTIFICATE as usize;
         return r;
@@ -637,12 +642,18 @@ impl SESSION {
 
         if rh[0]==ALERT { // scrub iobuffer, and just leave alert code
             let left=socket::get_int16(&mut self.sockptr);
+            if left!=2 {
+                return BAD_RECORD;
+            }
             socket::get_bytes(&mut self.sockptr,&mut self.io[0..left]); self.iolen=left;
             return ALERT as isize;
         }
         if rh[0]==CHANGE_CIPHER { // read it, and ignore it
             let mut sccs:[u8;10]=[0;10];
             let left=socket::get_int16(&mut self.sockptr);
+            if left!=1 {
+                return BAD_RECORD;
+            }
             socket::get_bytes(&mut self.sockptr,&mut sccs[0..left]);
             socket::get_bytes(&mut self.sockptr,&mut rh[0..3]);
         }

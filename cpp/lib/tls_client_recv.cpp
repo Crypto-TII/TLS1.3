@@ -98,6 +98,7 @@ int getServerRecord(TLS_session *session)
     if (RH.val[0]==ALERT)
     {  // plaintext alert
         left=getInt16(session->sockptr);
+		if (left!=2) return BAD_RECORD;                     // ** RM
         getOctad(session->sockptr,&session->IO,left);
         return ALERT;
     }
@@ -106,6 +107,7 @@ int getServerRecord(TLS_session *session)
         char sccs[10];
         //octad SCCS={0,sizeof(sccs),sccs};
         left=getInt16(session->sockptr);
+		if (left!=1) return BAD_RECORD;					// ** RM
         //OCT_append_octad(&SCCS,&RH);
         //OCT_append_int(&SCCS,left,2);
         getBytes(session->sockptr,sccs/*&SCCS.val[5]*/,left);
@@ -305,7 +307,7 @@ ret seeWhatsNext(TLS_session *session)
 ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee_status *enc_ext_resp)
 {
     ret r;
-    int nb,left,ext,len,tlen,mfl;//,ptr=0;
+    int nb,left,ext,len,tlen,xlen,mfl;//,ptr=0;
     int unexp=0;
     //session->ptr=0;
     //OCT_kill(&session->IO); // clear IO buffer
@@ -383,8 +385,13 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 
 
         case APP_PROTOCOL :
-            r=parseIntorPull(session,2); mfl=r.val; if (r.err) return r;
+            r=parseIntorPull(session,2); xlen=r.val; if (r.err) return r;
             r=parseIntorPull(session,1); mfl=r.val; if (r.err) return r;
+			if (tlen!=xlen+2 || xlen!=mfl+1)										// ** RM
+			{
+                r.err=UNRECOGNIZED_EXT;
+                return r;
+			}
             r=parseoctadorPull(session,NULL,mfl);  if (r.err) return r; // ALPN code - send to NULL -- assume its the one I asked for
             len-=tlen;
             enc_ext_resp->alpn=true;
@@ -466,11 +473,12 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
     {
         r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
         len-=2;
+        r=parseIntorPull(session,2); tlen=r.val; if (r.err) return r; 
+        len-=2;  
         switch (ext)
         {
         case SIG_ALGS :
-            r=parseIntorPull(session,2); tlen=r.val; if (r.err) return r; 
-            len-=2;  
+
             r=parseIntorPull(session,2); nalgs=r.val/2; if (r.err) return r;
             len-=2;
             for (i=0;i<nalgs;i++)
@@ -486,8 +494,6 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
             if (nalgs>TLS_MAX_SUPPORTED_SIGS) nalgs=TLS_MAX_SUPPORTED_SIGS;
             break;
         default:    // ignore all other extensions
-            r=parseIntorPull(session,2); tlen=r.val; 
-            len-=2;  // length of extension
             //r=parseoctadorPull(session->sockptr,&U,tlen,ptr,recv);   // to look at extension
             //printf("Unexpected Extension= "); OCT_output(&U);
             len-=tlen; session->ptr+=tlen; // skip over it
@@ -514,7 +520,7 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
 ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG)
 {
     ret r;
-    int nb,len;//,ptr=0;
+    int nb,len,tlen;//,ptr=0;
     octad CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
     CERTCHAIN.len=0;
 
@@ -536,16 +542,20 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG
         r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
         return r;
     }
-    r=parseIntorPull(session,3); len=r.val; if (r.err) return r;    // get length of certificate chain
+    r=parseIntorPull(session,3); tlen=r.val; if (r.err) return r;    // get length of certificate chain
 
-	if (len==0)
+	if (tlen==0)
 	{
 		r.err=EMPTY_CERT_CHAIN;
 		return r;
 	}
+	if (tlen+4!=len)															// ** RM
+	{
+		r.err=BAD_CERT_CHAIN;
+		return r;
+	}
 
-
-    r=parseoctadorPullptrX(session,&CERTCHAIN,len); if (r.err) return r; // get pointer to certificate chain
+    r=parseoctadorPullptrX(session,&CERTCHAIN,tlen); if (r.err) return r; // get pointer to certificate chain
 
 // Update Transcript hash and rewind IO buffer
     runningHashIO(session);     // Got to do this here, as checkServerCertChain may modify IO buffer contents
@@ -739,16 +749,28 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
         {
         case KEY_SHARE :
             { // actually mandatory
+				int glen=2;
                 r=parseIntorPull(session,2); kex=r.val; if (r.err) break;
                 if (!retry)
                 { // its not a retry request
                     r=parseIntorPull(session,2); pklen=r.val; if (r.err) break;   // FIX this first for HRR
                     r=parseoctadorPull(session,PK,pklen); 
+					glen+=(2+pklen);
                 }
+				if (tmplen!=glen)														// ** RM
+				{
+					r.err=BAD_HELLO;
+					return r;
+				}
                 break;
             }
         case PRESHARED_KEY :
             { // Indicate acceptance of pre-shared key
+				if (tmplen!=2)															// ** RM
+				{
+					r.err=BAD_HELLO;
+					return r;
+				}
                 r=parseIntorPull(session,2); pskid=r.val;
                 break;
             }
@@ -759,6 +781,11 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
             }
         case TLS_VER :
             { // report TLS version
+				if (tmplen!=2)															// ** RM
+				{
+					r.err=BAD_HELLO;
+					return r;
+				}
                 r=parseIntorPull(session,2); tls=r.val; if (r.err) break; // get TLS version
                 if (tls!=TLS1_3) r.err=NOT_TLS1_3;
                 break;

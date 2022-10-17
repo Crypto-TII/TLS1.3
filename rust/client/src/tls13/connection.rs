@@ -530,10 +530,10 @@ impl SESSION {
         while len>0 {
             r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;}
             len-=2;
+            r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
+            len-=2;
             match ext {
                 SIG_ALGS => {
-                    r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
-                    len-=2;
                     r=self.parse_int_pull(2); algs=r.val/2; if r.err!=0 {return r;}
                     len-=2;
                     for i in 0..algs {
@@ -552,8 +552,6 @@ impl SESSION {
                     }
                 }
                 _ => {
-                    r=self.parse_int_pull(2); let tlen=r.val;
-                    len-=2;
                     len-=tlen; self.ptr+=tlen;
                     unexp+=1;
                 }
@@ -615,12 +613,18 @@ impl SESSION {
         }
         if rh[0]==ALERT {
             let left=socket::get_int16(&mut self.sockptr);
+            if left!=2 {
+                return BAD_RECORD;
+            }
             socket::get_bytes(&mut self.sockptr,&mut self.io[0..left]); self.iolen=left;
             return ALERT as isize;
         }
         if rh[0]==CHANGE_CIPHER { // read it, and ignore it
             let mut sccs:[u8;10]=[0;10];
             let left=socket::get_int16(&mut self.sockptr);
+            if left!=1 {
+                return BAD_RECORD;
+            }
             socket::get_bytes(&mut self.sockptr,&mut sccs[0..left]);
             socket::get_bytes(&mut self.sockptr,&mut rh[0..3]);
         }
@@ -750,6 +754,7 @@ impl SESSION {
             left-=4+extlen;
             match ext {
                 KEY_SHARE => {
+                    let mut glen=2;
                     r=self.parse_int_pull(2); *kex=r.val as u16; if r.err!=0 {return r;}
                     if !retry { // its not a retry request
                         r=self.parse_int_pull(2); let pklen=r.val; if r.err!=0 {return r;}
@@ -758,15 +763,28 @@ impl SESSION {
                             return r;
                         }
                         r=self.parse_bytes_pull(pk);
+                        glen+=2+pklen;
+                    }
+                    if extlen!=glen {
+                        r.err=BAD_HELLO;
+                        return r;
                     }
                 },
                 PRESHARED_KEY => {
+                    if extlen!=2 {
+                        r.err=BAD_HELLO;
+                        return r;
+                    }
                     r=self.parse_int_pull(2); *pskid=r.val as isize;
                 },
                 COOKIE => {
                     r=self.parse_bytes_pull(&mut cookie[0..extlen]); *cklen=extlen;
                 },
                 TLS_VER => {
+                    if extlen!=2 {
+                        r.err=BAD_HELLO;
+                        return r;
+                    }
                     r=self.parse_int_pull(2); let tls=r.val; if r.err!=0 {return r;}
                     if tls!=TLS1_3 {
                         r.err=NOT_TLS1_3;
@@ -874,8 +892,12 @@ impl SESSION {
                 },
                 APP_PROTOCOL => {
                     let mut name:[u8;256]=[0;256];
-                    r=self.parse_int_pull(2); if r.err!=0 {return r;}
+                    r=self.parse_int_pull(2); let xlen=r.val; if r.err!=0 {return r;}
                     r=self.parse_int_pull(1); let mfl=r.val; if r.err!=0 {return r;}
+			        if tlen!=xlen+2 || xlen!=mfl+1 {
+                        r.err=UNRECOGNIZED_EXT;
+                        return r;
+			        }
                     r=self.parse_bytes_pull(&mut name[0..mfl]); if r.err!=0 {return r;}
                     len-=tlen;
                     response.alpn=true;
@@ -924,25 +946,30 @@ impl SESSION {
             return r;
         }
 
-        r=self.parse_int_pull(3); let mut len=r.val; if r.err!=0 {return r;}         // message length   
+        r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}         // message length   
         log(IO_DEBUG,"Certificate Chain Length= ",len as isize,None);
         r=self.parse_int_pull(1); let rc=r.val; if r.err!=0 {return r;} 
         if rc!=0x00 {
             r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
             return r;
         }
-        r=self.parse_int_pull(3); len=r.val; if r.err!=0 {return r;}   // get length of certificate chain
-	    if len==0 {
+        r=self.parse_int_pull(3); let tlen=r.val; if r.err!=0 {return r;}   // get length of certificate chain
+
+	    if tlen==0 {
 		    r.err=EMPTY_CERT_CHAIN;
 		    return r;
 	    }
+	    if tlen+4!=len {
+		    r.err=BAD_CERT_CHAIN;
+		    return r;
+	    }
         let start=self.ptr;
-        r=self.parse_pull(len); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
+        r=self.parse_pull(tlen); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
 // Update Transcript hash
 
         let mut identity:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];    // extracting cert identity - but not sure what to dowith it!
         let mut idlen=0;
-        r.err=certchain::check_certchain(&self.io[start..start+len],Some(&self.hostname[0..self.hlen]),spk,spklen,&mut identity,&mut idlen);
+        r.err=certchain::check_certchain(&self.io[start..start+tlen],Some(&self.hostname[0..self.hlen]),spk,spklen,&mut identity,&mut idlen);
         self.running_hash_io();
 
         r.val=CERTIFICATE as usize;
