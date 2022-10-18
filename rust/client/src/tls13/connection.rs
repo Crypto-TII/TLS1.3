@@ -347,6 +347,7 @@ impl SESSION {
             return true;
         }
         if r.err == ALERT as isize {
+            self.send_alert(CLOSE_NOTIFY);
             logger::log_alert(r.val as u8);
             return true;
         }

@@ -246,7 +246,7 @@ ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
 // Could have (a) received an alert, or (b) had problem with response, so need to send an alert
 // test for a bad response, log what happened and act accordingly
 // Very probably requires sending an alert to the server, and aborting
-// If Alert received, log it, and abort
+// If Alert received, log it, send close_notify, and abort
 bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r)
 {
     logServerResponse(r);
@@ -262,6 +262,7 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
     if (r.err==ALERT)
     { // received an alert from the Server - abort
         log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
+		sendAlert(session,CLOSE_NOTIFY);  // Im closing down
         logAlert(r.val);
         return true;
     }
