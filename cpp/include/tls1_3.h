@@ -55,6 +55,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
 #define ALLOW_SELF_SIGNED		 /**< allow self-signed server cert */
+//#define NO_CERT_CHECKS		 /**< Dont do any checks on server certs */
 #define TRY_EARLY_DATA           /**< Try to send early data on resumptions */
 
 // Note that the IOBUFF, Certificates and crypto keys can be quite large, and therefore maybe better taken from the heap
@@ -282,6 +283,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define EMPTY_CERT_CHAIN -18            /**< Empty Certificate Message */
 #define SELF_SIGNED_CERT -20			/**< Self signed certificate */
 #define BAD_MESSAGE -23                 /**< Badly formed message */
+#define CERT_VERIFY_FAIL -24            /**< Certificate Verification failure */
 
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */
@@ -294,6 +296,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define PROTOCOL_VERSION 0x46           /**< Wrong TLS version */
 #define DECODE_ERROR 0x32               /**< Decode error alert */
 #define RECORD_OVERFLOW 0x16            /**< Record Overflow */
+#define BAD_RECORD_MAC 0x14				/**< Bad Record Mac */
 #define CLOSE_NOTIFY 0x00               /**< Orderly shut down of connection */
 
 #define LOG_OUTPUT_TRUNCATION 256       /**< Output Hex digits before truncation */

@@ -187,6 +187,7 @@ pub const SELF_SIGNED_CERT:isize= -20;            // Self-signed certificate det
 pub const TIME_OUT:isize= -21;                    // time out
 pub const ALERT_RECEIVED:isize=-22;               // alert received
 pub const BAD_MESSAGE:isize=-23;                  // Badly formed mesage
+pub const CERT_VERIFY_FAIL:isize= -24;            // Certificate Verification failure */
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -213,6 +214,7 @@ pub const CERTIFICATE_REQUIRED: u8 = 0x74;        // Certificate Expected
 pub const PROTOCOL_VERSION: u8 =  0x46;           // Wrong TLS version 
 pub const DECODE_ERROR: u8 =  0x32;               // Decode error alert 
 pub const RECORD_OVERFLOW: u8 =  0x16;            // Record Overflow 
+pub const BAD_RECORD_MAC: u8 = 0x14;			  // Bad Record Mac 
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
 
 /// Universal Hash Function structure 
@@ -239,7 +241,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         WRONG_MESSAGE => return UNEXPECTED_MESSAGE,
         BAD_CERT_CHAIN => return BAD_CERTIFICATE,
         MISSING_REQUEST_CONTEXT => return ILLEGAL_PARAMETER,
-        AUTHENTICATION_FAILURE => return DECRYPT_ERROR,
+        AUTHENTICATION_FAILURE => return BAD_RECORD_MAC,
         BAD_RECORD => return DECODE_ERROR,
         BAD_TICKET => return ILLEGAL_PARAMETER,
         NOT_EXPECTED => return UNSUPPORTED_EXTENSION,
@@ -252,6 +254,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         TIME_OUT => return CLOSE_NOTIFY,
         ALERT_RECEIVED => return CLOSE_NOTIFY,
         BAD_MESSAGE => return DECODE_ERROR,
+        CERT_VERIFY_FAIL => return DECRYPT_ERROR,
         _ => return ILLEGAL_PARAMETER   
     }
 }

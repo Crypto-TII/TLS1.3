@@ -397,7 +397,7 @@ int alert_from_cause(int rtn)
     case MISSING_REQUEST_CONTEXT:
         return ILLEGAL_PARAMETER;
     case AUTHENTICATION_FAILURE:
-        return DECRYPT_ERROR;
+        return BAD_RECORD_MAC;
     case BAD_RECORD:
         return DECODE_ERROR;
     case BAD_TICKET:
@@ -414,6 +414,8 @@ int alert_from_cause(int rtn)
 		return ILLEGAL_PARAMETER;
 	case MAX_EXCEEDED:
 		return RECORD_OVERFLOW;
+	case CERT_VERIFY_FAIL:
+		return DECRYPT_ERROR;
 	case BAD_MESSAGE:
 	case EMPTY_CERT_CHAIN:
 		return DECODE_ERROR;

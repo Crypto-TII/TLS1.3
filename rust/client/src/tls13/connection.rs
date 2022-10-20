@@ -486,6 +486,20 @@ impl SESSION {
         r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;} // find message length
 
         r=self.parse_int_pull(2); *sigalg=r.val as u16; if r.err!=0 {return r;}
+
+        let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
+        let nsa=sal::sigs(&mut sig_algs);
+        let mut offered=false;
+        for i in 0..nsa {
+            if *sigalg==sig_algs[i] {
+                offered=true;
+            }
+        }
+        if !offered {
+            r.err=CERT_VERIFY_FAIL;
+            return r;
+        }
+
         r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
         r=self.parse_bytes_pull(&mut scvsig[0..len]); if r.err!=0 {return r;}
         left-=4+len;

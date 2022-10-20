@@ -561,6 +561,11 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG
 // Update Transcript hash and rewind IO buffer
     runningHashIO(session);     // Got to do this here, as checkServerCertChain may modify IO buffer contents
     r.err=checkServerCertChain(&CERTCHAIN,session->hostname,PUBKEY,SIG);
+
+#ifdef NO_CERT_CHECKS
+	r.err=0;
+#endif
+
     rewindIO(session); // now save to rewind
 
     r.val=CERTIFICATE;
@@ -572,6 +577,9 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
 {
     ret r;
     int nb,left,len;//,ptr=0;
+	int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
+	int nsa=SAL_sigs(sigAlgs);
+
 
     //session->ptr=0;
     //r=parseIntorPull(session,1,ptr); // get message type
@@ -592,6 +600,16 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
     //r=parseoctadorPull(session,SCVSIG,len,ptr); if (r.err) return r;
    
     r=parseIntorPull(session,2); sigalg=r.val; if (r.err) return r; // may for example be 0804 - RSA-PSS-RSAE-SHA256
+
+	bool offered=false;
+	for (int i=0;i<nsa;i++)
+		if (sigalg==sigAlgs[i]) offered=true;
+	if (!offered)
+	{
+		r.err=CERT_VERIFY_FAIL;
+		return r;
+	}
+
     r=parseIntorPull(session,2); len=r.val; if (r.err) return r;    // sig data follows
     r=parseoctadorPull(session,SCVSIG,len); if (r.err) return r;
 
