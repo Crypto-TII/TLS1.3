@@ -479,6 +479,7 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
 /// Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
 pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) -> bool {
     //let mut csk:[u8;config::MAX_KEX_SECRET_KEY]=[0;config::MAX_KEX_SECRET_KEY];
+    let mut res=0;
     if group==config::X25519 {
         use mcore::c25519::ecdh;
         let mut csk:[u8;32]=[0;32];
@@ -493,7 +494,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
             rpk[i]=cpk[i]
         }
         rpk[0..32].reverse();
-        ecdh::ecpsvdp_dh(&csk,&rpk[0..32],&mut ss[0..32],0);
+        res=ecdh::ecpsvdp_dh(&csk,&rpk[0..32],&mut ss[0..32],0);
         ss[0..32].reverse();
         csk.zeroize();
     }
@@ -502,7 +503,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         let mut csk:[u8;32]=[0;32];
     	random_bytes(32,&mut csk);
     	ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[0..65]);
-        ecdh::ecpsvdp_dh(&csk,&cpk[0..65],&mut ss[0..32],0);
+        res=ecdh::ecpsvdp_dh(&csk,&cpk[0..65],&mut ss[0..32],0);
         csk.zeroize();
     }
     if group==config::SECP384R1 {
@@ -510,7 +511,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         let mut csk:[u8;48]=[0;48];
     	random_bytes(48,&mut csk);
     	ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[0..97]);
-        ecdh::ecpsvdp_dh(&csk,&cpk[0..97],&mut ss[0..48],0);
+        res=ecdh::ecpsvdp_dh(&csk,&cpk[0..97],&mut ss[0..48],0);
         csk.zeroize();
     }
     if group==config::KYBER768 {
@@ -558,7 +559,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
             rpk[i]=cpk[startpk+i]
         }
         rpk[0..32].reverse();
-        ecdh::ecpsvdp_dh(&csk,&rpk[0..32],&mut ss[startss..startss+32],0);
+        res=ecdh::ecpsvdp_dh(&csk,&rpk[0..32],&mut ss[startss..startss+32],0);
         ss[startss..startss+32].reverse();
         csk.zeroize();
 
@@ -569,7 +570,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
     for i in 1..ss.len() {
         ors |= ss[i];
     }
-    if ors==0 {
+    if ors==0 || res!=0 {
         return false;
     }
     return true;    
@@ -577,6 +578,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
 
 /// Generate shared secret SS from secret key SK and public key PK
 pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> bool {
+    let mut res=0;
     if group==config::X25519 {
         use mcore::c25519::ecdh;
         let mut rpk:[u8;32]=[0;32];
@@ -584,17 +586,17 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
             rpk[i]=pk[i]
         }
         rpk[0..32].reverse();
-        ecdh::ecpsvdp_dh(&sk[0..32],&rpk[0..32],&mut ss[0..32],0);
+        res=ecdh::ecpsvdp_dh(&sk[0..32],&rpk[0..32],&mut ss[0..32],0);
         ss[0..32].reverse();
     }
     if group==config::SECP256R1 {
         use mcore::nist256::ecdh;
-        ecdh::ecpsvdp_dh(&sk[0..32],&pk[0..65],&mut ss[0..32],0);
+        res=ecdh::ecpsvdp_dh(&sk[0..32],&pk[0..65],&mut ss[0..32],0);
 
     }
     if group==config::SECP384R1 {
         use mcore::nist384::ecdh;
-        ecdh::ecpsvdp_dh(&sk[0..48],&pk[0..97],&mut ss[0..48],0);
+        res=ecdh::ecpsvdp_dh(&sk[0..48],&pk[0..97],&mut ss[0..48],0);
     }
     if group==config::KYBER768 {
         use mcore::kyber;
@@ -623,7 +625,7 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
             rpk[i]=pk[startct+i]
         }
         rpk[0..32].reverse();
-        ecdh::ecpsvdp_dh(&sk[startsk..startsk+32],&rpk[0..32],&mut ss[startss..startss+32],0);
+        res=ecdh::ecpsvdp_dh(&sk[startsk..startsk+32],&rpk[0..32],&mut ss[startss..startss+32],0);
         ss[startss..startss+32].reverse();
     }
 // all zeros is suspect...
@@ -631,7 +633,7 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
     for i in 1..ss.len() {
         ors |= ss[i];
     }
-    if ors==0 {
+    if ors==0 || res!=0 {
         return false;
     }
     return true;

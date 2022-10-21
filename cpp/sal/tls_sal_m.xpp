@@ -416,18 +416,19 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
     octet MC_SS=octad_to_octet(SS);
+    int res=0;
 
     if (group==X25519) {
         OCT_reverse(&MC_PK); // to big endian
-        C25519::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
+        res=C25519::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
         OCT_reverse(&MC_PK); // back again
         OCT_reverse(&MC_SS);
     }
     if (group==SECP256R1) {
-        NIST256::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
+        res=NIST256::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
     }
     if (group==SECP384R1) {
-        NIST384::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
+        res=NIST384::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
     }
 #if CRYPTO_SETTING>=POST_QUANTUM
     if (group==KYBER768) {
@@ -443,7 +444,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
 
         OCT_reverse(&MYPK); // to big endian
-        C25519::ECP_SVDP_DH(&MYSK, &MYPK, &MYSS,0);
+        res=C25519::ECP_SVDP_DH(&MYSK, &MYPK, &MYSS,0);
         OCT_reverse(&MYPK); // back again
         OCT_reverse(&MYSS);
 
@@ -459,7 +460,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
 // all zeros is suspect...
     char ors=0;
     for (int i=0;i<SS->len;i++) ors|=SS->val[i];
-    if (ors==0) return false;
+    if (ors==0 || res!=0) return false;
     return true;
 
 }

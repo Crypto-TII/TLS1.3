@@ -508,6 +508,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
     octet MC_SS=octad_to_octet(SS);
+    int res=0;
 
     if (group==X25519) { // Use Thomas Pornin x25519 function
         OCT_reverse(&MC_SK); // to little-endian
@@ -523,7 +524,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         //NIST256::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
     }
     if (group==SECP384R1) {
-        NIST384::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
+        res=NIST384::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
     }
 #if CRYPTO_SETTING>=POST_QUANTUM
     if (group==KYBER768) {
@@ -555,7 +556,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
 // all zeros is suspect...
     char ors=0;
     for (int i=0;i<SS->len;i++) ors|=SS->val[i];
-    if (ors==0) return false;
+    if (ors==0 || res!=0) return false;
     return true;
 }
 
