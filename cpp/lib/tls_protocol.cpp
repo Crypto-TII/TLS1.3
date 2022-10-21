@@ -124,6 +124,8 @@ static int TLS13_exchange_hellos(TLS_session *session)
     octad HH={0,sizeof(hh),hh};          // Transcript hashes 
     char cook[TLS_MAX_COOKIE];
     octad COOK={0,sizeof(cook),cook};    // Cookie
+    char crn[32];
+    octad CRN = {0, sizeof(crn), crn};
 
     ee_status enc_ext_resp={false,false,false,false};  // encrypted extensions expectations
     ee_status enc_ext_expt={false,false,false,false};  // encrypted extensions responses
@@ -139,11 +141,13 @@ static int TLS13_exchange_hellos(TLS_session *session)
     log(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&CPK);
 
 // Client Hello
+    SAL_randomOctad(32,&CRN);
+
 // First build our preferred mix of client Hello extensions, based on our capabililities
 	buildExtensions(session,&EXT,&CPK,&enc_ext_expt,0);
 
 // create and send Client Hello octad
-    sendClientHello(session,TLS1_0,&CH,false,&EXT,0,false,true);  
+    sendClientHello(session,TLS1_0,&CH,&CRN,false,&EXT,0,false,true);  
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -220,14 +224,26 @@ static int TLS13_exchange_hellos(TLS_session *session)
         sendCCCS(session);  // send Client Cipher Change
 
 // create and send new Client Hello octad
-        sendClientHello(session,TLS1_2,&CH,false,&EXT,0,true,true);
+        sendClientHello(session,TLS1_2,&CH,&CRN,false,&EXT,0,true,true);
 //
 //
 //  ---------------------------------------------------> Resend Client Hello
 //
 //
         log(IO_DEBUG,(char *)"Client Hello re-sent\n",NULL,0,NULL);
-        rtn=getServerHello(session,kex,&COOK,&SPK,pskid);
+
+        int skex; // Server Key Exchange Group - should be same as kex
+        rtn=getServerHello(session,skex,&COOK,&SPK,pskid);
+        if (kex!=skex)
+        {
+            log(IO_DEBUG,(char *)"Server came back with wrong group\n",NULL,0,NULL); 
+            sendAlert(session,ILLEGAL_PARAMETER);
+            log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
+            return TLS_FAILURE;
+        }
 //
 //
 //  <---------------------------------------------------------- server Hello
@@ -624,6 +640,8 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad PSK={0,sizeof(psk),psk};      // Pre-shared key
     char bk[TLS_MAX_HASH];
     octad BK={0,sizeof(bk),bk};         // Binder key
+    char crn[32];
+    octad CRN = {0, sizeof(crn), crn};
 
     unsign32 time_ticket_received,time_ticket_used;
     int origin,lifetime=0;
@@ -677,6 +695,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     log(IO_DEBUG,(char *)"Client Public key= ",NULL,0,&CPK);  
 
 // Client Hello
+    SAL_randomOctad(32,&CRN);
 // First build standard client Hello extensions
 
 	int resmode=1;
@@ -703,7 +722,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     int extra=addPreSharedKeyExt(&EXT,age,&session->T.TICK,SAL_hashLen(hashtype)); // must be last extension..
 
 // create and send Client Hello octad
-    sendClientHello(session,TLS1_2,&CH,true,&EXT,extra,false,false);  // don't transmit yet - wait for binders
+    sendClientHello(session,TLS1_2,&CH,&CRN,true,&EXT,extra,false,false);  // don't transmit yet - wait for binders
 //
 //
 //   ----------------------------------------------------------> client Hello

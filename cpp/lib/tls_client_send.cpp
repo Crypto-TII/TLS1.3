@@ -162,11 +162,13 @@ void addEarlyDataExt(octad *EXT)
 }
 
 // Create 32-byte random octad
+/*
 int clientRandom(octad *RN)
 {
     SAL_randomOctad(32,RN);
     return 32;
 }
+*/
 
 // build cipher-suites octad from ciphers we support
 int cipherSuites(octad *CS,int ncs,int *ciphers)
@@ -232,10 +234,10 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
-void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agreed,octad *EXTENSIONS,int extra,bool resume,bool flush)
+void sendClientHello(TLS_session *session,int version,octad *CH,octad *CRN,bool already_agreed,octad *EXTENSIONS,int extra,bool resume,bool flush)
 {
-    char rn[32];
-    octad RN = {0, sizeof(rn), rn};
+    //char rn[32];
+    //octad RN = {0, sizeof(rn), rn};
     char cs[2+TLS_MAX_CIPHER_SUITES*2];
     octad CS = {0, sizeof(cs), cs};
 	int nsc;
@@ -251,7 +253,7 @@ void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agr
 		ciphers[0]=session->cipher_suite;
 	}
 
-    total+=clientRandom(&RN);
+    total+=32; // Random bytes clientRandom(&RN);
 	total+=33;
     if (!resume) { // if its a handshake resumption, re-use the old id?? Since its the same session?
         for (int i=0;i<32;i++)
@@ -265,7 +267,7 @@ void sendClientHello(TLS_session *session,int version,octad *CH,bool already_agr
     OCT_append_int(CH,total+extlen-2,3);   // 3
 
     OCT_append_int(CH,TLS1_2,2);           // 2
-    OCT_append_octad(CH,&RN);              // 32
+    OCT_append_octad(CH,CRN);              // 32
     OCT_append_byte(CH,32,1);        // 1   
     OCT_append_bytes(CH,session->id,32);              // 32
     OCT_append_octad(CH,&CS);              // 2+TLS_MAX_CIPHER_SUITES*2

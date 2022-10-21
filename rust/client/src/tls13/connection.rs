@@ -288,8 +288,8 @@ impl SESSION {
     }   
 
 /// Send Client Hello
-    pub fn send_client_hello(&mut self,version:usize,ch: &mut [u8],already_agreed: bool,ext: &[u8],extra: usize,resume: bool,flush: bool) -> usize {
-        let mut rn: [u8;32]=[0;32];
+    pub fn send_client_hello(&mut self,version:usize,ch: &mut [u8],crn: &[u8],already_agreed: bool,ext: &[u8],extra: usize,resume: bool,flush: bool) -> usize {
+        //let mut rn: [u8;32]=[0;32];
         let mut cs: [u8;2+2*MAX_CIPHER_SUITES]=[0;2+2*MAX_CIPHER_SUITES];
         let mut total=8;
         let mut ptr=0;
@@ -301,7 +301,7 @@ impl SESSION {
             nsc=1;
             ciphers[0]=self.cipher_suite;
         }
-        sal::random_bytes(32,&mut rn);
+        //sal::random_bytes(32,&mut rn);
         total+=32;
         if !resume {
             sal::random_bytes(32,&mut self.session_id);
@@ -312,7 +312,7 @@ impl SESSION {
         ptr=utils::append_byte(ch,ptr,CLIENT_HELLO,1);
         ptr=utils::append_int(ch,ptr,total+extlen-2,3);
         ptr=utils::append_int(ch,ptr,TLS1_2,2);
-        ptr=utils::append_bytes(ch,ptr,&rn[0..32]);
+        ptr=utils::append_bytes(ch,ptr,crn);
         ptr=utils::append_int(ch,ptr,32,1);
         ptr=utils::append_bytes(ch,ptr,&self.session_id);
         ptr=utils::append_bytes(ch,ptr,&cs[0..clen]);
@@ -1027,6 +1027,7 @@ impl SESSION {
         let mut spk: [u8; MAX_KEX_CIPHERTEXT]=[0;MAX_KEX_CIPHERTEXT]; // server key exchange public key/ciphertext
         let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
         let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
+        let mut crn: [u8;32]=[0;32];
 
 // Extract Ticket parameters
         //let lifetime=self.t.lifetime;
@@ -1087,6 +1088,7 @@ impl SESSION {
         log(IO_DEBUG,"Client Public Key= ",0,Some(pk_s));
 
 // Client Hello
+        sal::random_bytes(32,&mut crn);
 // First build standard client Hello extensions
         let mut resmode=1;
         if origin==EXTERNAL_PSK {
@@ -1108,7 +1110,7 @@ impl SESSION {
         extlen=extensions::add_presharedkey(&mut ext,extlen,age,&self.t.tick[0..self.t.tklen],hlen,&mut extra);
 
 // create and send Client Hello octad
-        let chlen=self.send_client_hello(TLS1_2,&mut ch,true,&ext[0..extlen],extra,false,false);  // don't transmit just yet - wait for binders
+        let chlen=self.send_client_hello(TLS1_2,&mut ch,&crn,true,&ext[0..extlen],extra,false,false);  // don't transmit just yet - wait for binders
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -1300,6 +1302,7 @@ impl SESSION {
         let mut cpk: [u8;MAX_KEX_PUBLIC_KEY]=[0;MAX_KEX_PUBLIC_KEY];
         let mut spk: [u8; MAX_KEX_CIPHERTEXT]=[0;MAX_KEX_CIPHERTEXT];
         let mut ss: [u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
+        let mut crn: [u8;32]=[0;32];
 
         log(IO_PROTOCOL,"Attempting Full Handshake\n",0,None);
         self.favourite_group=groups[0];   // start out with first one. May change on a handshake retry
@@ -1313,11 +1316,12 @@ impl SESSION {
         log(IO_DEBUG,"Client Public Key= ",0,Some(pk_s));
         let mut ext: [u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         let mut cookie: [u8;MAX_COOKIE]=[0;MAX_COOKIE];
-
+// build client hello
+        sal::random_bytes(32,&mut crn);
 // add chosen extensions
         let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,0);
 // build and transmit client hello
-        let mut chlen=self.send_client_hello(TLS1_0,&mut ch,false,&ext[0..extlen],0,false,true);
+        let mut chlen=self.send_client_hello(TLS1_0,&mut ch,&crn,false,&ext[0..extlen],0,false,true);
 //
 //
 //   ----------------------------------------------------------> client Hello
@@ -1390,7 +1394,7 @@ impl SESSION {
             }
             self.send_cccs();
 // send new client hello
-            chlen=self.send_client_hello(TLS1_2,&mut ch,true,&ext[0..extlen],0,true,true);
+            chlen=self.send_client_hello(TLS1_2,&mut ch,&crn,true,&ext[0..extlen],0,true,true);
 //
 //
 //  ---------------------------------------------------> Resend Client Hello
@@ -1400,7 +1404,16 @@ impl SESSION {
 // get new server hello
             pklen=sal::server_public_key_size(self.favourite_group);
             pk_s=&mut spk[0..pklen];
-            rtn=self.get_server_hello(&mut kex,&mut cookie,&mut cklen,pk_s,&mut pskid);
+
+            let mut skex=0;
+            rtn=self.get_server_hello(&mut skex,&mut cookie,&mut cklen,pk_s,&mut pskid);
+            if kex!=skex {
+                log(IO_DEBUG,"Server came back with wrong group\n",0,None);
+                self.send_alert(ILLEGAL_PARAMETER);
+                log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
+                return TLS_FAILURE;
+
+            }
 //
 //
 //  <---------------------------------------------------------- server Hello
