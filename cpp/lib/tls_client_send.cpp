@@ -416,6 +416,8 @@ int alert_from_cause(int rtn)
 		return RECORD_OVERFLOW;
 	case CERT_VERIFY_FAIL:
 		return DECRYPT_ERROR;
+	case BAD_HANDSHAKE:
+		return HANDSHAKE_FAILURE;
 	case BAD_MESSAGE:
 	case EMPTY_CERT_CHAIN:
 		return DECODE_ERROR;

@@ -197,8 +197,9 @@ extern void SAL_generateKeyPair(int group,octad *SK,octad *PK);
     @param SK the input client private key
     @param PK the input server public Key
     @param SS the output shared secret
+	@return false for all zeros, else true
  */
-extern void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS);
+extern bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS);
 
 
 /**	@brief Verify a generic TLS signature

@@ -1194,7 +1194,12 @@ impl SESSION {
         log(IO_DEBUG,"serverHello= ",0,Some(&self.io[0..self.iolen])); 
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
-        sal::generate_shared_secret(kex,csk_s,pk_s,ss_s); 
+        let nonzero=sal::generate_shared_secret(kex,csk_s,pk_s,ss_s); 
+        if !nonzero {
+            self.send_alert(CLOSE_NOTIFY);
+            self.clean();
+            return TLS_FAILURE;
+        }
         log(IO_DEBUG,"Shared Secret= ",0,Some(ss_s));
 
         self.derive_handshake_secrets(ss_s,es_s,hh_s); 
@@ -1425,7 +1430,12 @@ impl SESSION {
         let ss_s=&mut ss[0..sslen];
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
-        sal::generate_shared_secret(self.favourite_group,csk_s,pk_s,ss_s);
+        let nonzero=sal::generate_shared_secret(self.favourite_group,csk_s,pk_s,ss_s);
+        if !nonzero {
+            self.send_alert(CLOSE_NOTIFY);
+            self.clean();
+            return TLS_FAILURE;
+        }
         log(IO_DEBUG,"Shared Secret= ",0,Some(ss_s));
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret

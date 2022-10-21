@@ -262,7 +262,16 @@ static int TLS13_exchange_hellos(TLS_session *session)
     transcriptHash(session,&HH);        // HH = hash of clientHello+serverHello
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
-    SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
+    bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
+	if (!nonzero)
+	{ // all zero shared secret??
+        sendAlert(session,CLOSE_NOTIFY);
+        TLS13_clean(session);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
+        return TLS_FAILURE;
+	}
     log(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
@@ -790,8 +799,18 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     log(IO_DEBUG,(char *)"serverHello= ",NULL,0,&session->IO); 
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
-    SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
+    bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
+	if (!nonzero)
+	{ // all zero shared secret??
+        sendAlert(session,CLOSE_NOTIFY);
+        TLS13_clean(session);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
+        return TLS_FAILURE;
+	}
     log(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
+
 
     deriveHandshakeSecrets(session,&SS,&ES,&HH); 
     createRecvCryptoContext(session,&session->STS);

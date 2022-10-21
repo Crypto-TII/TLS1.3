@@ -284,6 +284,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define SELF_SIGNED_CERT -20			/**< Self signed certificate */
 #define BAD_MESSAGE -23                 /**< Badly formed message */
 #define CERT_VERIFY_FAIL -24            /**< Certificate Verification failure */
+#define BAD_HANDSHAKE -26               /**< Could not agree */
 
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */
@@ -297,6 +298,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define DECODE_ERROR 0x32               /**< Decode error alert */
 #define RECORD_OVERFLOW 0x16            /**< Record Overflow */
 #define BAD_RECORD_MAC 0x14				/**< Bad Record Mac */
+#define HANDSHAKE_FAILURE 0x28			/**< Could not agree */
 #define CLOSE_NOTIFY 0x00               /**< Orderly shut down of connection */
 
 #define LOG_OUTPUT_TRUNCATION 256       /**< Output Hex digits before truncation */

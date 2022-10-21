@@ -1025,7 +1025,11 @@ impl SESSION {
             self.running_synthetic_hash_io();
         } else {
             let mut spk:[u8;MAX_KEX_CIPHERTEXT]=[0;MAX_KEX_CIPHERTEXT];
-            sal::server_shared_secret(self.favourite_group,&cpk[0..cpklen],&mut spk,ss);
+            let nonzero=sal::server_shared_secret(self.favourite_group,&cpk[0..cpklen],&mut spk,ss);
+            if !nonzero {
+                r.err=BAD_HELLO;
+                return r;
+            }
             let spklen=sal::server_public_key_size(self.favourite_group);
             logger::log_key_exchange(self.favourite_group);
             log(IO_DEBUG,"Server Public Key= ",0,Some(&spk[0..spklen]));

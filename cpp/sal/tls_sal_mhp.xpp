@@ -503,7 +503,7 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
 }
 
 // generate shared secret SS from secret key SK and public key PK
-void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
+bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
 {
     octet MC_SK=octad_to_octet(SK);
     octet MC_PK=octad_to_octet(PK);
@@ -551,6 +551,12 @@ void SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
     SK->len=MC_SK.len;
     PK->len=MC_PK.len;
     SS->len=MC_SS.len;
+
+// all zeros is suspect...
+    char ors=0;
+    for (int i=0;i<SS->len;i++) ors|=SS->val[i];
+    if (ors==0) return false;
+    return true;
 }
 
 #if CRYPTO_SETTING>=POST_QUANTUM

@@ -188,6 +188,7 @@ pub const TIME_OUT:isize= -21;                    // time out
 pub const ALERT_RECEIVED:isize=-22;               // alert received
 pub const BAD_MESSAGE:isize=-23;                  // Badly formed mesage
 pub const CERT_VERIFY_FAIL:isize= -24;            // Certificate Verification failure */
+pub const BAD_HANDSHAKE:isize=-26;                // Could not agree
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -215,6 +216,7 @@ pub const PROTOCOL_VERSION: u8 =  0x46;           // Wrong TLS version
 pub const DECODE_ERROR: u8 =  0x32;               // Decode error alert 
 pub const RECORD_OVERFLOW: u8 =  0x16;            // Record Overflow 
 pub const BAD_RECORD_MAC: u8 = 0x14;			  // Bad Record Mac 
+pub const HANDSHAKE_FAILURE: u8 = 0x28;           // Handshake failure
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
 
 /// Universal Hash Function structure 
@@ -254,6 +256,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         TIME_OUT => return CLOSE_NOTIFY,
         ALERT_RECEIVED => return CLOSE_NOTIFY,
         BAD_MESSAGE => return DECODE_ERROR,
+        BAD_HANDSHAKE => return HANDSHAKE_FAILURE,
         CERT_VERIFY_FAIL => return DECRYPT_ERROR,
         _ => return ILLEGAL_PARAMETER   
     }

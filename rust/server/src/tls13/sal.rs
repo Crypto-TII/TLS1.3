@@ -475,7 +475,7 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
 }
 
 /// Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
-pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) {
+pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) -> bool {
     //let mut csk:[u8;config::MAX_KEX_SECRET_KEY]=[0;config::MAX_KEX_SECRET_KEY];
     if group==config::X25519 {
         use mcore::c25519::ecdh;
@@ -595,13 +595,20 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         csk.zeroize(); */
 
     }
-
+// all zeros is suspect...
+    let mut ors=ss[0];
+    for i in 1..ss.len() {
+        ors |= ss[i];
+    }
+    if ors==0 {
+        return false;
+    }
+    return true;
     //csk.zeroize();
 }
 
 /// Generate shared secret SS from secret key SK and public key PK
-pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
-{
+pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> bool {
     if group==config::X25519 {
         use mcore::c25519::ecdh;
         let mut rpk:[u8;32]=[0;32];
@@ -675,7 +682,16 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8])
         ecdh::ecpsvdp_dh(&sk[startsk..startsk+32],&rpk[0..32],&mut ss[startss..startss+32],0);
         ss[startss..startss+32].reverse(); */
     }
- 
+
+// all zeros is suspect...
+    let mut ors=ss[0];
+    for i in 1..ss.len() {
+        ors |= ss[i];
+    }
+    if ors==0 {
+        return false;
+    }
+    return true;
 }
 
 /// Dilithium signature verification
