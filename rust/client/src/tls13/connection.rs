@@ -885,9 +885,9 @@ impl SESSION {
                     }
                 },
                 MAX_FRAG_LENGTH => {
-                    r=self.parse_int_pull(1); if r.err!=0 {return r;}
+                    r=self.parse_int_pull(1); let mfl=r.val; if r.err!=0 {return r;}
                     len-=tlen;
-                    if tlen !=1 {
+                    if tlen !=1 || mfl!=MAX_FRAG {
                         r.err=UNRECOGNIZED_EXT;
                         return r;
                     }
@@ -962,6 +962,10 @@ impl SESSION {
         }
 
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}         // message length   
+	    if len==0 {
+		    r.err=EMPTY_CERT_CHAIN;
+		    return r;
+	    }
         log(IO_DEBUG,"Certificate Chain Length= ",len as isize,None);
         r=self.parse_int_pull(1); let rc=r.val; if r.err!=0 {return r;} 
         if rc!=0x00 {

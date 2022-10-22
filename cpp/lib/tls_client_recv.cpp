@@ -360,12 +360,12 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
             }
             break;
         case MAX_FRAG_LENGTH :
-            r=parseIntorPull(session,1); if (r.err) return r; // ideally this should the same as requested by client
+            r=parseIntorPull(session,1); mfl=r.val; if (r.err) return r; // ideally this should the same as requested by client
             len-=tlen;                                       // but server may have ignored this request... :( so we ignore this response 
-            if (tlen!=1) {
+            if (mfl!=TLS_MAX_FRAG || tlen!=1) {
                 r.err=UNRECOGNIZED_EXT;
                 return r;
-            }            
+            }     
             enc_ext_resp->max_frag_length=true;
             if (!enc_ext_expt->max_frag_length) {
                 r.err=NOT_EXPECTED;
@@ -537,6 +537,12 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG
 
     r=parseIntorPull(session,3); len=r.val; if (r.err) return r;         // message length   
     log(IO_DEBUG,(char *)"Certificate Chain Length= ",(char *)"%d",len,NULL);
+
+    if (len==0)
+    {
+        r.err=EMPTY_CERT_CHAIN;
+        return r;
+    }
 
     r=parseIntorPull(session,1); nb=r.val; if (r.err) return r;
     if (nb!=0x00) {
