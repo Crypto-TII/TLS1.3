@@ -1300,7 +1300,7 @@ impl SESSION {
     fn exchange_hellos(&mut self) -> usize {
         let mut groups:[u16;MAX_SUPPORTED_GROUPS]=[0;MAX_SUPPORTED_GROUPS];
         let mut ciphers:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
-        let _nsg=sal::groups(&mut groups);
+        let nsg=sal::groups(&mut groups);
         let nsc=sal::ciphers(&mut ciphers);
         let mut resumption_required=false;
         let mut expected=EESTATUS{early_data:false,alpn:false,server_name:false,max_frag_len:false};
@@ -1383,9 +1383,16 @@ impl SESSION {
             self.running_synthetic_hash(&ch[0..chlen],&ext[0..extlen]);
             self.running_hash_io();
 
-            if kex==self.favourite_group { // Its the same again
+            let mut supported=false;
+            for i in 0..nsg {
+                if kex==groups[i] {
+                    supported=true;
+                }
+            }
+
+            if !supported || kex==self.favourite_group { // Its the same again
                 self.send_alert(ILLEGAL_PARAMETER);
-                log(IO_DEBUG,"No change as result of HRR\n",0,None);
+                log(IO_DEBUG,"Group not supported, or no change as result of HRR\n",0,None);
                 log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
                 return TLS_FAILURE;
             }
@@ -1415,6 +1422,14 @@ impl SESSION {
 
             let mut skex=0;
             rtn=self.get_server_hello(&mut skex,&mut cookie,&mut cklen,pk_s,&mut pskid);
+
+            if rtn.val==HANDSHAKE_RETRY {
+                log(IO_DEBUG,"A second Handshake Retry Request?\n",0,None);
+                self.send_alert(UNEXPECTED_MESSAGE);
+                log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
+                return TLS_FAILURE;
+            }
+
             if kex!=skex {
                 log(IO_DEBUG,"Server came back with wrong group\n",0,None);
                 self.send_alert(ILLEGAL_PARAMETER);
@@ -1430,12 +1445,7 @@ impl SESSION {
             if self.bad_response(&rtn) {
                 return TLS_FAILURE;
             }
-            if rtn.val==HANDSHAKE_RETRY {
-                log(IO_DEBUG,"A second Handshake Retry Request?\n",0,None);
-                self.send_alert(UNEXPECTED_MESSAGE);
-                log(IO_PROTOCOL,"Full Handshake failed\n",0,None);
-                return TLS_FAILURE;
-            }
+
             resumption_required=true;
         }
         log(IO_DEBUG,"Server Hello= ",0,Some(&self.io[0..self.iolen]));

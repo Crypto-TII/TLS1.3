@@ -348,21 +348,22 @@ void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN)
         OCT_append_byte(&PT,0,1); // cert context
         OCT_append_int(&PT,0,3);  // zero length
         runningHash(session,&PT);
+        sendClientMessage(session,HSHAKE,TLS1_2,&PT,NULL,true);
     } else {
         OCT_append_int(&PT,4+CERTCHAIN->len,3);
         OCT_append_byte(&PT,0,1); // cert context
         OCT_append_int(&PT,CERTCHAIN->len,3);  // length of certificate chain
         runningHash(session,&PT);
         runningHash(session,CERTCHAIN);
-    }
-    if (CERTCHAIN->len>4000)
-    { // Break up exceptionally big record that can arise for PQ certs
-        octad FIRST={2048,2048,&CERTCHAIN->val[0]};
-        octad SECOND={CERTCHAIN->len-2048,CERTCHAIN->max-2048,&CERTCHAIN->val[2048]};
-        sendClientMessage(session,HSHAKE,TLS1_2,&PT,&FIRST,true);
-        sendClientMessage(session,HSHAKE,TLS1_2,&SECOND,NULL,true);
-    } else {
-        sendClientMessage(session,HSHAKE,TLS1_2,&PT,CERTCHAIN,true);
+        if (CERTCHAIN->len>4000)
+        { // Break up exceptionally big record that can arise for PQ certs
+            octad FIRST={2048,2048,&CERTCHAIN->val[0]};
+            octad SECOND={CERTCHAIN->len-2048,CERTCHAIN->max-2048,&CERTCHAIN->val[2048]};
+            sendClientMessage(session,HSHAKE,TLS1_2,&PT,&FIRST,true);
+            sendClientMessage(session,HSHAKE,TLS1_2,&SECOND,NULL,true);
+        } else {
+            sendClientMessage(session,HSHAKE,TLS1_2,&PT,CERTCHAIN,true);
+        }
     }
 } 
 

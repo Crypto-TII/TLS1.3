@@ -200,10 +200,14 @@ static int TLS13_exchange_hellos(TLS_session *session)
         runningSyntheticHash(session,&CH,&EXT); // RFC 8446 section 4.4.1
         runningHashIOrewind(session);      // Hash of helloRetryRequest
 
-        if (kex==session->favourite_group)
-        { // its the same one I chose !?
+        bool supported=false;
+        for (int i=0;i<nsg;i++)
+            if (kex==groups[i]) supported=true; 
+
+        if (!supported || kex==session->favourite_group)  // kex is alternate group suggested by server
+        { // its not supported or its the same one I originally chose !?
             sendAlert(session,ILLEGAL_PARAMETER);
-            log(IO_DEBUG,(char *)"No change as result of HRR\n",NULL,0,NULL);   
+            log(IO_DEBUG,(char *)"Group not supported, or no change as result of HRR\n",NULL,0,NULL);   
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);
@@ -215,7 +219,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
 // build new client Hello extensions
 
 // generate new key pair in new server selected group 
-        session->favourite_group=kex;
+        session->favourite_group=kex;  // OK, lets try the alternate
         SAL_generateKeyPair(session->favourite_group,&CSK,&CPK); 
 		buildExtensions(session,&EXT,&CPK,&enc_ext_expt,0);
 
@@ -234,6 +238,18 @@ static int TLS13_exchange_hellos(TLS_session *session)
 
         int skex; // Server Key Exchange Group - should be same as kex
         rtn=getServerHello(session,skex,&COOK,&SPK,pskid);
+        
+        if (rtn.val==HANDSHAKE_RETRY)
+        { // only one retry allowed
+            log(IO_DEBUG,(char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
+            sendAlert(session,UNEXPECTED_MESSAGE);
+            log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
+            return TLS_FAILURE;
+        }
+
         if (kex!=skex)
         {
             log(IO_DEBUG,(char *)"Server came back with wrong group\n",NULL,0,NULL); 
@@ -256,16 +272,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
 #endif
             return TLS_FAILURE;
         }
-        if (rtn.val==HANDSHAKE_RETRY)
-        { // only one retry allowed
-            log(IO_DEBUG,(char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
-            sendAlert(session,UNEXPECTED_MESSAGE);
-            log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
-#ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
-#endif
-            return TLS_FAILURE;
-        }
+
         resumption_required=true;
     }
     log(IO_DEBUG,(char *)"Server Hello= ",NULL,0,&session->IO); 
