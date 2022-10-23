@@ -675,6 +675,9 @@ impl SESSION {
             return NOT_TLS1_3;
         }
         let left=socket::get_int16(&mut self.sockptr);
+        if left>MAX_CIPHER_FRAG {
+            return MAX_EXCEEDED;
+        }
         utils::append_int(&mut rh,3,left,2);
         if left+pos>self.io.len() { // this commonly happens with big records of application data from server
             return MEM_OVERFLOW;    // record is too big - memory overflow
@@ -691,9 +694,7 @@ impl SESSION {
 // OK, its encrypted, so aead decrypt it, check tag
         let taglen=self.k_recv.taglen;
         let rlen=left-taglen;
-        if left>MAX_CIPHER_FRAG {
-            return MAX_EXCEEDED;
-        }
+
         socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]); // read in record body
         self.iolen+=rlen;
         socket::get_bytes(&mut self.sockptr,&mut tag[0..taglen]);
@@ -708,6 +709,9 @@ impl SESSION {
         while lb==0 && self.iolen>0 {
             lb=self.io[self.iolen-1];
             self.iolen -= 1; // remove it
+        }
+        if self.iolen==0 { // RFC section 5.4
+            return WRONG_MESSAGE;
         }
         if (lb == HSHAKE || lb == ALERT) && rlen==0 {
             return WRONG_MESSAGE;

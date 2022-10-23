@@ -121,6 +121,9 @@ int getServerRecord(TLS_session *session)
         return WRONG_MESSAGE;
 
     left=getInt16(session->sockptr);
+	if (left>TLS_MAX_CIPHER_FRAG)
+		return MAX_EXCEEDED;
+
     OCT_append_int(&RH,left,2);
     if (left+pos>session->IO.max)
     { // this commonly happens with big records of application data from server
@@ -137,8 +140,6 @@ int getServerRecord(TLS_session *session)
     }
 	taglen=session->K_recv.taglen;
 	rlen=left-taglen; // plaintext record length
-	if (left>TLS_MAX_CIPHER_FRAG)
-		return MAX_EXCEEDED;
 
     getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
 
@@ -160,6 +161,8 @@ int getServerRecord(TLS_session *session)
         lb=session->IO.val[session->IO.len-1];   // need to track back through zero padding for this....
         session->IO.len--; // remove it
     }
+    if (session->IO.len==0)
+        return WRONG_MESSAGE;  // RFC section 5.4
 	if ((lb==HSHAKE || lb==ALERT) && rlen==0)
 		return WRONG_MESSAGE;
     if (lb==HSHAKE)
@@ -549,7 +552,7 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG
         r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
         return r;
     }
-    r=parseIntorPull(session,3); tlen=r.val; if (r.err) return r;    // get length of certificate chain
+    r=parseIntorPull(session,3); tlen=r.val; if (r.err) return r;    // get length of certificate chain list
 
 	if (tlen==0)
 	{

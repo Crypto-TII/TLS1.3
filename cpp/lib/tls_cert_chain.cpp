@@ -367,6 +367,9 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
 
 // Extract and process Server Cert
     r=parseInt(CERTCHAIN,3,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN; // get length of first (server) certificate
+    if (len==0)
+        return EMPTY_CERT_CHAIN;
+
     r=parseoctadptr(&SERVER_CERT,len,CERTCHAIN,ptr); if (r.err) return BAD_CERT_CHAIN;
     r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return BAD_CERT_CHAIN;
     ptr+=len;   // skip certificate extensions

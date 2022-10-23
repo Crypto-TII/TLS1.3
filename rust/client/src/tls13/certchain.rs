@@ -272,6 +272,9 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
 // Extract and process Cert
     let mut r=utils::parse_int(chain,3,&mut ptr); if r.err!=0 {return BAD_CERT_CHAIN;}
     let mut len=r.val;
+    if len==0 {
+        return EMPTY_CERT_CHAIN;
+    }
     if ptr+len>chain.len() {
         return BAD_CERT_CHAIN;
     }
