@@ -270,7 +270,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
     let mut issuer:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
 
 // Extract and process Cert
-    let mut r=utils::parse_int(chain,3,&mut ptr); if r.err!=0 {return BAD_CERT_CHAIN;}
+    let mut r=utils::parse_int(chain,3,&mut ptr); if r.err!=0 {return r.err;}
     let mut len=r.val;
     if len==0 {
         return EMPTY_CERT_CHAIN;
@@ -282,7 +282,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
 // slice signed cert from chain
     let signed_cert=&chain[ptr..ptr+len];
     ptr+=len;
-    r=utils::parse_int(chain,2,&mut ptr); if r.err!=0 {return BAD_CERT_CHAIN;}
+    r=utils::parse_int(chain,2,&mut ptr); if r.err!=0 {return r.err;}
     len=r.val;
     ptr+=len;    // skip certificate extensions
 
@@ -354,7 +354,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
         log(IO_DEBUG,"Non-self-signed Chain of length 1 ended unexpectedly\n",0,None);
         return BAD_CERT_CHAIN;
     }
-    r=utils::parse_int(chain,3,&mut ptr); len=r.val; if r.err!=0 {return BAD_CERT_CHAIN;}
+    r=utils::parse_int(chain,3,&mut ptr); len=r.val; if r.err!=0 {return r.err;}
     if ptr+len>chain.len() {
         return BAD_CERT_CHAIN;
     }
@@ -362,7 +362,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
 // slice signed cert from chain
     let inter_signed_cert=&chain[ptr..ptr+len];
     ptr+=len;
-    r=utils::parse_int(chain,2,&mut ptr); len=r.val; if r.err!=0 {return BAD_CERT_CHAIN;}
+    r=utils::parse_int(chain,2,&mut ptr); len=r.val; if r.err!=0 {return r.err;}
     ptr+=len;    // skip certificate extensions
 
     if ptr<chain.len() {

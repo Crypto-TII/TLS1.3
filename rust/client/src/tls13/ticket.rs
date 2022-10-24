@@ -60,26 +60,26 @@ impl TICKET {
         }
         let mut ptr=0;
         let mut r:RET;
-        r=utils::parse_int(tickdata,4,&mut ptr); self.lifetime=r.val; if r.err!=0 {return BAD_TICKET;} 
-        r=utils::parse_int(tickdata,4,&mut ptr); self.age_obfuscator=r.val; if r.err!=0 {return BAD_TICKET;} 
-        r=utils::parse_int(tickdata,1,&mut ptr); let mut len=r.val; if r.err!=0 {return BAD_TICKET;}
+        r=utils::parse_int(tickdata,4,&mut ptr); self.lifetime=r.val; if r.err!=0 {return r.err;} 
+        r=utils::parse_int(tickdata,4,&mut ptr); self.age_obfuscator=r.val; if r.err!=0 {return r.err;} 
+        r=utils::parse_int(tickdata,1,&mut ptr); let mut len=r.val; if r.err!=0 {return r.err;}
 
-        r=utils::parse_bytes(&mut self.nonce[0..len],tickdata,&mut ptr); if r.err!=0 {return BAD_TICKET;}
+        r=utils::parse_bytes(&mut self.nonce[0..len],tickdata,&mut ptr); if r.err!=0 {return r.err;}
         self.nnlen=len;
-        r=utils::parse_int(tickdata,2,&mut ptr); len=r.val; if r.err!=0 {return BAD_TICKET;}
-        r=utils::parse_bytes(&mut self.tick[0..len],tickdata,&mut ptr); if r.err!=0 {return BAD_TICKET;}
+        r=utils::parse_int(tickdata,2,&mut ptr); len=r.val; if r.err!=0 {return r.err;}
+        r=utils::parse_bytes(&mut self.tick[0..len],tickdata,&mut ptr); if r.err!=0 {return r.err;}
         self.tklen=len;
-        r=utils::parse_int(tickdata,2,&mut ptr); len=r.val; if r.err!=0 {return BAD_TICKET;}
+        r=utils::parse_int(tickdata,2,&mut ptr); len=r.val; if r.err!=0 {return r.err;}
         
         self.birth=birth;
         self.max_early_data=0;
 
         while len>0 {
-            r=utils::parse_int(tickdata,2,&mut ptr); let ext=r.val; if r.err!=0 {return BAD_TICKET;}
+            r=utils::parse_int(tickdata,2,&mut ptr); let ext=r.val; if r.err!=0 {return r.err;}
             len -= 2;
             match ext {
                 EARLY_DATA => {
-                    r=utils::parse_int(tickdata,2,&mut ptr); let tmplen=r.val; if tmplen!=4 || r.err!=0 {return BAD_TICKET;}
+                    r=utils::parse_int(tickdata,2,&mut ptr); if r.err!=0 {return r.err;} let tmplen=r.val; if tmplen!=4 {return BAD_TICKET;}
                     len-=2;
                     r=utils::parse_int(tickdata,4,&mut ptr); self.max_early_data=r.val;
                     len-=tmplen;
@@ -90,7 +90,7 @@ impl TICKET {
                     len-=tmplen; ptr+=tmplen;
                 }
             }
-            if r.err!=0 {return BAD_TICKET;}
+            if r.err!=0 {return r.err;}
         } 
         self.valid=true;
         return 0;

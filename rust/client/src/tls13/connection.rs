@@ -661,34 +661,38 @@ impl SESSION {
             if left>MAX_PLAIN_FRAG {
                 return MAX_EXCEEDED;
             }
+            if left==0 {
+                return WRONG_MESSAGE;
+            }
             socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+left]); 
             self.iolen+=left; // read in record body
             return HSHAKE as isize;
         }
 // OK, its encrypted, so aead decrypt it, check tag
         let taglen=self.k_recv.taglen;
-        let rlen=left-taglen;
+        let mut rlen=left-taglen;
+
+        if rlen>MAX_PLAIN_FRAG+1 {
+            return MAX_EXCEEDED;
+        }
 
         socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]); // read in record body
         self.iolen+=rlen;
         socket::get_bytes(&mut self.sockptr,&mut tag[0..taglen]);
         let success=sal::aead_decrypt(&self.k_recv,&rh,&mut self.io[pos..pos+rlen],&tag[0..taglen]);
-        self.k_recv.increment_crypto_context();
         if !success {
             return AUTHENTICATION_FAILURE;
         }
+        self.k_recv.increment_crypto_context();
 // get record ending - encodes real (disguised) record type. Could be an Alert.        
         let mut lb=self.io[self.iolen-1];
-        self.iolen -= 1; // remove it
-        while lb==0 && self.iolen>0 {
+        self.iolen -= 1; rlen -=1; // remove it
+        while lb==0 && rlen>0 {
             lb=self.io[self.iolen-1];
-            self.iolen -= 1; // remove it
-        }
-        if self.iolen==0 { // RFC section 5.4
-            return WRONG_MESSAGE;
+            self.iolen -= 1; rlen -= 1;// remove it
         }
         if (lb == HSHAKE || lb == ALERT) && rlen==0 {
-            return WRONG_MESSAGE;
+            return WRONG_MESSAGE; // RFC section 5.4
         }
         if lb == HSHAKE {
             return HSHAKE as isize;
@@ -1769,8 +1773,8 @@ impl SESSION {
             }
             if kind==HSHAKE as isize {
                 loop {
-                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return BAD_RECORD;}
-                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return BAD_RECORD;}   // message length
+                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r.err;}
+                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r.err;}   // message length
                     match nb as u8 {
                         TICKET => {
                             let start=self.ptr;
@@ -1799,7 +1803,7 @@ impl SESSION {
                             } 
                             let htype=sal::hash_type(self.cipher_suite);
                             let hlen=sal::hash_len(htype);
-                            r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {return BAD_RECORD;}
+                            r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {return r.err;}
                             if kur==UPDATE_NOT_REQUESTED {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 log(IO_PROTOCOL,"KEYS UPDATED\n",0,None);
@@ -1820,7 +1824,7 @@ impl SESSION {
                             fin=true;
                         }
                     }
-                    if r.err!=0 {return BAD_RECORD;}
+                    if r.err!=0 {return r.err;}
                     if fin {break;}
                 }
             }

@@ -51,25 +51,25 @@ int parseTicket(octad *TICK,unsign32 birth,ticket *T)
     ret r;
     int ext,len,tmplen,ptr=0;
     if (TICK->len==0) return BAD_TICKET;
-    r=parseInt(TICK,4,ptr);  if (r.err) return BAD_TICKET; T->lifetime=r.val;
-    r=parseInt(TICK,4,ptr);  if (r.err) return BAD_TICKET; T->age_obfuscator=r.val;
-    r=parseInt(TICK,1,ptr); len=r.val;  if (r.err) return BAD_TICKET;
-    r=parseoctad(&T->NONCE,len,TICK,ptr);  if (r.err) return BAD_TICKET;   // could be a single byte 0,1,2,3,... incremented for each ticket issued on this connection 
-    r=parseInt(TICK,2,ptr); len=r.val; if (r.err) return BAD_TICKET;
-    r=parseoctad(&T->TICK,len,TICK,ptr);  if (r.err) return BAD_TICKET; // extract ticket
-    r=parseInt(TICK,2,ptr); len=r.val; if (r.err) return BAD_TICKET;    // length of extensions
+    r=parseInt(TICK,4,ptr);  if (r.err) return r.err; T->lifetime=r.val;
+    r=parseInt(TICK,4,ptr);  if (r.err) return r.err; T->age_obfuscator=r.val;
+    r=parseInt(TICK,1,ptr); len=r.val;  if (r.err) return r.err;
+    r=parseoctad(&T->NONCE,len,TICK,ptr);  if (r.err) return r.err;   // could be a single byte 0,1,2,3,... incremented for each ticket issued on this connection 
+    r=parseInt(TICK,2,ptr); len=r.val; if (r.err) return r.err;
+    r=parseoctad(&T->TICK,len,TICK,ptr);  if (r.err) return r.err; // extract ticket
+    r=parseInt(TICK,2,ptr); len=r.val; if (r.err) return r.err;    // length of extensions
 
     T->birth=birth;
     T->max_early_data=0;
     while (len>0)
     {
-        r=parseInt(TICK,2,ptr); ext=r.val; if (r.err) return BAD_TICKET;
+        r=parseInt(TICK,2,ptr); ext=r.val; if (r.err) return r.err;
         len-=2;
         switch (ext)
         {
         case EARLY_DATA :
             {
-                r=parseInt(TICK,2,ptr); tmplen=r.val; if (tmplen!=4 || r.err) return BAD_TICKET;
+                r=parseInt(TICK,2,ptr); if (r.err) return r.err; tmplen=r.val; if (tmplen!=4) return BAD_TICKET;
                 len-=2;  // tmplen=4 - max_early data
                 r=parseInt(TICK,4,ptr); T->max_early_data=r.val;
                 len-=tmplen;
@@ -82,7 +82,7 @@ int parseTicket(octad *TICK,unsign32 birth,ticket *T)
             len-=tmplen; ptr+=tmplen;
             break;
         }
-        if (r.err) return BAD_TICKET;
+        if (r.err) return r.err;
     }
     T->valid=true;
     return 0;

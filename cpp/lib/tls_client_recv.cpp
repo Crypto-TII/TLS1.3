@@ -136,6 +136,8 @@ int getServerRecord(TLS_session *session)
     { // not encrypted
 		if (left>TLS_MAX_PLAIN_FRAG)
 			return MAX_EXCEEDED;
+		if (left==0)
+			return WRONG_MESSAGE;
         getBytes(session->sockptr,&session->IO.val[pos],left);  // read in record body
         session->IO.len+=left;
         return HSHAKE;
@@ -143,30 +145,31 @@ int getServerRecord(TLS_session *session)
 	taglen=session->K_recv.taglen;
 	rlen=left-taglen; // plaintext record length
 
+	if (rlen>TLS_MAX_PLAIN_FRAG+1) return MAX_EXCEEDED;
+
     getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
 
-    session->IO.len+=(rlen);    
-    getOctad(session->sockptr,&TAG,taglen);        // read in correct TAG
+    session->IO.len+=(rlen);    // place record into iobuff
+    getOctad(session->sockptr,&TAG,taglen);        // extract TAG
 
     bool success=SAL_aeadDecrypt(&session->K_recv,RH.len,RH.val,rlen,&session->IO.val[pos],&TAG);
-    incrementCryptoContext(&session->K_recv); // update IV
     if (!success)
-    {
        return AUTHENTICATION_FAILURE;     // tag is wrong   
-    }
+    
+    incrementCryptoContext(&session->K_recv); // update IV
+
 // get record ending - encodes real (disguised) record type. Could be an Alert.
     int lb=0;
     lb=session->IO.val[session->IO.len-1]; 
-    session->IO.len--; // remove it
-    while (lb==0 && session->IO.len>0)
+    session->IO.len--; rlen--; // remove it
+    while (lb==0 && rlen>0 /*session->IO.len>0*/)
     { // could be zero padding
         lb=session->IO.val[session->IO.len-1];   // need to track back through zero padding for this....
-        session->IO.len--; // remove it
+        session->IO.len--; rlen--;// remove it
     }
-    if (session->IO.len==0)
-        return WRONG_MESSAGE;  // RFC section 5.4
+	// rlen is Inner Plaintext length?
 	if ((lb==HSHAKE || lb==ALERT) && rlen==0)
-		return WRONG_MESSAGE;
+		return WRONG_MESSAGE;  // RFC section 5.4
     if (lb==HSHAKE)
         return HSHAKE;
     if (lb==APPLICATION)

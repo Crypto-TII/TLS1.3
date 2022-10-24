@@ -689,6 +689,9 @@ impl SESSION {
             if left>MAX_PLAIN_FRAG {
                 return MAX_EXCEEDED;
             }
+            if left==0 {
+                return WRONG_MESSAGE;
+            }
             socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+left]); 
             self.iolen+=left; // read in record body
             return HSHAKE as isize;
@@ -696,28 +699,29 @@ impl SESSION {
 
 // OK, its encrypted, so aead decrypt it, check tag
         let taglen=self.k_recv.taglen;
-        let rlen=left-taglen;
+        let mut rlen=left-taglen;
+
+        if rlen>MAX_PLAIN_FRAG+1 {
+            return MAX_EXCEEDED;
+        }
 
         socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]); // read in record body
         self.iolen+=rlen;
         socket::get_bytes(&mut self.sockptr,&mut tag[0..taglen]);
         let success=sal::aead_decrypt(&self.k_recv,&rh,&mut self.io[pos..pos+rlen],&tag[0..taglen]);
-        self.k_recv.increment_crypto_context();
         if !success {
             return AUTHENTICATION_FAILURE;
         }
+        self.k_recv.increment_crypto_context();
 // get record ending - encodes real (disguised) record type. Could be an Alert.        
         let mut lb=self.io[self.iolen-1];
-        self.iolen -= 1; // remove it
+        self.iolen -= 1; rlen -= 1;// remove it
         while lb==0 && self.iolen>0 {
             lb=self.io[self.iolen-1];
-            self.iolen -= 1; // remove it
-        }
-        if self.iolen==0 { // RFC section 5.4
-            return WRONG_MESSAGE;
+            self.iolen -= 1; rlen -= 1;// remove it
         }
         if (lb == HSHAKE || lb == ALERT) && rlen==0 {
-            return WRONG_MESSAGE;
+            return WRONG_MESSAGE; // RFC section 5.4
         }
         if lb == HSHAKE {
             return HSHAKE as isize;
