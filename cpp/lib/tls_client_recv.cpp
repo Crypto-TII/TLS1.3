@@ -710,11 +710,13 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
     r=parseIntorPull(session,2); svr=r.val; if (r.err) return r;
     left-=2;                // whats left in message
 
-    if (svr!=TLS1_2) { 
-        r.err=NOT_TLS1_3;  // don't ask
+	int legacy_version=svr;
+/*
+    if (svr!=TLS1_2) { // ServerHello.legacy
+        r.err=NOT_TLS1_3;  // don't ask, but maybe ignore?
         return r;
     }
-
+*/
     r= parseoctadorPull(session,&SRN,32); if (r.err) return r;
     left-=32;
 
@@ -768,6 +770,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
         return r;
     }
 
+	int supported_version=0;
 // process extensions
     while (extLen>0)
     {
@@ -820,7 +823,8 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 					return r;
 				}
                 r=parseIntorPull(session,2); tls=r.val; if (r.err) break; // get TLS version
-                if (tls!=TLS1_3) r.err=NOT_TLS1_3;
+				supported_version=tls;
+                //if (tls!=TLS1_3) r.err=NOT_TLS1_3;
                 break;
             }
        default :
@@ -830,6 +834,9 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
         if (r.err) return r;
     }
     
+	if (supported_version==0 || supported_version!=TLS1_3)
+		r.err=NOT_TLS1_3;
+
     if (retry)
         r.val=HANDSHAKE_RETRY;
     else

@@ -724,12 +724,12 @@ impl SESSION {
             return r;
         }
         r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;} // If not enough, pull in another fragment
-        r=self.parse_int_pull(2); let svr=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(2); /*let svr=r.val;*/ if r.err!=0 {return r;}
         left-=2;                // whats left in message
-        if svr!=TLS1_2 { 
-            r.err=NOT_TLS1_3;  // don't ask
-            return r;
-        }
+        //if svr!=TLS1_2 { 
+        //    r.err=NOT_TLS1_3;  // don't ask
+        //    return r;
+        //}
         r= self.parse_bytes_pull(&mut srn); if r.err!=0 {return r;}
         left-=32;
         let mut retry=false;
@@ -773,6 +773,7 @@ impl SESSION {
             return r;
         }
 
+        let mut supported_version=0;
         while left>0 {
             r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;} 
             r=self.parse_int_pull(2); let extlen=r.val; if r.err!=0 {return r;} 
@@ -812,9 +813,10 @@ impl SESSION {
                         return r;
                     }
                     r=self.parse_int_pull(2); let tls=r.val; if r.err!=0 {return r;}
-                    if tls!=TLS1_3 {
-                        r.err=NOT_TLS1_3;
-                    }
+                    supported_version=tls;
+                    //if tls!=TLS1_3 {
+                    //    r.err=NOT_TLS1_3;
+                    //}
                 },
                 _ => {
                     r.err=UNRECOGNIZED_EXT;
@@ -822,6 +824,9 @@ impl SESSION {
                 }
             }
             if r.err!=0 {return r;}
+        }
+        if supported_version==0 || supported_version!=TLS1_3 {
+            r.err=NOT_TLS1_3;
         }
         if retry {
             r.val=HANDSHAKE_RETRY;
