@@ -111,8 +111,10 @@ int getServerRecord(TLS_session *session)
         //OCT_append_octad(&SCCS,&RH);
         //OCT_append_int(&SCCS,left,2);
         getBytes(session->sockptr,sccs/*&SCCS.val[5]*/,left);
+		if (session->status!=TLS13_HANDSHAKING)
+			return WRONG_MESSAGE;
         //SCCS.len+=left;
-        rtn=getOctad(session->sockptr,&RH,3); // get the next record
+        rtn=getOctad(session->sockptr,&RH,3); // get the next record and carry on
 		if (rtn<0)
 			return TIMED_OUT;
     }

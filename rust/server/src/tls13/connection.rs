@@ -669,6 +669,9 @@ impl SESSION {
                 return BAD_RECORD;
             }
             socket::get_bytes(&mut self.sockptr,&mut sccs[0..left]);
+            if self.status!=HANDSHAKING {
+                return WRONG_MESSAGE;
+            }
             socket::get_bytes(&mut self.sockptr,&mut rh[0..3]);
         }
         if rh[0]!=HSHAKE && rh[0]!=APPLICATION { // rh[0]=0x80 means SSLv2 connection attempted - reject it
@@ -1235,6 +1238,7 @@ impl SESSION {
         let mut shlen=0;
         let mut enclen=0;
         let mut nsa=0;
+        self.status=HANDSHAKING;
         let mut rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication,false);
         if self.bad_response(&rtn) {
             self.clean();

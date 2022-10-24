@@ -641,7 +641,10 @@ impl SESSION {
                 return BAD_RECORD;
             }
             socket::get_bytes(&mut self.sockptr,&mut sccs[0..left]);
-            socket::get_bytes(&mut self.sockptr,&mut rh[0..3]);
+            if self.status!=HANDSHAKING {
+                return WRONG_MESSAGE;
+            }
+            socket::get_bytes(&mut self.sockptr,&mut rh[0..3]);  // ignore it and carry on
         }
         if rh[0]!=HSHAKE && rh[0]!=APPLICATION {
             return WRONG_MESSAGE;
@@ -1715,6 +1718,7 @@ impl SESSION {
     pub fn connect(&mut self,early: Option<&[u8]>) -> bool {
         let rtn:usize;
         let mut early_went=false;
+        self.status=HANDSHAKING;
         if self.t.still_good() { // have a good ticket? Try it.
             rtn=self.tls_resume(early);
             if rtn==TLS_EARLY_DATA_ACCEPTED { 
@@ -1727,6 +1731,7 @@ impl SESSION {
         self.t.clear(); // clear out any ticket
     
         if rtn==0 {  // failed to connect
+            self.status=DISCONNECTED;
             return false;
         }
         if !early_went {

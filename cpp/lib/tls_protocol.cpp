@@ -937,6 +937,7 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
 {
     int rtn=0;
     bool early_went=false;
+	session->status=TLS13_HANDSHAKING;
     if (ticket_still_good(&session->T))
     { // have a good ticket? Try it.
         rtn=TLS13_resume(session,EARLY);
@@ -948,7 +949,10 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
     initTicketContext(&session->T); // clear out any ticket
     
     if (rtn==0)  // failed to connect
+	{
+		session->status=TLS13_DISCONNECTED;
         return false;
+	}
     
     if (!early_went && EARLY!=NULL)
         TLS13_send(session,EARLY);  // didn't go early, so send it now

@@ -305,6 +305,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 #define TLS13_DISCONNECTED 0            /**< TLS1.3 Connection is broken */
 #define TLS13_CONNECTED 1               /**< TLS1.3 Connection is made */ 
+#define TLS13_HANDSHAKING 2				/**< TLS1.3 is handshaking */
 
 // protocol returns..
 #define TLS_FAILURE 0                   /**< Failed to cmake TLS1.3 connection */
