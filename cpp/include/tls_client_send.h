@@ -190,6 +190,15 @@ extern void sendClientHello(TLS_session *session,int version,octad *CH,octad *CR
  */
 extern void sendAlert(TLS_session *session,int type);
 
+
+/**	@brief Prepare and send a key update message to the Server
+ *
+	@param session the TLS session structure
+    @param type the type of the update
+ */
+extern void sendKeyUpdate(TLS_session *session,int type);
+
+
 /**	@brief Prepare and send a final handshake Verification message to the Server
  *
 	@param session the TLS session structure

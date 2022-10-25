@@ -379,13 +379,40 @@ fn main() {
                     return;
                 }
             } 
-// receive response
-            let rplen=session.recv(&mut resp);
-            if rplen>0 { // data received - clean finish
-                //session.send_alert(alert_from_cause(rplen));
-                log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
-                session.send_alert(CLOSE_NOTIFY);
+// Get server response, may attach resumption ticket to session
+            if !localhost {
+                let rplen=session.recv(&mut resp);
+                if rplen<0 {
+                    session.send_alert(alert_from_cause(rplen));
+                } else {
+                    if rplen>0 {
+                        log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
+                    }
+                    session.send_alert(CLOSE_NOTIFY);
+                }
+            } else {
+                loop {
+                    let rplen=session.recv(&mut resp);
+                    if rplen==ALERT_RECEIVED { // Server sent me an alert, and is waiting for my close notify
+                        session.send_alert(CLOSE_NOTIFY);
+				        break;
+                    }
+                    if rplen<0 { // problem on my side, send alert and end
+                        session.send_alert(alert_from_cause(rplen));
+                        break;
+                    } else {
+                        if rplen>0 {
+                            log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
+                        }
+                    }
+                    if session.status==PENDING_KEY_UPDATE {
+                        session.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys
+                        log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",0,None);
+                        session.status=CONNECTED;
+                    }
+                }
             }
+
             if session.t.valid && !ticket_failed {
                 store_ticket(&session,"cookie.txt");
             }

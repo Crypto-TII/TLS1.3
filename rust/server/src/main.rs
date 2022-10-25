@@ -80,26 +80,43 @@ fn handle_client(stream: TcpStream,port: u16) {
     let ptlen=make_server_message(&mut post);
     let mut session=SESSION::new(stream,port);
     println!("Session commenced {}",port);
-    let mut mslen=0;
-    let rtn=session.connect(&mut mess,&mut mslen);
+    let mut msize=0;
+    let rtn=session.connect(&mut mess,&mut msize);
+    let mut mslen=msize as isize;
 
     if rtn==TLS_SUCCESS {
         session.send_ticket();
         session.send_ticket();
-        session.send_key_update(UPDATE_NOT_REQUESTED);
-    //session.send_ticket();
-        if mslen==0 { //if message was not received as early data
-            let r=session.recv(&mut mess);
-            if r>0 {
-                mslen=r as usize;
-             } else {
-                println!("No message received");
+        session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
+
+        if mslen>0 {
+            log(IO_APPLICATION,"Received client message as early data\n",-1,Some(&mess[0..mslen as usize]));
+        } else { // wait for a message from client
+            mslen=session.recv(&mut mess);
+            if mslen>=0 {
+                if mslen>0 {
+                    log(IO_APPLICATION,"Received client message\n",-1,Some(&mess[0..mslen as usize]));
+                }
+            } else { // got alert from client - just exit
                 return;
             }
         }
-        log(IO_APPLICATION,"Received client message\n",-1,Some(&mess[0..mslen]));
+
         log(IO_APPLICATION,"Sending Application Response (truncated HTML) = ",0,Some(&post[0..40]));
         session.send(&post[0..ptlen]);
+        session.send_alert(CLOSE_NOTIFY);  // I'm done
+
+        loop { // wait for close-notify response from client - ignore messages
+            mslen=session.recv(&mut mess);
+            if session.status==PENDING_KEY_UPDATE {
+				session.send_key_update(UPDATE_NOT_REQUESTED); // Server 
+                log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",0,None);
+				session.status=CONNECTED;                
+            }
+            if mslen<0 { // hopefully close notify alert
+                break;
+            }
+        }
     }
 }
 

@@ -28,25 +28,25 @@ pub fn millis() -> usize {
 
 /// TLS1.3 session structure
 pub struct SESSION {
-    port: u16,         // Connection port
-    status: usize,     // Connection status 
-    max_record: usize, // max record size I should send
+    pub port: u16,         // Connection port
+    pub status: usize,     // Connection status 
+    pub max_record: usize, // max record size I should send
     pub sockptr: TcpStream,   // Pointer to socket 
-    iolen: usize,           // IO buffer length - input decrypted data
-    ptr: usize,             // IO buffer pointer - consumed portion
-    session_id:[u8;33],  // legacy session ID
+    pub iolen: usize,           // IO buffer length - input decrypted data
+    pub ptr: usize,             // IO buffer pointer - consumed portion
+    pub session_id:[u8;33],  // legacy session ID
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
     pub hlen: usize,        // hostname length
-    cipher_suite: u16,      // agreed cipher suite 
+    pub cipher_suite: u16,      // agreed cipher suite 
     pub favourite_group: u16,   // favourite key exchange group 
-    k_send: keys::CRYPTO,   // Sending Key 
-    k_recv: keys::CRYPTO,   // Receiving Key 
-    hs: [u8;MAX_HASH],      // Handshake secret Secret  
-    rms: [u8;MAX_HASH],     // Resumption Master Secret         
-    sts: [u8;MAX_HASH],     // Server Traffic secret             
-    cts: [u8;MAX_HASH],     // Client Traffic secret                
-    io: [u8;MAX_IO],        // Main IO buffer for this connection 
-    tlshash: UNIHASH,       // Transcript hash recorder 
+    pub k_send: keys::CRYPTO,   // Sending Key 
+    pub k_recv: keys::CRYPTO,   // Receiving Key 
+    pub hs: [u8;MAX_HASH],      // Handshake secret Secret  
+    pub rms: [u8;MAX_HASH],     // Resumption Master Secret         
+    pub sts: [u8;MAX_HASH],     // Server Traffic secret             
+    pub cts: [u8;MAX_HASH],     // Client Traffic secret                
+    pub io: [u8;MAX_IO],        // Main IO buffer for this connection 
+    pub tlshash: UNIHASH,       // Transcript hash recorder 
     pub clientid: [u8;MAX_X509_FIELD], // Client identity for this session
     pub cidlen: usize,      // client id length
     ticket: [u8;MAX_TICKET_SIZE], //psk identity (resumption ticket)
@@ -458,6 +458,7 @@ impl SESSION {
         ptr=utils::append_byte(&mut up,ptr,KEY_UPDATE,1);  // message type
         ptr=utils::append_int(&mut up,ptr,1,3);      // message length
         ptr=utils::append_int(&mut up,ptr,kur,1);
+        self.clean_io();
         self.send_message(HSHAKE,TLS1_2,&up[0..ptr],None);
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
@@ -1616,13 +1617,14 @@ impl SESSION {
 /// Process Client records received post-handshake.
 /// Should be mostly application data, but could be more handshake data disguised as application data
 // Also sending key K_send might be updated.
-// returns +ve length of message, or negative error
+// returns +ve length of message, or negative error, or 0 for a handshake
     pub fn recv(&mut self,mess: &mut [u8]) -> isize {
+        let mut fin=false;
         let mut kind:isize;
         let mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Client input \n",0,None);
-            //self.iolen=0;
+            self.clean_io();
             kind=self.get_record();  // get first fragment to determine type
             if kind<0 {
                 return kind;   // its an error
@@ -1632,8 +1634,47 @@ impl SESSION {
                 return TIME_OUT;
             }
             if kind==HSHAKE as isize { // should check here for key update
-                log(IO_PROTOCOL,"Wasn't expecting handshake message\n",0,None);
-                return BAD_RECORD;
+                loop {
+                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r.err;}
+                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r.err;}   // message length
+                    match nb as u8 {
+                        KEY_UPDATE => {
+                            if len!=1 {
+                                log(IO_PROTOCOL,"Something wrong\n",0,None);
+                                return BAD_RECORD;
+                            } 
+                            let htype=sal::hash_type(self.cipher_suite);
+                            let hlen=sal::hash_len(htype);
+                            r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {return r.err;}
+                            if kur==UPDATE_NOT_REQUESTED {  // reset record number
+                                self.k_recv.update(&mut self.sts[0..hlen]);
+                                log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
+                            }
+                            if kur==UPDATE_REQUESTED {
+                                self.k_recv.update(&mut self.sts[0..hlen]);
+                                self.status=PENDING_KEY_UPDATE;
+                                log(IO_PROTOCOL,"Key update notified - server should do the same\n",0,None);
+                                log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
+                            }
+                            if kur!=UPDATE_NOT_REQUESTED && kur!=UPDATE_REQUESTED {
+                                log(IO_PROTOCOL,"Bad Request Update value\n",0,None);
+                                return BAD_REQUEST_UPDATE;
+                            }
+                            if self.ptr==self.iolen {
+                                fin=true;
+                                self.rewind();
+                            }
+                            if !fin {continue;}
+                        }
+                        _ => {
+                            log(IO_PROTOCOL,"Unsupported Handshake message type ",nb as isize,None);
+                            fin=true;
+                        }
+                    }
+                    if r.err!=0 {return r.err;}
+                    if fin {break;}
+                }
+
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iolen; // grab all of it

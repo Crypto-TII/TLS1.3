@@ -355,6 +355,9 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
         return BAD_CERT_CHAIN;
     }
     r=utils::parse_int(chain,3,&mut ptr); len=r.val; if r.err!=0 {return r.err;}
+    if len==0 {
+        return EMPTY_CERT_CHAIN;
+    }
     if ptr+len>chain.len() {
         return BAD_CERT_CHAIN;
     }

@@ -1042,17 +1042,23 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         return BAD_RECORD;
                     }
                     r=parseIntorPull(session,1); kur=r.val; if (r.err) break;
-                    if (kur==0)
+                    if (kur==TLS13_UPDATE_NOT_REQUESTED)
                     {
                         deriveUpdatedKeys(&session->K_recv,&session->STS);  // reset record number
-                        log(IO_PROTOCOL,(char *)"KEYS UPDATED\n",NULL,0,NULL);
+                        log(IO_PROTOCOL,(char *)"RECEIVING KEYS UPDATED\n",NULL,0,NULL);
                     }
-                    if (kur==1)
+                    if (kur==TLS13_UPDATE_REQUESTED)
                     {
                         deriveUpdatedKeys(&session->K_recv,&session->STS);
-                        log(IO_PROTOCOL,(char *)"Key update notified - client should do the same (?) \n",NULL,0,NULL);
-                        log(IO_PROTOCOL,(char *)"KEYS UPDATED\n",NULL,0,NULL);
+						session->status=TLS13_PENDING_KEY_UPDATE;
+                        log(IO_PROTOCOL,(char *)"Key update notified - client should do the same\n",NULL,0,NULL);
+                        log(IO_PROTOCOL,(char *)"RECEIVING KEYS UPDATED\n",NULL,0,NULL);
                     }
+					if (kur!=TLS13_UPDATE_NOT_REQUESTED && kur!=TLS13_UPDATE_REQUESTED)
+					{
+                        log(IO_PROTOCOL,(char *)"Bad Request Update value\n",NULL,0,NULL);
+                        return BAD_REQUEST_UPDATE;
+					}
                     if (session->ptr==session->IO.len) fin=true; // record finished
                     if (fin) break;
                     continue;

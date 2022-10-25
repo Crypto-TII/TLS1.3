@@ -5,6 +5,7 @@ pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8
 pub const DISCONNECTED: usize = 0;
 pub const CONNECTED: usize = 1;
 pub const HANDSHAKING: usize = 2;
+pub const PENDING_KEY_UPDATE: usize = 3;
 
 // Cipher Suites 
 /// AES128/SHA256/GCM cipher suite
@@ -127,7 +128,7 @@ pub const HANDSHAKE_RETRY: usize = 0x102;        // Handshake retry
 pub const TRY_RESUMPTION: usize = 0x103;         // Try for resumption
 
 pub const UPDATE_NOT_REQUESTED: usize=0;    
-//pub const UPDATE_REQUESTED: usize=1;
+pub const UPDATE_REQUESTED: usize=1;
 
 // Key exchange groups
 pub const X25519: u16 = 0x001d;
@@ -189,6 +190,7 @@ pub const BAD_MESSAGE:isize=-23;                  // Badly formed message
 pub const CERT_VERIFY_FAIL:isize= -24;            // Certificate Verification failure */
 pub const BAD_PROTOCOL:isize=-25;                 // Bad Protocol
 pub const BAD_HANDSHAKE:isize=-26;                // Could not agree
+pub const BAD_REQUEST_UPDATE:isize= -27;		  // Bad Request Update value
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -260,6 +262,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         BAD_PROTOCOL => return NO_APPLICATION_PROTOCOL,
         BAD_HANDSHAKE => return HANDSHAKE_FAILURE,
         CERT_VERIFY_FAIL => return DECRYPT_ERROR,
+        BAD_REQUEST_UPDATE => return ILLEGAL_PARAMETER,
         _ => return ILLEGAL_PARAMETER   
     }
 }

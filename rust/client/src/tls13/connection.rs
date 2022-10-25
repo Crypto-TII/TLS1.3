@@ -22,7 +22,7 @@ use crate::tls13::ticket::TICKET;
 
 /// TLS1.3 session structure
 pub struct SESSION {
-    status: usize,     // Connection status 
+    pub status: usize,     // Connection status 
     max_record: usize, // Server's max record size 
     pub sockptr: TcpStream,   // Pointer to socket 
     iolen: usize,           // IO buffer length
@@ -426,6 +426,21 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(chf),true);
     }
 
+/// Send Key update demand
+    pub fn send_key_update(&mut self,kur: usize) {
+        let mut up:[u8;5]=[0;5];
+        let mut ptr=0;
+        ptr=utils::append_byte(&mut up,ptr,KEY_UPDATE,1);  // message type
+        ptr=utils::append_int(&mut up,ptr,1,3);      // message length
+        ptr=utils::append_int(&mut up,ptr,kur,1);
+        self.clean_io();
+        self.send_message(HSHAKE,TLS1_2,&up[0..ptr],None,true);
+        let htype=sal::hash_type(self.cipher_suite);
+        let hlen=sal::hash_len(htype);
+        self.k_send.update(&mut self.sts[0..hlen]);
+        log(IO_PROTOCOL,"KEY UPDATE REQUESTED\n",0,None);
+    }
+
 /// Build client's chosen set of extensions, and assert expectation of server responses.
 /// The User may want to change the mix of optional extensions.
 // mode=0 - full handshake
@@ -704,7 +719,7 @@ impl SESSION {
             self.iolen=utils::shift_left(&mut self.io[0..self.iolen],pos); // rewind
             return ALERT as isize;
         }
-        return APPLICATION as isize;
+        return WRONG_MESSAGE;
     }
 
 /// Get (unencrypted) Server Hello
@@ -1767,7 +1782,7 @@ impl SESSION {
         let mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input \n",0,None);
-
+            self.clean_io();
             kind=self.get_record();  // get first fragment to determine type
             if kind<0 {
                 return kind;   // its an error
@@ -1811,12 +1826,17 @@ impl SESSION {
                             r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {return r.err;}
                             if kur==UPDATE_NOT_REQUESTED {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
-                                log(IO_PROTOCOL,"KEYS UPDATED\n",0,None);
+                                log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
                             }
                             if kur==UPDATE_REQUESTED {
                                 self.k_recv.update(&mut self.sts[0..hlen]);
-                                log(IO_PROTOCOL,"Key update notified - client should do the same (?) \n",0,None);
-                                log(IO_PROTOCOL,"KEYS UPDATED\n",0,None);
+                                self.status=PENDING_KEY_UPDATE;
+                                log(IO_PROTOCOL,"Key update notified - client should do the same  \n",0,None);
+                                log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
+                            }
+                            if kur!=UPDATE_NOT_REQUESTED && kur!=UPDATE_REQUESTED {
+                                log(IO_PROTOCOL,"Bad Request Update value\n",0,None);
+                                return BAD_REQUEST_UPDATE;
                             }
                             if self.ptr==self.iolen {
                                 fin=true;

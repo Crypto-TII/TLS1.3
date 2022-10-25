@@ -224,6 +224,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS1_2 0x0303                   /**< TLS 1.2 version */
 #define TLS1_3 0x0304                   /**< TLS 1.3 version */
 
+#define TLS13_UPDATE_NOT_REQUESTED 0			/**< Updating my keys */
+#define TLS13_UPDATE_REQUESTED 1				/**< Updating my keys and telling you to update yours */
+
 // Extensions 
 #define SERVER_NAME 0x0000              /**< Server Name extension */
 #define SUPPORTED_GROUPS 0x000a         /**< Supported Group extension */
@@ -285,6 +288,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define BAD_MESSAGE -23                 /**< Badly formed message */
 #define CERT_VERIFY_FAIL -24            /**< Certificate Verification failure */
 #define BAD_HANDSHAKE -26               /**< Could not agree */
+#define BAD_REQUEST_UPDATE -27			/**< Bad Request Update value */
 
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */
@@ -306,6 +310,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS13_DISCONNECTED 0            /**< TLS1.3 Connection is broken */
 #define TLS13_CONNECTED 1               /**< TLS1.3 Connection is made */ 
 #define TLS13_HANDSHAKING 2				/**< TLS1.3 is handshaking */
+#define TLS13_PENDING_KEY_UPDATE 3      /**< Key Update requested */
 
 // protocol returns..
 #define TLS_FAILURE 0                   /**< Failed to cmake TLS1.3 connection */

@@ -308,6 +308,19 @@ void sendAlert(TLS_session *session,int type)
     logAlert(type);
 }
 
+void sendKeyUpdate(TLS_session *session,int type)
+{
+	char up[5];
+	octad UP={0,sizeof(up),up};
+	OCT_append_byte(&UP,KEY_UPDATE,1);
+	OCT_append_int(&UP,1,3);
+	OCT_append_int(&UP,type,1);
+	OCT_kill(&session->IO); session->ptr=0;
+	sendClientMessage(session,HSHAKE,TLS1_2,&UP,NULL,true); // sent using old keys
+	deriveUpdatedKeys(&session->K_send,&session->STS); // now update keys
+    log(IO_PROTOCOL,(char *)"KEY UPDATE REQUESTED\n",NULL,0,NULL);
+}
+
 // Send final client handshake verification data
 void sendClientFinish(TLS_session *session,octad *CHF)
 {
@@ -421,6 +434,8 @@ int alert_from_cause(int rtn)
 		return DECRYPT_ERROR;
 	case BAD_HANDSHAKE:
 		return HANDSHAKE_FAILURE;
+	case BAD_REQUEST_UPDATE:
+		return ILLEGAL_PARAMETER;
 	case BAD_MESSAGE:
 	case EMPTY_CERT_CHAIN:
 		return DECODE_ERROR;

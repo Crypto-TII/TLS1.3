@@ -179,7 +179,7 @@ int getServerRecord(TLS_session *session)
         OCT_shift_left(&session->IO,pos);
         return ALERT;
     }
-    return BAD_RECORD;
+    return WRONG_MESSAGE;
 }
 
 // These functions read data from the input buffer, and pull more handshake records from a socket if it has to.

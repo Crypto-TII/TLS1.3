@@ -409,6 +409,9 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
 
 // Extract and process Intermediate Cert
     r=parseInt(CERTCHAIN,3,ptr); len=r.val; if (r.err) return r.err; // get length of next certificate
+    if (len==0)
+        return EMPTY_CERT_CHAIN;
+
     r=parseoctadptr(&INTER_CERT,len,CERTCHAIN,ptr); if (r.err) return r.err;
 
     r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return r.err;
