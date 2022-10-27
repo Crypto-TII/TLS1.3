@@ -771,7 +771,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     rtn=getServerHello(session,kex,&COOK,&SPK,pskid);
     if (badResponse(session,rtn)) 
     {
- //       sendAlert(session,CLOSE_NOTIFY);
+        //sendAlert(session,CLOSE_NOTIFY);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);

@@ -393,10 +393,12 @@ int main(int argc, char const *argv[])
             if (!TLS13_connect(session,&GET)) // try again, this time fall back to a FULL handshake
             {  
 				log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
+				TLS13_end(session);
                 exit(EXIT_FAILURE);
             }
         } else {
 			log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
+			TLS13_end(session);
             exit(EXIT_FAILURE);
         }
     }

@@ -371,10 +371,12 @@ fn main() {
                     session.sockptr.shutdown(Shutdown::Both).unwrap();
                     session.sockptr=TcpStream::connect(&fullhost).unwrap();
                     if !session.connect(Some(&mut get[0..gtlen])) {
+                        session.end();
                         log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
                         return;
                     } 
                 } else {
+                    session.end();
                     log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
                     return;
                 }

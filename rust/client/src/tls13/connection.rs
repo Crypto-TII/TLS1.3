@@ -1251,6 +1251,7 @@ impl SESSION {
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
         let nonzero=sal::generate_shared_secret(kex,csk_s,pk_s,ss_s); 
         if !nonzero {
+            self.send_alert(CLOSE_NOTIFY);
             self.clean();
             return TLS_FAILURE;
         }
@@ -1506,6 +1507,7 @@ impl SESSION {
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
         let nonzero=sal::generate_shared_secret(self.favourite_group,csk_s,pk_s,ss_s);
         if !nonzero {
+            self.send_alert(CLOSE_NOTIFY);
             self.clean();
             return TLS_FAILURE;
         }
