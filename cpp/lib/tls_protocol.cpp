@@ -239,6 +239,14 @@ static int TLS13_exchange_hellos(TLS_session *session)
         int skex; // Server Key Exchange Group - should be same as kex
         rtn=getServerHello(session,skex,&COOK,&SPK,pskid);
         
+        if (badResponse(session,rtn)) 
+        {
+#ifdef SHALLOW_STACK
+			free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
+            return TLS_FAILURE;
+        }
+
         if (rtn.val==HANDSHAKE_RETRY)
         { // only one retry allowed
             log(IO_DEBUG,(char *)"A second Handshake Retry Request?\n",NULL,0,NULL); 
@@ -265,13 +273,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
 //  <---------------------------------------------------------- server Hello
 //
 //
-        if (badResponse(session,rtn)) 
-        {
-#ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
-#endif
-            return TLS_FAILURE;
-        }
+
 
         resumption_required=true;
     }
@@ -288,7 +290,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
 	if (!nonzero)
 	{ // all zero shared secret??
-        sendAlert(session,CLOSE_NOTIFY);
+        //sendAlert(session,CLOSE_NOTIFY);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);
@@ -767,6 +769,15 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 
 // Process Server Hello
     rtn=getServerHello(session,kex,&COOK,&SPK,pskid);
+    if (badResponse(session,rtn)) 
+    {
+ //       sendAlert(session,CLOSE_NOTIFY);
+        TLS13_clean(session);
+#ifdef SHALLOW_STACK
+        free(CSK.val); free(CPK.val); free(SPK.val);
+#endif
+        return TLS_FAILURE;
+    }
 //
 //
 //  <---------------------------------------------------------- server Hello
@@ -779,7 +790,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     if (pskid<0)
     { // Ticket rejected by Server (as out of date??)
         log(IO_PROTOCOL,(char *)"Ticket rejected by server\n",NULL,0,NULL);
-        sendAlert(session,CLOSE_NOTIFY);
+        //sendAlert(session,CLOSE_NOTIFY);
         log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
@@ -799,15 +810,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         return TLS_FAILURE;
 	}
 
-    if (badResponse(session,rtn)) 
-    {
-        sendAlert(session,CLOSE_NOTIFY);
-        TLS13_clean(session);
-#ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
-#endif
-        return TLS_FAILURE;
-    }
     logServerHello(session->cipher_suite,pskid,&SPK,&COOK);
     logKeyExchange(kex);
 
@@ -828,7 +830,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
 	if (!nonzero)
 	{ // all zero shared secret??
-        sendAlert(session,CLOSE_NOTIFY);
+        //sendAlert(session,CLOSE_NOTIFY);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);
@@ -950,7 +952,7 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
     
     if (rtn==0)  // failed to connect
 	{
-		session->status=TLS13_DISCONNECTED;
+		//session->status=TLS13_DISCONNECTED;
         return false;
 	}
     
@@ -983,13 +985,17 @@ int TLS13_recv(TLS_session *session,octad *REC)
     TICK.len=0;
     session->ptr=0;
     nticks=0; // number of tickets received
+	bool PENDING_KEY_UPDATE=false;
     while (1)
     {
         log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
         OCT_kill(&session->IO); session->ptr=0;
         type=getServerRecord(session);  // get first fragment to determine type
         if (type<0)
+		{
+			sendAlert(session,alert_from_cause(type));
             return type;   // its an error
+		}
         if (type==TIMED_OUT)
         {
             log(IO_PROTOCOL,(char *)"TIME_OUT\n",NULL,0,NULL);
@@ -999,8 +1005,8 @@ int TLS13_recv(TLS_session *session,octad *REC)
         {
             while (1)
             {
-                r=parseIntorPull(session,1); nb=r.val; if (r.err) return r.err;
-                r=parseIntorPull(session,3); len=r.val; if (r.err) return r.err;   // message length
+                r=parseIntorPull(session,1); nb=r.val; if (r.err) break;
+                r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
                 switch (nb)
                 {
                 case TICKET :   // keep last ticket
@@ -1039,6 +1045,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     if (len!=1)
                     {
                         log(IO_PROTOCOL,(char *)"Something wrong\n",NULL,0,NULL);
+						sendAlert(session,DECODE_ERROR);
                         return BAD_RECORD;
                     }
                     r=parseIntorPull(session,1); kur=r.val; if (r.err) break;
@@ -1050,7 +1057,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     if (kur==TLS13_UPDATE_REQUESTED)
                     {
                         deriveUpdatedKeys(&session->K_recv,&session->STS);
-						session->status=TLS13_PENDING_KEY_UPDATE;
+						PENDING_KEY_UPDATE=true;
                         log(IO_PROTOCOL,(char *)"Key update notified - client should do the same\n",NULL,0,NULL);
                         log(IO_PROTOCOL,(char *)"RECEIVING KEYS UPDATED\n",NULL,0,NULL);
                     }
@@ -1068,10 +1075,18 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     fin=true;
                     break;            
                 }
-                if (r.err) return r.err;
-                if (fin) break;
+                if (r.err || fin) break;
             }
+			if (r.err) {
+				sendAlert(session,alert_from_cause(r.err));
+				break;
+			}
         }
+		if (PENDING_KEY_UPDATE)
+		{
+			sendKeyUpdate(session,TLS13_UPDATE_NOT_REQUESTED); // tell server to update their receiving keys
+			log(IO_PROTOCOL,(char *)"SENDING KEYS UPDATED\n",NULL,0,NULL);
+		}
         if (type==APPLICATION)
         { // application data received - return it
             OCT_copy(REC,&session->IO);
@@ -1083,6 +1098,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
             logAlert(session->IO.val[1]);
             return type;    // Alert received
         }
+
     }
 
     if (session->T.valid)
@@ -1112,6 +1128,9 @@ void TLS13_clean(TLS_session *session)
 
 void TLS13_end(TLS_session *session)
 {
+	if (session->status!=TLS13_ALERT_SENT) // if I haven't already sent alert, send close notify
+		sendAlert(session,CLOSE_NOTIFY);
+	
     TLS13_clean(session);
     endTicketContext(&session->T);
 #ifdef SHALLOW_STACK

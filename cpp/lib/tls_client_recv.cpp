@@ -193,6 +193,7 @@ ret parseIntorPull(TLS_session *session,int len)
         if (rtn!=HSHAKE) {  // Bad input from server (Authentication failure? Wrong record type?)
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IO.val[1];
+			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
         r=parseInt(&session->IO,len,session->ptr);
@@ -210,6 +211,7 @@ ret parseoctadorPull(TLS_session *session,octad *O,int len)
         if (rtn!=HSHAKE) {
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IO.val[1];
+			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
         r=parseoctad(O,len,&session->IO,session->ptr);
@@ -227,6 +229,7 @@ ret parsebytesorPull(TLS_session *session,char *o,int len)
         if (rtn!=HSHAKE) {
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IO.val[1];
+			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
         r=parsebytes(o,len,&session->IO,session->ptr);
@@ -244,6 +247,7 @@ ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
         if (rtn!=HSHAKE) {
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IO.val[1];
+			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
         r=parseoctadptr(O,len,&session->IO,session->ptr);
@@ -254,7 +258,7 @@ ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
 // Could have (a) received an alert, or (b) had problem with response, so need to send an alert
 // test for a bad response, log what happened and act accordingly
 // Very probably requires sending an alert to the server, and aborting
-// If Alert received, log it, send close_notify, and abort
+// If Alert received, log it, send alert, abort
 bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r)
 {
     logServerResponse(r);

@@ -89,6 +89,9 @@ impl SESSION {
                 if rtn==ALERT as isize {
                     r.val=self.io[1] as usize;
                 }
+                if rtn==APPLICATION as isize {
+                    r.err=WRONG_MESSAGE;
+                }
                 break;
             }
             r=utils::parse_int(&self.io[0..self.iolen],len,&mut self.ptr);
@@ -106,6 +109,9 @@ impl SESSION {
                 if rtn==ALERT as isize {
                     r.val=self.io[1] as usize;    // 0 is alert level, 1 is alert description
                 }
+                if rtn==APPLICATION as isize {
+                    r.err=WRONG_MESSAGE;
+                }
                 break;
             }
             r=utils::parse_bytes(e,&self.io[0..self.iolen],&mut self.ptr);
@@ -122,6 +128,9 @@ impl SESSION {
                 r.err=rtn;
                 if rtn==ALERT as isize {
                     r.val=self.io[1] as usize;    // 0 is alert level, 1 is alert description
+                }
+                if rtn==APPLICATION as isize {
+                    r.err=WRONG_MESSAGE;
                 }
                 break;
             }
@@ -364,6 +373,7 @@ impl SESSION {
         self.send_message(ALERT,TLS1_2,&pt[0..2],None,true);
         log(IO_PROTOCOL,"Alert sent to Server - ",0,None);
         logger::log_alert(kind);
+        self.status=ALERT_SENT;
     }
 
 /// Send Change Cipher Suite - helps get past middleboxes (?)
@@ -1028,6 +1038,7 @@ impl SESSION {
 
 /// Clean up buffers, kill crypto keys
     pub fn clean(&mut self) {
+
         self.status=DISCONNECTED;
         self.io.zeroize();
         self.hs.zeroize();
@@ -1036,6 +1047,14 @@ impl SESSION {
         self.rms.zeroize();
         self.k_send.clear();
         self.k_recv.clear();
+    }
+
+// clean up and end session
+    pub fn end(&mut self) {
+        if self.status!=ALERT_SENT {
+            self.send_alert(CLOSE_NOTIFY);
+        }
+        self.clean();
     }
 
 /// Clean out IO buffer
@@ -1191,6 +1210,10 @@ impl SESSION {
         let mut pskid:isize=-1;
         let mut cklen=0;
         let mut rtn = self.get_server_hello(&mut kex,&mut cookie,&mut cklen,pk_s,&mut pskid);
+        if self.bad_response(&rtn) {
+            self.clean();
+            return TLS_FAILURE;
+        }   
 //
 //
 //  <---------------------------------------------------------- server Hello
@@ -1201,7 +1224,6 @@ impl SESSION {
 
         if pskid<0 { // Ticket rejected by Server (as out of date??)
             log(IO_PROTOCOL,"Ticket rejected by server\n",0,None);
-            self.send_alert(CLOSE_NOTIFY);
             log(IO_PROTOCOL,"Resumption Handshake failed\n",0,None);
             self.clean();
             return TLS_FAILURE;
@@ -1213,11 +1235,7 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
 	    }
-        if self.bad_response(&rtn) {
-            self.send_alert(CLOSE_NOTIFY);
-            self.clean();
-            return TLS_FAILURE;
-        }   
+
         logger::log_server_hello(self.cipher_suite,pskid,pk_s,&cookie[0..cklen]);
         logger::log_key_exchange(IO_PROTOCOL,kex);
 
@@ -1233,7 +1251,6 @@ impl SESSION {
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
         let nonzero=sal::generate_shared_secret(kex,csk_s,pk_s,ss_s); 
         if !nonzero {
-            self.send_alert(CLOSE_NOTIFY);
             self.clean();
             return TLS_FAILURE;
         }
@@ -1449,7 +1466,9 @@ impl SESSION {
 
             let mut skex=0;
             rtn=self.get_server_hello(&mut skex,&mut cookie,&mut cklen,pk_s,&mut pskid);
-
+            if self.bad_response(&rtn) {
+                return TLS_FAILURE;
+            }
             if rtn.val==HANDSHAKE_RETRY {
                 log(IO_DEBUG,"A second Handshake Retry Request?\n",0,None);
                 self.send_alert(UNEXPECTED_MESSAGE);
@@ -1469,9 +1488,6 @@ impl SESSION {
 //  <---------------------------------------------------------- server Hello
 //
 //
-            if self.bad_response(&rtn) {
-                return TLS_FAILURE;
-            }
 
             resumption_required=true;
         }
@@ -1490,7 +1506,6 @@ impl SESSION {
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
         let nonzero=sal::generate_shared_secret(self.favourite_group,csk_s,pk_s,ss_s);
         if !nonzero {
-            self.send_alert(CLOSE_NOTIFY);
             self.clean();
             return TLS_FAILURE;
         }
@@ -1755,7 +1770,7 @@ impl SESSION {
         self.t.clear(); // clear out any ticket
     
         if rtn==0 {  // failed to connect
-            self.status=DISCONNECTED;
+            //self.status=DISCONNECTED;
             return false;
         }
         if !early_went {
@@ -1779,12 +1794,14 @@ impl SESSION {
     pub fn recv(&mut self,mess: &mut [u8]) -> isize {
         let mut fin=false;
         let mut kind:isize;
+        let mut pending=false;
         let mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input \n",0,None);
             self.clean_io();
             kind=self.get_record();  // get first fragment to determine type
             if kind<0 {
+                self.send_alert(alert_from_cause(kind));
                 return kind;   // its an error
             }
             if kind==TIMED_OUT as isize {
@@ -1793,8 +1810,8 @@ impl SESSION {
             }
             if kind==HSHAKE as isize {
                 loop {
-                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r.err;}
-                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r.err;}   // message length
+                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {break;}
+                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
                     match nb as u8 {
                         TICKET => {
                             let start=self.ptr;
@@ -1819,23 +1836,25 @@ impl SESSION {
                         KEY_UPDATE => {
                             if len!=1 {
                                 log(IO_PROTOCOL,"Something wrong\n",0,None);
+                                self.send_alert(DECODE_ERROR);
                                 return BAD_RECORD;
                             } 
                             let htype=sal::hash_type(self.cipher_suite);
                             let hlen=sal::hash_len(htype);
-                            r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {return r.err;}
+                            r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {break;}
                             if kur==UPDATE_NOT_REQUESTED {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
                             }
                             if kur==UPDATE_REQUESTED {
                                 self.k_recv.update(&mut self.sts[0..hlen]);
-                                self.status=PENDING_KEY_UPDATE;
+                                pending=true;
                                 log(IO_PROTOCOL,"Key update notified - client should do the same  \n",0,None);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
                             }
                             if kur!=UPDATE_NOT_REQUESTED && kur!=UPDATE_REQUESTED {
                                 log(IO_PROTOCOL,"Bad Request Update value\n",0,None);
+                                self.send_alert(ILLEGAL_PARAMETER);
                                 return BAD_REQUEST_UPDATE;
                             }
                             if self.ptr==self.iolen {
@@ -1849,9 +1868,16 @@ impl SESSION {
                             fin=true;
                         }
                     }
-                    if r.err!=0 {return r.err;}
+                    if r.err!=0 {
+                        self.send_alert(alert_from_cause(r.err));
+                        break;
+                    }
                     if fin {break;}
                 }
+            }
+            if pending {
+                    self.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys
+                    log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",0,None);
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iolen;

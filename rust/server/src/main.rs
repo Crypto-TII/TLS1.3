@@ -104,15 +104,11 @@ fn handle_client(stream: TcpStream,port: u16) {
 
         log(IO_APPLICATION,"Sending Application Response (truncated HTML) = ",0,Some(&post[0..40]));
         session.send(&post[0..ptlen]);
+
         session.send_alert(CLOSE_NOTIFY);  // I'm done
 
-        loop { // wait for close-notify response from client - ignore messages
+        loop { // but wait for close-notify response from client - ignore messages
             mslen=session.recv(&mut mess);
-            if session.status==PENDING_KEY_UPDATE {
-				session.send_key_update(UPDATE_NOT_REQUESTED); // Server 
-                log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",0,None);
-				session.status=CONNECTED;                
-            }
             if mslen<0 { // hopefully close notify alert
                 break;
             }

@@ -306,6 +306,7 @@ void sendAlert(TLS_session *session,int type)
     sendClientMessage(session,ALERT,TLS1_2,&PT,NULL,true);
     log(IO_PROTOCOL,(char *)"Alert sent to Server - ",NULL,0,NULL);
     logAlert(type);
+	session->status=TLS13_ALERT_SENT;
 }
 
 void sendKeyUpdate(TLS_session *session,int type)

@@ -333,6 +333,7 @@ impl SESSION {
             return true;
         }
         if r.err == ALERT as isize {
+            self.send_alert(CLOSE_NOTIFY);
             logger::log_alert(r.val as u8);
             return true;
         }
@@ -349,6 +350,7 @@ impl SESSION {
         self.send_message(ALERT,TLS1_2,&pt[0..2],None);
         log(IO_PROTOCOL,"Alert sent to Client - ",0,None);
         logger::log_alert(kind);
+        self.status=ALERT_SENT;
     }
 
 /// Send Change Cipher Suite - helps get past middleboxes (?)
@@ -1621,12 +1623,14 @@ impl SESSION {
     pub fn recv(&mut self,mess: &mut [u8]) -> isize {
         let mut fin=false;
         let mut kind:isize;
+        let mut pending=false;
         let mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Client input \n",0,None);
             self.clean_io();
             kind=self.get_record();  // get first fragment to determine type
             if kind<0 {
+                self.send_alert(alert_from_cause(kind));
                 return kind;   // its an error
             }
             if kind==TIMED_OUT as isize {
@@ -1635,29 +1639,31 @@ impl SESSION {
             }
             if kind==HSHAKE as isize { // should check here for key update
                 loop {
-                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r.err;}
-                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r.err;}   // message length
+                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {break;}
+                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
                     match nb as u8 {
                         KEY_UPDATE => {
                             if len!=1 {
                                 log(IO_PROTOCOL,"Something wrong\n",0,None);
+                                self.send_alert(DECODE_ERROR);
                                 return BAD_RECORD;
                             } 
                             let htype=sal::hash_type(self.cipher_suite);
                             let hlen=sal::hash_len(htype);
-                            r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {return r.err;}
+                            r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {break;}
                             if kur==UPDATE_NOT_REQUESTED {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
                             }
                             if kur==UPDATE_REQUESTED {
                                 self.k_recv.update(&mut self.sts[0..hlen]);
-                                self.status=PENDING_KEY_UPDATE;
+                                pending=true;
                                 log(IO_PROTOCOL,"Key update notified - server should do the same\n",0,None);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
                             }
                             if kur!=UPDATE_NOT_REQUESTED && kur!=UPDATE_REQUESTED {
                                 log(IO_PROTOCOL,"Bad Request Update value\n",0,None);
+                                self.send_alert(ILLEGAL_PARAMETER);
                                 return BAD_REQUEST_UPDATE;
                             }
                             if self.ptr==self.iolen {
@@ -1671,10 +1677,17 @@ impl SESSION {
                             fin=true;
                         }
                     }
-                    if r.err!=0 {return r.err;}
+                    if r.err!=0 {
+                        self.send_alert(alert_from_cause(r.err));
+                        break;
+                    }
                     if fin {break;}
                 }
 
+            }
+            if pending {
+                    self.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys
+                    log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",0,None);
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iolen; // grab all of it
@@ -1709,6 +1722,14 @@ impl SESSION {
         self.k_send.clear();
         self.k_recv.clear();
     }
+
+// clean up and end session
+//    pub fn end(&mut self) {
+//        if !self.status==ALERT_SENT {
+//            self.send_alert(CLOSE_NOTIFY);
+//        }
+//        self.clean();
+//    }
 
 /// Clean out IO buffer
     fn clean_io(&mut self) {

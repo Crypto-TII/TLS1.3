@@ -5,7 +5,7 @@ pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8
 pub const DISCONNECTED: usize = 0;
 pub const CONNECTED: usize = 1;
 pub const HANDSHAKING: usize = 2;
-pub const PENDING_KEY_UPDATE: usize = 3;
+pub const ALERT_SENT: usize = 4;
 
 // Cipher Suites 
 /// AES128/SHA256/GCM cipher suite

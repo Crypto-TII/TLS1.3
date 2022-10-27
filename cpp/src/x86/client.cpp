@@ -405,42 +405,22 @@ int main(int argc, char const *argv[])
 	if (port==443)
 	{ // its a regular website. Wait for some HTML from website, then send an alert to close it
 		int rtn=TLS13_recv(session,&RESP);
-		if (rtn<0)
-			sendAlert(session,alert_from_cause(rtn));
-		else {
-			if (rtn==APPLICATION)
-				log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-			sendAlert(session,CLOSE_NOTIFY);
-		}
+		if (rtn==APPLICATION)
+			log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 	}
 	if (port==4433)
 	{ // Wait for Server to end it with a close notify alert
 		for (; ; )
 		{
 			int rtn=TLS13_recv(session,&RESP);
-
-			if (rtn<0)
-			{ // problem on my side, send alert and end
-				sendAlert(session,alert_from_cause(rtn));
-				break;
-			}
-			if (rtn==ALERT)
-			{ // Server sent me an alert, and is waiting for my close notify
-				sendAlert(session,CLOSE_NOTIFY);
+			if (rtn<0 || rtn==ALERT)
+			{ // Either problem on my side, or I got an alert
 				break;
 			}
 			if (rtn==APPLICATION)
 				log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-
-			if (session->status==TLS13_PENDING_KEY_UPDATE)
-			{
-				sendKeyUpdate(session,TLS13_UPDATE_NOT_REQUESTED); // tell server to update their receiving keys
-				log(IO_PROTOCOL,(char *)"SENDING KEYS UPDATED\n",NULL,0,NULL);
-				session->status=TLS13_CONNECTED; // switch back to just being connected
-			}
 		}
 	}
-
 // If session collected a Ticket, store it somewhere for next time
     if (session->T.valid && !TICKET_FAILED)
         storeTicket(session);
