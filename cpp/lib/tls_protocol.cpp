@@ -290,7 +290,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
 	if (!nonzero)
 	{ // all zero shared secret??
-        //sendAlert(session,CLOSE_NOTIFY);
+        sendAlert(session,ILLEGAL_PARAMETER);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);
@@ -771,7 +771,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     rtn=getServerHello(session,kex,&COOK,&SPK,pskid);
     if (badResponse(session,rtn)) 
     {
-        //sendAlert(session,CLOSE_NOTIFY);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);
@@ -790,7 +789,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     if (pskid<0)
     { // Ticket rejected by Server (as out of date??)
         log(IO_PROTOCOL,(char *)"Ticket rejected by server\n",NULL,0,NULL);
-        //sendAlert(session,CLOSE_NOTIFY);
         log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
@@ -830,7 +828,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
 	if (!nonzero)
 	{ // all zero shared secret??
-        //sendAlert(session,CLOSE_NOTIFY);
+        sendAlert(session,ILLEGAL_PARAMETER);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);
@@ -1096,9 +1094,10 @@ int TLS13_recv(TLS_session *session,octad *REC)
         {
             log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
             logAlert(session->IO.val[1]);
+            //if (session->IO.val[1]==CLOSE_NOTIFY)
+		    //    sendAlert(session,CLOSE_NOTIFY);
             return type;    // Alert received
         }
-
     }
 
     if (session->T.valid)
@@ -1126,11 +1125,14 @@ void TLS13_clean(TLS_session *session)
     session->status=TLS13_DISCONNECTED;
 }
 
-void TLS13_end(TLS_session *session)
+void TLS13_stop(TLS_session *session)
 {
-	if (session->status!=TLS13_ALERT_SENT) // if I haven't already sent alert, send close notify
-		sendAlert(session,CLOSE_NOTIFY);
-	
+    sendAlert(session,CLOSE_NOTIFY);
+    session->status=TLS13_DISCONNECTED;
+}
+
+void TLS13_end(TLS_session *session)
+{	
     TLS13_clean(session);
     endTicketContext(&session->T);
 #ifdef SHALLOW_STACK

@@ -208,6 +208,7 @@ void testTLSconnect(Socket *client,char *hostname,int port)
         TLS13_clean(session);   // but leave ticket intact
     }
 // drop the connection..
+    TLS13_stop(session);
     client->stop();
     elapsed = (millis() - start);
     Serial.print("Full TLS connection (ms)= "); Serial.println(elapsed);
@@ -232,6 +233,7 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     } else {
         log(IO_APPLICATION,(char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
     }
+    TLS13_stop(session);
     client->stop();
     elapsed = (millis() - start);
     Serial.print("Resumed TLS connection (ms)= "); Serial.println(elapsed);

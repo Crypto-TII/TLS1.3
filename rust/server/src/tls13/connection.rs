@@ -268,6 +268,10 @@ impl SESSION {
 /// Message is constructed in IO buffer, and finally written to the socket.
 /// note that IO buffer is overwritten
     pub fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>) {
+        if self.status==DISCONNECTED {
+            self.clean_io();
+            return;
+        }
         let mut ptr=0;
         let rbytes=(sal::random_byte()%16) as usize;
         if !self.k_send.active { // no encryption
@@ -333,7 +337,9 @@ impl SESSION {
             return true;
         }
         if r.err == ALERT as isize {
-            self.send_alert(CLOSE_NOTIFY);
+            //if r.val==CLOSE_NOTIFY as usize{
+		    //    self.send_alert(CLOSE_NOTIFY);  // I'm closing down, and so are you
+            //}
             logger::log_alert(r.val as u8);
             return true;
         }
@@ -350,7 +356,6 @@ impl SESSION {
         self.send_message(ALERT,TLS1_2,&pt[0..2],None);
         log(IO_PROTOCOL,"Alert sent to Client - ",0,None);
         logger::log_alert(kind);
-        self.status=ALERT_SENT;
     }
 
 /// Send Change Cipher Suite - helps get past middleboxes (?)
@@ -1580,7 +1585,7 @@ impl SESSION {
 
 
         if !keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s) {          
-            //self.send_alert(DECRYPT_ERROR);                              // no point in sending alert - haven't calculated traffic keys yet
+            self.send_alert(DECRYPT_ERROR);                              // no point in sending alert - haven't calculated traffic keys yet
             log(IO_DEBUG,"Client Data is NOT verified\n",0,None);
             self.clean();
             return TLS_FAILURE;
@@ -1705,6 +1710,9 @@ impl SESSION {
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",0,None);
                 logger::log_alert(self.io[1]);
+                //if self.io[1]==CLOSE_NOTIFY {
+                //    self.send_alert(CLOSE_NOTIFY);
+                //}
                 return ALERT_RECEIVED;
             }
         }
@@ -1723,14 +1731,6 @@ impl SESSION {
         self.k_recv.clear();
     }
 
-// clean up and end session
-//    pub fn end(&mut self) {
-//        if !self.status==ALERT_SENT {
-//            self.send_alert(CLOSE_NOTIFY);
-//        }
-//        self.clean();
-//    }
-
 /// Clean out IO buffer
     fn clean_io(&mut self) {
         for i in 0..self.iolen {
@@ -1738,5 +1738,10 @@ impl SESSION {
         }  
         self.ptr=0;
         self.iolen=0;
+    }
+
+    pub fn stop(&mut self) {
+        self.send_alert(CLOSE_NOTIFY);
+        self.status=DISCONNECTED;
     }
 }

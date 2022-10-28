@@ -371,12 +371,10 @@ fn main() {
                     session.sockptr.shutdown(Shutdown::Both).unwrap();
                     session.sockptr=TcpStream::connect(&fullhost).unwrap();
                     if !session.connect(Some(&mut get[0..gtlen])) {
-                        session.end();
                         log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
                         return;
                     } 
                 } else {
-                    session.end();
                     log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
                     return;
                 }
@@ -398,11 +396,11 @@ fn main() {
                     }
                 }
             }
+            session.stop();
 
             if session.t.valid && !ticket_failed {
                 store_ticket(&session,"cookie.txt");
             }
-            session.end();
         },
         Err(_e) => {
             log(IO_PROTOCOL,"Failed to connect\n",0,None);

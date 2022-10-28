@@ -285,6 +285,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define MAX_EXCEEDED -17				/**< Maximum record size exceeded */
 #define EMPTY_CERT_CHAIN -18            /**< Empty Certificate Message */
 #define SELF_SIGNED_CERT -20			/**< Self signed certificate */
+#define ALERT_RECEIVED -22              /**< Alert has been received */
 #define BAD_MESSAGE -23                 /**< Badly formed message */
 #define CERT_VERIFY_FAIL -24            /**< Certificate Verification failure */
 #define BAD_HANDSHAKE -26               /**< Could not agree */
@@ -310,7 +311,6 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS13_DISCONNECTED 0            /**< TLS1.3 Connection is broken */
 #define TLS13_CONNECTED 1               /**< TLS1.3 Connection is made */ 
 #define TLS13_HANDSHAKING 2				/**< TLS1.3 is handshaking */
-#define TLS13_ALERT_SENT 4				/**< Alert has been sent */
 
 // protocol returns..
 #define TLS_FAILURE 0                   /**< Failed to cmake TLS1.3 connection */

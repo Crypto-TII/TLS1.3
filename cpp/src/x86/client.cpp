@@ -423,6 +423,8 @@ int main(int argc, char const *argv[])
 				log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
 		}
 	}
+    TLS13_stop(session);
+
 // If session collected a Ticket, store it somewhere for next time
     if (session->T.valid && !TICKET_FAILED)
         storeTicket(session);

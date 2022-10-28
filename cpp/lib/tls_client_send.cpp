@@ -197,6 +197,12 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
     char tag[TLS_MAX_TAG_SIZE];
     octad TAG={0,sizeof(tag),tag};
 
+    if (session->status==TLS13_DISCONNECTED) {
+        OCT_kill(&session->IO);
+        session->ptr=0;
+        return;
+    }
+
     int rbytes=SAL_randomByte()%16; // random padding bytes
 
     //OCT_kill(&session->IO);
@@ -306,7 +312,6 @@ void sendAlert(TLS_session *session,int type)
     sendClientMessage(session,ALERT,TLS1_2,&PT,NULL,true);
     log(IO_PROTOCOL,(char *)"Alert sent to Server - ",NULL,0,NULL);
     logAlert(type);
-	session->status=TLS13_ALERT_SENT;
 }
 
 void sendKeyUpdate(TLS_session *session,int type)

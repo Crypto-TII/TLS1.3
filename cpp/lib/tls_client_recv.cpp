@@ -191,7 +191,7 @@ ret parseIntorPull(TLS_session *session,int len)
     { // not enough bytes in IO - Pull in some more
         int rtn=getServerRecord(session); 
         if (rtn!=HSHAKE) {  // Bad input from server (Authentication failure? Wrong record type?)
-            r.err=rtn;
+            r.err=rtn;  // probably negative error
             if (rtn==ALERT) r.val=session->IO.val[1];
 			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
@@ -274,7 +274,8 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
     if (r.err==ALERT)
     { // received an alert from the Server - abort
         log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
-		sendAlert(session,CLOSE_NOTIFY);  // Im closing down
+        //if (r.val==CLOSE_NOTIFY)
+		//    sendAlert(session,CLOSE_NOTIFY);  // I'm closing down, and so are you
         logAlert(r.val);
         return true;
     }

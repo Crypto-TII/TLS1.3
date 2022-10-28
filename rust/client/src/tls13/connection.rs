@@ -251,6 +251,10 @@ impl SESSION {
 /// message is constructed in IO buffer, and finally written to the socket.
 /// note that the IO buffer is overwritten
     fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>,flush: bool) {
+        if self.status==DISCONNECTED {
+            self.clean_io();
+            return;
+        }
         let mut ptr=self.iolen;
         let rbytes=(sal::random_byte()%16) as usize;
         if !self.k_send.active { // no encryption
@@ -356,7 +360,9 @@ impl SESSION {
             return true;
         }
         if r.err == ALERT as isize {
-            self.send_alert(CLOSE_NOTIFY);
+            //if r.val==CLOSE_NOTIFY as usize {
+		    //    self.send_alert(CLOSE_NOTIFY);  // I'm closing down, and so are you
+            //}
             logger::log_alert(r.val as u8);
             return true;
         }
@@ -373,7 +379,6 @@ impl SESSION {
         self.send_message(ALERT,TLS1_2,&pt[0..2],None,true);
         log(IO_PROTOCOL,"Alert sent to Server - ",0,None);
         logger::log_alert(kind);
-        self.status=ALERT_SENT;
     }
 
 /// Send Change Cipher Suite - helps get past middleboxes (?)
@@ -448,7 +453,6 @@ impl SESSION {
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
         self.k_send.update(&mut self.sts[0..hlen]);
-        log(IO_PROTOCOL,"KEY UPDATE REQUESTED\n",0,None);
     }
 
 /// Build client's chosen set of extensions, and assert expectation of server responses.
@@ -1049,14 +1053,6 @@ impl SESSION {
         self.k_recv.clear();
     }
 
-// clean up and end session
-    pub fn end(&mut self) {
-        if self.status!=ALERT_SENT {
-            self.send_alert(CLOSE_NOTIFY);
-        }
-        self.clean();
-    }
-
 /// Clean out IO buffer
     fn clean_io(&mut self) {
         for i in 0..self.iolen {
@@ -1251,7 +1247,7 @@ impl SESSION {
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
         let nonzero=sal::generate_shared_secret(kex,csk_s,pk_s,ss_s); 
         if !nonzero {
-            self.send_alert(CLOSE_NOTIFY);
+            self.send_alert(ILLEGAL_PARAMETER);
             self.clean();
             return TLS_FAILURE;
         }
@@ -1507,7 +1503,7 @@ impl SESSION {
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
         let nonzero=sal::generate_shared_secret(self.favourite_group,csk_s,pk_s,ss_s);
         if !nonzero {
-            self.send_alert(CLOSE_NOTIFY);
+            self.send_alert(ILLEGAL_PARAMETER);
             self.clean();
             return TLS_FAILURE;
         }
@@ -1897,6 +1893,9 @@ impl SESSION {
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",0,None);
                 logger::log_alert(self.io[1]);
+                //if self.io[1]==CLOSE_NOTIFY {
+                //    self.send_alert(CLOSE_NOTIFY);
+                //}
                 return ALERT_RECEIVED;
             }
         }
@@ -1907,5 +1906,10 @@ impl SESSION {
             log(IO_PROTOCOL,"No ticket provided \n",0,None);
         }
         return mslen; 
+    }
+
+    pub fn stop(&mut self) {
+        self.send_alert(CLOSE_NOTIFY);
+        self.status=DISCONNECTED;
     }
 }

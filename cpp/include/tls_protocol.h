@@ -30,6 +30,14 @@ extern TLS_session TLS13_start(Socket *client,char *hostname);
  */
 extern void TLS13_end(TLS_session *session);
 
+
+/**	@brief stop sending - send CLOSE_NOTIFY and DISCONNECT
+ *
+    @param session the session structure
+ */
+extern void TLS13_stop(TLS_session *session);
+
+
 /**	@brief TLS 1.3 forge connection
  *
     @param session an initialised TLS session structure

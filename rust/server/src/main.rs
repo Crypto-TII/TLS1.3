@@ -105,7 +105,12 @@ fn handle_client(stream: TcpStream,port: u16) {
         log(IO_APPLICATION,"Sending Application Response (truncated HTML) = ",0,Some(&post[0..40]));
         session.send(&post[0..ptlen]);
 
-        session.send_alert(CLOSE_NOTIFY);  // I'm done
+        session.stop();
+
+// ... but still open to receiving stuff .. but what if I need to send an alert in response to bad input?
+// if I receive an error alert, just end it. 
+// if its a close notify, keep listening until I get a close notify from the other side 
+// Each party MUST send a close notify before it stops sending
 
         loop { // but wait for close-notify response from client - ignore messages
             mslen=session.recv(&mut mess);
