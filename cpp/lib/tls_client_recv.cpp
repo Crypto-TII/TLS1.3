@@ -330,17 +330,17 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     if (r.err) return r;
     nb=r.val;
 
+    if (nb!=ENCRYPTED_EXTENSIONS) {
+        r.err=WRONG_MESSAGE;
+        return r;
+    }
+
     r=parseIntorPull(session,3); left=r.val; if (r.err) return r;         // message length    
 
     enc_ext_resp->early_data=false;
     enc_ext_resp->alpn=false;
     enc_ext_resp->server_name=false;
     enc_ext_resp->max_frag_length=false;
-
-    if (nb!=ENCRYPTED_EXTENSIONS) {
-        r.err=WRONG_MESSAGE;
-        return r;
-    }
 
     r=parseIntorPull(session,2); len=r.val; if (r.err) return r; // length of extensions
 
@@ -704,7 +704,8 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 // start parsing mandatory components
     session->ptr=0;
 
-    r=parseIntorPull(session,1); if (r.err) return r; // should be Server Hello
+    r=parseIntorPull(session,1); 
+    if (r.err) return r; // should be Server Hello
     if (r.val!=SERVER_HELLO)
     {
         r.err=BAD_HELLO;

@@ -1062,6 +1062,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
 					if (kur!=TLS13_UPDATE_NOT_REQUESTED && kur!=TLS13_UPDATE_REQUESTED)
 					{
                         log(IO_PROTOCOL,(char *)"Bad Request Update value\n",NULL,0,NULL);
+                        sendAlert(session,ILLEGAL_PARAMETER);
                         return BAD_REQUEST_UPDATE;
 					}
                     if (session->ptr==session->IO.len) fin=true; // record finished
@@ -1128,7 +1129,6 @@ void TLS13_clean(TLS_session *session)
 void TLS13_stop(TLS_session *session)
 {
     sendAlert(session,CLOSE_NOTIFY);
-    session->status=TLS13_DISCONNECTED;
 }
 
 void TLS13_end(TLS_session *session)

@@ -368,14 +368,17 @@ fn main() {
                 if have_ticket {
                     ticket_failed=true;
                     remove_ticket();
+                    session.stop();
                     session.sockptr.shutdown(Shutdown::Both).unwrap();
                     session.sockptr=TcpStream::connect(&fullhost).unwrap();
                     if !session.connect(Some(&mut get[0..gtlen])) {
                         log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
+                        session.stop();
                         return;
                     } 
                 } else {
                     log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
+                    session.stop();
                     return;
                 }
             } 

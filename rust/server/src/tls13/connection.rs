@@ -356,6 +356,7 @@ impl SESSION {
         self.send_message(ALERT,TLS1_2,&pt[0..2],None);
         log(IO_PROTOCOL,"Alert sent to Client - ",0,None);
         logger::log_alert(kind);
+        self.status=DISCONNECTED;
     }
 
 /// Send Change Cipher Suite - helps get past middleboxes (?)
@@ -1742,6 +1743,5 @@ impl SESSION {
 
     pub fn stop(&mut self) {
         self.send_alert(CLOSE_NOTIFY);
-        self.status=DISCONNECTED;
     }
 }

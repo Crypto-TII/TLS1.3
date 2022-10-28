@@ -379,6 +379,7 @@ impl SESSION {
         self.send_message(ALERT,TLS1_2,&pt[0..2],None,true);
         log(IO_PROTOCOL,"Alert sent to Server - ",0,None);
         logger::log_alert(kind);
+        self.status=DISCONNECTED;
     }
 
 /// Send Change Cipher Suite - helps get past middleboxes (?)
@@ -889,16 +890,16 @@ impl SESSION {
         let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
         let nb=r.val as u8;
+        if nb != ENCRYPTED_EXTENSIONS {
+            r.err=WRONG_MESSAGE;
+            return r;
+        }
 
         r=self.parse_int_pull(3); let mut left=r.val;  if r.err!=0 {return r;}  // get message length
         response.early_data=false;
         response.alpn=false;
         response.server_name=false;
         response.max_frag_len=false;
-        if nb != ENCRYPTED_EXTENSIONS {
-            r.err=WRONG_MESSAGE;
-            return r;
-        }
 
         r=self.parse_int_pull(2); let mut len=r.val; if r.err!=0 {return r;}
         left-=2;
@@ -1910,6 +1911,5 @@ impl SESSION {
 
     pub fn stop(&mut self) {
         self.send_alert(CLOSE_NOTIFY);
-        self.status=DISCONNECTED;
     }
 }
