@@ -1085,6 +1085,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
 		{
 			sendKeyUpdate(session,TLS13_UPDATE_NOT_REQUESTED); // tell server to update their receiving keys
 			log(IO_PROTOCOL,(char *)"SENDING KEYS UPDATED\n",NULL,0,NULL);
+            PENDING_KEY_UPDATE=false;
 		}
         if (type==APPLICATION)
         { // application data received - return it

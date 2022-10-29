@@ -992,6 +992,10 @@ impl SESSION {
         }
 // Update Transcript hash and rewind IO buffer
         self.running_hash_io();
+
+        if unexp>0 {
+            r.err=UNRECOGNIZED_EXT;
+        }
         r.val=nb as usize;
 
         return r;
@@ -1875,8 +1879,10 @@ impl SESSION {
                 }
             }
             if pending {
-                    self.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys
-                    log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",0,None);
+                self.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys
+                log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",0,None);
+                pending=false;
+                // dont exit yet, wait for some data
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iolen;

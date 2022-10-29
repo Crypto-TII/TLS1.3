@@ -354,8 +354,10 @@ impl SESSION {
         let pt: [u8;2]=[0x02,kind];
         self.clean_io();
         self.send_message(ALERT,TLS1_2,&pt[0..2],None);
-        log(IO_PROTOCOL,"Alert sent to Client - ",0,None);
-        logger::log_alert(kind);
+        if self.status != DISCONNECTED {
+            log(IO_PROTOCOL,"Alert sent to Client - ",0,None);
+            logger::log_alert(kind);
+        }
         self.status=DISCONNECTED;
     }
 
@@ -1694,6 +1696,8 @@ impl SESSION {
             if pending {
                     self.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys
                     log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",0,None);
+                    pending=false;
+                    //return 0;
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iolen; // grab all of it

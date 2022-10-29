@@ -87,7 +87,9 @@ fn handle_client(stream: TcpStream,port: u16) {
     if rtn==TLS_SUCCESS {
         session.send_ticket();
         session.send_ticket();
-        session.send_key_update(UPDATE_NOT_REQUESTED);  // UPDATE_REQUESTED can be used here instead
+        session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
+
+// got to recv here, or we miss key update!
 
         if mslen>0 {
             log(IO_APPLICATION,"Received client message as early data\n",-1,Some(&mess[0..mslen as usize]));

@@ -448,7 +448,10 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     runningHashIOrewind(session);
 
     if (unexp>0)    
+    {
+        r.err=UNRECOGNIZED_EXT;
         log(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
+    }
     r.val=nb;
     return r;
 }

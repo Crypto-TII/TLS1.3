@@ -255,9 +255,6 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
 
     }
 
-
-
-
 #ifdef SHALLOW_STACK
     free(b);
 #endif
