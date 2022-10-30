@@ -205,10 +205,10 @@ void testTLSconnect(Socket *client,char *hostname,int port)
         TLS13_recv(session,&RESP);    // Server response + ticket
         if (RESP.len>0)
             log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-        TLS13_clean(session);   // but leave ticket intact
     }
 // drop the connection..
     TLS13_stop(session);
+    TLS13_clean(session);   // but leave ticket intact
     client->stop();
     elapsed = (millis() - start);
     Serial.print("Full TLS connection (ms)= "); Serial.println(elapsed);
