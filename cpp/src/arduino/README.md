@@ -22,7 +22,7 @@ The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calc
 4.	(If ever asked to overwrite a file, go ahead and overwrite it)
 5.	Copy in all of the TLS1.3 C++ code from the lib/, include/, sal/ and src/arduino directories (but not from subdirectories)
 6.	Edit the file core.h to define CORE_ARDUINO (line 31)
-7.	Edit the file tls_sockets.h to define TLS_ARDUINO (line 13). 
+7.	Edit the file tls_octads.h to define TLS_ARDUINO (line 13). 
 8.	Edit tls1_3.h. Define VERBOSITY as IO_DEBUG for more debug output. Decide on CRYPTO_SETTING. Stack only, or Stack plus heap. 
 9.	Edit the file client.cpp to set your wifi SSID and password (near line 150)
 10.	Run py config.py, and select options 2, 8, 41 and 43. This creates the default SAL (in this case using miracl + ECC608A hardware).

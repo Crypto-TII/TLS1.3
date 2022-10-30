@@ -10,8 +10,6 @@
 #ifndef TLS_SOCKETS_H
 #define TLS_SOCKETS_H
 
-//#define TLS_ARDUINO            /**< Define for Arduino-based implementation */
-
 #include <string.h>
 #include "tls_octads.h"
 

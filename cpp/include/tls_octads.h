@@ -10,14 +10,17 @@
 
 // An octad - "a group or set of eight" - Oxford dictionary
 
+//#define TLS_ARDUINO            /**< Define for Arduino-based implementation */
+
 #include <stddef.h>
 
 /**	@brief read milliseconds from a stop-watch 
  *
 	@return milliseconds read from stop-watch
  */
+#ifndef TLS_ARDUINO
 extern unsigned long millis();
-
+#endif
 /**
 	@brief Safe representation of an octad
 */
