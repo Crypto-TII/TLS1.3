@@ -330,7 +330,7 @@ impl SESSION {
     fn bad_response(&mut self,r: &RET) -> bool {
         logger::log_server_response(r);
         if r.err !=0 {
-            log(IO_PROTOCOL,"Handshake Failed\n",0,None);
+            log(IO_PROTOCOL,"Handshake Failed\n",-1,None);
         }
         if r.err<0 {
             self.send_alert(alert_from_cause(r.err));
@@ -355,7 +355,7 @@ impl SESSION {
         self.clean_io();
         self.send_message(ALERT,TLS1_2,&pt[0..2],None);
         if self.status != DISCONNECTED {
-            log(IO_PROTOCOL,"Alert sent to Client - ",0,None);
+            log(IO_PROTOCOL,"Alert sent to Client - ",-1,None);
             logger::log_alert(kind);
         }
         self.status=DISCONNECTED;
@@ -473,7 +473,7 @@ impl SESSION {
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
         self.k_send.update(&mut self.sts[0..hlen]);
-        log(IO_PROTOCOL,"KEY UPDATE REQUESTED\n",0,None);
+        log(IO_PROTOCOL,"KEY UPDATE REQUESTED\n",-1,None);
     }
 
 /// Send resumption ticket
@@ -710,6 +710,9 @@ impl SESSION {
 
 // OK, its encrypted, so aead decrypt it, check tag
         let taglen=self.k_recv.taglen;
+        if left < taglen+1 {
+            return BAD_RECORD;
+        }
         let mut rlen=left-taglen;
 
         if rlen>MAX_PLAIN_FRAG+1 {
@@ -780,6 +783,11 @@ impl SESSION {
         r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;} // If not enough, pull in another fragment
         r=self.parse_int_pull(2); let svr=r.val; if r.err!=0 {return r;}
 
+        if left<34 {
+            r.err=BAD_MESSAGE;
+            return r;
+        }
+
         left-=2;                // whats left in message
         if svr!=TLS1_2 { 
             r.err=NOT_TLS1_3;  // don't ask
@@ -795,11 +803,19 @@ impl SESSION {
             return r;
         }
         self.session_id[0]=cilen as u8;
+        if left==0 {
+            r.err=BAD_MESSAGE;
+            return r;
+        }
         left-=1;
 
         if cilen==32 {
             let mut legacy_id:[u8;32]=[0;32];
             r=self.parse_bytes_pull(&mut legacy_id); if r.err!=0 {return r;}
+            if left<cilen {
+                r.err=BAD_MESSAGE;
+                return r;
+            }
             left-=cilen;  
             for i in 0..cilen {
                 self.session_id[i+1]=legacy_id[i];
@@ -809,6 +825,12 @@ impl SESSION {
         for i in 0..nccs {
             r=self.parse_int_pull(2); ccs[i]=r.val as u16; if r.err!=0 {return r;}
         }
+
+        if left<6+2*nccs {
+            r.err=BAD_HELLO;
+            return r;
+        }
+
         left-=2+2*nccs;
         r=self.parse_int_pull(2); if r.err!=0 {return r;}
         left-=2;
@@ -832,7 +854,7 @@ impl SESSION {
         *early_indication=false;
         while left>0 {
             if resume {
-                log(IO_DEBUG,"Preshared Key must be last extension",0,None);
+                log(IO_DEBUG,"Preshared Key must be last extension\n",-1,None);
                 r.err=BAD_MESSAGE;
                 return r;
             }
@@ -840,6 +862,10 @@ impl SESSION {
 //println!("Ext={:#06x} ",ext);
             r=self.parse_int_pull(2); let extlen=r.val; if r.err!=0 {return r;}  // length of this extension
             if extlen+2>left {r.err=BAD_MESSAGE;return r;} 
+            if left<4+extlen {
+                r.err=BAD_HELLO;
+                return r;
+            }
             left-=4+extlen;
             match ext {
                 SERVER_NAME => {
@@ -965,7 +991,11 @@ impl SESSION {
                         self.ticket[i]=tick[i];
                     }
                     r=self.parse_int_pull(4); self.ticket_obf_age=r.val as u32; if r.err!=0 {return r;}
-                    let remain=tlen1-self.tklen-2-4;
+                    if tlen1<self.tklen+6 {
+                        r.err=BAD_HELLO;
+                        return r;
+                    }
+                    let remain=tlen1-self.tklen-6;
                     r=self.parse_pull(remain); if r.err!=0 {return r;}  // only take first PSK - drain the rest
                     //extra=extlen-tlen1-2;
                     resume=true;
@@ -1023,7 +1053,7 @@ impl SESSION {
                 }
             }
             if self.cipher_suite==0 {
-                log(IO_DEBUG,"Cannot find any matching cipher suite\n",0,None);
+                log(IO_DEBUG,"Cannot find any matching cipher suite\n",-1,None);
                 r.err=BAD_MESSAGE;
                 return r;
             }
@@ -1167,7 +1197,7 @@ impl SESSION {
         }
         let age=obf_age-age_add;
         if age>TICKET_LIFETIME*1000 || (millis()-birth) as u32 > TICKET_LIFETIME*1000 {
-            log(IO_PROTOCOL,"Ticket is out of date",0,None);
+            log(IO_PROTOCOL,"Ticket is out of date\n",-1,None);
             r.err=BAD_TICKET;
             return r;
         }
@@ -1175,7 +1205,7 @@ impl SESSION {
         r=utils::parse_int(&state,2,&mut ptr); let tc=r.val as u16; if r.err!=0 {return r;}
         r=utils::parse_int(&state,2,&mut ptr); let tg=r.val as u16; if r.err!=0 {return r;}
         if tc != self.cipher_suite || tg!=self.favourite_group {
-            log(IO_DEBUG,"Ticket Crypto Mismatch\n",0,None);
+            log(IO_DEBUG,"Ticket Crypto Mismatch\n",-1,None);
             r.err=BAD_TICKET;
             return r;
         }
@@ -1332,7 +1362,7 @@ impl SESSION {
 // create server verify data
 // .... and send it to Server
             self.transcript_hash(th_s);
-            log(IO_DEBUG,"Server is sending server Finished\n",0,None);
+            log(IO_DEBUG,"Server is sending server Finished\n",-1,None);
             keys::derive_verifier_data(hash_type,shf_s,&self.sts[0..hlen],th_s);
             self.send_server_finish(shf_s);                    
             self.transcript_hash(hh_s);
@@ -1350,7 +1380,7 @@ impl SESSION {
                         return TLS_FAILURE;   // its an error
                     }
                     if kind==TIMED_OUT as isize {
-                        log(IO_PROTOCOL,"TIME_OUT\n",0,None);
+                        log(IO_PROTOCOL,"TIME_OUT\n",-1,None);
                         return TLS_FAILURE;
                     }
                     if kind==HSHAKE as isize { // its a handshake message - should be end-of-early data
@@ -1359,7 +1389,7 @@ impl SESSION {
                             self.clean();
                             return TLS_FAILURE;
                         }
-                        log(IO_PROTOCOL,"Early Data received\n",0,None);
+                        log(IO_PROTOCOL,"Early Data received\n",-1,None);
                         break;
                     }
                     if kind==APPLICATION as isize { // receive some application data
@@ -1375,7 +1405,7 @@ impl SESSION {
                         continue;
                     }
                     if kind==ALERT as isize {
-                        log(IO_PROTOCOL,"*** Alert received - ",0,None);
+                        log(IO_PROTOCOL,"*** Alert received - ",-1,None);
                         logger::log_alert(self.io[1]);
                         return TLS_FAILURE;
                     }
@@ -1393,7 +1423,7 @@ impl SESSION {
                 self.transcript_hash(hh_s);                                            //  *********CH+SH********  
 
                 self.send_message(HSHAKE,TLS1_2,&sh[0..shlen],None);
-                log(IO_DEBUG,"Hello Retry Request sent\n",0,None);
+                log(IO_DEBUG,"Hello Retry Request sent\n",-1,None);
                 self.send_cccs();
                 ccs_sent=true;
 
@@ -1412,7 +1442,7 @@ impl SESSION {
                 }
                 if rtn.val==HANDSHAKE_RETRY {
                     self.send_alert(UNEXPECTED_MESSAGE);
-                    log(IO_DEBUG,"Attempted second retry request",0,None);
+                    log(IO_DEBUG,"Attempted second retry request\n",-1,None);
                     self.clean();
                     return TLS_FAILURE;
                 }
@@ -1422,7 +1452,7 @@ impl SESSION {
             self.running_hash(&sh[0..shlen]);
             self.transcript_hash(hh_s);                                   
             //log(IO_DEBUG,"Client Hello = ",0,Some(&self.io[0..self.iolen]));
-            log(IO_DEBUG,"Client Hello processed\n",0,None);
+            log(IO_DEBUG,"Client Hello processed\n",-1,None);
             log(IO_DEBUG,"Host= ",-1,Some(&self.hostname[0..self.hlen]));
             let sslen=sal::shared_secret_size(self.favourite_group);
             let ss_s=&mut ss[0..sslen];
@@ -1455,7 +1485,7 @@ impl SESSION {
             self.send_encrypted_extensions(&ext[0..enclen]);
 
             if CERTIFICATE_REQUEST {  // request a client certificate?
-                log(IO_DEBUG,"Server is sending certificate request\n",0,None);
+                log(IO_DEBUG,"Server is sending certificate request\n",-1,None);
                 self.send_certificate_request();
 //
 //   Server Certificate request ----------------------------------------------------------> 
@@ -1470,12 +1500,12 @@ impl SESSION {
             let kind=certchain::get_server_credentials(&sig_algs[0..nsa],&mut server_key,&mut sklen,&mut server_certchain,&mut sclen);
             if kind==0 { // No, Client cannot verify this signature
                 self.send_alert(BAD_CERTIFICATE);
-                log(IO_PROTOCOL,"Handshake failed - client would be unable to verify signature\n",0,None);
+                log(IO_PROTOCOL,"Handshake failed - client would be unable to verify signature\n",-1,None);
                 self.clean();
                 return TLS_FAILURE;
             }
 
-            log(IO_PROTOCOL,"Server is authenticating\n",0,None);
+            log(IO_PROTOCOL,"Server is authenticating\n",-1,None);
             logger::log_sig_alg(kind);
             let sc_s=&server_certchain[0..sclen];
             let sk_s=&server_key[0..sklen];
@@ -1486,7 +1516,7 @@ impl SESSION {
     //  {Server Certificate} ---------------------------------------------------->
     //
     //
-            log(IO_DEBUG,"Server is sending certificate verifier\n",0,None);
+            log(IO_DEBUG,"Server is sending certificate verifier\n",-1,None);
             self.transcript_hash(th_s);
             sclen=keys::create_server_cert_verifier(kind,th_s,sk_s,&mut scvsig);
             self.send_server_cert_verify(kind,&scvsig[0..sclen]);                           
@@ -1498,7 +1528,7 @@ impl SESSION {
     //
     // create server verify data
     // .... and send it to Server
-            log(IO_DEBUG,"Server is sending server Finished\n",0,None);
+            log(IO_DEBUG,"Server is sending server Finished\n",-1,None);
             keys::derive_verifier_data(hash_type,shf_s,&self.sts[0..hlen],th_s);
             self.send_server_finish(shf_s);             
             self.transcript_hash(hh_s);
@@ -1532,10 +1562,10 @@ impl SESSION {
                         return TLS_FAILURE;
                     }
                 
-                    log(IO_DEBUG,"Received Client Certificate\n",0,None); 
+                    log(IO_DEBUG,"Received Client Certificate\n",-1,None); 
                     let cpk_s=&cpk[0..cpklen];
                     self.transcript_hash(fh_s);                                            //TH
-                    log(IO_DEBUG,"Certificate Chain is valid\n",0,None);
+                    log(IO_DEBUG,"Certificate Chain is valid\n",-1,None);
                     log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(fh_s));         //TH
 
                     let mut siglen=0;
@@ -1558,8 +1588,8 @@ impl SESSION {
                     if !keys::check_client_cert_verifier(sigalg,ccvsig_s,fh_s,cpk_s) {         //TH
                         delayed_alert=BAD_CERT_CHAIN;
                     //self.send_alert(DECRYPT_ERROR);
-                        log(IO_DEBUG,"Client Cert Verification failed\n",0,None);
-                        log(IO_PROTOCOL,"Full Handshake will fail\n",0,None);
+                        log(IO_DEBUG,"Client Cert Verification failed\n",-1,None);
+                        log(IO_PROTOCOL,"Full Handshake will fail\n",-1,None);
                     //self.clean();
                     //return TLS_FAILURE;
                     }
@@ -1582,14 +1612,14 @@ impl SESSION {
     //  <---------------------------------------------------- {Client finished}
     //
 
-        log(IO_DEBUG,"Server receives client finished\n",0,None);
+        log(IO_DEBUG,"Server receives client finished\n",-1,None);
         log(IO_DEBUG,"Client Verify Data= ",0,Some(&fin[0..fnlen])); 
         let fin_s=&fin[0..fnlen];
 
 
         if !keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s) {          
             self.send_alert(DECRYPT_ERROR);                              // no point in sending alert - haven't calculated traffic keys yet
-            log(IO_DEBUG,"Client Data is NOT verified\n",0,None);
+            log(IO_DEBUG,"Client Data is NOT verified\n",-1,None);
             self.clean();
             return TLS_FAILURE;
         }
@@ -1605,9 +1635,9 @@ impl SESSION {
         log(IO_DEBUG,"Server application traffic secret= ",0,Some(&self.sts[0..hlen]));
 
         if resume {
-            log(IO_PROTOCOL,"RESUMPTION handshake succeeded\n",0,None);
+            log(IO_PROTOCOL,"RESUMPTION handshake succeeded\n",-1,None);
         } else {
-            log(IO_PROTOCOL,"FULL handshake succeeded\n",0,None);
+            log(IO_PROTOCOL,"FULL handshake succeeded\n",-1,None);
         }
 
         if delayed_alert != 0 { // there was a problem..
@@ -1634,7 +1664,7 @@ impl SESSION {
         let mut pending=false;
         let mslen:isize;
         loop {
-            log(IO_PROTOCOL,"Waiting for Client input \n",0,None);
+            log(IO_PROTOCOL,"Waiting for Client input\n",-1,None);
             self.clean_io();
             kind=self.get_record();  // get first fragment to determine type
             if kind<0 {
@@ -1642,7 +1672,7 @@ impl SESSION {
                 return kind;   // its an error
             }
             if kind==TIMED_OUT as isize {
-                log(IO_PROTOCOL,"TIME_OUT\n",0,None);
+                log(IO_PROTOCOL,"TIME_OUT\n",-1,None);
                 return TIME_OUT;
             }
             if kind==HSHAKE as isize { // should check here for key update
@@ -1652,7 +1682,7 @@ impl SESSION {
                     match nb as u8 {
                         KEY_UPDATE => {
                             if len!=1 {
-                                log(IO_PROTOCOL,"Something wrong\n",0,None);
+                                log(IO_PROTOCOL,"Something wrong\n",-1,None);
                                 self.send_alert(DECODE_ERROR);
                                 return BAD_RECORD;
                             } 
@@ -1661,16 +1691,16 @@ impl SESSION {
                             r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {break;}
                             if kur==UPDATE_NOT_REQUESTED {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
-                                log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
+                                log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",-1,None);
                             }
                             if kur==UPDATE_REQUESTED {
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 pending=true;
-                                log(IO_PROTOCOL,"Key update notified - server should do the same\n",0,None);
-                                log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",0,None);
+                                log(IO_PROTOCOL,"Key update notified - server should do the same\n",-1,None);
+                                log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",-1,None);
                             }
                             if kur!=UPDATE_NOT_REQUESTED && kur!=UPDATE_REQUESTED {
-                                log(IO_PROTOCOL,"Bad Request Update value\n",0,None);
+                                log(IO_PROTOCOL,"Bad Request Update value\n",-1,None);
                                 self.send_alert(ILLEGAL_PARAMETER);
                                 return BAD_REQUEST_UPDATE;
                             }
@@ -1695,7 +1725,7 @@ impl SESSION {
             }
             if pending {
                     self.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys
-                    log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",0,None);
+                    log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
                     pending=false;
                     //return 0;
             }
@@ -1713,7 +1743,7 @@ impl SESSION {
                 break;
             }
             if kind==ALERT as isize {
-                log(IO_PROTOCOL,"*** Alert received - ",0,None);
+                log(IO_PROTOCOL,"*** Alert received - ",-1,None);
                 logger::log_alert(self.io[1]);
                 //if self.io[1]==CLOSE_NOTIFY {
                 //    self.send_alert(CLOSE_NOTIFY);

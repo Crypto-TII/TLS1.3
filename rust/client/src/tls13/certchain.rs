@@ -223,12 +223,12 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     ct.sblen=create_full_name(&mut ct.subject,cert,ic);
 
     if !check_cert_not_expired(cert) {
-        log(IO_DEBUG,"Certificate has expired\n",0,None);
+        log(IO_DEBUG,"Certificate has expired",-1,None);
         ct.status=CERT_OUTOFDATE;
         return ct;
     }
     if ct.sgt.kind==0 {
-        log(IO_DEBUG,"Unrecognised Signature Type\n",0,None);
+        log(IO_DEBUG,"Unrecognised Signature Type",-1,None);
         ct.status=BAD_CERT_CHAIN;
         return ct;
     }
@@ -237,19 +237,19 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     logger::log_cert_details(&ct);
 
     if ct.pkt.kind==0 {
-        log(IO_DEBUG,"Unrecognised Public key Type\n",0,None);
+        log(IO_DEBUG,"Unrecognised Public key Type",-1,None);
         ct.status=BAD_CERT_CHAIN;
         return ct;
     }
 
     if &ct.issuer[0..ct.islen]==&ct.subject[0..ct.sblen] {
-        log(IO_DEBUG,"Self signed Cert\n",0,None);
+        log(IO_DEBUG,"Self signed Cert\n",-1,None);
         ct.status=SELF_SIGNED_CERT;
         return ct;
     }
     if *pislen!=0 { // there was one
         if prev_issuer[0..*pislen] != ct.subject[0..ct.sblen] {
-            log(IO_DEBUG,"Subject of this certificate is not issuer of prior certificate\n",0,None);       
+            log(IO_DEBUG,"Subject of this certificate is not issuer of prior certificate",-1,None);       
         }
         ct.status=BAD_CERT_CHAIN;
         return ct;
@@ -309,7 +309,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
     if  let Some(host) = hostname {
         let found=x509::find_alt_name(cert,c.index,host);
         if !found && host!="localhost".as_bytes() {
-            log(IO_PROTOCOL,"Hostname NOT found in certificate\n",0,None);
+            log(IO_PROTOCOL,"Hostname NOT found in certificate\n",-1,None);
             //return BAD_CERT_CHAIN;
         }
     }
@@ -327,7 +327,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
 // if self-signed, thats the end of the chain. And for development it may be acceptable
     if ct.status==SELF_SIGNED_CERT { 
         if ALLOW_SELF_SIGNED {
-            log(IO_PROTOCOL,"Self-signed Certificate allowed\n",0,None);
+            log(IO_PROTOCOL,"Self-signed Certificate allowed\n",-1,None);
             return 0;
         } else {
             return ct.status;
@@ -344,14 +344,14 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
         log(IO_DEBUG,"\nPublic Key from root cert= ",0,Some(&capk[0..capklen]));
     
         if !check_cert_sig(&ct.sgt,&cert,&ct.sig[0..ct.sgt.len],&capk[0..capklen]) {
-            log(IO_DEBUG,"Root Certificate signature is NOT OK\n",0,None);
+            log(IO_DEBUG,"Root Certificate signature is NOT OK",-1,None);
             return BAD_CERT_CHAIN;
         }
-        log(IO_DEBUG,"Root Certificate signature is OK\n",0,None);
+        log(IO_DEBUG,"Root Certificate signature is OK",-1,None);
 
         return 0;
 */
-        log(IO_DEBUG,"Non-self-signed Chain of length 1 ended unexpectedly\n",0,None);
+        log(IO_DEBUG,"Non-self-signed Chain of length 1 ended unexpectedly\n",-1,None);
         return BAD_CERT_CHAIN;
     }
     r=utils::parse_int(chain,3,&mut ptr); len=r.val; if r.err!=0 {return r.err;}
@@ -369,7 +369,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
     ptr+=len;    // skip certificate extensions
 
     if ptr<chain.len() {
-        log(IO_PROTOCOL,"Warning - there are unprocessed Certificates in the Chain\n",0,None);
+        log(IO_PROTOCOL,"Warning - there are unprocessed Certificates in the Chain\n",-1,None);
     }
 
 // parse next certificate
@@ -384,24 +384,24 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
     }
 
     if !check_cert_sig(&ct.sgt,&cert,&ct.sig[0..ct.sgt.len],&ctn.pk[0..ctn.pkt.len]) {
-        log(IO_DEBUG,"Certificate sig is NOT OK\n",0,None);
+        log(IO_DEBUG,"Certificate sig is NOT OK\n",-1,None);
         return BAD_CERT_CHAIN
     }
-    log(IO_DEBUG,"Certificate sig is OK\n",0,None);
+    log(IO_DEBUG,"Certificate sig is OK\n",-1,None);
     
 // parse root ca cert
     let mut capklen=0;
     if !find_root_ca(&issuer[0..islen],&ctn.sgt,&mut capk, &mut capklen) {
-        log(IO_DEBUG,"Root Certificate not found\n",0,None);
+        log(IO_DEBUG,"Root Certificate not found\n",-1,None);
         return BAD_CERT_CHAIN;
     }
     log(IO_DEBUG,"\nPublic Key from root cert= ",0,Some(&capk[0..capklen]));
     
     if !check_cert_sig(&ctn.sgt,&inter_cert,&ctn.sig[0..ctn.sgt.len],&capk[0..capklen]) {
-        log(IO_DEBUG,"Root Certificate sig is NOT OK\n",0,None);
+        log(IO_DEBUG,"Root Certificate sig is NOT OK\n",-1,None);
         return BAD_CERT_CHAIN;
     }
-    log(IO_DEBUG,"Root Certificate sig is OK\n",0,None);
+    log(IO_DEBUG,"Root Certificate sig is OK\n",-1,None);
 
     return 0;
 }

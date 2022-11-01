@@ -188,7 +188,7 @@ fn main() {
         }
     }
     if !tls13::sal::init() {
-        log(IO_PROTOCOL,"SAL failed to start\n",0,None);
+        log(IO_PROTOCOL,"SAL failed to start",-1,None);
         return;
     }
     let listener = TcpListener::bind("0.0.0.0:4433").unwrap();

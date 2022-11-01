@@ -143,6 +143,9 @@ int getServerRecord(TLS_session *session)
         return HSHAKE;
     }
 	taglen=session->K_recv.taglen;
+	if (left < taglen+1) 
+		return BAD_RECORD;
+  
 	rlen=left-taglen; // plaintext record length
 
 	if (rlen>TLS_MAX_PLAIN_FRAG+1) return MAX_EXCEEDED;
@@ -717,6 +720,12 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 
     r=parseIntorPull(session,3); left=r.val; if (r.err) return r;   // If not enough, pull in another fragment
     r=parseIntorPull(session,2); svr=r.val; if (r.err) return r;
+
+	if (left<72)
+	{
+		r.err=BAD_HELLO;
+		return r;
+	}
     left-=2;                // whats left in message
 
 	int legacy_version=svr;
@@ -785,10 +794,13 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
     {
 //printf("Extlen = %d\n",extLen);
         r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
-        extLen-=2;
         r=parseIntorPull(session,2); tmplen=r.val; if (r.err) break;
-        extLen-=2;
-        extLen-=tmplen;
+		if (extLen<4+tmplen)
+		{
+			r.err=BAD_HELLO;
+			return r;
+		}
+		extLen-=(4+tmplen);
 //printf("Ext = %d\n",ext);
         switch (ext)
         {

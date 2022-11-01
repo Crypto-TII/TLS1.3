@@ -214,13 +214,13 @@ fn main() {
     let mut args: Vec<String> = env::args().collect();
 
     if args.len()<2 {
-        log(IO_PROTOCOL,"Command line error\n",0,None);
+        log(IO_PROTOCOL,"Command line error\n",-1,None);
         bad_input();
         return;
     }
 
     if !tls13::sal::init() {
-        log(IO_PROTOCOL,"SAL failed to start\n",0,None);
+        log(IO_PROTOCOL,"SAL failed to start\n",-1,None);
         return;
     }
 
@@ -372,12 +372,12 @@ fn main() {
                     session.sockptr.shutdown(Shutdown::Both).unwrap();
                     session.sockptr=TcpStream::connect(&fullhost).unwrap();
                     if !session.connect(Some(&mut get[0..gtlen])) {
-                        log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
+                        log(IO_APPLICATION,"TLS Handshake failed\n",-1,None);
                         session.stop();
                         return;
                     } 
                 } else {
-                    log(IO_APPLICATION,"TLS Handshake failed\n",0,None);
+                    log(IO_APPLICATION,"TLS Handshake failed\n",-1,None);
                     session.stop();
                     return;
                 }
@@ -406,7 +406,7 @@ fn main() {
             }
         },
         Err(_e) => {
-            log(IO_PROTOCOL,"Failed to connect\n",0,None);
+            log(IO_PROTOCOL,"Failed to connect\n",-1,None);
         } 
     } 
 }

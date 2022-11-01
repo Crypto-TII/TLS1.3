@@ -287,4 +287,5 @@ pub const THIS_YEAR: usize = 2022;         // Set to this year - crudely used to
 pub const TLS_PROTOCOL: bool=true;         // ALPN extension
 pub const APPLICATION_PROTOCOL:&str="http/1.1";
 pub const TRY_EARLY_DATA:bool=true;        // Try sending early data on resumption
+pub const NO_CERT_CHECKS:bool=false;       // don't check server certs
 
