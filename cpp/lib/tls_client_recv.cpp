@@ -347,8 +347,8 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 
     r=parseIntorPull(session,2); len=r.val; if (r.err) return r; // length of extensions
 
-    left-=2;
-    if (left!=len) {
+
+    if (left!=len+2) {
         r.err=BAD_MESSAGE;
         return r;
     }
@@ -359,9 +359,12 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     while (len>0)
     {
         r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
-        len-=2;
         r=parseIntorPull(session,2); tlen=r.val; if (r.err) return r;
-        len-=2;
+		if (len<tlen+4) {
+            r.err=BAD_MESSAGE;
+            return r;
+        }
+		len-=(tlen+4);
         switch (ext)
         {
         case EARLY_DATA :
@@ -374,10 +377,11 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
                 r.err=NOT_EXPECTED;
                 return r;
             }
+
             break;
         case MAX_FRAG_LENGTH :
             r=parseIntorPull(session,1); mfl=r.val; if (r.err) return r; // ideally this should the same as requested by client
-            len-=tlen;                                       // but server may have ignored this request... :( so we ignore this response 
+                                                   // but server may have ignored this request... :( so we ignore this response 
             if (mfl!=TLS_MAX_FRAG || tlen!=1) {
                 r.err=UNRECOGNIZED_EXT;
                 return r;
@@ -391,15 +395,13 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 
 		case RECORD_SIZE_LIMIT:
 			r=parseIntorPull(session,2); mfl=r.val; if (r.err) return r;
-			len-=tlen;
+			
             if (tlen!=2 || mfl<64) {
                 r.err=UNRECOGNIZED_EXT;
                 return r;
             } 
-
 			session->max_record=mfl;
 			break;
-
 
         case APP_PROTOCOL :
             r=parseIntorPull(session,2); xlen=r.val; if (r.err) return r;
@@ -410,7 +412,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
                 return r;
 			}
             r=parseoctadorPull(session,NULL,mfl);  if (r.err) return r; // ALPN code - send to NULL -- assume its the one I asked for
-            len-=tlen;
+            
             enc_ext_resp->alpn=true;
             if (!enc_ext_expt->alpn) {
                 r.err=NOT_EXPECTED;
@@ -436,11 +438,11 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 		case TLS_VER:
 		case COOKIE:
 		case PADDING:
-            len-=tlen; session->ptr+=tlen; // skip over it
+            session->ptr+=tlen; // skip over it
             r.err=FORBIDDEN_EXTENSION;
             return r;
         default:    // ignore all other extensions
-            len-=tlen; session->ptr+=tlen; // skip over it
+            session->ptr+=tlen; // skip over it
             unexp++;
             break;
         }

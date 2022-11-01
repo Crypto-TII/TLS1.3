@@ -124,9 +124,6 @@ void clearsoc(Socket &client,octad *IO)
 
 #endif
 
-
-
-
 // get expected bytes
 int getBytes(Socket *client,char *b,int expected)
 {
@@ -148,10 +145,14 @@ int getBytes(Socket *client,char *b,int expected)
     }
 
 #else
+    unsigned long start=millis();
     while(len>0)
     {
+        if (millis()>start+5000)
+            return -1;
         more=client->read(&b[i],len);
-        if (more<=0) return -1;
+        if (more==0) continue;
+		if (more<0) return -1;
         i+=more;
         len-=more;
     }

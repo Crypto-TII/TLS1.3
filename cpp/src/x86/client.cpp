@@ -418,7 +418,7 @@ int main(int argc, char const *argv[])
 		for (; ; )
 		{
 			int rtn=TLS13_recv(session,&RESP);
-			if (rtn<0 || rtn==ALERT)
+			if (rtn<0 || rtn==ALERT || rtn==TIMED_OUT)
 			{ // Either problem on my side, or I got an alert
 				break;
 			}

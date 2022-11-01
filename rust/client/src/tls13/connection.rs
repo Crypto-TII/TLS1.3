@@ -910,29 +910,31 @@ impl SESSION {
             return r;
         }
 
-        r=self.parse_int_pull(3); let mut left=r.val;  if r.err!=0 {return r;}  // get message length
+        r=self.parse_int_pull(3); let left=r.val;  if r.err!=0 {return r;}  // get message length
         response.early_data=false;
         response.alpn=false;
         response.server_name=false;
         response.max_frag_len=false;
 
         r=self.parse_int_pull(2); let mut len=r.val; if r.err!=0 {return r;}
-        left-=2;
 
-        if left!=len {
+        if left!=len+2 {
             r.err=BAD_MESSAGE;
             return r;
         }
-
+        //left-=2;
 // extension could include Servers preference for supported groups, which could be
 // taken into account by the client for later connections. Here we will ignore it. From RFC:
 // "Clients MUST NOT act upon any information found in "supported_groups" prior to successful completion of the handshake"
-
+        
         while len!=0 {
             r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;}
-            len-=2;
             r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
-            len -= 2;
+            if len<tlen+4 {
+                r.err=BAD_MESSAGE;
+                return r;
+            }
+            len-=tlen+4;
             match ext {
                 EARLY_DATA => {
                     if tlen!=0 {
@@ -947,7 +949,6 @@ impl SESSION {
                 },
                 MAX_FRAG_LENGTH => {
                     r=self.parse_int_pull(1); let mfl=r.val; if r.err!=0 {return r;}
-                    len-=tlen;
                     if tlen !=1 || mfl!=MAX_FRAG {
                         r.err=UNRECOGNIZED_EXT;
                         return r;
@@ -959,7 +960,6 @@ impl SESSION {
                 },
                 RECORD_SIZE_LIMIT => {
                     r=self.parse_int_pull(2); let mfl=r.val; if r.err!=0 {return r;}
-                    len-=tlen;
                     if tlen!=2 || mfl<64 {
                         r.err=UNRECOGNIZED_EXT;
                         return r;
@@ -975,7 +975,6 @@ impl SESSION {
                         return r;
 			        }
                     r=self.parse_bytes_pull(&mut name[0..mfl]); if r.err!=0 {return r;}
-                    len-=tlen;
                     response.alpn=true;
                     if !expected.alpn {
                         r.err=NOT_EXPECTED;
@@ -994,12 +993,12 @@ impl SESSION {
                     }
                 },
                 SIG_ALGS | SIG_ALGS_CERT | KEY_SHARE | PSK_MODE |  PRESHARED_KEY | TLS_VER | COOKIE | PADDING => {
-                    //len-=tlen; ptr +=tlen; // skip over it
+                    self.ptr +=tlen; // skip over it
                     r.err=FORBIDDEN_EXTENSION;
                     return r;
                 },
                 _ => {
-                    len-=tlen; self.ptr +=tlen; // skip over it
+                    self.ptr +=tlen; // skip over it
                     unexp+=1;
                 }
             }
