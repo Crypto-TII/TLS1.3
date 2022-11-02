@@ -254,7 +254,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         MEM_OVERFLOW => return DECODE_ERROR,
 	    FORBIDDEN_EXTENSION => return ILLEGAL_PARAMETER,
 	    MAX_EXCEEDED => return RECORD_OVERFLOW,
-	    EMPTY_CERT_CHAIN => return CERTIFICATE_REQUIRED,
+	    EMPTY_CERT_CHAIN => return DECODE_ERROR,
         TIME_OUT => return CLOSE_NOTIFY,
         ALERT_RECEIVED => return CLOSE_NOTIFY,
         BAD_MESSAGE => return DECODE_ERROR,

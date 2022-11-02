@@ -162,8 +162,7 @@ int getServerRecord(TLS_session *session)
     incrementCryptoContext(&session->K_recv); // update IV
 
 // get record ending - encodes real (disguised) record type. Could be an Alert.
-    int lb=0;
-    lb=session->IO.val[session->IO.len-1]; 
+    int lb=session->IO.val[session->IO.len-1]; 
     session->IO.len--; rlen--; // remove it
     while (lb==0 && rlen>0 /*session->IO.len>0*/)
     { // could be zero padding
@@ -484,30 +483,31 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
         return r;
     }
     r=parseIntorPull(session,2); len=r.val; if (r.err) return r; // length of extensions
-	left-=3;
-    if (left!=len) {
+
+    if (left!=len+3) {
         r.err=BAD_MESSAGE;
         return r;
     }
+  
     nalgs=0;
 // extension must include signature algorithms
     while (len>0)
     {
         r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
-        len-=2;
         r=parseIntorPull(session,2); tlen=r.val; if (r.err) return r; 
-        len-=2;  
+		if (len<tlen+4) {
+            r.err=BAD_MESSAGE;
+            return r;
+        }
+        len-=(4+tlen);  
         switch (ext)
         {
         case SIG_ALGS :
-
             r=parseIntorPull(session,2); nalgs=r.val/2; if (r.err) return r;
-            len-=2;
             for (i=0;i<nalgs;i++)
             {
                 r=parseIntorPull(session,2); if (r.err) return r;
                 if (i<TLS_MAX_SUPPORTED_SIGS) sigalgs[i]=r.val;
-                len-=2;
             }
             if (tlen!=2+2*nalgs) {
                 r.err=UNRECOGNIZED_EXT;
@@ -518,7 +518,7 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
         default:    // ignore all other extensions
             //r=parseoctadorPull(session->sockptr,&U,tlen,ptr,recv);   // to look at extension
             //printf("Unexpected Extension= "); OCT_output(&U);
-            len-=tlen; session->ptr+=tlen; // skip over it
+            session->ptr+=tlen; // skip over it
             unexp++;
             break;
         }
@@ -607,7 +607,6 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
 	int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
 	int nsa=SAL_sigs(sigAlgs);
 
-
     //session->ptr=0;
     //r=parseIntorPull(session,1,ptr); // get message type
     r=parseIntorPull(session,1); // get message type
@@ -618,14 +617,8 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
         return r;
     }
 
-    //r=parseIntorPull(session,3,ptr); left=r.val; if (r.err) return r; // message length    
     r=parseIntorPull(session,3); left=r.val; if (r.err) return r; // message length    
-
     OCT_kill(SCVSIG);
-    //r=parseIntorPull(session,2,ptr); sigalg=r.val; if (r.err) return r; // may for example be 0804 - RSA-PSS-RSAE-SHA256
-    //r=parseIntorPull(session,2,ptr); len=r.val; if (r.err) return r;    // sig data follows
-    //r=parseoctadorPull(session,SCVSIG,len,ptr); if (r.err) return r;
-   
     r=parseIntorPull(session,2); sigalg=r.val; if (r.err) return r; // may for example be 0804 - RSA-PSS-RSAE-SHA256
 
 	bool offered=false;
@@ -641,8 +634,8 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
     r=parseoctadorPull(session,SCVSIG,len); if (r.err) return r;
 
 
-    left-=4+len;
-    if (left!=0) {
+    //left-=4+len;
+    if (left!=len+4) {
         r.err=BAD_MESSAGE;
         return r;
     }
@@ -669,9 +662,17 @@ ret getServerFinished(TLS_session *session,octad *HFIN)
         return r;
     }
 
+    int hashtype=SAL_hashType(session->cipher_suite);
+    int hlen=SAL_hashLen(hashtype);
     r=parseIntorPull(session,3); len=r.val; if (r.err) return r;         // message length    
-
     OCT_kill(HFIN);
+
+    if (len!=hlen)
+    {
+        r.err=BAD_MESSAGE;
+        return r;
+    }
+
     r=parseoctadorPull(session,HFIN,len); if (r.err) return r;
 
 // Update Transcript hash and rewind IO buffer

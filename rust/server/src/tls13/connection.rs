@@ -566,8 +566,8 @@ impl SESSION {
 
         r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
         r=self.parse_bytes_pull(&mut scvsig[0..len]); if r.err!=0 {return r;}
-        left-=4+len;
-        if left!=0 {
+        
+        if left!=4+len {
             r.err=BAD_MESSAGE;
             return r;
         }
@@ -624,7 +624,16 @@ impl SESSION {
             r.err=WRONG_MESSAGE;
             return r;
         }
+        let htype=sal::hash_type(self.cipher_suite);
+        let hlen=sal::hash_len(htype);
+
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}
+
+        if len!=hlen {
+            r.err=BAD_MESSAGE;
+            return r;
+        }
+
         r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
         *hflen=len;
         self.running_hash_io();

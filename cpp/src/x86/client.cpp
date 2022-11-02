@@ -396,12 +396,14 @@ int main(int argc, char const *argv[])
 				log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
                 TLS13_stop(session);
 				TLS13_end(session);
+                client.stop();
                 return 0;
             }
         } else {
 			log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
             TLS13_stop(session);
 			TLS13_end(session);
+            client.stop();
             return 0;
         }
     }
@@ -433,5 +435,6 @@ int main(int argc, char const *argv[])
         storeTicket(session);
 
     TLS13_end(session);
+    client.stop();
     return 0;
 }

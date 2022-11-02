@@ -374,11 +374,13 @@ fn main() {
                     if !session.connect(Some(&mut get[0..gtlen])) {
                         log(IO_APPLICATION,"TLS Handshake failed\n",-1,None);
                         session.stop();
+                        session.sockptr.shutdown(Shutdown::Both).unwrap();
                         return;
                     } 
                 } else {
                     log(IO_APPLICATION,"TLS Handshake failed\n",-1,None);
                     session.stop();
+                    session.sockptr.shutdown(Shutdown::Both).unwrap();
                     return;
                 }
             } 
@@ -400,7 +402,7 @@ fn main() {
                 }
             }
             session.stop();
-
+            session.sockptr.shutdown(Shutdown::Both).unwrap();
             if session.t.valid && !ticket_failed {
                 store_ticket(&session,"cookie.txt");
             }

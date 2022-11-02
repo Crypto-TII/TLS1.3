@@ -534,8 +534,8 @@ impl SESSION {
 
         r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
         r=self.parse_bytes_pull(&mut scvsig[0..len]); if r.err!=0 {return r;}
-        left-=4+len;
-        if left!=0 {
+        //left-=4+len;
+        if left!=4+len {
             r.err=BAD_MESSAGE;
             return r;
         }
@@ -561,34 +561,36 @@ impl SESSION {
             return r;
         }
 
-        r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(3); let left=r.val; if r.err!=0 {return r;}
         r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r;}
         if nb!=0 {
             r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
             return r;
         }
         r=self.parse_int_pull(2); let mut len=r.val; if r.err!=0 {return r;} // length of extensions
-        left-=3;
-        if left!=len {
+ 
+        if left!=len+3 {
             r.err=BAD_MESSAGE;
             return r;
         }
+       
         let mut algs=0;
         while len>0 {
             r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;}
-            len-=2;
             r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
-            len-=2;
+            if len<tlen+4 {
+                r.err=BAD_MESSAGE;
+                return r;
+            }
+            len-=4+tlen;
             match ext {
                 SIG_ALGS => {
                     r=self.parse_int_pull(2); algs=r.val/2; if r.err!=0 {return r;}
-                    len-=2;
                     for i in 0..algs {
                         r=self.parse_int_pull(2); if r.err!=0 {return r;}
                         if i<MAX_SUPPORTED_SIGS {
                             sigalgs[i]=r.val as u16;
                         }
-                        len-=2;
                     }
                     if tlen!=2+2*algs {
                         r.err=UNRECOGNIZED_EXT;
@@ -599,7 +601,7 @@ impl SESSION {
                     }
                 }
                 _ => {
-                    len-=tlen; self.ptr+=tlen;
+                    self.ptr+=tlen;
                     unexp+=1;
                 }
             }
@@ -631,7 +633,17 @@ impl SESSION {
             r.err=WRONG_MESSAGE;
             return r;
         }
+
+        let htype=sal::hash_type(self.cipher_suite);
+        let hlen=sal::hash_len(htype);
+
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}
+
+        if len!=hlen {
+            r.err=BAD_MESSAGE;
+            return r;
+        }
+
         r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
         *hflen=len;
         self.running_hash_io();
@@ -676,7 +688,9 @@ impl SESSION {
             if self.status!=HANDSHAKING {
                 return WRONG_MESSAGE;
             }
-            socket::get_bytes(&mut self.sockptr,&mut rh[0..3]);  // ignore it and carry on
+            if !socket::get_bytes(&mut self.sockptr,&mut rh[0..3]) {  // ignore it and carry on
+                return TIMED_OUT as isize;
+            }
         }
         if rh[0]!=HSHAKE && rh[0]!=APPLICATION {
             return WRONG_MESSAGE;
@@ -1473,7 +1487,7 @@ impl SESSION {
             }
             self.send_cccs();
 // send new client hello
-            chlen=self.send_client_hello(TLS1_2,&mut ch,&crn,true,&ext[0..extlen],0,true,true);
+            chlen=self.send_client_hello(TLS1_2,&mut ch,&crn,false,&ext[0..extlen],0,true,true);
 //
 //
 //  ---------------------------------------------------> Resend Client Hello
