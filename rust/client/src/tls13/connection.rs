@@ -515,7 +515,7 @@ impl SESSION {
             return r;
         }
 
-        r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;} // find message length
+        r=self.parse_int_pull(3); let left=r.val; if r.err!=0 {return r;} // find message length
 
         r=self.parse_int_pull(2); *sigalg=r.val as u16; if r.err!=0 {return r;}
 
@@ -675,7 +675,10 @@ impl SESSION {
             if left!=2 {
                 return BAD_RECORD;
             }
-            socket::get_bytes(&mut self.sockptr,&mut self.io[0..left]); self.iolen=left;
+            if !socket::get_bytes(&mut self.sockptr,&mut self.io[0..left]) {
+                return TIMED_OUT as isize;
+            } 
+            self.iolen=left;
             return ALERT as isize;
         }
         if rh[0]==CHANGE_CIPHER { // read it, and ignore it
@@ -710,7 +713,9 @@ impl SESSION {
             if left==0 {
                 return WRONG_MESSAGE;
             }
-            socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+left]); 
+            if !socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+left]) {  // ignore it and carry on
+                return TIMED_OUT as isize;
+            } 
             self.iolen+=left; // read in record body
             return HSHAKE as isize;
         }
@@ -725,9 +730,13 @@ impl SESSION {
             return MAX_EXCEEDED;
         }
 
-        socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]); // read in record body
+        if !socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]) {  // read in record body
+            return TIMED_OUT as isize;
+        }
         self.iolen+=rlen;
-        socket::get_bytes(&mut self.sockptr,&mut tag[0..taglen]);
+        if !socket::get_bytes(&mut self.sockptr,&mut tag[0..taglen]) {
+            return TIMED_OUT as isize;
+        }
         let success=sal::aead_decrypt(&self.k_recv,&rh,&mut self.io[pos..pos+rlen],&tag[0..taglen]);
         if !success {
             return AUTHENTICATION_FAILURE;

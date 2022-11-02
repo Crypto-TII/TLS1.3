@@ -547,7 +547,7 @@ impl SESSION {
             return r;
         }
 
-        let mut r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;}
+        let mut r=self.parse_int_pull(3); let left=r.val; if r.err!=0 {return r;}
 
         r=self.parse_int_pull(2); *sigalg=r.val as u16; if r.err!=0 {return r;}
 
@@ -679,7 +679,10 @@ impl SESSION {
             if left!=2 {
                 return BAD_RECORD;
             }
-            socket::get_bytes(&mut self.sockptr,&mut self.io[0..left]); self.iolen=left;
+            if !socket::get_bytes(&mut self.sockptr,&mut self.io[0..left]) {
+                return TIMED_OUT as isize;
+            }  
+            self.iolen=left;
             return ALERT as isize;
         }
         if rh[0]==CHANGE_CIPHER { // read it, and ignore it
@@ -695,7 +698,7 @@ impl SESSION {
             socket::get_bytes(&mut self.sockptr,&mut rh[0..3]);
         }
         if rh[0]!=HSHAKE && rh[0]!=APPLICATION { // rh[0]=0x80 means SSLv2 connection attempted - reject it
-            return NOT_TLS1_3;
+            return WRONG_MESSAGE;
         }
         let left=socket::get_int16(&mut self.sockptr);
         if left>MAX_CIPHER_FRAG {
@@ -712,7 +715,9 @@ impl SESSION {
             if left==0 {
                 return WRONG_MESSAGE;
             }
-            socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+left]); 
+            if !socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+left]) {  // ignore it and carry on
+                return TIMED_OUT as isize;
+            } 
             self.iolen+=left; // read in record body
             return HSHAKE as isize;
         }
@@ -728,9 +733,13 @@ impl SESSION {
             return MAX_EXCEEDED;
         }
 
-        socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]); // read in record body
+        if !socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]) {  // read in record body
+            return TIMED_OUT as isize;
+        }
         self.iolen+=rlen;
-        socket::get_bytes(&mut self.sockptr,&mut tag[0..taglen]);
+        if !socket::get_bytes(&mut self.sockptr,&mut tag[0..taglen]){
+            return TIMED_OUT as isize;
+        }
         let success=sal::aead_decrypt(&self.k_recv,&rh,&mut self.io[pos..pos+rlen],&tag[0..taglen]);
         if !success {
             return AUTHENTICATION_FAILURE;
@@ -756,7 +765,7 @@ impl SESSION {
             self.iolen=utils::shift_left(&mut self.io[0..self.iolen],pos); // rewind
             return ALERT as isize;
         }
-        return APPLICATION as isize;
+        return WRONG_MESSAGE;
     }
 
     /// Get client hello. Output encrypted extensions, client public key, client signature algorithms.
@@ -864,7 +873,7 @@ impl SESSION {
         while left>0 {
             if resume {
                 log(IO_DEBUG,"Preshared Key must be last extension\n",-1,None);
-                r.err=BAD_MESSAGE;
+                r.err=BAD_HELLO;  
                 return r;
             }
             r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;} // get extension type

@@ -99,7 +99,9 @@ int getServerRecord(TLS_session *session)
     {  // plaintext alert
         left=getInt16(session->sockptr);
 		if (left!=2) return BAD_RECORD;                     // ** RM
-        getOctad(session->sockptr,&session->IO,left);
+        rtn=getOctad(session->sockptr,&session->IO,left);
+        if (rtn<0)
+            return TIMED_OUT;
         return ALERT;
     }
     if (RH.val[0]==CHANGE_CIPHER)
@@ -110,7 +112,9 @@ int getServerRecord(TLS_session *session)
 		if (left!=1) return BAD_RECORD;					// ** RM
         //OCT_append_octad(&SCCS,&RH);
         //OCT_append_int(&SCCS,left,2);
-        getBytes(session->sockptr,sccs/*&SCCS.val[5]*/,left);
+        rtn=getBytes(session->sockptr,sccs/*&SCCS.val[5]*/,left);
+        if (rtn<0)
+            return TIMED_OUT;
 		if (session->status!=TLS13_HANDSHAKING)
 			return WRONG_MESSAGE;
         //SCCS.len+=left;
@@ -138,7 +142,9 @@ int getServerRecord(TLS_session *session)
 			return MAX_EXCEEDED;
 		if (left==0)
 			return WRONG_MESSAGE;
-        getBytes(session->sockptr,&session->IO.val[pos],left);  // read in record body
+        rtn=getBytes(session->sockptr,&session->IO.val[pos],left);  // read in record body
+        if (rtn<0)
+            return TIMED_OUT;
         session->IO.len+=left;
         return HSHAKE;
     }
@@ -150,11 +156,14 @@ int getServerRecord(TLS_session *session)
 
 	if (rlen>TLS_MAX_PLAIN_FRAG+1) return MAX_EXCEEDED;
 
-    getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
+    rtn=getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
+    if (rtn<0)
+        return TIMED_OUT;
 
     session->IO.len+=(rlen);    // place record into iobuff
-    getOctad(session->sockptr,&TAG,taglen);        // extract TAG
-
+    rtn=getOctad(session->sockptr,&TAG,taglen);        // extract TAG
+    if (rtn<0)
+        return TIMED_OUT;
     bool success=SAL_aeadDecrypt(&session->K_recv,RH.len,RH.val,rlen,&session->IO.val[pos],&TAG);
     if (!success)
        return AUTHENTICATION_FAILURE;     // tag is wrong   
