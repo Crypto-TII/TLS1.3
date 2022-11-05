@@ -1096,9 +1096,10 @@ int TLS13_recv(TLS_session *session,octad *REC)
         {
             log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
             logAlert(session->IO.val[1]);
-            //if (session->IO.val[1]==CLOSE_NOTIFY)
-		    //    sendAlert(session,CLOSE_NOTIFY);
-            return type;    // Alert received
+            if (session->IO.val[1]==CLOSE_NOTIFY)
+                return CLOSURE_ALERT_RECEIVED;
+		    else
+                return ERROR_ALERT_RECEIVED;    // Alert received
         }
     }
 

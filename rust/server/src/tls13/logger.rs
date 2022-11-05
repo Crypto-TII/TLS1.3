@@ -182,6 +182,7 @@ pub fn log_server_response(r: &RET) {
             AUTHENTICATION_FAILURE => log(IO_DEBUG,"Authentication Failure\n",-1,None),
             BAD_RECORD => log(IO_DEBUG,"Malformed Record received (max size exceeded?)\n",-1,None),
             BAD_TICKET => log(IO_DEBUG,"Malformed Ticket received\n",-1,None),
+            BAD_MESSAGE => log(IO_DEBUG,"Malformed Message received\n",-1,None),
             EMPTY_CERT_CHAIN => log(IO_DEBUG,"Client Certificate required\n",-1,None),
             BAD_PROTOCOL => log(IO_DEBUG,"Wrong ALPN protocol\n",-1,None),
             _ => log(IO_DEBUG,"Unknown Error\n",-1,None),

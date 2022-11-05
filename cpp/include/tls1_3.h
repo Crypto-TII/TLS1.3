@@ -285,11 +285,12 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define MAX_EXCEEDED -17				/**< Maximum record size exceeded */
 #define EMPTY_CERT_CHAIN -18            /**< Empty Certificate Message */
 #define SELF_SIGNED_CERT -20			/**< Self signed certificate */
-#define ALERT_RECEIVED -22              /**< Alert has been received */
+#define ERROR_ALERT_RECEIVED -22        /**< Alert has been received */
 #define BAD_MESSAGE -23                 /**< Badly formed message */
 #define CERT_VERIFY_FAIL -24            /**< Certificate Verification failure */
 #define BAD_HANDSHAKE -26               /**< Could not agree */
 #define BAD_REQUEST_UPDATE -27			/**< Bad Request Update value */
+#define CLOSURE_ALERT_RECEIVED -28      /**< Alert has been received */
 
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */

@@ -385,14 +385,16 @@ fn main() {
                 }
             } 
 // Get server response, may attach resumption ticket to session
+            let mut rplen:isize;
             if !localhost {
-                let rplen=session.recv(&mut resp);
+                rplen=session.recv(&mut resp);
                 if rplen>0 {
                     log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
+                    session.stop();
                 }
             } else {
                 loop {
-                    let rplen=session.recv(&mut resp);
+                    rplen=session.recv(&mut resp);
                     if rplen<0 { // Either problem on my side, or I got an alert
                         break;
                     } 
@@ -401,8 +403,11 @@ fn main() {
                     }
                 }
             }
-            session.stop();
-            session.sockptr.shutdown(Shutdown::Both).unwrap();
+            if rplen==CLOSURE_ALERT_RECEIVED { // I am exiting voluntarily, so send close notify
+                session.stop();
+                session.sockptr.shutdown(Shutdown::Both).unwrap();
+            }
+
             if session.t.valid && !ticket_failed {
                 store_ticket(&session,"cookie.txt");
             }

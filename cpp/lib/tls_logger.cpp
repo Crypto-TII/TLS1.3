@@ -350,7 +350,7 @@ void logAlert(int detail)
         log(IO_PROTOCOL,(char *)"Access denied\n",NULL,0,NULL);
         break;
     case 50 :
-        log(IO_PROTOCOL,(char *)"Decode error (memory overflow?)\n",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Decode error\n",NULL,0,NULL);
         break;
     case 51 :
         log(IO_PROTOCOL,(char *)"Decrypt error\n",NULL,0,NULL);

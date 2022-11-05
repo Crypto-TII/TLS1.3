@@ -106,7 +106,6 @@ fn handle_client(stream: TcpStream,port: u16) {
 
         log(IO_APPLICATION,"Sending Application Response (truncated HTML) = ",0,Some(&post[0..40]));
         session.send(&post[0..ptlen]);
-
         session.stop();
 
 // ... but still open to receiving stuff .. but what if I need to send an alert in response to bad input?
@@ -120,9 +119,9 @@ fn handle_client(stream: TcpStream,port: u16) {
                 break;
             }
         }
-    } else {
-        session.stop();
-    }
+    } //else {
+        //session.stop();
+    //}
 
 }
 

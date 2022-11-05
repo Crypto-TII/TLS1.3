@@ -357,6 +357,7 @@ impl SESSION {
         }
         if r.err<0 {
             self.send_alert(alert_from_cause(r.err));
+            self.clean();
             return true;
         }
         if r.err == ALERT as isize {
@@ -364,9 +365,11 @@ impl SESSION {
 		    //    self.send_alert(CLOSE_NOTIFY);  // I'm closing down, and so are you
             //}
             logger::log_alert(r.val as u8);
+            self.clean();
             return true;
         }
         if r.err != 0 {
+            self.clean();
             return true;
         }
         return false;
@@ -638,14 +641,11 @@ impl SESSION {
         let hlen=sal::hash_len(htype);
 
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}
-
+        r=self.parse_bytes_pull(&mut hfin[0..hlen]); if r.err!=0 {return r;}
+        *hflen=hlen;
         if len!=hlen {
             r.err=BAD_MESSAGE;
-            return r;
         }
-
-        r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
-        *hflen=len;
         self.running_hash_io();
         //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
         //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
@@ -1253,7 +1253,6 @@ impl SESSION {
         let mut cklen=0;
         let mut rtn = self.get_server_hello(&mut kex,&mut cookie,&mut cklen,pk_s,&mut pskid);
         if self.bad_response(&rtn) {
-            self.clean();
             return TLS_FAILURE;
         }   
 //
@@ -1313,7 +1312,6 @@ impl SESSION {
 //
 //
         if self.bad_response(&rtn) {
-            self.clean();
             return TLS_FAILURE;
         }
         logger::log_enc_ext(&expected,&response);
@@ -1330,7 +1328,6 @@ impl SESSION {
 //
         let fin_s=&fin[0..fnlen];
         if self.bad_response(&rtn) {
-            self.clean();
             return TLS_FAILURE;
         }
         log(IO_DEBUG,"Server Finished Message Received - ",0,Some(fin_s));
@@ -1941,10 +1938,11 @@ impl SESSION {
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);
                 logger::log_alert(self.io[1]);
-                //if self.io[1]==CLOSE_NOTIFY {
-                //    self.send_alert(CLOSE_NOTIFY);
-                //}
-                return ALERT_RECEIVED;
+                if self.io[1]==CLOSE_NOTIFY {
+                    return CLOSURE_ALERT_RECEIVED; 
+                } else {
+                    return ERROR_ALERT_RECEIVED;
+                }
             }
         }
         if self.t.valid {

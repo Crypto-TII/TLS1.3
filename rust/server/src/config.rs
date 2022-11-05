@@ -184,12 +184,13 @@ pub const MAX_EXCEEDED:isize= -17;                // Maximum record size exceede
 pub const EMPTY_CERT_CHAIN:isize= -18;            // Empty Certificate Message 
 pub const SELF_SIGNED_CERT:isize= -20;            // Self-signed certificate detected
 pub const TIME_OUT:isize= -21;                    // time out
-pub const ALERT_RECEIVED:isize=-22;               // alert received
+pub const ERROR_ALERT_RECEIVED:isize=-22;         // alert received
 pub const BAD_MESSAGE:isize=-23;                  // Badly formed message
 pub const CERT_VERIFY_FAIL:isize= -24;            // Certificate Verification failure */
 pub const BAD_PROTOCOL:isize=-25;                 // Bad Protocol
 pub const BAD_HANDSHAKE:isize=-26;                // Could not agree
 pub const BAD_REQUEST_UPDATE:isize= -27;		  // Bad Request Update value
+pub const CLOSURE_ALERT_RECEIVED:isize=-28;         // alert received
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -256,7 +257,8 @@ pub fn alert_from_cause(rtn: isize) -> u8
 	    MAX_EXCEEDED => return RECORD_OVERFLOW,
 	    EMPTY_CERT_CHAIN => return CERTIFICATE_REQUIRED,
         TIME_OUT => return CLOSE_NOTIFY,
-        ALERT_RECEIVED => return CLOSE_NOTIFY,
+        ERROR_ALERT_RECEIVED => return CLOSE_NOTIFY,
+        CLOSURE_ALERT_RECEIVED => return CLOSE_NOTIFY,
         BAD_MESSAGE => return DECODE_ERROR,
         BAD_PROTOCOL => return NO_APPLICATION_PROTOCOL,
         BAD_HANDSHAKE => return HANDSHAKE_FAILURE,

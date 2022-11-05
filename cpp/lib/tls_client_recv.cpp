@@ -675,14 +675,10 @@ ret getServerFinished(TLS_session *session,octad *HFIN)
     int hlen=SAL_hashLen(hashtype);
     r=parseIntorPull(session,3); len=r.val; if (r.err) return r;         // message length    
     OCT_kill(HFIN);
+    r=parseoctadorPull(session,HFIN,hlen); if (r.err) return r;
 
     if (len!=hlen)
-    {
         r.err=BAD_MESSAGE;
-        return r;
-    }
-
-    r=parseoctadorPull(session,HFIN,len); if (r.err) return r;
 
 // Update Transcript hash and rewind IO buffer
     runningHashIOrewind(session);

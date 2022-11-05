@@ -334,6 +334,7 @@ impl SESSION {
         }
         if r.err<0 {
             self.send_alert(alert_from_cause(r.err));
+            self.clean();
             return true;
         }
         if r.err == ALERT as isize {
@@ -341,9 +342,11 @@ impl SESSION {
 		    //    self.send_alert(CLOSE_NOTIFY);  // I'm closing down, and so are you
             //}
             logger::log_alert(r.val as u8);
+            self.clean();
             return true;
         }
         if r.err != 0 {
+            self.clean();
             return true;
         }
         return false;
@@ -628,14 +631,11 @@ impl SESSION {
         let hlen=sal::hash_len(htype);
 
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}
-
+        r=self.parse_bytes_pull(&mut hfin[0..hlen]); if r.err!=0 {return r;}
+        *hflen=hlen;
         if len!=hlen {
             r.err=BAD_MESSAGE;
-            return r;
         }
-
-        r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
-        *hflen=len;
         self.running_hash_io();
         //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
         //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
@@ -1304,7 +1304,6 @@ impl SESSION {
         self.status=HANDSHAKING;
         let mut rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication,false);
         if self.bad_response(&rtn) {
-            self.clean();
             return TLS_FAILURE;
         }
 
@@ -1330,7 +1329,6 @@ impl SESSION {
             let mut psklen=0;
             let mut r=self.process_ticket(&mut psk,&mut psklen);
             if self.bad_response(&r) {
-                self.clean();
                 return TLS_FAILURE;
             }
             if self.cidlen>0 {
@@ -1342,7 +1340,6 @@ impl SESSION {
             }
             r=self.process_binders(external_psk,&psk[0..psklen],es_s);
             if self.bad_response(&r) {
-                self.clean();
                 return TLS_FAILURE;
             }
 
@@ -1404,7 +1401,6 @@ impl SESSION {
                     if kind==HSHAKE as isize { // its a handshake message - should be end-of-early data
                         let r=self.get_end_of_early_data();
                         if self.bad_response(&r) {
-                            self.clean();
                             return TLS_FAILURE;
                         }
                         log(IO_PROTOCOL,"Early Data received\n",-1,None);
@@ -1455,7 +1451,6 @@ impl SESSION {
 
                 let rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication,true);
                 if self.bad_response(&rtn) {
-                    self.clean();
                     return TLS_FAILURE;
                 }
                 if rtn.val==HANDSHAKE_RETRY {
@@ -1575,9 +1570,12 @@ impl SESSION {
                     delayed_alert=rtn.err;
                     self.transcript_hash(th_s); 
                 } else {
-                    if self.bad_response(&rtn) {
-                        self.clean();
-                        return TLS_FAILURE;
+                    if rtn.err<0 {
+                        delayed_alert=rtn.err;
+                    } else {
+                        if self.bad_response(&rtn) {
+                            return TLS_FAILURE;
+                        }
                     }
                 
                     log(IO_DEBUG,"Received Client Certificate\n",-1,None); 
@@ -1594,9 +1592,14 @@ impl SESSION {
     //  <---------------------------------------------------- {Certificate Verify}
     //
     //
-                    if self.bad_response(&rtn) {
-                        self.clean();
-                        return TLS_FAILURE;
+                    if rtn.err<0 {
+                        if delayed_alert==0 {
+                            delayed_alert=rtn.err;
+                        }
+                    } else {
+                        if self.bad_response(&rtn) {
+                            return TLS_FAILURE;
+                        }
                     }
                     let ccvsig_s=&mut ccvsig[0..siglen];
                     self.transcript_hash(th_s);                                                //FH
@@ -1604,12 +1607,11 @@ impl SESSION {
                     log(IO_DEBUG,"Client Transcript Signature = ",0,Some(ccvsig_s));
                     logger::log_sig_alg(sigalg);
                     if !keys::check_client_cert_verifier(sigalg,ccvsig_s,fh_s,cpk_s) {         //TH
-                        delayed_alert=BAD_CERT_CHAIN;
-                    //self.send_alert(DECRYPT_ERROR);
+                        if delayed_alert==0 {
+                            delayed_alert=BAD_CERT_CHAIN;
+                        }
                         log(IO_DEBUG,"Client Cert Verification failed\n",-1,None);
                         log(IO_PROTOCOL,"Full Handshake will fail\n",-1,None);
-                    //self.clean();
-                    //return TLS_FAILURE;
                     }
                     log(IO_PROTOCOL,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));                      // **** output client full name        
                 }
@@ -1622,10 +1624,16 @@ impl SESSION {
         let mut fnlen=0;
         let mut fin:[u8;MAX_HASH]=[0;MAX_HASH];
         rtn=self.get_client_finished(&mut fin,&mut fnlen);   
-        if self.bad_response(&rtn) {
-            self.clean();
-            return TLS_FAILURE;
-        }        
+
+        if rtn.err<0 {
+            if delayed_alert==0 {
+                delayed_alert=rtn.err;
+            }
+        } else {
+            if self.bad_response(&rtn) {
+                return TLS_FAILURE;
+            }
+        }      
     //
     //  <---------------------------------------------------- {Client finished}
     //
@@ -1634,23 +1642,27 @@ impl SESSION {
         log(IO_DEBUG,"Client Verify Data= ",0,Some(&fin[0..fnlen])); 
         let fin_s=&fin[0..fnlen];
 
-
-        if !keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s) {          
-            self.send_alert(DECRYPT_ERROR);                              // no point in sending alert - haven't calculated traffic keys yet
-            log(IO_DEBUG,"Client Data is NOT verified\n",-1,None);
-            self.clean();
-            return TLS_FAILURE;
+        let verified=keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s);
+        if !verified {  
+            if delayed_alert==0 { // no point if there is an earlier alert
+                delayed_alert=BAD_MESSAGE;
+            }
+            //self.send_alert(DECRYPT_ERROR);                              // no point in sending alert - haven't calculated traffic keys yet
+            //log(IO_DEBUG,"Client Data is NOT verified\n",-1,None);
+            //self.clean();
+            //return TLS_FAILURE;
         }
 
         self.transcript_hash(fh_s);
         log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV+SF+[CCT+CSV]+CF) = ",0,Some(fh_s));
 // calculate traffic and application keys from handshake secret and transcript hashes
 
-        self.derive_application_secrets(hh_s,fh_s,None);
+        self.derive_application_secrets(hh_s,fh_s,None);   // CF only impacts fh_s, and fh_s does not impact CTS or STS
         self.create_send_crypto_context();
         self.create_recv_crypto_context();
-        log(IO_DEBUG,"Client application traffic secret= ",0,Some(&self.cts[0..hlen]));
-        log(IO_DEBUG,"Server application traffic secret= ",0,Some(&self.sts[0..hlen]));
+
+        log(IO_DEBUG,"Client application traffic secret= ",0,Some(&self.cts[0..hlen]));  // does not depend on CF!
+        log(IO_DEBUG,"Server application traffic secret= ",0,Some(&self.sts[0..hlen]));  // does not depend on CF!
 
         if resume {
             log(IO_PROTOCOL,"RESUMPTION handshake succeeded\n",-1,None);
@@ -1659,6 +1671,7 @@ impl SESSION {
         }
 
         if delayed_alert != 0 { // there was a problem..
+            log(IO_PROTOCOL,"Handshake Failed - earlier alert now sent\n",-1,None);
             self.send_alert(alert_from_cause(delayed_alert));
             return TLS_FAILURE;
         }
@@ -1763,10 +1776,11 @@ impl SESSION {
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);
                 logger::log_alert(self.io[1]);
-                //if self.io[1]==CLOSE_NOTIFY {
-                //    self.send_alert(CLOSE_NOTIFY);
-                //}
-                return ALERT_RECEIVED;
+                if self.io[1]==CLOSE_NOTIFY {
+                    return CLOSURE_ALERT_RECEIVED; 
+                } else {
+                    return ERROR_ALERT_RECEIVED;
+                }
             }
         }
         return mslen; 
