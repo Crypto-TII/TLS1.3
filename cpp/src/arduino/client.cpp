@@ -174,7 +174,6 @@ void setup()
         ,  NULL 
         ,  ARDUINO_RUNNING_CORE);
 #endif
-
 }
 
 void testTLSconnect(Socket *client,char *hostname,int port)
@@ -189,7 +188,6 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     log(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
 
     make_client_message(&GET,hostname);
-
 // make connection using full handshake...
     if (!client->connect(hostname,port))
     {
@@ -198,16 +196,17 @@ void testTLSconnect(Socket *client,char *hostname,int port)
         //Serial.read(); 
  		return;
     }
-
+    int rtn;
     start = millis();
     bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
     if (success) {
-        TLS13_recv(session,&RESP);    // Server response + ticket
-        if (RESP.len>0)
+        rtn=TLS13_recv(session,&RESP);    // Server response + ticket
+        if (rtn==APPLICATION) {
             log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+            TLS13_stop(session);
+        }
     }
-// drop the connection..
-    TLS13_stop(session);
+// drop the link
     TLS13_clean(session);   // but leave ticket intact
     client->stop();
     elapsed = (millis() - start);
@@ -221,19 +220,21 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     {
         log(IO_PROTOCOL,(char *)"Unable to access ",hostname,0,NULL);
         while (Serial.available() == 0) {}
-        //Serial.read(); 
  		return;
     }
 
     start = millis();
     success=TLS13_connect(session,&GET);  // Resumption handshake and connection to server
     if (success) {
-        TLS13_recv(session,&RESP);    // Server response + ticket
-        log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+        rtn=TLS13_recv(session,&RESP);    // Server response + ticket
+        if (rtn==APPLICATION) {
+            log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+            TLS13_stop(session);
+        }
     } else {
         log(IO_APPLICATION,(char *)"Resumption failed (no ticket?) \n",NULL,0,NULL);
     }
-    TLS13_stop(session);
+   
     client->stop();
     elapsed = (millis() - start);
     Serial.print("Resumed TLS connection (ms)= "); Serial.println(elapsed);

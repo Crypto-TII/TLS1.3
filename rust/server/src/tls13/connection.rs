@@ -631,11 +631,11 @@ impl SESSION {
         let hlen=sal::hash_len(htype);
 
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}
-        r=self.parse_bytes_pull(&mut hfin[0..hlen]); if r.err!=0 {return r;}
-        *hflen=hlen;
+        r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
         if len!=hlen {
             r.err=BAD_MESSAGE;
         }
+        *hflen=len;
         self.running_hash_io();
         //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
         //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
@@ -919,8 +919,16 @@ impl SESSION {
                         r=self.parse_int_pull(2); alg=r.val as u16; if r.err!=0 {return r;}
                         r=self.parse_int_pull(2); cpklen=r.val; if r.err!=0 {return r;}
                         r=self.parse_bytes_pull(&mut cpk[0..cpklen]); if r.err!=0 {return r;}
+                        if remain<4+cpklen {
+                            r.err=BAD_MESSAGE;
+                            return r;
+                        }
                         remain-=4+cpklen;
-                        if group_support(alg) {
+                        if group_support(alg) { // check here that cpklen is correct length for this algorithm
+                            if cpklen!=sal::client_public_key_size(alg) {
+                                r.err=BAD_MESSAGE;
+                                return r;
+                            }
                             self.favourite_group=alg;
                             agreed=true;
                             break;
