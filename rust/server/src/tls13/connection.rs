@@ -631,10 +631,11 @@ impl SESSION {
         let hlen=sal::hash_len(htype);
 
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}
-        r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
         if len!=hlen {
             r.err=BAD_MESSAGE;
+            return r;
         }
+        r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
         *hflen=len;
         self.running_hash_io();
         //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
@@ -1038,7 +1039,7 @@ impl SESSION {
                     }
                     let mut remain=tlen1-self.tklen-6;
 
-                    while remain>0 {
+                    while remain>0 { // drain the rest
                         r=self.parse_int_pull(2); if r.err!=0 {return r;} 
                         let tklen=r.val;
                         r=self.parse_pull(tklen+4); if r.err!=0 {return r;} 
@@ -1048,8 +1049,6 @@ impl SESSION {
                         }
                         remain-=tklen+6;
                     }
-                    //r=self.parse_pull(remain); if r.err!=0 {return r;}  // only take first PSK - drain the rest
-                    // actually need to read them all in and check their lengths for correctness
                     resume=true;
                 }
                 _ => {
@@ -1151,7 +1150,7 @@ impl SESSION {
             extlen=extensions::add_key_share(&mut ext,extlen,self.favourite_group,&spk[0..spklen]);
             extlen=extensions::add_version(&mut ext,extlen,tls_version);
             if resume {
-                extlen=extensions::add_presharedkey(&mut ext,extlen,0);  // select first (and only) psk
+                extlen=extensions::add_presharedkey(&mut ext,extlen,0);  // ALWAYS select first psk
             }
             self.running_hash_io();
         }
@@ -1304,17 +1303,35 @@ impl SESSION {
 
         log(IO_DEBUG,"Binder= ",0,Some(bnd_s)); // this is correct
 
-// now receive Binder, that is the rest of the client Hello
+// now receive Binders, that is the rest of the client Hello. Get the first one
         let mut rbnd:[u8;MAX_HASH]=[0;MAX_HASH]; let rbnd_s=&mut rbnd[0..hlen];
         
         let mut r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
+        if tlen<hlen+1 {
+            r.err=BAD_MESSAGE;
+        }
         r=self.parse_int_pull(1); let bnlen=r.val; if r.err!=0 {return r;}
-
-        if bnlen+1 != tlen || bnlen!=hlen {
+        if bnlen!= hlen{
             r.err=BAD_MESSAGE;
             return r;
         }
         r=self.parse_bytes_pull(rbnd_s); if r.err!=0 {return r;}
+
+        let mut remain=tlen-hlen-1;
+        while remain>0 { // drain the remainder
+            r=self.parse_int_pull(1); if r.err!=0 {return r;} 
+            let len=r.val;
+            if len!= hlen{
+                r.err=BAD_MESSAGE;
+                return r;
+            }
+            r=self.parse_pull(len); if r.err!=0 {return r;}
+            if remain<len+1 {
+                r.err=BAD_HELLO;
+                return r;
+            }
+            remain-=len+1;
+        }
 
         log(IO_DEBUG,"Final part (binders) of Client Hello = ",0,Some(&self.io[0..self.ptr]));
 
