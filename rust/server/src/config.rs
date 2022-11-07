@@ -239,7 +239,7 @@ pub const IO_DEBUG:usize= 4;          // print lots of debug information + proto
 pub fn alert_from_cause(rtn: isize) -> u8
 {
     match rtn {
-        NOT_TLS1_3 => return PROTOCOL_VERSION,
+        NOT_TLS1_3 => return ILLEGAL_PARAMETER,
         ID_MISMATCH => return ILLEGAL_PARAMETER,
         UNRECOGNIZED_EXT => return ILLEGAL_PARAMETER,
         BAD_HELLO => return ILLEGAL_PARAMETER,        

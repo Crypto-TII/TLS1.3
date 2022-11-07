@@ -366,9 +366,15 @@ pub fn check_verifier_data(htype: usize,sf: &[u8],shts: &[u8],h: &mut [u8]) -> b
     let mut vd:[u8;MAX_HASH]=[0;MAX_HASH];
     let hlen=sal::hash_len(htype);
     derive_verifier_data(htype,&mut vd[0..hlen],shts,h);
-    if &sf[0..hlen] == &vd[0..hlen] {
-        return true;
+
+    if sf.len() != hlen {
+        return false;
     }
-    return false;
+    for i in 0..hlen {
+        if sf[i] != vd[i] {
+            return false;
+        }
+    }
+    return true;
 }
 

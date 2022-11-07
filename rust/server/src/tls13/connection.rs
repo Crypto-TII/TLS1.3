@@ -674,6 +674,8 @@ impl SESSION {
             return TIMED_OUT as isize;
         }
 
+// Should I check legacy record version?
+
         if rh[0]==ALERT { // scrub iobuffer, and just leave alert code
             let left=socket::get_int16(&mut self.sockptr);
             if left!=2 {
@@ -709,6 +711,13 @@ impl SESSION {
             return MEM_OVERFLOW;    // record is too big - memory overflow
         }
         if !self.k_recv.is_active() { // not encrypted
+
+// if not encrypted and rh[0] == APPLICATION, thats an error!
+
+            if rh[0]==APPLICATION {
+                return BAD_RECORD;
+            }
+
             if left>MAX_PLAIN_FRAG {
                 return MAX_EXCEEDED;
             }
@@ -720,6 +729,12 @@ impl SESSION {
             } 
             self.iolen+=left; // read in record body
             return HSHAKE as isize;
+        }
+
+// if encrypted and rh[0] == HSHAKE, thats an error!
+
+        if rh[0]==HSHAKE {
+            return BAD_RECORD;
         }
 
 // OK, its encrypted, so aead decrypt it, check tag
@@ -916,7 +931,7 @@ impl SESSION {
                     }
                     let mut remain=len;
                     while remain>0 {
-                        r=self.parse_int_pull(2); alg=r.val as u16; if r.err!=0 {return r;}
+                        r=self.parse_int_pull(2); alg=r.val as u16; if r.err!=0 {return r;}     // only accept TLS1.3 groups!
                         r=self.parse_int_pull(2); cpklen=r.val; if r.err!=0 {return r;}
                         r=self.parse_bytes_pull(&mut cpk[0..cpklen]); if r.err!=0 {return r;}
                         if remain<4+cpklen {
@@ -1021,9 +1036,20 @@ impl SESSION {
                         r.err=BAD_HELLO;
                         return r;
                     }
-                    let remain=tlen1-self.tklen-6;
-                    r=self.parse_pull(remain); if r.err!=0 {return r;}  // only take first PSK - drain the rest
-                    //extra=extlen-tlen1-2;
+                    let mut remain=tlen1-self.tklen-6;
+
+                    while remain>0 {
+                        r=self.parse_int_pull(2); if r.err!=0 {return r;} 
+                        let tklen=r.val;
+                        r=self.parse_pull(tklen+4); if r.err!=0 {return r;} 
+                        if remain<tklen+6 {
+                            r.err=BAD_HELLO;
+                            return r;
+                        }
+                        remain-=tklen+6;
+                    }
+                    //r=self.parse_pull(remain); if r.err!=0 {return r;}  // only take first PSK - drain the rest
+                    // actually need to read them all in and check their lengths for correctness
                     resume=true;
                 }
                 _ => {
@@ -1034,6 +1060,17 @@ impl SESSION {
             if r.err!=0 {return r;}
         }
         let mut retry=false;
+
+        let mut supported=false;
+        for i in 0..ncg {
+            if self.favourite_group==cg[i] {
+                supported=true;
+            }
+        }
+        if !supported {
+            r.err=BAD_HELLO;
+            return r;
+        }
 
         if !resume { // check for agreement on cipher suite and group - might need to ask for a handshake retry
             let mut scs:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES]; // choose a cipher suite
@@ -1273,7 +1310,7 @@ impl SESSION {
         let mut r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
         r=self.parse_int_pull(1); let bnlen=r.val; if r.err!=0 {return r;}
 
-        if bnlen+1 != tlen {
+        if bnlen+1 != tlen || bnlen!=hlen {
             r.err=BAD_MESSAGE;
             return r;
         }
@@ -1751,6 +1788,7 @@ impl SESSION {
                         }
                         _ => {
                             log(IO_PROTOCOL,"Unsupported Handshake message type ",nb as isize,None);
+                            self.send_alert(UNEXPECTED_MESSAGE);
                             fin=true;
                         }
                     }
@@ -1760,7 +1798,6 @@ impl SESSION {
                     }
                     if fin {break;}
                 }
-
             }
             if pending {
                     self.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys

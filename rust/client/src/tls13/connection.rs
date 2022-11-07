@@ -707,6 +707,13 @@ impl SESSION {
             return MEM_OVERFLOW;    // record is too big - memory overflow
         }
         if !self.k_recv.is_active() { // not encrypted
+
+// if not encrypted and rh[0] == APPLICATION, thats an error!
+
+            if rh[0]==APPLICATION {
+                return BAD_RECORD;
+            }
+
             if left>MAX_PLAIN_FRAG {
                 return MAX_EXCEEDED;
             }
@@ -719,6 +726,13 @@ impl SESSION {
             self.iolen+=left; // read in record body
             return HSHAKE as isize;
         }
+
+// if encrypted and rh[0] == HSHAKE, thats an error!
+
+        if rh[0]==HSHAKE {
+            return BAD_RECORD;
+        }
+
 // OK, its encrypted, so aead decrypt it, check tag
         let taglen=self.k_recv.taglen;
         if left < taglen+1 {
@@ -1906,6 +1920,7 @@ impl SESSION {
                         }
                         _ => {
                             log(IO_PROTOCOL,"Unsupported Handshake message type \n",nb as isize,None);
+                            self.send_alert(UNEXPECTED_MESSAGE);
                             fin=true;
                         }
                     }

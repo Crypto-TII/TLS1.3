@@ -1071,6 +1071,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
 
                 default:
                     log(IO_PROTOCOL,(char *)"Unsupported Handshake message type ",(char *)"%x",nb,NULL);
+					sendAlert(session,UNEXPECTED_MESSAGE);
                     fin=true;
                     break;            
                 }

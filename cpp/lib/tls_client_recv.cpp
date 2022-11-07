@@ -138,6 +138,9 @@ int getServerRecord(TLS_session *session)
     }
     if (!session->K_recv.active)
     { // not encrypted
+		if (RH.val[0]==APPLICATION){
+			return BAD_RECORD;
+		}
 		if (left>TLS_MAX_PLAIN_FRAG)
 			return MAX_EXCEEDED;
 		if (left==0)
@@ -148,6 +151,9 @@ int getServerRecord(TLS_session *session)
         session->IO.len+=left;
         return HSHAKE;
     }
+	if (RH.val[0]==HSHAKE) {
+		return BAD_RECORD;
+	}
 	taglen=session->K_recv.taglen;
 	if (left < taglen+1) 
 		return BAD_RECORD;
