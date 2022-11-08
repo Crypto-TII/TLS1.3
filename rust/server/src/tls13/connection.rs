@@ -934,11 +934,11 @@ impl SESSION {
                     while remain>0 {
                         r=self.parse_int_pull(2); alg=r.val as u16; if r.err!=0 {return r;}     // only accept TLS1.3 groups!
                         r=self.parse_int_pull(2); cpklen=r.val; if r.err!=0 {return r;}
-                        r=self.parse_bytes_pull(&mut cpk[0..cpklen]); if r.err!=0 {return r;}
                         if remain<4+cpklen {
                             r.err=BAD_MESSAGE;
                             return r;
                         }
+                        r=self.parse_bytes_pull(&mut cpk[0..cpklen]); if r.err!=0 {return r;}
                         remain-=4+cpklen;
                         if group_support(alg) { // check here that cpklen is correct length for this algorithm
                             if cpklen!=sal::client_public_key_size(alg) {
@@ -950,7 +950,7 @@ impl SESSION {
                             break;
                         }
                     }
-                    r=self.parse_pull(remain); if r.err!=0 {return r;}  // drain the rest
+                    //r=self.parse_pull(remain); if r.err!=0 {return r;}  // drain the rest
                 },
                 APP_PROTOCOL => {
                     r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
@@ -1028,25 +1028,26 @@ impl SESSION {
                     r=self.parse_int_pull(2); let tlen1=r.val; if r.err!=0 {return r;}
                     r=self.parse_int_pull(2); if r.err!=0 {return r;}
                     self.tklen=r.val;
+                    if tlen1<self.tklen+6 {
+                        r.err=BAD_HELLO;
+                        return r;
+                    }
                     r=self.parse_bytes_pull(&mut tick[0..self.tklen]); if r.err!=0 {return r;}
                     for i in 0..self.tklen {
                         self.ticket[i]=tick[i];
                     }
                     r=self.parse_int_pull(4); self.ticket_obf_age=r.val as u32; if r.err!=0 {return r;}
-                    if tlen1<self.tklen+6 {
-                        r.err=BAD_HELLO;
-                        return r;
-                    }
+
                     let mut remain=tlen1-self.tklen-6;
 
                     while remain>0 { // drain the rest
                         r=self.parse_int_pull(2); if r.err!=0 {return r;} 
                         let tklen=r.val;
-                        r=self.parse_pull(tklen+4); if r.err!=0 {return r;} 
                         if remain<tklen+6 {
                             r.err=BAD_HELLO;
                             return r;
                         }
+                        r=self.parse_pull(tklen+4); if r.err!=0 {return r;} 
                         remain-=tklen+6;
                     }
                     resume=true;
