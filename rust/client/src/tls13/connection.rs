@@ -84,7 +84,7 @@ impl SESSION {
         let mut r=utils::parse_int(&self.io[0..self.iolen],len,&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
             let rtn=self.get_record();  // gets more stuff and increments iolen
-            if rtn!=HSHAKE as isize as isize {
+            if rtn!=HSHAKE as isize {
                 r.err=rtn;
                 if rtn==ALERT as isize {
                     r.val=self.io[1] as usize;
@@ -764,7 +764,7 @@ impl SESSION {
             self.iolen -= 1; rlen -= 1;// remove it
         }
         if (lb == HSHAKE || lb == ALERT) && rlen==0 {
-            return WRONG_MESSAGE; // RFC section 5.4
+            return WRONG_MESSAGE; // Implementations MUST NOT send zero-length fragments of Handshake types
         }
         if lb == HSHAKE {
             return HSHAKE as isize;
@@ -1850,7 +1850,7 @@ impl SESSION {
         let mut fin=false;
         let mut kind:isize;
         let mut pending=false;
-        let mslen:isize;
+        let mut mslen:isize=0;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
             self.clean_io();
@@ -1864,8 +1864,9 @@ impl SESSION {
                 return TIME_OUT;
             }
             if kind==HSHAKE as isize {
+                let mut r:RET;
                 loop {
-                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {break;}
+                    r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {break;}
                     r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
                     match nb as u8 {
                         TICKET => {
@@ -1924,11 +1925,11 @@ impl SESSION {
                             fin=true;
                         }
                     }
-                    if r.err!=0 {
-                        self.send_alert(alert_from_cause(r.err));
-                        break;
-                    }
                     if fin {break;}
+                }
+                if r.err!=0 {
+                    self.send_alert(alert_from_cause(r.err));
+                    break;
                 }
             }
             if pending {

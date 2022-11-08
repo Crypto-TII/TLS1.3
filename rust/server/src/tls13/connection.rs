@@ -120,7 +120,7 @@ impl SESSION {
         let mut r=utils::parse_int(&self.io[0..self.iolen],len,&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
             let rtn=self.get_record();  // gets more stuff and increments iolen
-            if rtn!=HSHAKE as isize as isize {
+            if rtn!=HSHAKE as isize {
                 r.err=rtn;
                 if rtn==ALERT as isize {
                     r.val=self.io[1] as usize;
@@ -698,7 +698,9 @@ impl SESSION {
             if self.status!=HANDSHAKING {
                 return WRONG_MESSAGE;
             }
-            socket::get_bytes(&mut self.sockptr,&mut rh[0..3]);
+            if !socket::get_bytes(&mut self.sockptr,&mut rh[0..3]) {
+                return TIMED_OUT as isize;
+            }
         }
         if rh[0]!=HSHAKE && rh[0]!=APPLICATION { // rh[0]=0x80 means SSLv2 connection attempted - reject it
             return WRONG_MESSAGE;
@@ -708,7 +710,7 @@ impl SESSION {
             return MAX_EXCEEDED;
         }
         utils::append_int(&mut rh,3,left,2);
-        if left+pos>self.io.len() { // this commonly happens with big records of application data from server
+        if left+pos>self.io.len() { // this commonly happens with big records of application data from other party
             return MEM_OVERFLOW;    // record is too big - memory overflow
         }
         if !self.k_recv.is_active() { // not encrypted
@@ -764,12 +766,15 @@ impl SESSION {
 // get record ending - encodes real (disguised) record type. Could be an Alert.        
         let mut lb=self.io[self.iolen-1];
         self.iolen -= 1; rlen -= 1;// remove it
-        while lb==0 && self.iolen>0 {
+        while lb==0 && rlen>0 {
             lb=self.io[self.iolen-1];
             self.iolen -= 1; rlen -= 1;// remove it
         }
+
+// if no non-zero found, lb=0
+
         if (lb == HSHAKE || lb == ALERT) && rlen==0 {
-            return WRONG_MESSAGE; // RFC section 5.4
+            return WRONG_MESSAGE; // Implementations MUST NOT send zero-length fragments of Handshake types
         }
         if lb == HSHAKE {
             return HSHAKE as isize;
@@ -777,7 +782,7 @@ impl SESSION {
         if lb == APPLICATION {
             return APPLICATION as isize;
         }
-        if lb==ALERT { // Alert record received, delete anything in IO prior to alert, and just leave 2-byte alert
+        if lb == ALERT { // Alert record received, delete anything in IO prior to alert, and just leave 2-byte alert
             self.iolen=utils::shift_left(&mut self.io[0..self.iolen],pos); // rewind
             return ALERT as isize;
         }
@@ -903,14 +908,14 @@ impl SESSION {
             left-=4+extlen;
             match ext {
                 SERVER_NAME => {
-                    r=self.parse_int_pull(2); let len=r.val;
-                    r=self.parse_int_pull(1); let etype=r.val;
+                    r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
+                    r=self.parse_int_pull(1); let etype=r.val; if r.err!=0 {return r;}
                     if etype!=0 || len+2!=extlen {
                         r.err=BAD_MESSAGE;
                         return r;
                     }
-                    r=self.parse_int_pull(2);
-                    self.parse_bytes_pull(&mut host[0..r.val]);
+                    r=self.parse_int_pull(2); if r.err!=0 {return r;}
+                    r=self.parse_bytes_pull(&mut host[0..r.val]); if r.err!=0 {return r;}
                     self.hlen=r.val;
                     for i in 0..self.hlen {
                         self.hostname[i]=host[i];
@@ -947,10 +952,10 @@ impl SESSION {
                             }
                             self.favourite_group=alg;
                             agreed=true;
+                            r=self.parse_pull(remain); if r.err!=0 {return r;}  // drain the rest
                             break;
                         }
                     }
-                    //r=self.parse_pull(remain); if r.err!=0 {return r;}  // drain the rest
                 },
                 APP_PROTOCOL => {
                     r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
@@ -1050,7 +1055,7 @@ impl SESSION {
                         r=self.parse_pull(tklen+4); if r.err!=0 {return r;} 
                         remain-=tklen+6;
                     }
-                    resume=true;
+                    resume=true;    // proceed as for resumption
                 }
                 _ => {
                     r=self.parse_pull(extlen); if r.err!=0 {return r;} // just ignore
@@ -1076,11 +1081,12 @@ impl SESSION {
             let mut scs:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES]; // choose a cipher suite
             let nscs=sal::ciphers(&mut scs);
             let mut chosen=false;
+            let mut cipher_suite=0;
             for i in 0..nccs { // start with their favourite
                 for j in 0..nscs {
                     if ccs[i]==scs[j] {
                         chosen=true;
-                        self.cipher_suite=scs[j];
+                        cipher_suite=scs[j];
                         break;
                     }
                 }
@@ -1089,6 +1095,14 @@ impl SESSION {
             if !chosen { // no shared cipher suite
                 r.err=BAD_HELLO;
                 return r;
+            }
+            if is_retry {
+                if cipher_suite!=self.cipher_suite {
+                    r.err=BAD_HELLO;
+                    return r;
+                }
+            } else {
+                self.cipher_suite=cipher_suite;
             }
 // did we agree a group?
             if !agreed { // but if one of mine is also one of theirs, will try a HRR
@@ -1310,6 +1324,7 @@ impl SESSION {
         let mut r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
         if tlen<hlen+1 {
             r.err=BAD_MESSAGE;
+            return r;
         }
         r=self.parse_int_pull(1); let bnlen=r.val; if r.err!=0 {return r;}
         if bnlen!= hlen{
@@ -1455,6 +1470,7 @@ impl SESSION {
                     //self.iolen=0;
                     let kind=self.get_record();  // get first fragment up to iolen to determine type
                     if kind<0 {
+                        self.send_alert(alert_from_cause(kind));
                         return TLS_FAILURE;   // its an error
                     }
                     if kind==TIMED_OUT as isize {
@@ -1511,7 +1527,6 @@ impl SESSION {
 //
 //   <---------------------------------------------------------- receive updated client Hello
 //
-
                 let rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication,true);
                 if self.bad_response(&rtn) {
                     return TLS_FAILURE;
@@ -1756,7 +1771,7 @@ impl SESSION {
         let mut fin=false;
         let mut kind:isize;
         let mut pending=false;
-        let mslen:isize;
+        let mut mslen:isize=0;
         loop {
             log(IO_PROTOCOL,"Waiting for Client input\n",-1,None);
             self.clean_io();
@@ -1770,8 +1785,9 @@ impl SESSION {
                 return TIME_OUT;
             }
             if kind==HSHAKE as isize { // should check here for key update
+                let mut r:RET;
                 loop {
-                    let mut r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {break;}
+                    r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {break;}
                     r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
                     match nb as u8 {
                         KEY_UPDATE => {
@@ -1810,11 +1826,11 @@ impl SESSION {
                             fin=true;
                         }
                     }
-                    if r.err!=0 {
-                        self.send_alert(alert_from_cause(r.err));
-                        break;
-                    }
                     if fin {break;}
+                }
+                if r.err!=0 {
+                    self.send_alert(alert_from_cause(r.err));
+                    break;
                 }
             }
             if pending {

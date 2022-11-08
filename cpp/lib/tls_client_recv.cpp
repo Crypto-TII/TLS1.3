@@ -186,7 +186,7 @@ int getServerRecord(TLS_session *session)
     }
 	// rlen is Inner Plaintext length?
 	if ((lb==HSHAKE || lb==ALERT) && rlen==0)
-		return WRONG_MESSAGE;  // RFC section 5.4
+		return WRONG_MESSAGE;  // Implementations MUST NOT send zero-length fragments of Handshake types
     if (lb==HSHAKE)
         return HSHAKE;
     if (lb==APPLICATION)
