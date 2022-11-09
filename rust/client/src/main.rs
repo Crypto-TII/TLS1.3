@@ -385,6 +385,9 @@ fn main() {
                 }
             } 
 // Get server response, may attach resumption ticket to session
+
+            //session.send_key_update(UPDATE_NOT_REQUESTED); // maybe?
+            
             let mut rplen:isize;
             if !localhost {
                 rplen=session.recv(&mut resp);

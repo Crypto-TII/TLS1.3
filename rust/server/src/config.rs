@@ -191,6 +191,8 @@ pub const BAD_PROTOCOL:isize=-25;                 // Bad Protocol
 pub const BAD_HANDSHAKE:isize=-26;                // Could not agree
 pub const BAD_REQUEST_UPDATE:isize= -27;		  // Bad Request Update value
 pub const CLOSURE_ALERT_RECEIVED:isize=-28;         // alert received
+pub const FINISH_FAIL:isize= -29;            // Certificate Verification failure */
+
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -263,6 +265,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         BAD_PROTOCOL => return NO_APPLICATION_PROTOCOL,
         BAD_HANDSHAKE => return HANDSHAKE_FAILURE,
         CERT_VERIFY_FAIL => return DECRYPT_ERROR,
+        FINISH_FAIL => return DECRYPT_ERROR,
         BAD_REQUEST_UPDATE => return ILLEGAL_PARAMETER,
         _ => return ILLEGAL_PARAMETER   
     }

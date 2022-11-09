@@ -892,6 +892,8 @@ impl SESSION {
         let mut alplen=0;
         let mut pskmode=0;
         let mut got_psk=false;
+        let mut binder_bytes=0;
+        let mut nbndrs=0; // number of binders needed
         *early_indication=false;
         while left>0 {
             if resume {
@@ -954,7 +956,7 @@ impl SESSION {
                             }
                             self.favourite_group=alg;
                             agreed=true;
-                            r=self.parse_pull(remain); if r.err!=0 {return r;}  // drain the rest
+                            r=self.parse_pull(remain); if r.err!=0 {return r;}  // found one I agree with - drain the rest
                             break;
                         }
                     }
@@ -984,26 +986,18 @@ impl SESSION {
                 PSK_MODE => {
                     r=self.parse_int_pull(1); let len=r.val; if r.err!=0 {return r;}
                     r.err=BAD_MESSAGE;
-                    if len==0 {return r;}
+                    if r.val+1!=extlen {return r;}
                     for _ in 0..len {
                         r=self.parse_int_pull(1); pskmode=r.val; if r.err!=0 {return r;}
                         if pskmode==PSKWECDHE {
                             r.err=0;
                         }
                     }
-/*
-                    if len!=1 {
-                        r.err=BAD_MESSAGE;
-                        return r;
-                    }
-                    r=self.parse_int_pull(1); let pskmode=r.val; if r.err!=0 {return r;}
-                    if pskmode!=PSKWECDHE {  // only mode acceptable!
-                        r.err=BAD_MESSAGE;
-                    } */
                 },
                 TLS_VER => {
                     r=self.parse_int_pull(1); let len=r.val/2; if r.err!=0 {return r;}
                     r.err=BAD_MESSAGE;
+                    if r.val+1!=extlen {return r;}
                     for _ in 0..len {
                         r=self.parse_int_pull(2); let tls=r.val; if r.err!=0 {return r;}
                         if tls==TLS1_3 {
@@ -1022,6 +1016,10 @@ impl SESSION {
                 },
                 SIG_ALGS => {
                     r=self.parse_int_pull(2); *nsa=r.val/2; if r.err!=0 {return r;}
+                    if r.val+2!=extlen {
+                        r.err=BAD_MESSAGE;
+                        return r;
+                    }
                     for i in 0..*nsa {
                         r=self.parse_int_pull(2); if r.err!=0 {return r;}
                         sig_algs[i]=r.val as u16;
@@ -1029,6 +1027,10 @@ impl SESSION {
                 },
                 SIG_ALGS_CERT => {
                     r=self.parse_int_pull(2); nsac=r.val/2; if r.err!=0 {return r;}
+                    if r.val+2!=extlen {
+                        r.err=BAD_MESSAGE;
+                        return r;
+                    }
                     for i in 0..nsac {
                         r=self.parse_int_pull(2); if r.err!=0 {return r;}
                         sig_algs_cert[i]=r.val as u16;
@@ -1042,6 +1044,11 @@ impl SESSION {
                 }
                 PRESHARED_KEY => {  // extlen=tlen1+tlen2+4
                     r=self.parse_int_pull(2); let tlen1=r.val; if r.err!=0 {return r;}
+//println!("r.val= {} extlen= {} binders {}",r.val,extlen,2+33);
+                    if extlen <= tlen1+2 {  // no room for binders!
+                        r.err=BAD_HELLO;
+                        return r;
+                    }
                     r=self.parse_int_pull(2); if r.err!=0 {return r;}
                     self.tklen=r.val;
                     if tlen1<self.tklen+6 {
@@ -1055,7 +1062,7 @@ impl SESSION {
                     r=self.parse_int_pull(4); self.ticket_obf_age=r.val as u32; if r.err!=0 {return r;}
 
                     let mut remain=tlen1-self.tklen-6;
-
+                    nbndrs = 1;
                     while remain>0 { // drain the rest
                         r=self.parse_int_pull(2); if r.err!=0 {return r;} 
                         let tklen=r.val;
@@ -1065,9 +1072,13 @@ impl SESSION {
                         }
                         r=self.parse_pull(tklen+4); if r.err!=0 {return r;} 
                         remain-=tklen+6;
+                        nbndrs += 1;
                     }
                     resume=true;    // proceed as for resumption
                     got_psk=true;
+
+                    binder_bytes=extlen-tlen1-2;
+//println!("Room for binders= {} {}",binder_bytes,nbndrs);
                 }
                 _ => {
                     r=self.parse_pull(extlen); if r.err!=0 {return r;} // just ignore
@@ -1232,8 +1243,14 @@ impl SESSION {
             r.val=HANDSHAKE_RETRY;
             return r;
         }
-        if resume { // go for a resumption
+        if resume { // going for a resumption
             r.val=TRY_RESUMPTION;
+            let hash_type=sal::hash_type(self.cipher_suite);
+            let hlen=sal::hash_len(hash_type);
+            if binder_bytes!=2+(1+hlen)*nbndrs {
+                r.err=BAD_HELLO;
+                return r;                
+            }
         }
         return r; 
     }
@@ -1746,7 +1763,7 @@ impl SESSION {
         let verified=keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s);
         if !verified {  
             if delayed_alert==0 { // no point if there is an earlier alert
-                delayed_alert=BAD_MESSAGE;
+                delayed_alert=FINISH_FAIL;
             }
             //self.send_alert(DECRYPT_ERROR);                              // no point in sending alert - haven't calculated traffic keys yet
             //log(IO_DEBUG,"Client Data is NOT verified\n",-1,None);
