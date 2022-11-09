@@ -975,6 +975,10 @@ impl SESSION {
                         r=self.parse_int_pull(1); alplen=r.val; if r.err!=0 {return r;}
                         let alpn_s=&mut alpn[0..alplen];
                         r=self.parse_bytes_pull(alpn_s); if r.err!=0 {return r;}  // get first entry
+                        if remain<1+alplen {
+                            r.err=BAD_MESSAGE;
+                            return r;
+                        }
                         remain-=1+alplen; 
                         if server_alpn==alpn_s {found=true;}
                     }
@@ -1094,18 +1098,6 @@ impl SESSION {
         }
 
         let mut retry=false;
-
-        let mut supported=false;
-        for i in 0..ncg {
-            if self.favourite_group==cg[i] {
-                supported=true;
-            }
-        }
-        if !supported {
-            r.err=BAD_HELLO;
-            return r;
-        }
-
         if !resume { // check for agreement on cipher suite and group - might need to ask for a handshake retry
             let mut scs:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES]; // choose a cipher suite
             let nscs=sal::ciphers(&mut scs);
@@ -1169,6 +1161,19 @@ impl SESSION {
                 return r;
             }
 
+        }
+
+        if !retry { // we are not doing a retry
+            let mut supported=false;
+            for i in 0..ncg { // better check that the key share from client is also one of clients supported groups, as well as being OK with me
+                if self.favourite_group==cg[i] {
+                    supported=true;
+                }
+            }
+            if !supported {
+                r.err=BAD_HELLO;
+                return r;
+            }
         }
 
         log(IO_DEBUG,"Client Hello = ",0,Some(&self.io[0..self.ptr]));
