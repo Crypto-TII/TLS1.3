@@ -890,6 +890,8 @@ impl SESSION {
         let mut mfl_mode=0;
         let mut sni_ack=false;
         let mut alplen=0;
+        let mut pskmode=0;
+        let mut got_psk=false;
         *early_indication=false;
         while left>0 {
             if resume {
@@ -981,6 +983,15 @@ impl SESSION {
                 },
                 PSK_MODE => {
                     r=self.parse_int_pull(1); let len=r.val; if r.err!=0 {return r;}
+                    r.err=BAD_MESSAGE;
+                    if len==0 {return r;}
+                    for _ in 0..len {
+                        r=self.parse_int_pull(1); pskmode=r.val; if r.err!=0 {return r;}
+                        if pskmode==PSKWECDHE {
+                            r.err=0;
+                        }
+                    }
+/*
                     if len!=1 {
                         r.err=BAD_MESSAGE;
                         return r;
@@ -988,7 +999,7 @@ impl SESSION {
                     r=self.parse_int_pull(1); let pskmode=r.val; if r.err!=0 {return r;}
                     if pskmode!=PSKWECDHE {  // only mode acceptable!
                         r.err=BAD_MESSAGE;
-                    }
+                    } */
                 },
                 TLS_VER => {
                     r=self.parse_int_pull(1); let len=r.val/2; if r.err!=0 {return r;}
@@ -1056,6 +1067,7 @@ impl SESSION {
                         remain-=tklen+6;
                     }
                     resume=true;    // proceed as for resumption
+                    got_psk=true;
                 }
                 _ => {
                     r=self.parse_pull(extlen); if r.err!=0 {return r;} // just ignore
@@ -1064,6 +1076,12 @@ impl SESSION {
             }
             if r.err!=0 {return r;}
         }
+
+        if got_psk && pskmode==0 { // If clients offer pre_shared_key without a psk_key_exchange_modes extension, servers MUST abort the handshake. 
+            r.err=BAD_HELLO;
+            return r;
+        }
+
         let mut retry=false;
 
         let mut supported=false;
@@ -1135,6 +1153,11 @@ impl SESSION {
                 return r;
             }
             //self.cipher_suite=ccs[0];
+            if pskmode==PSKWECDHE && !agreed { // In this mode, the client and server MUST supply key_share values
+                r.err=BAD_HELLO;
+                return r;
+            }
+
         }
 
         log(IO_DEBUG,"Client Hello = ",0,Some(&self.io[0..self.ptr]));
