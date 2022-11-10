@@ -190,9 +190,9 @@ pub const CERT_VERIFY_FAIL:isize= -24;            // Certificate Verification fa
 pub const BAD_PROTOCOL:isize=-25;                 // Bad Protocol
 pub const BAD_HANDSHAKE:isize=-26;                // Could not agree
 pub const BAD_REQUEST_UPDATE:isize= -27;		  // Bad Request Update value
-pub const CLOSURE_ALERT_RECEIVED:isize=-28;         // alert received
-pub const FINISH_FAIL:isize= -29;            // Certificate Verification failure */
-
+pub const CLOSURE_ALERT_RECEIVED:isize=-28;       // alert received
+pub const FINISH_FAIL:isize= -29;                 // Certificate Verification failure */
+pub const MISSING_EXTENSIONS:isize= -30;         // Missing one or more extesions
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -223,6 +223,7 @@ pub const BAD_RECORD_MAC: u8 = 0x14;			  // Bad Record Mac
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
 pub const NO_APPLICATION_PROTOCOL: u8 = 0x78;     // Wrong Application protocol
 pub const HANDSHAKE_FAILURE: u8 = 0x28;           // Handshake failed
+pub const MISSING_EXTENSION: u8 = 0x6D;             // Missing extensions
 
 /// Universal Hash Function structure 
 pub struct UNIHASH {
@@ -267,6 +268,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         CERT_VERIFY_FAIL => return DECRYPT_ERROR,
         FINISH_FAIL => return DECRYPT_ERROR,
         BAD_REQUEST_UPDATE => return ILLEGAL_PARAMETER,
+        MISSING_EXTENSIONS => return MISSING_EXTENSION,
         _ => return ILLEGAL_PARAMETER   
     }
 }

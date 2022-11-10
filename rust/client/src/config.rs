@@ -221,6 +221,7 @@ pub const RECORD_OVERFLOW: u8 =  0x16;            // Record Overflow
 pub const BAD_RECORD_MAC: u8 = 0x14;			  // Bad Record Mac 
 pub const HANDSHAKE_FAILURE: u8 = 0x28;           // Handshake failure
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
+//pub const MISSING_EXTENSION: u8 = 0x6D;             // Missing extensions
 
 /// Universal Hash Function structure 
 pub struct UNIHASH {

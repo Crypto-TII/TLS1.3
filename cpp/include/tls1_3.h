@@ -306,6 +306,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define BAD_RECORD_MAC 0x14				/**< Bad Record Mac */
 #define HANDSHAKE_FAILURE 0x28			/**< Could not agree */
 #define CLOSE_NOTIFY 0x00               /**< Orderly shut down of connection */
+#define MISSING_EXTENSION 0x6D;         /**< Missing extension */
 
 #define LOG_OUTPUT_TRUNCATION 256       /**< Output Hex digits before truncation */
 

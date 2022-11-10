@@ -78,6 +78,17 @@ fn cipher_support(alg: u16) -> bool {
     return false;
 }
 
+fn malformed(rval: usize,maxm: usize) -> bool {
+
+    if (rval&1) == 1 { // if its odd -> error
+        return true;
+    }
+    if rval/2 > maxm { // if its too big -> error
+        return true;
+    }
+    return false;
+}
+
 // IO buffer
 // xxxxxxxxxxxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyy
 // -------------ptr---------->----------iolen----------->
@@ -836,8 +847,8 @@ impl SESSION {
         r= self.parse_bytes_pull(&mut rn); if r.err!=0 {return r;}   // 32 random bytes
         left-=32;
 
-        r=self.parse_int_pull(1); let cilen=r.val; if r.err!=0 {return r;}
-        if cilen!=32 && cilen!=0 { // could be 0?
+        r=self.parse_int_pull(1); let cilen=r.val; if r.err!=0 {return r;}  // cilen is length of legacy ID
+        if cilen>32 { // could be 0?
             r.err=BAD_HELLO;
             return r;
         }
@@ -848,9 +859,10 @@ impl SESSION {
         }
         left-=1;
 
-        if cilen==32 {
+// from my reading of the RFC, this should be either 0 or 32.. (but maybe 8 is OK?)
+        if cilen>0 {
             let mut legacy_id:[u8;32]=[0;32];
-            r=self.parse_bytes_pull(&mut legacy_id); if r.err!=0 {return r;}
+            r=self.parse_bytes_pull(&mut legacy_id[0..cilen]); if r.err!=0 {return r;}
             if left<cilen {
                 r.err=BAD_MESSAGE;
                 return r;
@@ -861,6 +873,10 @@ impl SESSION {
             }
         }
         r=self.parse_int_pull(2); nccs=r.val/2; if r.err!=0 {return r;}
+        if malformed(r.val,MAX_CIPHER_SUITES) {
+            r.err=BAD_HELLO;
+            return r;
+        }
         for i in 0..nccs {
             r=self.parse_int_pull(2); ccs[i]=r.val as u16; if r.err!=0 {return r;}
         }
@@ -885,6 +901,7 @@ impl SESSION {
             return r;
         }
 
+// Problem is this might time-out rather than send an alert
         let mut resume=false;
         let mut agreed=false;
         let mut mfl_mode=0;
@@ -894,6 +911,13 @@ impl SESSION {
         let mut got_psk=false;
         let mut binder_bytes=0;
         let mut nbndrs=0; // number of binders needed
+
+        let mut got_psk_ext=false;
+        let mut got_sig_algs_ext=false;
+        let mut got_supported_groups_ext=false;
+        let mut got_key_share_ext=false;
+  
+
         *early_indication=false;
         while left>0 {
             if resume {
@@ -901,8 +925,8 @@ impl SESSION {
                 r.err=BAD_HELLO;  
                 return r;
             }
+            if left<4 {r.err=BAD_HELLO; return r;} // no point in pulling on what isn't there
             r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;} // get extension type
-//println!("Ext={:#06x} ",ext);
             r=self.parse_int_pull(2); let extlen=r.val; if r.err!=0 {return r;}  // length of this extension
             if extlen+2>left {r.err=BAD_MESSAGE;return r;} 
             if left<4+extlen {
@@ -928,10 +952,19 @@ impl SESSION {
                 }
                 SUPPORTED_GROUPS => {
                     r=self.parse_int_pull(2); ncg=r.val/2; if r.err!=0 {return r;}
+                    if malformed(r.val,MAX_SUPPORTED_GROUPS) {
+                        r.err=BAD_HELLO;
+                        return r;
+                    }
+                    if r.val+2!=extlen {
+                        r.err=BAD_MESSAGE;
+                        return r;
+                    }
                     for i in 0..ncg {
                         r=self.parse_int_pull(2); if r.err!=0 {return r;}
                         cg[i]=r.val as u16;
                     }
+                    got_supported_groups_ext=true;
                 },
                 KEY_SHARE => {
                     r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
@@ -960,6 +993,7 @@ impl SESSION {
                             break;
                         }
                     }
+                    got_key_share_ext=true;
                 },
                 APP_PROTOCOL => {
                     r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
@@ -1001,6 +1035,7 @@ impl SESSION {
                 TLS_VER => {
                     r=self.parse_int_pull(1); let len=r.val/2; if r.err!=0 {return r;}
                     r.err=BAD_MESSAGE;
+                    if (r.val&1)==1 {return r;}
                     if r.val+1!=extlen {return r;}
                     for _ in 0..len {
                         r=self.parse_int_pull(2); let tls=r.val; if r.err!=0 {return r;}
@@ -1020,6 +1055,10 @@ impl SESSION {
                 },
                 SIG_ALGS => {
                     r=self.parse_int_pull(2); *nsa=r.val/2; if r.err!=0 {return r;}
+                    if malformed(r.val,MAX_SUPPORTED_SIGS) {
+                        r.err=BAD_HELLO;
+                        return r;
+                    }
                     if r.val+2!=extlen {
                         r.err=BAD_MESSAGE;
                         return r;
@@ -1027,10 +1066,15 @@ impl SESSION {
                     for i in 0..*nsa {
                         r=self.parse_int_pull(2); if r.err!=0 {return r;}
                         sig_algs[i]=r.val as u16;
-                    }                    
+                    }    
+                    got_sig_algs_ext=true;
                 },
                 SIG_ALGS_CERT => {
                     r=self.parse_int_pull(2); nsac=r.val/2; if r.err!=0 {return r;}
+                    if malformed(r.val,MAX_SUPPORTED_SIGS) {
+                        r.err=BAD_HELLO;
+                        return r;
+                    }
                     if r.val+2!=extlen {
                         r.err=BAD_MESSAGE;
                         return r;
@@ -1043,6 +1087,7 @@ impl SESSION {
                 EARLY_DATA => {
                     if extlen!=0 {
                         r.err=UNRECOGNIZED_EXT;
+                        return r;
                     }
                     *early_indication=true;
                 }
@@ -1080,7 +1125,7 @@ impl SESSION {
                     }
                     resume=true;    // proceed as for resumption
                     got_psk=true;
-
+                    got_psk_ext=true;
                     binder_bytes=extlen-tlen1-2;
 //println!("Room for binders= {} {}",binder_bytes,nbndrs);
                 }
@@ -1090,6 +1135,18 @@ impl SESSION {
                 }
             }
             if r.err!=0 {return r;}
+        }
+
+// check for missing extensions
+        if !got_psk_ext {
+            if !got_sig_algs_ext || !got_supported_groups_ext {
+                r.err=MISSING_EXTENSIONS;
+                return r;
+            }
+        }
+        if got_supported_groups_ext!=got_key_share_ext {
+                r.err=MISSING_EXTENSIONS;
+                return r;
         }
 
         if got_psk && pskmode==0 { // If clients offer pre_shared_key without a psk_key_exchange_modes extension, servers MUST abort the handshake. 
@@ -1218,7 +1275,7 @@ impl SESSION {
         if self.session_id[0]==0 {
             ptr=utils::append_byte(sh,ptr,0,1);
         } else {
-            ptr=utils::append_bytes(sh,ptr,&self.session_id);
+            ptr=utils::append_bytes(sh,ptr,&self.session_id[0..cilen+1]);
         }
         ptr=utils::append_int(sh,ptr,self.cipher_suite as usize,2);
         ptr=utils::append_int(sh,ptr,0,1); // no compression
