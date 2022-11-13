@@ -7,6 +7,8 @@ pub const TEK:[u8;32]=[0x45,0xcd,0x4e,0x84,0x30,0x53,0x6c,0x68,0x6d,0x24,0x3f,0x
 
 // This first is a self-signed certificate
 
+// Uses RSA 2048 bit SHA256
+
 pub const SS_PRIVATE: &str = 
 "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDQeJKwWO3tvqxs\
 9cQgtMA2KFLUlNncQXNm9DvmiLUAGxm2nHO+h+3SUzq/Qg2dN+bwNaqKVohwIRMp\

@@ -291,7 +291,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define BAD_HANDSHAKE -26               /**< Could not agree */
 #define BAD_REQUEST_UPDATE -27			/**< Bad Request Update value */
 #define CLOSURE_ALERT_RECEIVED -28      /**< Alert has been received */
-
+#define MISSING_EXTENSIONS -30          /**< Some mandatory extensions are missing */
 // client alerts 
 #define ILLEGAL_PARAMETER 0x2F          /**< Illegal parameter alert */
 #define UNEXPECTED_MESSAGE 0x0A         /**< Unexpected message alert */

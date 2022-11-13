@@ -181,9 +181,15 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
     }
 }
 
+// Report signature requirements for our certificate chain
+int getSigRequirements(int *sigReqs) {
+    sigReqs[0]=ECDSA_SECP256R1_SHA256;
+    return 1;
+}
+
 // Read in raw certificate chain from file, and serialize it for transmission
 // Read in client private key from .pem file
-int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN)
+int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
     bool first=true;
@@ -234,7 +240,6 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
 
 //printf("Certchain len= %d\n",CERTCHAIN->len);
 
-
     if (myprivate!=NULL)
     { // unless private key is in protected hardware, so SAL has it already
         ptr=0; i=0;
@@ -279,12 +284,8 @@ int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,oc
     {
         kind=DILITHIUM2_P256;  
     }
-    for (i=0;i<nccsalgs;i++)
-    {
-        if (kind==csigAlgs[i]) return kind;
-    }
 
-    return 0;
+    return kind;
 }
 
 // Check certificate has not expired

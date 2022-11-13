@@ -192,6 +192,7 @@ pub const CERT_VERIFY_FAIL:isize= -24;            // Certificate Verification fa
 pub const BAD_HANDSHAKE:isize=-26;                // Could not agree
 pub const BAD_REQUEST_UPDATE:isize= -27;		  // Bad Request Update value
 pub const CLOSURE_ALERT_RECEIVED:isize=-28;         // alert received
+pub const MISSING_EXTENSIONS:isize= -30;         // Missing one or more extesions
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 

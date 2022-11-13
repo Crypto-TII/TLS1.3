@@ -167,13 +167,36 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return false;
 }
 
+// Report signature requirements for given certificate chain
+pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
+    let mut ns=0;
+    if CRYPTO_SETTING==TYPICAL {
+        sig_reqs[0]=RSA_PSS_RSAE_SHA256;
+        sig_reqs[1]=RSA_PKCS1_SHA256;
+        ns+=2;
+    }
+    if CRYPTO_SETTING==TINY_ECC {
+        sig_reqs[0]=ECDSA_SECP256R1_SHA256;
+        ns+=1;
+    }
+    if CRYPTO_SETTING==POST_QUANTUM {
+        sig_reqs[0]=DILITHIUM3;
+        ns+=1;
+    }
+    if CRYPTO_SETTING==HYBRID {
+        sig_reqs[0]=DILITHIUM2;
+        sig_reqs[1]=ECDSA_SECP256R1_SHA256;
+        ns+=2;
+    }
+    return ns;
+}
+
 /// Get server credentials (cert+signing key) from servercert.rs
-pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
+pub fn get_server_credentials(privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
     let mut sc:[u8;MAX_SERVER_CHAIN_SIZE]=[0;MAX_SERVER_CHAIN_SIZE];
 // first get certificate chain
 // Should check against hostname to pick right certificate - we could have more than one
 
-    let nccsalgs=csigalgs.len();
     let mut ptr=0;
     let mut key:&str="";
 
@@ -243,10 +266,7 @@ pub fn get_server_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
         kind=DILITHIUM2_P256;  // *** also need to check that secp256r1 is supported - kind indicates that both signature keys are in privkey
     }
 
-    for i in 0..nccsalgs {
-        if kind==csigalgs[i] {return kind;}
-    }
-    return 0;
+    return kind;
 }
 
 /// parse out certificate details, check that previous issuer is subject of this cert, update previous issuer

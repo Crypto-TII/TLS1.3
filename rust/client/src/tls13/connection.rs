@@ -43,6 +43,42 @@ pub struct SESSION {
     pub t: TICKET           // resumption ticket    
 }
 
+// check for overlap given server signature capabilities, and my client certificate
+fn overlap(server_sig_algs: &[u16],server_cert_sig_algs: &[u16]) -> bool {
+    let mut client_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
+    let nsreq=certchain::get_sig_requirements(&mut client_cert_reqs); 
+
+    for i in 0..nsreq {
+        let mut itsthere=false;
+        let sig=client_cert_reqs[i];
+        for j in 0..server_sig_algs.len() {
+            if sig==server_sig_algs[j] {
+                itsthere=true;
+            }
+        }
+        for j in 0..server_cert_sig_algs.len() {
+            if sig==server_cert_sig_algs[j] {
+                itsthere=true;
+            }
+        }
+        if !itsthere {
+            return false;
+        }
+    }
+    return true;    
+}
+
+fn malformed(rval: usize,maxm: usize) -> bool {
+
+    if (rval&1) == 1 { // if its odd -> error
+        return true;
+    }
+    if rval/2 > maxm { // if its too big -> error
+        return true;
+    }
+    return false;
+}
+
 // IO buffer
 // xxxxxxxxxxxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyy
 // -------------ptr---------->----------iolen----------->
@@ -552,10 +588,11 @@ impl SESSION {
     }
 
 /// Receive Certificate Request - the Server wants the client to supply a certificate chain
-    fn get_certificate_request(&mut self, nalgs: &mut usize,sigalgs: &mut [u16]) -> RET {
+    fn get_certificate_request(&mut self) -> RET {
         //let mut ptr=0;
         let mut unexp=0;
-
+        let mut sigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
+        let mut certsigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
 
         let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
@@ -578,7 +615,8 @@ impl SESSION {
             return r;
         }
        
-        let mut algs=0;
+        let mut nssa=0;
+        let mut nscsa=0;
         while len>0 {
             r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;}
             r=self.parse_int_pull(2); let tlen=r.val; if r.err!=0 {return r;}
@@ -589,21 +627,32 @@ impl SESSION {
             len-=4+tlen;
             match ext {
                 SIG_ALGS => {
-                    r=self.parse_int_pull(2); algs=r.val/2; if r.err!=0 {return r;}
-                    for i in 0..algs {
-                        r=self.parse_int_pull(2); if r.err!=0 {return r;}
-                        if i<MAX_SUPPORTED_SIGS {
-                            sigalgs[i]=r.val as u16;
-                        }
-                    }
-                    if tlen!=2+2*algs {
+                    r=self.parse_int_pull(2);  if r.err!=0 {return r;}
+                    if malformed(r.val,MAX_SUPPORTED_SIGS) || tlen!=2+r.val {
                         r.err=UNRECOGNIZED_EXT;
                         return r;
                     }
-                    if algs>MAX_SUPPORTED_SIGS {
-                        algs=MAX_SUPPORTED_SIGS;
+                    nssa=r.val/2;
+                    for i in 0..nssa {
+                        r=self.parse_int_pull(2); if r.err!=0 {return r;}
+                        sigalgs[i]=r.val as u16;
+                    }
+
+                }
+
+                SIG_ALGS_CERT => {
+                    r=self.parse_int_pull(2);  if r.err!=0 {return r;}
+                    if malformed(r.val,MAX_SUPPORTED_SIGS) || tlen!=2+r.val {
+                        r.err=UNRECOGNIZED_EXT;
+                        return r;
+                    }
+                    nscsa=r.val/2;
+                    for i in 0..nscsa {
+                        r=self.parse_int_pull(2); if r.err!=0 {return r;}
+                        certsigalgs[i]=r.val as u16;
                     }
                 }
+
                 _ => {
                     self.ptr+=tlen;
                     unexp+=1;
@@ -615,14 +664,18 @@ impl SESSION {
         //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
         //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
         r.val=CERT_REQUEST as usize;
-        if algs==0 {
-            r.err=UNRECOGNIZED_EXT;
+        if nssa==0 {
+            r.err= MISSING_EXTENSIONS;
+            return r;
+        }
+        if !overlap(&sigalgs[0..nssa],&certsigalgs[0..nscsa]) {
+            log(IO_DEBUG,"Server cannot verify client certificate\n",-1,None);
+            r.err=BAD_HANDSHAKE;
             return r;
         }
         if unexp>0 {
             log(IO_DEBUG,"Unrecognized extensions received\n",-1,None);
         }
-        *nalgs=algs;
         return r;
     }
 
@@ -736,14 +789,10 @@ impl SESSION {
 
 // OK, its encrypted, so aead decrypt it, check tag
         let taglen=self.k_recv.taglen;
-        if left < taglen+1 {
+        if left < taglen {
             return BAD_RECORD;
         }
         let mut rlen=left-taglen;
-
-        if rlen>MAX_PLAIN_FRAG+1 {
-            return MAX_EXCEEDED;
-        }
 
         if !socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]) {  // read in record body
             return TIMED_OUT as isize;
@@ -764,6 +813,12 @@ impl SESSION {
             lb=self.io[self.iolen-1];
             self.iolen -= 1; rlen -= 1;// remove it
         }
+
+        if rlen>MAX_PLAIN_FRAG {
+            return MAX_EXCEEDED;
+        }
+
+
         if (lb == HSHAKE || lb == ALERT) && rlen==0 {
             return WRONG_MESSAGE; // Implementations MUST NOT send zero-length fragments of Handshake types
         }
@@ -1672,7 +1727,7 @@ impl SESSION {
     }
 
 /// Client proves trustworthyness to server, given servers list of acceptable signature types
-    fn client_trust(&mut self,csigalgs: &[u16] ) {
+    fn client_trust(&mut self) {
         let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
         let mut client_certchain:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
         let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
@@ -1685,7 +1740,7 @@ impl SESSION {
 
         let mut cclen=0;
         let mut cklen=0;
-        let kind=certchain::get_client_credentials(csigalgs,&mut client_key,&mut cklen,&mut client_certchain,&mut cclen);
+        let kind=certchain::get_client_credentials(&mut client_key,&mut cklen,&mut client_certchain,&mut cclen);
         if kind!=0 { // Yes, I can do that signature
             log(IO_PROTOCOL,"Client is authenticating\n",-1,None);
             let cc_s=&client_certchain[0..cclen];
@@ -1740,14 +1795,12 @@ impl SESSION {
             return TLS_FAILURE;
         }
 
-        let mut nccsalgs=0;
-        let mut csigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut gotacertrequest=false;
 
 // Maybe Server is requesting certificate from Client
         if rtn.val == CERT_REQUEST as usize { 
             gotacertrequest=true;
-            rtn=self.get_certificate_request(&mut nccsalgs,&mut csigalgs);
+            rtn=self.get_certificate_request();
 //
 //
 //  <---------------------------------------------------- {Certificate Request}
@@ -1773,7 +1826,7 @@ impl SESSION {
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
         if gotacertrequest { // Server wants a client certificate
             if HAVE_CLIENT_CERT { // do I have one?
-                self.client_trust(&csigalgs[0..nccsalgs]);
+                self.client_trust();
             } else {
                 self.send_client_certificate(None);
             }

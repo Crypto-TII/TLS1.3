@@ -6,6 +6,18 @@
 #include "tls_cert_chain.h"
 #include "tls_logger.h"
 
+// check for malformed input
+bool malformed(int rval,int maxm) {
+
+    if ((rval&1) == 1) { // if its odd -> error
+        return true;
+    }
+    if (rval/2 > maxm) { // if its too big -> error
+        return true;
+    }
+    return false;
+}
+
 // First some functions for parsing values out of an octad string
 // parse out an octad of length len from octad M into E
 // ptr is a moving pointer through the octad M
@@ -155,12 +167,10 @@ int getServerRecord(TLS_session *session)
 		return BAD_RECORD;
 	}
 	taglen=session->K_recv.taglen;
-	if (left < taglen+1) 
+	if (left < taglen) 
 		return BAD_RECORD;
   
 	rlen=left-taglen; // plaintext record length
-
-	if (rlen>TLS_MAX_PLAIN_FRAG+1) return MAX_EXCEEDED;
 
     rtn=getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
     if (rtn<0)
@@ -184,6 +194,9 @@ int getServerRecord(TLS_session *session)
         lb=session->IO.val[session->IO.len-1];   // need to track back through zero padding for this....
         session->IO.len--; rlen--;// remove it
     }
+
+	if (rlen>TLS_MAX_PLAIN_FRAG) return MAX_EXCEEDED;
+
 	// rlen is Inner Plaintext length?
 	if ((lb==HSHAKE || lb==ALERT) && rlen==0)
 		return WRONG_MESSAGE;  // Implementations MUST NOT send zero-length fragments of Handshake types
@@ -475,13 +488,38 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     return r;
 }
 
+// check for overlap given server signature capabilities, and my client certificate
+static bool overlap(int *serverSigAlgs,int nssa,int *serverCertSigAlgs,int nscsa) {
+    int clientCertReqs[TLS_MAX_SUPPORTED_SIGS];
+    int nsreq=getSigRequirements(clientCertReqs);
+    for (int i=0;i<nsreq;i++) {
+        bool itsthere=false;
+        int sig=clientCertReqs[i];
+        for (int j=0;j<nssa;j++) {
+            if (sig==serverSigAlgs[j]) {
+                itsthere=true;
+            }
+        }
+        for (int j=0;j<nscsa;j++) {
+            if (sig==serverCertSigAlgs[j]) {
+                itsthere=true;
+            }
+        }
+        if (!itsthere) {
+            return false;
+        }
+    }
+    return true;    
+}
+
 // Receive a Certificate request
-ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
+ret getCertificateRequest(TLS_session *session)
 {
     ret r;
-    int i,left,nb,ext,len,tlen;//,ptr=0;
+    int i,left,nb,ext,len,tlen,nssa,nscsa;//,ptr=0;
     int unexp=0;
-    //session->ptr=0;
+    int sigalgs[TLS_MAX_SUPPORTED_SIGS]; // acceptable client signature types
+    int certsigalgs[TLS_MAX_SUPPORTED_SIGS];
 
     r=parseIntorPull(session,1); // get message type
     if (r.err!=0) {return r;}
@@ -504,7 +542,7 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
         return r;
     }
   
-    nalgs=0;
+    nssa=nscsa=0;
 // extension must include signature algorithms
     while (len>0)
     {
@@ -518,18 +556,33 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
         switch (ext)
         {
         case SIG_ALGS :
-            r=parseIntorPull(session,2); nalgs=r.val/2; if (r.err) return r;
-            for (i=0;i<nalgs;i++)
-            {
-                r=parseIntorPull(session,2); if (r.err) return r;
-                if (i<TLS_MAX_SUPPORTED_SIGS) sigalgs[i]=r.val;
-            }
-            if (tlen!=2+2*nalgs) {
+            r=parseIntorPull(session,2);  if (r.err) return r;
+            if (malformed(r.val,TLS_MAX_SUPPORTED_SIGS) || tlen!=2+r.val) {
                 r.err=UNRECOGNIZED_EXT;
                 return r;
-            }            
-            if (nalgs>TLS_MAX_SUPPORTED_SIGS) nalgs=TLS_MAX_SUPPORTED_SIGS;
+            }
+            nssa=r.val/2;
+            for (i=0;i<nssa;i++)
+            {
+                r=parseIntorPull(session,2); if (r.err) return r;
+                sigalgs[i]=r.val;
+            }
             break;
+
+        case SIG_ALGS_CERT :
+            r=parseIntorPull(session,2);  if (r.err) return r;
+            if (malformed(r.val,TLS_MAX_SUPPORTED_SIGS) || tlen!=2+r.val) {
+                r.err=UNRECOGNIZED_EXT;
+                return r;
+            }
+            nscsa=r.val/2;
+            for (i=0;i<nscsa;i++)
+            {
+                r=parseIntorPull(session,2); if (r.err) return r;
+                if (i<TLS_MAX_SUPPORTED_SIGS) certsigalgs[i]=r.val;
+            }
+            break;
+
         default:    // ignore all other extensions
             //r=parseoctadorPull(session->sockptr,&U,tlen,ptr,recv);   // to look at extension
             //printf("Unexpected Extension= "); OCT_output(&U);
@@ -543,10 +596,16 @@ ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs)
 // Update Transcript hash and rewind IO buffer
     runningHashIOrewind(session);
 
-    if (nalgs==0) { // must specify at least one signature algorithm
-        r.err=UNRECOGNIZED_EXT;
+    if (nssa==0) { // must specify at least one signature algorithm
+        r.err=MISSING_EXTENSIONS;
         return r;
     } 
+
+    if (!overlap(sigalgs,nssa,certsigalgs,nscsa)) {
+        log(IO_DEBUG,(char *)"Server cannot verify client certificate\n",NULL,0,NULL);
+        r.err=BAD_HANDSHAKE;
+        return r;
+    }
     if (unexp>0)    
         log(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
     r.val=CERT_REQUEST;

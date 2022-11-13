@@ -446,6 +446,8 @@ int alert_from_cause(int rtn)
 		return HANDSHAKE_FAILURE;
 	case BAD_REQUEST_UPDATE:
 		return ILLEGAL_PARAMETER;
+    case MISSING_EXTENSIONS:
+        return MISSING_EXTENSION;
 	case BAD_MESSAGE:
 	case EMPTY_CERT_CHAIN:
 		return DECODE_ERROR;

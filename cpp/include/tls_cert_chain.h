@@ -30,12 +30,17 @@ extern int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,oc
 
 /**	@brief Get Client private key and Certificate chain from .pem files
  *
-    @param nccsalgs the number of acceptable signature algorithms
-    @param csigAlgs acceptable signature algorithms
     @param PRIVKEY the Client's private  key
     @param CERTCHAIN the Client's certificate chain
 	@return type of private key, ECC or RSA
  */
-extern int getClientPrivateKeyandCertChain(int nccsalgs,int *csigAlgs,octad *PRIVKEY,octad *CERTCHAIN);
+extern int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN);
+
+/**	@brief Get Client private key and Certificate chain from .pem files
+ *
+    @param sigReq list of signature requirements
+    @return number of such requirements
+ */
+extern int getSigRequirements(int *sigReqs);
 
 #endif

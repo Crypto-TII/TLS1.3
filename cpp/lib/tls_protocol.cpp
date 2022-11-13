@@ -437,7 +437,7 @@ static int TLS13_server_trust(TLS_session *session)
 }
 
 // client supplies trust to server, given servers list of acceptable signature types
-static void TLS13_client_trust(TLS_session *session,int nsa,int *sa)
+static void TLS13_client_trust(TLS_session *session)
 {
     int hashtype;
 	int nsc,nsg,nsac;
@@ -457,7 +457,7 @@ static void TLS13_client_trust(TLS_session *session,int nsa,int *sa)
     char th[TLS_MAX_HASH];
     octad TH={0,sizeof(th),th};  // Transcript hash
 
-    int kind=getClientPrivateKeyandCertChain(nsa,sa,&CLIENT_KEY,&CLIENT_CERTCHAIN);
+    int kind=getClientPrivateKeyandCertChain(&CLIENT_KEY,&CLIENT_CERTCHAIN);
     if (kind!=0)
     { // Yes, I can do that kind of signature
         log(IO_PROTOCOL,(char *)"Client is authenticating\n",NULL,0,NULL);
@@ -491,8 +491,6 @@ static int TLS13_full(TLS_session *session)
 	int nsa,nsc,nsg,nsac;
     bool resumption_required=false;
     bool gotacertrequest=false;
-    int nccsalgs=0;  // number of client certificate signature algorithms
-    int csigAlgs[TLS_MAX_SUPPORTED_SIGS]; // acceptable client cert signature types
 
     char hh[TLS_MAX_HASH];               
     octad HH={0,sizeof(hh),hh};          // Transcript hashes  
@@ -523,7 +521,7 @@ static int TLS13_full(TLS_session *session)
     if (rtn.val==CERT_REQUEST)
     { // 2a. optional certificate request received
         gotacertrequest=true;
-        rtn=getCertificateRequest(session,nccsalgs,csigAlgs);
+        rtn=getCertificateRequest(session);
 //
 //
 //  <---------------------------------------------------- {Certificate Request}
@@ -556,7 +554,7 @@ static int TLS13_full(TLS_session *session)
     if (gotacertrequest)
     {
 #if CLIENT_CERT != NOCERT
-        TLS13_client_trust(session,nccsalgs,csigAlgs);
+        TLS13_client_trust(session);
 #else
         sendClientCertificateChain(session,NULL);
 #endif

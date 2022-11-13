@@ -165,11 +165,16 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return false;
 }
 
+// Report signature requirements for our certificate chain
+pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
+    sig_reqs[0]=ECDSA_SECP256R1_SHA256;
+    return 1;
+}
+
 /// Get client credentials (cert+signing key) from clientcert.rs
-pub fn get_client_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
+pub fn get_client_credentials(privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
     let mut sc:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
 // first get certificate chain
-    let nccsalgs=csigalgs.len();
     let mut ptr=0;                      // *** which cert chain?
     for i in 0..clientcert::CHAINLEN {
         let b=clientcert::MYCERTCHAIN[i].as_bytes();
@@ -203,10 +208,7 @@ pub fn get_client_credentials(csigalgs: &[u16],privkey: &mut [u8],sklen: &mut us
     if pk.kind==x509::HY {
         kind=DILITHIUM2_P256;   
     }
-    for i in 0..nccsalgs {
-        if kind==csigalgs[i] {return kind;}  // check against capabilities
-    }
-    return 0;
+    return kind;
 }
 
 /// Parse out certificate details, check that previous issuer is subject of this cert, update previous issuer

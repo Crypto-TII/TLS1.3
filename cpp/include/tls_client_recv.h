@@ -161,11 +161,9 @@ extern ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,oct
 /**	@brief process a Certificate Request
  *
 	@param session the TLS session structure
-    @param nalgs the number of acceptable signature algorithms
-    @param sigalgs an array of nalgs signature algorithms
 	@return response structure
  */
-extern ret getCertificateRequest(TLS_session *session,int &nalgs,int *sigalgs);
+extern ret getCertificateRequest(TLS_session *session);
 
 
 

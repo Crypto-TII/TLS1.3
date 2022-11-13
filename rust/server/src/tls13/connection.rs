@@ -48,7 +48,8 @@ pub struct SESSION {
     pub io: [u8;MAX_IO],        // Main IO buffer for this connection 
     pub tlshash: UNIHASH,       // Transcript hash recorder 
     pub clientid: [u8;MAX_X509_FIELD], // Client identity for this session
-    pub cidlen: usize,      // client id length
+    pub cidlen: usize,          // client id length
+
     ticket: [u8;MAX_TICKET_SIZE], //psk identity (resumption ticket)
     tklen: usize,           // psk identity length
     ticket_obf_age: u32,    // psk obfuscated age
@@ -76,6 +77,31 @@ fn cipher_support(alg: u16) -> bool {
         }
     }
     return false;
+}
+
+// check for overlap given client signature capabilities, and my server certificate
+fn overlap(client_sig_algs: &[u16],client_cert_sig_algs: &[u16]) -> bool {
+    let mut server_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
+    let nsreq=certchain::get_sig_requirements(&mut server_cert_reqs); 
+
+    for i in 0..nsreq {
+        let mut itsthere=false;
+        let sig=server_cert_reqs[i];
+        for j in 0..client_sig_algs.len() {
+            if sig==client_sig_algs[j] {
+                itsthere=true;
+            }
+        }
+        for j in 0..client_cert_sig_algs.len() {
+            if sig==client_cert_sig_algs[j] {
+                itsthere=true;
+            }
+        }
+        if !itsthere {
+            return false;
+        }
+    }
+    return true;    
 }
 
 fn malformed(rval: usize,maxm: usize) -> bool {
@@ -119,6 +145,7 @@ impl SESSION {
             tlshash:{UNIHASH{state:[0;MAX_HASH_STATE],htype:0}},
             clientid:[0;MAX_X509_FIELD],
             cidlen: 0,
+
             ticket: [0;MAX_TICKET_SIZE],
             tklen: 0,
             ticket_obf_age: 0,
@@ -444,10 +471,12 @@ impl SESSION {
 /// Send Server Certificate Request 
     fn send_certificate_request(&mut self) { 
         let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; 
-        let mut pt:[u8;11+2*MAX_SUPPORTED_SIGS]=[0;11+2*MAX_SUPPORTED_SIGS];
+        let mut cert_sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; 
+        let mut pt:[u8;17+4*MAX_SUPPORTED_SIGS]=[0;17+4*MAX_SUPPORTED_SIGS];
 
         let nsa=sal::sigs(&mut sig_algs);  // get supported sigs
-        let len=13+2*nsa;
+        let nsca=sal::sigs(&mut cert_sig_algs);  // get supported sigs
+        let len=17+2*nsa+2*nsca;
 
         let mut ptr=0;
         ptr=utils::append_byte(&mut pt,ptr,CERT_REQUEST,1); // indicates handshake message "certificate request"
@@ -455,11 +484,20 @@ impl SESSION {
         ptr=utils::append_int(&mut pt,ptr,0,1);   // .. Request Context
         ptr=utils::append_int(&mut pt,ptr,len-7,2);
         ptr=utils::append_int(&mut pt,ptr,SIG_ALGS,2); // extension
-        ptr=utils::append_int(&mut pt,ptr,len-11,2);
+
+        ptr=utils::append_int(&mut pt,ptr,2+2*nsa,2);
         ptr=utils::append_int(&mut pt,ptr,2*nsa,2);
         for i in 0..nsa {
             ptr=utils::append_int(&mut pt,ptr,sig_algs[i] as usize,2);
         }
+        ptr=utils::append_int(&mut pt,ptr,2+2*nsca,2);
+        ptr=utils::append_int(&mut pt,ptr,2*nsca,2);
+        for i in 0..nsca {
+            ptr=utils::append_int(&mut pt,ptr,cert_sig_algs[i] as usize,2);
+        }
+
+// should send sig_algs_certs as well
+
         self.running_hash(&pt[0..ptr]);
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],None);
     }
@@ -753,14 +791,10 @@ impl SESSION {
 
 // OK, its encrypted, so aead decrypt it, check tag
         let taglen=self.k_recv.taglen;
-        if left < taglen+1 {
+        if left < taglen {
             return BAD_RECORD;
         }
         let mut rlen=left-taglen;
-
-        if rlen>MAX_PLAIN_FRAG+1 {
-            return MAX_EXCEEDED;
-        }
 
         if !socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]) {  // read in record body
             return TIMED_OUT as isize;
@@ -780,6 +814,10 @@ impl SESSION {
         while lb==0 && rlen>0 {
             lb=self.io[self.iolen-1];
             self.iolen -= 1; rlen -= 1;// remove it
+        }
+
+        if rlen>MAX_PLAIN_FRAG {
+            return MAX_EXCEEDED;
         }
 
 // if no non-zero found, lb=0
@@ -802,7 +840,7 @@ impl SESSION {
 
     /// Get client hello. Output encrypted extensions, client public key, client signature algorithms.
     /// Put together Server Hello response. Also generate extensions that are to be encrypted
-    fn process_client_hello(&mut self,sh: &mut [u8],shlen: &mut usize,encext: &mut [u8],enclen: &mut usize,ss: &mut [u8],sig_algs: &mut [u16],nsa: &mut usize,early_indication: &mut bool,is_retry: bool) -> RET {
+    fn process_client_hello(&mut self,sh: &mut [u8],shlen: &mut usize,encext: &mut [u8],enclen: &mut usize,ss: &mut [u8],early_indication: &mut bool,is_retry: bool) -> RET {
         let mut host:[u8;MAX_SERVER_NAME]=[0;MAX_SERVER_NAME];
         let mut alpn:[u8;32]=[0;32];
         let mut rn: [u8;32]=[0;32];
@@ -814,8 +852,12 @@ impl SESSION {
         let mut alg:u16=0;
         let mut cpklen=0;
         let mut cpk:[u8;MAX_KEX_PUBLIC_KEY]=[0;MAX_KEX_PUBLIC_KEY];
-        let mut nsac:usize;
-        let mut sig_algs_cert:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
+
+        let mut client_sig_algs: [u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; // Client supported signature algs
+        let mut ncsa=0;            // Number of client supported sig algs
+        let mut client_cert_sig_algs: [u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; // Client supported certificate signature algs
+        let mut nccsa=0;           // Number of client supported cert sig algs
+
         let tls_version=TLS1_3; // only
         let mut hrr: [u8; HRR.len()/2]=[0;HRR.len()/2];
         utils::decode_hex(&mut hrr,&HRR);
@@ -846,6 +888,9 @@ impl SESSION {
 
         r= self.parse_bytes_pull(&mut rn); if r.err!=0 {return r;}   // 32 random bytes
         left-=32;
+
+
+        log(IO_PROTOCOL,"Fingerprint= ",0,Some(&rn[0..6]));
 
         r=self.parse_int_pull(1); let cilen=r.val; if r.err!=0 {return r;}  // cilen is length of legacy ID
         if cilen>32 { // could be 0?
@@ -925,7 +970,7 @@ impl SESSION {
                 r.err=BAD_HELLO;  
                 return r;
             }
-            if left<4 {r.err=BAD_HELLO; return r;} // no point in pulling on what isn't there
+            if left<4 {r.err=BAD_HELLO; return r;} // no point in pulling on what should not be there
             r=self.parse_int_pull(2); let ext=r.val; if r.err!=0 {return r;} // get extension type
             r=self.parse_int_pull(2); let extlen=r.val; if r.err!=0 {return r;}  // length of this extension
             if extlen+2>left {r.err=BAD_MESSAGE;return r;} 
@@ -1054,34 +1099,28 @@ impl SESSION {
                     r=self.parse_pull(extlen); if r.err!=0 {return r;}
                 },
                 SIG_ALGS => {
-                    r=self.parse_int_pull(2); *nsa=r.val/2; if r.err!=0 {return r;}
-                    if malformed(r.val,MAX_SUPPORTED_SIGS) {
+                    r=self.parse_int_pull(2);  if r.err!=0 {return r;}
+                    if malformed(r.val,MAX_SUPPORTED_SIGS) || r.val+2!=extlen {
                         r.err=BAD_HELLO;
                         return r;
                     }
-                    if r.val+2!=extlen {
-                        r.err=BAD_MESSAGE;
-                        return r;
-                    }
-                    for i in 0..*nsa {
+                    ncsa=r.val/2;
+                    for i in 0..ncsa {
                         r=self.parse_int_pull(2); if r.err!=0 {return r;}
-                        sig_algs[i]=r.val as u16;
+                        client_sig_algs[i]=r.val as u16;
                     }    
                     got_sig_algs_ext=true;
                 },
                 SIG_ALGS_CERT => {
-                    r=self.parse_int_pull(2); nsac=r.val/2; if r.err!=0 {return r;}
-                    if malformed(r.val,MAX_SUPPORTED_SIGS) {
+                    r=self.parse_int_pull(2);  if r.err!=0 {return r;}
+                    if malformed(r.val,MAX_SUPPORTED_SIGS) || r.val+2!=extlen {
                         r.err=BAD_HELLO;
                         return r;
                     }
-                    if r.val+2!=extlen {
-                        r.err=BAD_MESSAGE;
-                        return r;
-                    }
-                    for i in 0..nsac {
+                    nccsa=r.val/2;
+                    for i in 0..nccsa {
                         r=self.parse_int_pull(2); if r.err!=0 {return r;}
-                        sig_algs_cert[i]=r.val as u16;
+                        client_cert_sig_algs[i]=r.val as u16;
                     }                     
                 },
                 EARLY_DATA => {
@@ -1138,9 +1177,15 @@ impl SESSION {
         }
 
 // check for missing extensions
-        if !got_psk_ext {
+        if !got_psk_ext { // not an attempted resumption
             if !got_sig_algs_ext || !got_supported_groups_ext {
+                log(IO_DEBUG,"Missing extensions for FULL handshake",-1,None);
                 r.err=MISSING_EXTENSIONS;
+                return r;
+            }
+            if !overlap(&client_sig_algs[0..ncsa],&client_cert_sig_algs[0..nccsa]) { // check for overlap between TML requirements and client capabilities
+                log(IO_DEBUG,"No overlap in signature capabilities",-1,None);
+                r.err=BAD_HANDSHAKE;
                 return r;
             }
         }
@@ -1150,7 +1195,8 @@ impl SESSION {
         }
 
         if got_psk && pskmode==0 { // If clients offer pre_shared_key without a psk_key_exchange_modes extension, servers MUST abort the handshake. 
-            r.err=BAD_HELLO;
+            log(IO_DEBUG,"Missing PSK modes extension",-1,None);
+            r.err=BAD_HANDSHAKE;
             return r;
         }
 
@@ -1474,15 +1520,14 @@ impl SESSION {
     pub fn connect(&mut self,early: &mut [u8],edlen: &mut usize) -> usize {
         let mut sh:[u8;MAX_HELLO]=[0;MAX_HELLO];
         let mut ext:[u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
-        let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
+        //let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut ss:[u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
         let mut ccs_sent=false;
         let mut early_indication=false;
         let mut shlen=0;
         let mut enclen=0;
-        let mut nsa=0;
         self.status=HANDSHAKING;
-        let mut rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication,false);
+        let mut rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut early_indication,false);
         if self.bad_response(&rtn) {
             return TLS_FAILURE;
         }
@@ -1624,12 +1669,12 @@ impl SESSION {
 
                 shlen=0;
                 enclen=0;
-                nsa=0;
+                //nsa=0;
 
 //
 //   <---------------------------------------------------------- receive updated client Hello
 //
-                let rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut sig_algs,&mut nsa,&mut early_indication,true);
+                let rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut early_indication,true);
                 if self.bad_response(&rtn) {
                     return TLS_FAILURE;
                 }
@@ -1690,7 +1735,7 @@ impl SESSION {
             let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
             let mut sclen=0;
             let mut sklen=0;
-            let kind=certchain::get_server_credentials(&sig_algs[0..nsa],&mut server_key,&mut sklen,&mut server_certchain,&mut sclen);
+            let kind=certchain::get_server_credentials(&mut server_key,&mut sklen,&mut server_certchain,&mut sclen);
             if kind==0 { // No, Client cannot verify this signature
                 self.send_alert(BAD_CERTIFICATE);
                 log(IO_PROTOCOL,"Handshake failed - client would be unable to verify signature\n",-1,None);
@@ -1828,7 +1873,7 @@ impl SESSION {
                 delayed_alert=FINISH_FAIL;
             }
             //self.send_alert(DECRYPT_ERROR);                              // no point in sending alert - haven't calculated traffic keys yet
-            //log(IO_DEBUG,"Client Data is NOT verified\n",-1,None);
+            log(IO_DEBUG,"Client Data is NOT verified\n",-1,None);
             //self.clean();
             //return TLS_FAILURE;
         }

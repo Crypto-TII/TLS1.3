@@ -1,7 +1,7 @@
 
 //! Client Certificate and private key stored here
 
-// ECC-SS keys
+// ECC-SS keys 256 bit
 
 pub const MYPRIVATE: &str = 
 "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgkYO7LpVcia9BoJSQ\
