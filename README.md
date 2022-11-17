@@ -5,6 +5,8 @@ for constrained environments. The Rust version provides both a client and a serv
 
 Note that these implementations are particularly suited for testing Post-Quantum alternatives to current standard cryptographic primitives.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ---
 
 Proceed to the cpp or rust directories to continue.
