@@ -1904,7 +1904,7 @@ impl SESSION {
         let mut fin=false;
         let mut kind:isize;
         let mut pending=false;
-        let mut mslen:isize=0;
+        let mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
             self.clean_io();
@@ -1976,14 +1976,15 @@ impl SESSION {
                         _ => {
                             log(IO_PROTOCOL,"Unsupported Handshake message type \n",nb as isize,None);
                             self.send_alert(UNEXPECTED_MESSAGE);
-                            fin=true;
+                            return WRONG_MESSAGE;
+                            //fin=true;
                         }
                     }
                     if fin {break;}
                 }
-                if r.err!=0 {
+                if r.err<0 {
                     self.send_alert(alert_from_cause(r.err));
-                    break;
+                    return r.err;
                 }
             }
             if pending {

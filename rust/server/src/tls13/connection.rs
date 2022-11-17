@@ -670,12 +670,11 @@ impl SESSION {
     fn get_client_finished(&mut self,hfin: &mut [u8],hflen: &mut usize) -> RET {
         //let mut ptr=0;
         let mut r=self.parse_int_pull(1); // get message type
-        if r.err!=0 {return r;}
         let nb=r.val as u8;
         if nb != FINISHED {
             r.err=WRONG_MESSAGE;
-            return r;
         }
+        if r.err!=0 {return r;}
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
 
@@ -687,8 +686,6 @@ impl SESSION {
         r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
         *hflen=len;
         self.running_hash_io();
-        //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
         r.val=FINISHED as usize;
         return r;
     }
@@ -1217,7 +1214,7 @@ impl SESSION {
                 if chosen {break;}
             }
             if !chosen { // no shared cipher suite
-                r.err=BAD_HELLO;
+                r.err=BAD_HANDSHAKE;
                 return r;
             }
             if is_retry {
@@ -1872,10 +1869,8 @@ impl SESSION {
             if delayed_alert==0 { // no point if there is an earlier alert
                 delayed_alert=FINISH_FAIL;
             }
-            //self.send_alert(DECRYPT_ERROR);                              // no point in sending alert - haven't calculated traffic keys yet
+// no point in sending alert - haven't calculated traffic keys yet
             log(IO_DEBUG,"Client Data is NOT verified\n",-1,None);
-            //self.clean();
-            //return TLS_FAILURE;
         }
 
         self.transcript_hash(fh_s);
@@ -1889,16 +1884,16 @@ impl SESSION {
         log(IO_DEBUG,"Client application traffic secret= ",0,Some(&self.cts[0..hlen]));  // does not depend on CF!
         log(IO_DEBUG,"Server application traffic secret= ",0,Some(&self.sts[0..hlen]));  // does not depend on CF!
 
-        if resume {
-            log(IO_PROTOCOL,"RESUMPTION handshake succeeded\n",-1,None);
-        } else {
-            log(IO_PROTOCOL,"FULL handshake succeeded\n",-1,None);
-        }
-
         if delayed_alert != 0 { // there was a problem..
             log(IO_PROTOCOL,"Handshake Failed - earlier alert now sent\n",-1,None);
             self.send_alert(alert_from_cause(delayed_alert));
             return TLS_FAILURE;
+        }
+
+        if resume {
+            log(IO_PROTOCOL,"RESUMPTION handshake succeeded\n",-1,None);
+        } else {
+            log(IO_PROTOCOL,"FULL handshake succeeded\n",-1,None);
         }
 
         self.status=CONNECTED;
@@ -1918,7 +1913,7 @@ impl SESSION {
         let mut fin=false;
         let mut kind:isize;
         let mut pending=false;
-        let mut mslen:isize=0;
+        let mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Client input\n",-1,None);
             self.clean_io();
@@ -1970,14 +1965,15 @@ impl SESSION {
                         _ => {
                             log(IO_PROTOCOL,"Unsupported Handshake message type ",nb as isize,None);
                             self.send_alert(UNEXPECTED_MESSAGE);
-                            fin=true;
+                            return WRONG_MESSAGE;
+                            //fin=true;
                         }
                     }
                     if fin {break;}
                 }
-                if r.err!=0 {
+                if r.err<0 {
                     self.send_alert(alert_from_cause(r.err));
-                    break;
+                    return r.err;
                 }
             }
             if pending {
