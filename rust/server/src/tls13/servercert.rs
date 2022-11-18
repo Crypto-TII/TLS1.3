@@ -1,5 +1,8 @@
 
 //! Server Certificate and private key stored here
+use crate::config::*;
+use crate::tls13::utils;
+use crate::tls13::x509;
 
 /// Ticket encryption key
 // https://www.random.org/bytes/
@@ -701,3 +704,105 @@ jfdPjwfHezeWIfzJdO4VhlJChFeq1FQyfXcobifpGrNYUHx1nNgItuGxg0CNSzyA\
 5x9x6cvSANS098Thpu0j8ctDAe6RI6qzuQfGlQHxMAL6lbAQ3deiDuwSXSngaLX3\
 vTmu/jD57qPmqeKyEcaGI4/d7vACLTtATHbNPLP+CkWdoLW99QpSdoZCS1pjlKa5\
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUMDxYaIQ=="];
+
+// Report signature requirements for given certificate chain
+pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
+    let mut ns=0;
+    if CRYPTO_SETTING==TYPICAL {
+        sig_reqs[0]=RSA_PSS_RSAE_SHA256;
+        sig_reqs[1]=RSA_PKCS1_SHA256;
+        ns+=2;
+    }
+    if CRYPTO_SETTING==TINY_ECC {
+        sig_reqs[0]=ECDSA_SECP256R1_SHA256;
+        ns+=1;
+    }
+    if CRYPTO_SETTING==POST_QUANTUM {
+        sig_reqs[0]=DILITHIUM3;
+        ns+=1;
+    }
+    if CRYPTO_SETTING==HYBRID {
+        sig_reqs[0]=DILITHIUM2;
+        sig_reqs[1]=ECDSA_SECP256R1_SHA256;
+        ns+=2;
+    }
+    return ns;
+}
+
+/// Get server credentials (cert+signing key) from servercert.rs
+pub fn get_server_credentials(privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
+    let mut sc:[u8;MAX_SERVER_CHAIN_SIZE]=[0;MAX_SERVER_CHAIN_SIZE];
+// first get certificate chain
+// Should check against hostname to pick right certificate - we could have more than one
+
+    let mut ptr=0;
+    let mut key:&str="";
+
+    if CRYPTO_SETTING==TYPICAL {
+        key=SS_PRIVATE;
+        for i in 0..SS_CERTCHAIN.len() {
+            let b=SS_CERTCHAIN[i].as_bytes();
+            let sclen=utils::decode_b64(&b,&mut sc);
+            ptr=utils::append_int(certchain,ptr,sclen,3);
+            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
+            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
+        }
+    }
+    if CRYPTO_SETTING==TINY_ECC {
+        key=TE_PRIVATE;
+        for i in 0..TE_CERTCHAIN.len() {
+            let b=TE_CERTCHAIN[i].as_bytes();
+            let sclen=utils::decode_b64(&b,&mut sc);
+            ptr=utils::append_int(certchain,ptr,sclen,3);
+            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
+            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
+        }
+    }
+    if CRYPTO_SETTING==POST_QUANTUM {
+        key=PQ_PRIVATE;
+        for i in 0..PQ_CERTCHAIN.len() {
+            let b=PQ_CERTCHAIN[i].as_bytes();
+            let sclen=utils::decode_b64(&b,&mut sc);
+            ptr=utils::append_int(certchain,ptr,sclen,3);
+            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
+            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
+        }
+    }
+    if CRYPTO_SETTING==HYBRID {
+        key=HY_PRIVATE;
+        for i in 0..HY_CERTCHAIN.len() {
+            let b=HY_CERTCHAIN[i].as_bytes();
+            let sclen=utils::decode_b64(&b,&mut sc);
+            ptr=utils::append_int(certchain,ptr,sclen,3);
+            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
+            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
+        }
+    }
+    *cclen=ptr;
+// next get secret key
+    let sclen=utils::decode_b64(&key.as_bytes(),&mut sc);
+    let pk=x509::extract_private_key(&sc[0..sclen],privkey);
+
+    *sklen=pk.len;
+    let mut kind:u16=0;
+    if pk.kind==x509::ECC {
+        if pk.curve==x509::USE_NIST256 {
+            kind=ECDSA_SECP256R1_SHA256;  // as long as this is a client capability
+        }
+        if pk.curve==x509::USE_NIST384 {
+            kind=ECDSA_SECP384R1_SHA384;  // as long as this is a client capability
+        }
+    }
+    if pk.kind==x509::RSA {
+        kind=RSA_PSS_RSAE_SHA256;
+    }
+
+    if pk.kind==x509::PQ {
+        kind=DILITHIUM3;
+    }
+    if pk.kind==x509::HY {
+        kind=DILITHIUM2_P256;  // *** also need to check that secp256r1 is supported - kind indicates that both signature keys are in privkey
+    }
+
+    return kind;
+}

@@ -8,14 +8,45 @@ pub struct RET {
     pub err: isize
 }
 
-/*
-pub struct EESTATUS {
-    pub early_data : bool,
-    pub alpn : bool,
-    pub server_name: bool,
-    pub max_frag_len: bool
+/// base64 decoding
+pub fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in place
+    let mut j=0;
+    let mut k=0;
+    let len=b.len();
+    let mut ch:[u8;4]=[0;4];
+    let mut ptr:[u8;3]=[0;3];
+    while j<len {
+        let mut pads=0;
+        for i in 0..4 {
+            let mut c=80+b[j]; j+=1;
+            if c<=112 {continue;}
+            if c>144 && c<171 {
+                c-=145;
+            }
+            if c>176 && c<203 { 
+                c-=151;
+            }
+            if c>127 && c<138 {
+                c-=76;
+            }
+            if c==123 {c=62;}
+            if c==127 {c=63;}
+            if c==141 {
+                pads+=1;
+                continue;
+            }
+            ch[i]=c;
+        }
+        ptr[0] = (ch[0] << 2) | (ch[1] >> 4);
+        ptr[1] = (ch[1] << 4) | (ch[2] >> 2);
+        ptr[2] = (ch[2] << 6) | ch[3];
+        for i in 0..3 - pads {
+            /* don't put in leading zeros */
+            w[k] = ptr[i]; k+=1;
+        }
+    }
+    return k;
 }
-*/
 
 /// Parse out slice from array m into e where ptr is a pointer into m, which increments if successful
 pub fn parse_bytes(e: &mut [u8],m: &[u8],ptr: &mut usize) -> RET {

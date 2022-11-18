@@ -8,7 +8,6 @@ use crate::tls13::sal;
 use crate::tls13::logger;
 use crate::tls13::logger::log;
 use crate::tls13::cacerts;
-use crate::tls13::servercert;
 
 /// Certificate components
 pub struct CERT {
@@ -66,53 +65,13 @@ fn check_cert_not_expired(cert:&[u8]) -> bool {
     return true;
 }
 
-/// base64 decoding
-fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in place
-    let mut j=0;
-    let mut k=0;
-    let len=b.len();
-    let mut ch:[u8;4]=[0;4];
-    let mut ptr:[u8;3]=[0;3];
-    while j<len {
-        let mut pads=0;
-        for i in 0..4 {
-            let mut c=80+b[j]; j+=1;
-            if c<=112 {continue;}
-            if c>144 && c<171 {
-                c-=145;
-            }
-            if c>176 && c<203 { 
-                c-=151;
-            }
-            if c>127 && c<138 {
-                c-=76;
-            }
-            if c==123 {c=62;}
-            if c==127 {c=63;}
-            if c==141 {
-                pads+=1;
-                continue;
-            }
-            ch[i]=c;
-        }
-        ptr[0] = (ch[0] << 2) | (ch[1] >> 4);
-        ptr[1] = (ch[1] << 4) | (ch[2] >> 2);
-        ptr[2] = (ch[2] << 6) | ch[3];
-        for i in 0..3 - pads {
-            /* don't put in leading zeros */
-            w[k] = ptr[i]; k+=1;
-        }
-    }
-    return k;
-}
-
 /// Find root CA (if it exists) from database
 fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bool {
     let mut owner:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
     let mut sc:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
     for i in 0..cacerts::CERT_STORE_SIZE {
         let b=cacerts::CACERTS[i].as_bytes();
-        let sclen=decode_b64(&b,&mut sc);
+        let sclen=utils::decode_b64(&b,&mut sc);
         let mut start=0;
         let len=x509::extract_cert_ptr(&sc[0..sclen],&mut start);
         let cert=&sc[start..start+len];
@@ -165,108 +124,6 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
         return false;
     }
     return false;
-}
-
-// Report signature requirements for given certificate chain
-pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
-    let mut ns=0;
-    if CRYPTO_SETTING==TYPICAL {
-        sig_reqs[0]=RSA_PSS_RSAE_SHA256;
-        sig_reqs[1]=RSA_PKCS1_SHA256;
-        ns+=2;
-    }
-    if CRYPTO_SETTING==TINY_ECC {
-        sig_reqs[0]=ECDSA_SECP256R1_SHA256;
-        ns+=1;
-    }
-    if CRYPTO_SETTING==POST_QUANTUM {
-        sig_reqs[0]=DILITHIUM3;
-        ns+=1;
-    }
-    if CRYPTO_SETTING==HYBRID {
-        sig_reqs[0]=DILITHIUM2;
-        sig_reqs[1]=ECDSA_SECP256R1_SHA256;
-        ns+=2;
-    }
-    return ns;
-}
-
-/// Get server credentials (cert+signing key) from servercert.rs
-pub fn get_server_credentials(privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
-    let mut sc:[u8;MAX_SERVER_CHAIN_SIZE]=[0;MAX_SERVER_CHAIN_SIZE];
-// first get certificate chain
-// Should check against hostname to pick right certificate - we could have more than one
-
-    let mut ptr=0;
-    let mut key:&str="";
-
-    if CRYPTO_SETTING==TYPICAL {
-        key=servercert::SS_PRIVATE;
-        for i in 0..servercert::SS_CERTCHAIN.len() {
-            let b=servercert::SS_CERTCHAIN[i].as_bytes();
-            let sclen=decode_b64(&b,&mut sc);
-            ptr=utils::append_int(certchain,ptr,sclen,3);
-            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
-        }
-    }
-    if CRYPTO_SETTING==TINY_ECC {
-        key=servercert::TE_PRIVATE;
-        for i in 0..servercert::TE_CERTCHAIN.len() {
-            let b=servercert::TE_CERTCHAIN[i].as_bytes();
-            let sclen=decode_b64(&b,&mut sc);
-            ptr=utils::append_int(certchain,ptr,sclen,3);
-            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
-        }
-    }
-    if CRYPTO_SETTING==POST_QUANTUM {
-        key=servercert::PQ_PRIVATE;
-        for i in 0..servercert::PQ_CERTCHAIN.len() {
-            let b=servercert::PQ_CERTCHAIN[i].as_bytes();
-            let sclen=decode_b64(&b,&mut sc);
-            ptr=utils::append_int(certchain,ptr,sclen,3);
-            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
-        }
-    }
-    if CRYPTO_SETTING==HYBRID {
-        key=servercert::HY_PRIVATE;
-        for i in 0..servercert::HY_CERTCHAIN.len() {
-            let b=servercert::HY_CERTCHAIN[i].as_bytes();
-            let sclen=decode_b64(&b,&mut sc);
-            ptr=utils::append_int(certchain,ptr,sclen,3);
-            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
-        }
-    }
-    *cclen=ptr;
-// next get secret key
-    let sclen=decode_b64(&key.as_bytes(),&mut sc);
-    let pk=x509::extract_private_key(&sc[0..sclen],privkey);
-
-    *sklen=pk.len;
-    let mut kind:u16=0;
-    if pk.kind==x509::ECC {
-        if pk.curve==x509::USE_NIST256 {
-            kind=ECDSA_SECP256R1_SHA256;  // as long as this is a client capability
-        }
-        if pk.curve==x509::USE_NIST384 {
-            kind=ECDSA_SECP384R1_SHA384;  // as long as this is a client capability
-        }
-    }
-    if pk.kind==x509::RSA {
-        kind=RSA_PSS_RSAE_SHA256;
-    }
-
-    if pk.kind==x509::PQ {
-        kind=DILITHIUM3;
-    }
-    if pk.kind==x509::HY {
-        kind=DILITHIUM2_P256;  // *** also need to check that secp256r1 is supported - kind indicates that both signature keys are in privkey
-    }
-
-    return kind;
 }
 
 /// parse out certificate details, check that previous issuer is subject of this cert, update previous issuer

@@ -15,6 +15,7 @@ use crate::tls13::sal;
 use crate::tls13::socket;
 use crate::tls13::extensions;
 use crate::tls13::certchain;
+use crate::tls13::servercert;
 use crate::tls13::keys;
 use crate::tls13::logger;
 use crate::tls13::logger::log;
@@ -82,7 +83,7 @@ fn cipher_support(alg: u16) -> bool {
 // check for overlap given client signature capabilities, and my server certificate
 fn overlap(client_sig_algs: &[u16],client_cert_sig_algs: &[u16]) -> bool {
     let mut server_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
-    let nsreq=certchain::get_sig_requirements(&mut server_cert_reqs); 
+    let nsreq=servercert::get_sig_requirements(&mut server_cert_reqs); 
 
     for i in 0..nsreq {
         let mut itsthere=false;
@@ -1732,7 +1733,7 @@ impl SESSION {
             let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
             let mut sclen=0;
             let mut sklen=0;
-            let kind=certchain::get_server_credentials(&mut server_key,&mut sklen,&mut server_certchain,&mut sclen);
+            let kind=servercert::get_server_credentials(&mut server_key,&mut sklen,&mut server_certchain,&mut sclen);
             if kind==0 { // No, Client cannot verify this signature
                 self.send_alert(BAD_CERTIFICATE);
                 log(IO_PROTOCOL,"Handshake failed - client would be unable to verify signature\n",-1,None);
