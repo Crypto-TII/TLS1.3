@@ -15,6 +15,7 @@ use crate::tls13::utils::EESTATUS;
 use crate::tls13::keys;
 use crate::tls13::extensions;
 use crate::tls13::certchain;
+use crate::tls13::clientcert;
 use crate::tls13::logger;
 use crate::tls13::logger::log;
 use crate::tls13::ticket;
@@ -46,7 +47,7 @@ pub struct SESSION {
 // check for overlap given server signature capabilities, and my client certificate
 fn overlap(server_sig_algs: &[u16],server_cert_sig_algs: &[u16]) -> bool {
     let mut client_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
-    let nsreq=certchain::get_sig_requirements(&mut client_cert_reqs); 
+    let nsreq=clientcert::get_sig_requirements(&mut client_cert_reqs); 
 
     for i in 0..nsreq {
         let mut itsthere=false;

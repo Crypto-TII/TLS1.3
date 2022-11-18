@@ -165,12 +165,6 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return false;
 }
 
-// Report signature requirements for our certificate chain
-pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
-    sig_reqs[0]=ECDSA_SECP256R1_SHA256;
-    return 1;
-}
-
 /// Get client credentials (cert+signing key) from clientcert.rs
 pub fn get_client_credentials(privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
     let mut sc:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];

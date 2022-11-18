@@ -181,12 +181,6 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
     }
 }
 
-// Report signature requirements for our certificate chain
-int getSigRequirements(int *sigReqs) {
-    sigReqs[0]=ECDSA_SECP256R1_SHA256;
-    return 1;
-}
-
 // Read in raw certificate chain from file, and serialize it for transmission
 // Read in client private key from .pem file
 int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)

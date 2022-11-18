@@ -1864,12 +1864,16 @@ impl SESSION {
         log(IO_DEBUG,"Client Verify Data= ",0,Some(&fin[0..fnlen])); 
         let fin_s=&fin[0..fnlen];
 
-        let verified=keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s);
+        let mut verified=false;
+        if delayed_alert==0 { // only worth doing if there is no earlier alert
+            verified=keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s);
+        }
+        //let verified=keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s);
         if !verified {  
-            if delayed_alert==0 { // no point if there is an earlier alert
+            if delayed_alert==0 { // otherwise send earlier alert
                 delayed_alert=FINISH_FAIL;
             }
-// no point in sending alert - haven't calculated traffic keys yet
+// don't send alert now - haven't calculated traffic keys yet
             log(IO_DEBUG,"Client Data is NOT verified\n",-1,None);
         }
 
@@ -1884,7 +1888,7 @@ impl SESSION {
         log(IO_DEBUG,"Client application traffic secret= ",0,Some(&self.cts[0..hlen]));  // does not depend on CF!
         log(IO_DEBUG,"Server application traffic secret= ",0,Some(&self.sts[0..hlen]));  // does not depend on CF!
 
-        if delayed_alert != 0 { // there was a problem..
+        if delayed_alert != 0 { // there was a problem, now send alert using traffic keys
             log(IO_PROTOCOL,"Handshake Failed - earlier alert now sent\n",-1,None);
             self.send_alert(alert_from_cause(delayed_alert));
             return TLS_FAILURE;

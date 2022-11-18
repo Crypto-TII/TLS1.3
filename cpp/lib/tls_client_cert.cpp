@@ -34,6 +34,12 @@ const char *mycert=(char *)
 "XhcQYkLKHg==\n"
 "-----END CERTIFICATE-----\n";
 
+// Report signature requirements for our certificate chain
+int getSigRequirements(int *sigReqs) {
+    sigReqs[0]=ECDSA_SECP256R1_SHA256;
+    return 1;
+}
+
 #endif
 
 #if CLIENT_CERT == HW_1
@@ -49,6 +55,13 @@ const char *mycert=(char *)
 "A0kAMEYCIQC9O1l85YX1+9vZ0t/SHQ3zFH5e7Vc8XtrZ+mTtMc5riwIhAL/SektrG3C0JwII0VV5\n"
 "pSR9RRnuwo810km81P4S56/m\n"
 "-----END CERTIFICATE-----\n";
+
+// Report signature requirements for our certificate chain
+int getSigRequirements(int *sigReqs) {
+    sigReqs[0]=ECDSA_SECP256R1_SHA256;
+    return 1;
+}
+
 #endif
 
 #if CLIENT_CERT == HW_2
@@ -64,6 +77,12 @@ const char *mycert=(char *)
 "A0kAMEYCIQDgqosqLRntTyehtDCuWcY6WP41sfwx1k78W6EkLpoDyQIhAPzxQawMjI9mLeePF6Kk\n"
 "BzPRSurX7+nLFDC6u3pfmEY8\n"
 "-----END CERTIFICATE-----\n";
+
+// Report signature requirements for our certificate chain
+int getSigRequirements(int *sigReqs) {
+    sigReqs[0]=ECDSA_SECP256R1_SHA256;
+    return 1;
+}
 #endif
 
 /*
@@ -140,6 +159,14 @@ const char *mycert=(char *)
 "zZQC8pPt3dKHDhM4IKPbhGhl/zKDqyZaYx7QQd5YZ8U5vdF+qrrdYwao91jSSLSW\n"
 "wPM17xpdd/yeQkV8kJMhmYfgkgCQvCFLiMX+\n"
 "-----END CERTIFICATE-----\n";
+
+// Report signature requirements for our certificate chain
+int getSigRequirements(int *sigReqs) {
+    sigReqs[0]=RSA_PSS_RSAE_SHA256;
+    sigReqs[1]=RSA_PKCS1_SHA256;
+    return 2;
+}
+
 #endif
 
 #if CLIENT_CERT == HYB_SS
@@ -323,6 +350,13 @@ const char *mycert=(char *)
 "GygzX2Gmv8LT8Pn7BDBDVgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n"
 "AAAAAAAAAAAADRcjJw==\n"
 "-----END CERTIFICATE-----\n";
+
+// Report signature requirements for our certificate chain
+int getSigRequirements(int *sigReqs) {
+    sigReqs[0]=ECDSA_SECP256R1_SHA256;
+    sigReqs[1]=DILITHIUM2;
+    return 2;
+}
 
 #endif
 
@@ -577,4 +611,9 @@ const char *mycert=(char *)
 "LUGfu9IAAAAAAAAAAAAAAAAAAAAAAAAAAwkSGh8k\n"
 "-----END CERTIFICATE-----\n";
 
+// Report signature requirements for our certificate chain
+int getSigRequirements(int *sigReqs) {
+    sigReqs[0]=DILITHIUM3;
+    return 1;
+}
 #endif

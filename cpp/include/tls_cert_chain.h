@@ -36,11 +36,4 @@ extern int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,oc
  */
 extern int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN);
 
-/**	@brief Get Client private key and Certificate chain from .pem files
- *
-    @param sigReq list of signature requirements
-    @return number of such requirements
- */
-extern int getSigRequirements(int *sigReqs);
-
 #endif

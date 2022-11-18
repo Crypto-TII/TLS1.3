@@ -1,6 +1,8 @@
 
 //! Client Certificate and private key stored here
 
+use crate::config::*;
+
 // ECC-SS keys 256 bit
 
 pub const MYPRIVATE: &str = 
@@ -25,3 +27,9 @@ ZgirGFexJSa18p7YgpehMB8GA1UdIwQYMBaAFLqCgrLRZgirGFexJSa18p7Ygpeh\
 MA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDSAAwRQIgI1dd2DBjgRls92H0\
 SpxxnguAEeVw/jxqF1xw+xoECV0CIQDmex6iyHQEzDP7cyzKo4WHuEG6UkjlaRUA\
 XhcQYkLKHg=="];
+
+// Report signature requirements for our certificate chain
+pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
+    sig_reqs[0]=ECDSA_SECP256R1_SHA256;
+    return 1;
+}
