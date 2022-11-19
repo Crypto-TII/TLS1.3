@@ -2,6 +2,9 @@
 
 Here find a TLS1.3 client and a (rather rudimentary) TLS1.3 server. Both are written in Rust.
 
+[![Language: Rust](https://img.shields.io/badge/language-rust-blue.svg)]
+[![Platform: Mac Linux Win](https://img.shields.io/badge/platform-mac | linux | win-lightgrey.svg)]
+
 # Installation
 
 Private keys, server/client certificate chains, and CA root stores are all fixed in the code. Therefore as it stands the code must be recompiled for each target.  
