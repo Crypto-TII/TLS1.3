@@ -16,7 +16,7 @@ Private keys, server/client certificate chains, and CA root stores are all fixed
 
 Ideally keys, chains and key stores should be kept in external files, but in an IoT setting there may not be a file system. 
 In this C++ code the client private key and certificate (only required for client authentication) are stored in the source code file *tls_client_cert.cpp*. The root certificate store is stored in the file *tls_cacert.cpp*.
-However when using secure hardware, the client private key may not be embedded in the source code, rather it exists in secure on-board memory.
+When using secure hardware, the client private key may not be embedded in the source code, rather it exists in secure on-board memory.
 
 ## Miracl
 

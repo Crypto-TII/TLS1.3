@@ -110,4 +110,4 @@ In most cases it is best to use the same setting for both client and server. If 
 with standard websites rather than just our own rust server, then its CRYPTO\_SETTING should be set to use TYPICAL. 
 
 
-For more testing possibilities see the readme file in the original C++ version
+For more testing possibilities see the readme file in the C++ version
