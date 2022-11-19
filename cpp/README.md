@@ -3,7 +3,7 @@
 This C++ project implements a TLS1.3 client. There is also a Rust version available from this site. This C++ version is really just C plus namespaces plus pass-by-reference. These the only features 
 of C++ that are used. Documentation can be found in the doxygen generated file doc/refman.pdf
 
-<img src="https://img.shields.io/badge/language-rust-blue.svg"/>
+<img src="https://img.shields.io/badge/language-c++-blue.svg"/>
 <img src="https://img.shields.io/badge/platform-mac | linux | win | arduino-lightgrey.svg?style=flat"/>
 
 # Building
@@ -12,10 +12,11 @@ The TLS library is designed to support crypto agility by allowing a mix of crypt
 Below are two examples to choose from. The SAL API documentation is provided in sal/sal.pdf, and guided by this it should be possible to create your own SAL.
 To build the client on an IoT node like the Arduino RP2040, see the readme file in the src/arduino directory.
 
-Private keys, server/client certificate chains, and CA root stores are all fixed in the code. Therefore as it stands the code must be recompiled for each target.  
+Private keys, server/client certificate chains, and CA root stores are all fixed in the code. Therefore as it stands the code must be recompiled for each target.
+
 Ideally keys, chains and key stores should be kept in external files, but in an IoT setting there may not be a file system. 
-In this C++ code the client private key and certificate are stored in the source code file *tls_client_cert.cpp*, and the certificate store is stored in the file *tls_cacert.cpp*.
-However when using secure hardware, the client private key may not embedded in the source code, rather it exists in secure on-board memory.
+In this C++ code the client private key and certificate (only required for client authentication) are stored in the source code file *tls_client_cert.cpp*. The root certificate store is stored in the file *tls_cacert.cpp*.
+However when using secure hardware, the client private key may not be embedded in the source code, rather it exists in secure on-board memory.
 
 ## Miracl
 
@@ -31,7 +32,7 @@ To use a SAL which includes some functionality from the well known sodium crypto
 
 # Try it out
 
-After the build complete successfully, the example executable client and the TiigerTLS library libtiitls.a are generated in the build directory
+After the build complete successfully, the example executable *client* and the TiigerTLS library *libtiitls.a* are generated in the build directory
 
 To see the Security Abstraction Layer (SAL) capabilities, navigate to the build directory
 	
@@ -184,7 +185,6 @@ The output should look something like
 	Connection closed
 	
 Try it out on your favourite websites. It will abort if TLS1.3 is not supported. 
-At this stage the tool is still somewhat fragile, and would be expected to sometimes fail.
 In a small number of cases it will fail due to receiving a malformed certificate chain from the Server. It is not forgiving of badly 
 formed certificate chains, and makes no attempt to fix them.
 
@@ -194,7 +194,7 @@ Also try
 	
 Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
 
-Resumption tickets can be deleted by
+The resumption ticket can be deleted by
 
 	./client -r
 

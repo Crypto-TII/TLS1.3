@@ -1,20 +1,22 @@
 # TIIGER TLS Rust
 
-Here find a TLS1.3 client and a (rather rudimentary) TLS1.3 server. Both are written in Rust.
+Here find a TLS1.3 client and a TLS1.3 server. Both are written in Rust.
 
 <img src="https://img.shields.io/badge/language-rust-blue.svg"/>
 <img src="https://img.shields.io/badge/platform-mac | linux | win-lightgrey.svg?style=flat"/>
 
 # Installation
 
-Private keys, server/client certificate chains, and CA root stores are all fixed in the code. Therefore as it stands the code must be recompiled for each target.  
+Private keys, server/client certificate chains, and CA root stores are all fixed in the code. Therefore as it stands the code must be recompiled for each target.
+
 Ideally keys, chains and key stores should be kept in external files, but in an IoT setting there may not be a file system. 
-In this code the certificate store is in the source code file *cacerts.rs*. For the client the private key and certificate are stored in the source code file *clientcert.rs*.  
+In this code the root certificate store is in the source code file *cacerts.rs*. For the client the private key and certificate are stored in the source code file *clientcert.rs*.  
 For the server the private key and certificate are stored in the source code file *servercert.rs*.
 
 Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL.
 
-Next configure and build a Rust version of the miracl core library on your local machine. For instructions see https://github.com/miracl/core
+Next configure and build a Rust version of the miracl core library on your local machine. Make sure that the build supports at a minimum *c25519*, *nist256*, *nist384* elliptic curves,
+and *rsa2048* and *rsa4096*. For instructions see https://github.com/miracl/core
 
 
 Copy the contents of this directory plus subdirectories to a working directory.
