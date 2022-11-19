@@ -3,9 +3,8 @@
 This C++ project implements a TLS1.3 client. There is also a Rust version available from this site. This C++ version is really just C plus namespaces plus pass-by-reference. These the only features 
 of C++ that are used. Documentation can be found in the doxygen generated file doc/refman.pdf
 
-[![Language: C++](https://img.shields.io/badge/language-c++-blue.svg)]
-[![Platform: Mac Linux Win Arduino](https://img.shields.io/badge/platform-mac | linux | win | Arduino-lightgrey.svg)]
-
+<img src="https://img.shields.io/badge/language-rust-blue.svg)/>
+<img src="https://img.shields.io/badge/platform-mac | linux | win | arduino-lightgrey.svg?style=flat"/>
 
 # Building
 

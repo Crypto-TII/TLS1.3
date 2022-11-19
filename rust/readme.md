@@ -2,10 +2,8 @@
 
 Here find a TLS1.3 client and a (rather rudimentary) TLS1.3 server. Both are written in Rust.
 
-![Language: Rust](https://img.shields.io/badge/language-rust-blue.svg)
-
- <img src="https://img.shields.io/badge/platform-mac | linux | win-lightgrey.svg?style=flat"
-  alt="Variants" />
+<img src="https://img.shields.io/badge/language-rust-blue.svg)/>
+<img src="https://img.shields.io/badge/platform-mac | linux | win-lightgrey.svg?style=flat"/>
 
 # Installation
 
