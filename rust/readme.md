@@ -13,9 +13,9 @@ Ideally keys, chains and key stores should be kept in external files, but in an 
 In this code the root certificate store is in the source code file *cacerts.rs*. For the client the private key and certificate are stored in the source code file *clientcert.rs*. 
 For the server the private key and certificate are stored in the source code file *servercert.rs*. 
 
-Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL. First clone the repository and move to the *rust* directory (where this README is)
+Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL. First clone the repository and move to the *TLS13/rust* directory (where this README is)
 
-Currently the Rust implementation only supports a MIRACL-based SAL. To install from this directory (TLS1.3/rust). In the unlikley event that yours is a 32-bit environment specify *config32* instead.
+Currently the Rust implementation only supports a MIRACL-based SAL. To install from this directory (TLS1.3/rust). In the unlikely event that yours is a 32-bit environment specify *config32* instead.
 
 	git clone https://github.com/miracl/core.git
 	cd core/rust
@@ -59,6 +59,7 @@ To see the client capabilities (same for the server) enter
 
 	cargo run --release /s
 
+Note the significant speed-up when in release mode.
 
 Next fire up your favourite browser and navigate to
 
@@ -78,9 +79,9 @@ The local client now connects to the local server. Exit the server program, and 
 
 (at the same time it is possible to change other configuration options, for example to provide more debug information)
 
-Now run the server and client again. This time the client responds to the certificate request and authenticates using its own built-in certificate. 
+Now run the server and client again (remove any old tickets first). This time the client responds to the certificate request and authenticates using its own built-in certificate. 
 
-Set CERTIFICATE\-REQUEST back to false and run the server again. Now open a new window and enter
+Set CERTIFICATE\_REQUEST back to false and run the server again. Now open a new window and enter
 
 	openssl s_client -tls1_3 -sess_out ticket.pem -host localhost
 
@@ -102,7 +103,7 @@ uses a 3-link chain using secp256r1+DILITHIUM2. In the last three cases we have 
 ourselves, to the root certificate store used by the client.
 
 For the client CRYPTO\_SETTING is used to control the preferred key exchange algorithm, which is X25519 for TYPICAL or TINY\_ECC, 
-and kyber768 for POST\_QUANTUM and HYBRID. The ordering of preferences can be changed by editing the SAL.
+and kyber768 for POST\_QUANTUM and HYBRID. The ordering of preferences can be changed by editing the SAL (that is the *sal.rs* file).
 
 In most cases it is best to use the same setting for both client and server. If it is desired that the client should interoperate
 with standard websites rather than just our own rust server, then its CRYPTO\_SETTING should be set to use TYPICAL. 
