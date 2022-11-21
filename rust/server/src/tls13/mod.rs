@@ -1,4 +1,3 @@
-pub mod sal;
 pub mod connection;
 pub mod socket;
 pub mod utils;

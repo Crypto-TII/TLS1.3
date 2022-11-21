@@ -1,6 +1,7 @@
 //! TLS1.3 server example program
 
 mod tls13;
+mod sal_m;
 mod config;
 
 use std::thread;
@@ -8,7 +9,7 @@ use std::net::{TcpListener, TcpStream};
 use std::env;
 
 use crate::tls13::logger::log;
-use tls13::sal;
+use sal_m::sal;
 use tls13::connection::SESSION;
 use config::*;
 
@@ -186,7 +187,7 @@ fn main() {
             return;
         }
     }
-    if !tls13::sal::init() {
+    if !sal::init() {
         log(IO_PROTOCOL,"SAL failed to start",-1,None);
         return;
     }

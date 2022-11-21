@@ -11,7 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use zeroize::Zeroize;
 
 use crate::config::*;
-use crate::tls13::sal;
+use crate::sal_m::sal;
 use crate::tls13::socket;
 use crate::tls13::extensions;
 use crate::tls13::certchain;

@@ -1,6 +1,7 @@
 //! TLS1.3 client example program
 
 mod tls13;
+mod sal_m;
 mod config;
 
 use std::fs;
@@ -10,7 +11,7 @@ use std::io::{BufRead, BufReader};
 use std::net::{Shutdown, TcpStream};
 use tls13::connection::SESSION;
 use tls13::logger::log;
-use tls13::sal;
+use sal_m::sal;
 use tls13::utils;
 use config::*;
 use std::env;
@@ -219,7 +220,7 @@ fn main() {
         return;
     }
 
-    if !tls13::sal::init() {
+    if !sal::init() {
         log(IO_PROTOCOL,"SAL failed to start\n",-1,None);
         return;
     }
