@@ -7,7 +7,7 @@ use std::io::{Write};
 use zeroize::Zeroize;
 
 use crate::config::*;
-use crate::tls13::sal;
+use crate::sal_m::sal;
 use crate::tls13::socket;
 use crate::tls13::utils;
 use crate::tls13::utils::RET;

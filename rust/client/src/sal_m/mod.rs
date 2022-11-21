@@ -1,1 +1,1 @@
-pub mod sal.rs;
+pub mod sal;

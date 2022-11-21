@@ -7,32 +7,30 @@ Here find a TLS1.3 client and a TLS1.3 server. Both are written in Rust.
 
 # Installation
 
-Private keys, server/client certificate chains, and CA root stores are all fixed in the code. Therefore as it stands the code must be recompiled for each target.
+Private keys, server/client certificate chains, and CA root stores are all fixed in the code.
 
 Ideally keys, chains and key stores should be kept in external files, but in an IoT setting there may not be a file system. 
-In this code the root certificate store is in the source code file *cacerts.rs*. For the client the private key and certificate are stored in the source code file *clientcert.rs*.  
-For the server the private key and certificate are stored in the source code file *servercert.rs*.
+In this code the root certificate store is in the source code file *cacerts.rs*. For the client the private key and certificate are stored in the source code file *clientcert.rs*. 
+For the server the private key and certificate are stored in the source code file *servercert.rs*. 
 
-Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL.
+Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL. First clone the repository and move to the *rust* directory (where this README is)
 
-Next configure and build a Rust version of the miracl core library on your local machine. Make sure that the build supports at a minimum *c25519*, *nist256*, *nist384* elliptic curves,
-and *rsa2048* and *rsa4096*. For instructions see https://github.com/miracl/core
+Currently the Rust implementation only supports a MIRACL-based SAL. To install from this directory (TLS1.3/rust). In the unlikley event that yours is a 32-bit environment specify *config32* instead.
 
+	git clone https://github.com/miracl/core.git
+	cd core/rust
+	python3 config64.py test
+	cd ../..
 
-Copy the contents of this directory plus subdirectories to a working directory.
-
-In a new command window navigate to the *client* sub-directory and edit the *Cargo.toml* file and make sure that its dependency path points to the miracl core library.
-
-To build the client program in debug mode enter
+To build the client program move to the *client* directory and 
 
 	cargo build
 
-To build in release mode (much faster)
+To build in release mode (much faster code)
 
 	cargo build --release
 
-In a new command window navigate to the *server* sub-directory and again edit its *Cargo.toml* file and make sure that its dependency path points to the miracl core library.
-This time build and execute the server by
+To build and run the server program move to the *server* directory and 
 
 	cargo run
 	

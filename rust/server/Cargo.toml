@@ -16,6 +16,6 @@ publish = false
 
 [dependencies]
 # make sure this points to MIRACL Core rust library
-mcore = { path = "../../rust/mcore" }    # make sure this is correct
+mcore = { path = "../core/rust/mcore" }    # make sure this is correct
 zeroize = "1.5.4"
 rand = "0.8.5"
