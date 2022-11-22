@@ -171,52 +171,6 @@ impl CRYPTO {
     }  
 }
 
-/// Create ECDSA signature, needed in ASN.1 form 
-/*
-pub fn parse_in_ecdsa_sig(htype: usize,ccvsig: &mut [u8]) -> usize {
-    let mut c:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
-    let mut d:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
-    let hlen=sal::hash_len(htype);
-    let mut ptr=0;   
-    for i in 0..hlen {
-        c[i]=ccvsig[i];
-        d[i]=ccvsig[hlen+i];
-    }
-    let mut cinc=false;
-    let mut dinc=false;
-    if c[0]&0x80 !=0 {
-        cinc=true;
-    }
-    if d[0]&0x80 !=0 {
-        dinc=true;
-    }
-    let mut len=2*hlen+4;
-    if cinc {len+=1;}
-    if dinc {len+=1;}
-
-    ptr=utils::append_byte(ccvsig,ptr,0x30,1);  // ASN.1 SEQ
-    ptr=utils::append_byte(ccvsig,ptr,len as u8,1);
-// c
-    ptr=utils::append_byte(ccvsig,ptr,0x02,1);  // ASN.1 INT type
-    if cinc {
-        ptr=utils::append_byte(ccvsig,ptr,(hlen+1) as u8,1);
-        ptr=utils::append_byte(ccvsig,ptr,0,1);
-    } else {
-        ptr=utils::append_byte(ccvsig,ptr,hlen as u8,1);
-    }
-    ptr=utils::append_bytes(ccvsig,ptr,&c[0..hlen]);
-// d
-    ptr=utils::append_byte(ccvsig,ptr,0x02,1);  // ASN.1 INT type
-    if dinc {
-        ptr=utils::append_byte(ccvsig,ptr,(hlen+1) as u8,1);
-        ptr=utils::append_byte(ccvsig,ptr,0,1);
-    } else {
-        ptr=utils::append_byte(ccvsig,ptr,hlen as u8,1);
-    }
-    ptr=utils::append_bytes(ccvsig,ptr,&d[0..hlen]);
-    return ptr;
-}
-*/
 /// Create Client Certificate Verifier
 pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut [u8]) -> usize {
     let mut ptr=0;
@@ -248,49 +202,6 @@ pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut 
     return cclen;
 }
 
-/// Parse out DER encoded (r,s) ECDSA signature into a single SIG r|s format
-/*
-pub fn parse_out_ecdsa_sig(htype: usize,scvsig: &mut [u8]) -> usize {
-    let mut r:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
-    let mut s:[u8;MAX_ECC_FIELD]=[0;MAX_ECC_FIELD];
-    let hlen=sal::hash_len(htype);
-    let mut ptr=0;
-    let mut rt=utils::parse_int(scvsig,1,&mut ptr); let der=rt.val;
-    if rt.err!=0 || der!=0x30 {return 0;}
-    rt=utils::parse_int(scvsig,1,&mut ptr); let slen=rt.val;
-    if rt.err!=0  {return 0;}
-// get r
-    rt=utils::parse_int(scvsig,1,&mut ptr); let mut int=rt.val;
-    if rt.err!=0 || int!=2 {return 0;}
-    rt=utils::parse_int(scvsig,1,&mut ptr); let mut rlen=rt.val;
-    if rt.err!=0 {return 0;}
-    if rlen==hlen+1 { // one too big
-        rlen-=1;
-        rt=utils::parse_int(scvsig,1,&mut ptr); let lzero=rt.val;
-        if rt.err!=0 || lzero!=0 {return 0;}
-    }
-    rt=utils::parse_bytes(&mut r[0..rlen],scvsig,&mut ptr); if rt.err!=0 {return 0;}
-// get s
-    rt=utils::parse_int(scvsig,1,&mut ptr); int=rt.val;
-    if rt.err!=0 || int!=2 {return 0;}
-    rt=utils::parse_int(scvsig,1,&mut ptr); let mut slen=rt.val;
-    if rt.err!=0 {return 0;}
-    if slen==hlen+1 { // one too big
-        slen-=1;
-        rt=utils::parse_int(scvsig,1,&mut ptr); let lzero=rt.val;
-        if rt.err!=0 || lzero!=0 {return 0;}
-    }
-    rt=utils::parse_bytes(&mut s[0..slen],scvsig,&mut ptr); if rt.err!=0 {return 0;}
-
-    if rlen<hlen || slen<hlen {return 0;}
-
-    for i in 0..hlen {
-        scvsig[i]=r[i];
-        scvsig[hlen+i]=s[i];
-    }
-    return ptr; // length of signature
-}
-*/
 /// Check Server Certificate Verifier - verify signature
 pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk: &[u8]) -> bool {
     let mut scv:[u8;100+MAX_HASH]=[0;100+MAX_HASH];
@@ -310,23 +221,14 @@ pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk:
             return false;
         }   
         let index=ret.index;
-
-        //let mut siglen=parse_out_ecdsa_sig(SHA256_T,scvsig);
-        //println!("siglen= {}",siglen);
-        //println!("{} {} {} {} {} {} {} {} ",scvsig[0],scvsig[1],scvsig[2],scvsig[3],scvsig[4],scvsig[5],scvsig[6],scvsig[7]);
         return sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,&scv[0..ptr],&scvsig[0..siglen],pub1) && sal::tls_signature_verify(DILITHIUM2,&scv[0..ptr],&scvsig[index..],pub2);
     }
 
     let mut siglen=scvsig.len();
 // Special case processing required here for ECDSA signatures -  scvsig is modified
     if sigalg==ECDSA_SECP256R1_SHA256 || sigalg==ECDSA_SECP384R1_SHA384 {
-        //let mut hts=SHA256_T;
-        //if sigalg==ECDSA_SECP384R1_SHA384 {
-        //    hts=SHA384_T;
-        //}
         let ret=x509::ecdsa_sig_decode(scvsig);
         siglen=ret.length;
-        //siglen=parse_out_ecdsa_sig(/*sal::hash_type_sig(sigalg)*/hts,scvsig);
         if siglen == 0 {
             return false;
         }    

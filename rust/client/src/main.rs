@@ -93,12 +93,7 @@ fn recover_ticket(s: &mut SESSION,fname: &str) -> bool {
             len = reader.read_line(&mut line).unwrap();
             myline=&line[0..len-1];
             s.t.tklen=utils::decode_hex(&mut s.t.tick,myline);
-//
-//            line.clear();
-//            len = reader.read_line(&mut line).unwrap();
-//            myline=&line[0..len-1];
-//            s.t.nnlen=utils::decode_hex(&mut s.t.nonce,myline);
-//
+
             line.clear();
             len = reader.read_line(&mut line).unwrap();
             myline=&line[0..len-1];

@@ -44,7 +44,7 @@ pub struct SESSION {
     pub t: TICKET           // resumption ticket    
 }
 
-// check for overlap given server signature capabilities, and my client certificate
+/// check for overlap given server signature capabilities, and my client certificate
 fn overlap(server_sig_algs: &[u16],server_cert_sig_algs: &[u16]) -> bool {
     let mut client_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
     let nsreq=clientcert::get_sig_requirements(&mut client_cert_reqs); 
@@ -69,6 +69,7 @@ fn overlap(server_sig_algs: &[u16],server_cert_sig_algs: &[u16]) -> bool {
     return true;    
 }
 
+/// check for malformed length field (should be even, should be less than some limit)
 fn malformed(rval: usize,maxm: usize) -> bool {
 
     if (rval&1) == 1 { // if its odd -> error

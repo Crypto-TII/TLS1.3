@@ -80,7 +80,7 @@ fn cipher_support(alg: u16) -> bool {
     return false;
 }
 
-// check for overlap given client signature capabilities, and my server certificate
+/// check for overlap given client signature capabilities, and my server certificate
 fn overlap(client_sig_algs: &[u16],client_cert_sig_algs: &[u16]) -> bool {
     let mut server_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
     let nsreq=servercert::get_sig_requirements(&mut server_cert_reqs); 
@@ -105,6 +105,7 @@ fn overlap(client_sig_algs: &[u16],client_cert_sig_algs: &[u16]) -> bool {
     return true;    
 }
 
+/// check for malformed length field (should be even, should be less than some limit)
 fn malformed(rval: usize,maxm: usize) -> bool {
 
     if (rval&1) == 1 { // if its odd -> error

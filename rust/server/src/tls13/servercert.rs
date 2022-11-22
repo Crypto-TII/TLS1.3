@@ -705,7 +705,7 @@ jfdPjwfHezeWIfzJdO4VhlJChFeq1FQyfXcobifpGrNYUHx1nNgItuGxg0CNSzyA\
 vTmu/jD57qPmqeKyEcaGI4/d7vACLTtATHbNPLP+CkWdoLW99QpSdoZCS1pjlKa5\
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUMDxYaIQ=="];
 
-// Report signature requirements for given certificate chain
+/// Report signature requirements for given certificate chain
 pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
     let mut ns=0;
     if CRYPTO_SETTING==TYPICAL {

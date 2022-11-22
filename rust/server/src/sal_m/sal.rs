@@ -633,15 +633,6 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
     if group==config::KYBER768 {
         use mcore::kyber;
         kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
-/*
-        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
-        let ct=kem.ciphertext_from_bytes(&pk).unwrap().to_owned();
-        let msk=kem.secret_key_from_bytes(&sk).unwrap().to_owned();
-        let share = kem.decapsulate(&msk, &ct).unwrap();
-        let myss=share.as_ref();
-        for i in 0..myss.len() {
-            ss[i]=myss[i];
-        } */
     }
     if group==config::HYBRID_KX {
         use mcore::kyber;
@@ -659,30 +650,6 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
         rpk[0..32].reverse();
         res=ecdh::ecpsvdp_dh(&sk[startsk..startsk+32],&rpk[0..32],&mut ss[startss..startss+32],0);
         ss[startss..startss+32].reverse();
-
-/*
-        let startsk=secret_key_size(config::KYBER768);
-        let startct=server_public_key_size(config::KYBER768);
-        let startss=shared_secret_size(config::KYBER768);
-
-        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
-        let ct=kem.ciphertext_from_bytes(&pk[0..startct]).unwrap().to_owned();
-        let msk=kem.secret_key_from_bytes(&sk[0..startsk]).unwrap().to_owned();
-        let share = kem.decapsulate(&msk, &ct).unwrap();
-        let myss=share.as_ref();
-        for i in 0..myss.len() {
-            ss[i]=myss[i];
-        }
-
-        use mcore::c25519::ecdh;
-
-        let mut rpk:[u8;32]=[0;32];
-        for i in 0..32 {
-            rpk[i]=pk[startct+i]
-        }
-        rpk[0..32].reverse();
-        ecdh::ecpsvdp_dh(&sk[startsk..startsk+32],&rpk[0..32],&mut ss[startss..startss+32],0);
-        ss[startss..startss+32].reverse(); */
     }
 
 // all zeros is suspect...
