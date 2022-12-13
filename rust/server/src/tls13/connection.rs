@@ -2,7 +2,6 @@
 //! Main TLS1.3 protocol 
 
 use std::net::{TcpStream};
-use std::io::{Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 //use std::time::Duration;
 //use std::thread;
@@ -361,7 +360,8 @@ impl SESSION {
 //thread::sleep(ten_millis);
 //            self.sockptr.write(&self.io[10..ptr]).unwrap();
 //        } else {
-            self.sockptr.write(&self.io[0..ptr]).unwrap();
+            //self.sockptr.write(&self.io[0..ptr]).unwrap();
+            socket::send_bytes(&mut self.sockptr,&self.io[0..ptr]);
 //        }
         self.clean_io();
     }   
@@ -407,7 +407,8 @@ impl SESSION {
 /// Send Change Cipher Suite - helps get past middleboxes (?)
     pub fn send_cccs(&mut self) {
         let cccs:[u8;6]=[0x14,0x03,0x03,0x00,0x01,0x01];
-        self.sockptr.write(&cccs).unwrap();
+        //self.sockptr.write(&cccs).unwrap();
+        socket::send_bytes(&mut self.sockptr,&cccs);
     }
 
 /// Send Server Certificate chain
@@ -952,11 +953,9 @@ impl SESSION {
         let mut sni_ack=false;
         let mut alplen=0;
         let mut pskmode=0;
-        let mut got_psk=false;
+        let mut got_psk_ext=false;
         let mut binder_bytes=0;
         let mut nbndrs=0; // number of binders needed
-
-        let mut got_psk_ext=false;
         let mut got_sig_algs_ext=false;
         let mut got_supported_groups_ext=false;
         let mut got_key_share_ext=false;
@@ -1162,7 +1161,6 @@ impl SESSION {
                         nbndrs += 1;
                     }
                     resume=true;    // proceed as for resumption
-                    got_psk=true;
                     got_psk_ext=true;
                     binder_bytes=extlen-tlen1-2;
 //println!("Room for binders= {} {}",binder_bytes,nbndrs);
@@ -1193,7 +1191,7 @@ impl SESSION {
                 return r;
         }
 
-        if got_psk && pskmode==0 { // If clients offer pre_shared_key without a psk_key_exchange_modes extension, servers MUST abort the handshake. 
+        if got_psk_ext && pskmode==0 { // If clients offer pre_shared_key without a psk_key_exchange_modes extension, servers MUST abort the handshake. 
             log(IO_DEBUG,"Missing PSK modes extension",-1,None);
             r.err=BAD_HANDSHAKE;
             return r;

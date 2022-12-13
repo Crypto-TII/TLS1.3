@@ -2,8 +2,6 @@
 //! Main TLS1.3 protocol 
 
 use std::net::{TcpStream};
-use std::io::{Write};
-
 use zeroize::Zeroize;
 
 use crate::config::*;
@@ -333,7 +331,9 @@ impl SESSION {
         }
         self.iolen=ptr;
         if flush {
-            self.sockptr.write(&self.io[0..ptr]).unwrap();
+            //self.sockptr.write(&self.io[0..ptr]).unwrap();
+            socket::send_bytes(&mut self.sockptr,&self.io[0..ptr]);
+
             self.clean_io();
         }
     }   
@@ -428,7 +428,8 @@ impl SESSION {
 /// Send Change Cipher Suite - helps get past middleboxes (?)
     pub fn send_cccs(&mut self) {
         let cccs:[u8;6]=[0x14,0x03,0x03,0x00,0x01,0x01];
-        self.sockptr.write(&cccs).unwrap();
+        //self.sockptr.write(&cccs).unwrap();
+        socket::send_bytes(&mut self.sockptr,&cccs);
     }
 
 /// Send Early Data

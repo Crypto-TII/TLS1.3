@@ -196,6 +196,9 @@ static void nameSigAlg(int sigAlg)
     }
 }
 
+//extern int BYTES_READ;
+//extern int BYTES_WRITTEN;
+
 int main(int argc, char const *argv[])
 {
     char get[256];
@@ -408,6 +411,8 @@ int main(int argc, char const *argv[])
         }
     }
     
+//printf("BYTES_READ= %d BYTES_WRITTEN= %d\n",BYTES_READ,BYTES_WRITTEN);
+
     int rtn=0;
 // Get server response, may attach resumption ticket to session
 	if (port==443)

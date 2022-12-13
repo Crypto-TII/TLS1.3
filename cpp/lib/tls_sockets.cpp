@@ -42,6 +42,9 @@ int setserversock(int port)
 }
 */
 
+//int BYTES_READ=0;
+//int BYTES_WRITTEN=0;
+
 // open socket
 int setclientsock(int port,char *ip,int toms)
 {
@@ -86,6 +89,9 @@ int getIPaddress(char *ip,char *hostname)
 void sendOctad(Socket *client,octad *B)
 {
     client->write(B->val,B->len);
+
+//BYTES_WRITTEN+=B->len;
+
 #if VERBOSITY >= IO_WIRE
 
     char w[4];
@@ -128,6 +134,8 @@ void clearsoc(Socket &client,octad *IO)
 int getBytes(Socket *client,char *b,int expected)
 {
     int n,more,i=0,len=expected;
+
+//BYTES_READ+=expected;
 
 #ifdef TLS_ARDUINO
 
