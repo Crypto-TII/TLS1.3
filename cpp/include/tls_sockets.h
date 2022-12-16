@@ -121,23 +121,23 @@ public:
 /**	@brief clear out the socket RX buffer 
  *
 	@param client the socket connection to the Server
-    @param IO an octet to receive the data
+    @param IO an octad to receive the data
  */
 extern void clearsoc(Socket &client,octad *IO);
 
 #endif
 
-/**	@brief send an octet over a socket 
+/**	@brief send an octad over a socket 
  *
 	@param client the socket connection to the Server
-    @param B the octet to be transmitted
+    @param B the octad to be transmitted
  */
 extern void sendOctad(Socket *client,octad *B);
 
-/**	@brief send a 16-bit integer as an octet to Server
+/**	@brief send a 16-bit integer as an octad to Server
  *
 	@param client the socket connection to the Server
-    @param len the 16-bit integer to be encoded as octet and transmitted
+    @param len the 16-bit integer to be encoded as octad and transmitted
  */
 extern void sendLen(Socket *client,int len);
 
@@ -171,10 +171,10 @@ extern int getInt24(Socket *client);
  */
 extern int getByte(Socket *client);
 
-/**	@brief receive an octet from a socket
+/**	@brief receive an octad from a socket
  *
 	@param client the socket connection to the Server
-    @param B the output octet
+    @param B the output octad
     @param expected the number of bytes expected
     @return -1 on failure, 0 on success
  */

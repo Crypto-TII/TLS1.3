@@ -320,6 +320,13 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_RESUMPTION_REQUIRED 2       /**< Connection succeeded, but handshake retry was needed */
 #define TLS_EARLY_DATA_ACCEPTED 3       /**< Connection succeeded, and early data was accepted */
 
+// PSK modes
+#define PSK_NOT 0           /**< No PSK */
+#define PSK_KEY 1           /**< Using PSK from database */
+#define PSK_BFIBE 2         /**< Using pairing-based IBE based PSK */
+#define PSK_PQIBE 3         /**< Using post-quantum IBE based PSK */
+#define PSK_HYIBE 4         /**< Using Hybrid IBE based PSK */
+
 /**
  * @brief function return structure */
 typedef struct 

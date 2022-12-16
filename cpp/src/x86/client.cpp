@@ -5,6 +5,8 @@
 #include <time.h>
 #include "tls_sal.h"
 #include "tls_protocol.h"
+#include "tls_bfibe.h"
+#include "tls_pqibe.h"
 
 #define MIN_TIME 1.0
 #define MIN_ITERS 1000
@@ -196,6 +198,22 @@ static void nameSigAlg(int sigAlg)
     }
 }
 
+
+// convert TLS octad to MIRACL core octet
+static octet octad_to_octet(octad *x)
+{
+    octet y;
+    if (x!=NULL) {
+        y.len=x->len;
+        y.max=x->max;
+        y.val=x->val;
+    } else {
+        y.len=y.max=0;
+        y.val=NULL;
+    }
+    return y;
+}
+
 //extern int BYTES_READ;
 //extern int BYTES_WRITTEN;
 
@@ -210,9 +228,14 @@ int main(int argc, char const *argv[])
     octad PSK = {0,sizeof(psk),psk};    // Pre-Shared Key   
     char psk_label[32];
     octad PSK_label={0,sizeof(psk_label),psk_label};
+    char r32[32];
+    octad R32={0,sizeof(r32),r32};
     bool HAVE_PSK=false;
     bool HAVE_TICKET=false;
     bool TICKET_FAILED=false;
+
+    int psk_type=PSK_NOT;
+
     int port=443;
     SocketType socketType = SocketType::SOCKET_TYPE_AF_INET;
     Socket client = (socketType == SocketType::SOCKET_TYPE_AF_UNIX) ?
@@ -240,13 +263,51 @@ int main(int argc, char const *argv[])
         ip++;
         if (ip<argc)
         {
-            printf("PSK mode selected\n");
+            printf("PSK mode selected - have a shared key\n");
             ip++;
  
+            psk_type=PSK_KEY;
+
             OCT_append_string(&PSK_label,(char *)argv[1]);
             PSK.len=16;
             for (int i=0;i<16;i++)
                 PSK.val[i]=i+1;                // Fake a 128-bit pre-shared key
+            HAVE_PSK=true;
+        }
+    }
+
+    if (strcmp(argv[ip],"-b")==0)
+    {
+        ip++;
+        if (ip<argc)
+        {
+            printf("PSK mode selected - using pairing based IBE\n");
+            ip++;
+            psk_type=PSK_BFIBE;
+            HAVE_PSK=true;
+        }
+    }
+
+    if (strcmp(argv[ip],"-q")==0)
+    {
+        ip++;
+        if (ip<argc)
+        {
+            printf("PSK mode selected - using post-quantum IBE\n");
+            ip++;
+            psk_type=PSK_PQIBE;
+            HAVE_PSK=true;
+        }
+    }
+
+    if (strcmp(argv[ip],"-h")==0)
+    {
+        ip++;
+        if (ip<argc)
+        {
+            printf("PSK mode selected - using hybrid IBE\n");
+            ip++;
+            psk_type=PSK_HYIBE;
             HAVE_PSK=true;
         }
     }
@@ -367,11 +428,62 @@ int main(int argc, char const *argv[])
     HAVE_TICKET=true;
     if (HAVE_PSK)
     {
-        OCT_copy(&session->T.TICK,&PSK_label);      // Insert a special ticket into session 
-        OCT_copy(&session->T.PSK,&PSK);
+        if (psk_type==PSK_KEY)
+        {
+            OCT_copy(&session->T.TICK,&PSK_label);      // Insert a special ticket into session 
+            OCT_copy(&session->T.PSK,&PSK);
+            session->T.favourite_group=X25519;
+        }
+        if (psk_type==PSK_BFIBE)
+        {
+            SAL_randomOctad(32,&R32);
+            octet MC_R32=octad_to_octet(&R32);
+            octet MC_PSK=octad_to_octet(&session->T.PSK);
+            octet MC_TICK=octad_to_octet(&session->T.TICK);
+            BFIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+            session->T.PSK.len=MC_PSK.len;
+            session->T.TICK.len=MC_TICK.len;
+            session->T.favourite_group=X25519;
+        }
+        if (psk_type==PSK_PQIBE)
+        {
+            SAL_randomOctad(32,&R32);
+            octet MC_R32=octad_to_octet(&R32);
+            octet MC_PSK=octad_to_octet(&session->T.PSK);
+            octet MC_TICK=octad_to_octet(&session->T.TICK);
+            PQIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+            session->T.PSK.len=MC_PSK.len;
+            session->T.TICK.len=MC_TICK.len;
+            session->T.favourite_group=KYBER768;
+        }
+        if (psk_type==PSK_HYIBE)
+        {
+            char psk2[32];
+            octad PSK2={0,sizeof(psk2),psk2};
+            char tick2[256];
+            octad TICK2={0,sizeof(tick2),tick2};
+
+            SAL_randomOctad(32,&R32);
+            octet MC_R32=octad_to_octet(&R32);
+            octet MC_PSK=octad_to_octet(&session->T.PSK);
+            octet MC_TICK=octad_to_octet(&session->T.TICK);
+            PQIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+            session->T.PSK.len=MC_PSK.len;
+            session->T.TICK.len=MC_TICK.len;
+
+            SAL_randomOctad(32,&R32);
+            MC_PSK=octad_to_octet(&PSK2);
+            MC_TICK=octad_to_octet(&TICK2);
+            BFIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+            PSK2.len=MC_PSK.len;
+            TICK2.len=MC_TICK.len;
+
+            OCT_append_octad(&session->T.PSK,&PSK2);
+            OCT_append_octad(&session->T.TICK,&TICK2);
+            session->T.favourite_group=HYBRID_KX;
+        }
         session->T.max_early_data=1024;
         session->T.cipher_suite=TLS_AES_128_GCM_SHA256;
-        session->T.favourite_group=X25519;
         session->T.origin=TLS_EXTERNAL_PSK;
         session->T.valid=true;
         removeTicket();  // delete any stored ticket - fall into resumption mode

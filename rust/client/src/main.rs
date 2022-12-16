@@ -12,6 +12,8 @@ use std::net::{Shutdown, TcpStream};
 use tls13::connection::SESSION;
 use tls13::logger::log;
 use sal_m::sal;
+use sal_m::bfibe;
+use sal_m::pqibe;
 use tls13::utils;
 use config::*;
 use std::env;
@@ -295,11 +297,32 @@ fn main() {
     }
 
     let mut have_psk=false;
+    let mut psk_type=PSK_NOT;
+
     let psk:[u8;16]=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]; // fake a pre-shared key
     
     if args[ip].as_str() == "/p" { // psk label is in args[2]
-        println!("PSK mode selected");
+        println!("PSK mode selected - have a shared key");
         have_psk=true;
+        psk_type=PSK_KEY;
+    }
+
+    if args[ip].as_str() == "/b" { 
+        println!("PSK mode selected - using pairing based IBE");
+        have_psk=true;
+        psk_type=PSK_BFIBE;
+    }
+
+    if args[ip].as_str() == "/q" { 
+        println!("PSK mode selected - using post-quantum IBE");
+        have_psk=true;
+        psk_type=PSK_PQIBE;
+    }
+
+    if args[ip].as_str() == "/h" { 
+        println!("PSK mode selected - using hybrid IBE");
+        have_psk=true;
+        psk_type=PSK_HYIBE;
     }
 
     let mut localhost=false;
@@ -336,19 +359,44 @@ fn main() {
 
             let mut have_ticket=true;
             let mut ticket_failed=false;
-            if have_psk {     
-                let pl=args[2].as_bytes();  // Insert a special ticket into session 
-                for i in 0..pl.len() {
-                    session.t.tick[i]=pl[i];
+            if have_psk {   
+                if psk_type == PSK_KEY {
+                    let pl=args[2].as_bytes();  // Insert a special ticket into session 
+                    for i in 0..pl.len() {
+                        session.t.tick[i]=pl[i];
+                    }
+                    session.t.tklen=pl.len();
+                    for i in 0..16 {
+                        session.t.psk[i]=psk[i];
+                    }
+                    session.t.psklen=16;
+                    session.t.favourite_group=X25519;
                 }
-                session.t.tklen=pl.len();
-                for i in 0..16 {
-                    session.t.psk[i]=psk[i];
+                if psk_type == PSK_BFIBE {
+                    let mut r32:[u8;32]=[0;32];
+                    sal::random_bytes(32,&mut r32);
+                    bfibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
+                    session.t.psklen=bfibe::KYLEN; session.t.tklen=bfibe::CTLEN;
+                    session.t.favourite_group=X25519;
                 }
-                session.t.psklen=16;
-                session.t.max_early_data=1024;
+                if psk_type == PSK_PQIBE {
+                    let mut r32:[u8;32]=[0;32];
+                    sal::random_bytes(32,&mut r32);
+                    pqibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
+                    session.t.psklen=pqibe::KYLEN; session.t.tklen=pqibe::CTLEN;
+                    session.t.favourite_group=KYBER768;
+                }
+                if psk_type == PSK_HYIBE {
+                    let mut r32:[u8;32]=[0;32];
+                    sal::random_bytes(32,&mut r32);
+                    pqibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
+                    sal::random_bytes(32,&mut r32);
+                    bfibe::cca_encrypt(&host,&r32,&mut session.t.psk[pqibe::KYLEN..],&mut session.t.tick[pqibe::CTLEN..]);
+                    session.t.psklen=pqibe::KYLEN+bfibe::KYLEN; session.t.tklen=pqibe::CTLEN+bfibe::CTLEN;
+                    session.t.favourite_group=HYBRID_KX;
+                }
                 session.t.cipher_suite=AES_128_GCM_SHA256;
-                session.t.favourite_group=X25519;
+                session.t.max_early_data=1024;
                 session.t.origin=EXTERNAL_PSK;
                 session.t.valid=true;
                 remove_ticket(); // delete any stored ticket - fall into resumption mode
