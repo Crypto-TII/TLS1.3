@@ -514,8 +514,9 @@ pub fn cca_encrypt(id: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) {
 
 // decapsulate 32-byte key inside ciphertext ct
 /*
-pub fn cca_decrypt(identity: &[u8],csk: &[i16],ct: &[u8],key: &mut[u8]) {
+pub fn cca_decrypt(id: &str,csk: &[i16],ct: &[u8],key: &mut[u8]) {
 	let mut ikey: [u8;DEGREE/8]=[0;DEGREE/8];
+	let identity=id.as_bytes();
 	cpa_decrypt(csk,ct,&mut ikey);
 	let mask=cpa_check_encrypt(identity,&ikey,ct); // make sure to generate the same ciphertext
 

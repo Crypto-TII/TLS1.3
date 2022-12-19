@@ -544,10 +544,10 @@ void PQIBE_CCA_ENCRYPT(char *ID,octet *R32,octet *KEY,octet *CT)
 
 	SHA3_init(&sh,SHA3_HASH256);
 	for (i=0;i<CT->len;i++)
-		SHA3_process(&sh,CT->val[i]); 
+		SHA3_process(&sh,(unsigned char)CT->val[i]); 
 	for (i=0;i<DEGREE/8;i++)
 		SHA3_process(&sh,ikey[i]); 
-	SHA3_hash(&sh,(char *)KEY->val);
+	SHA3_hash(&sh,KEY->val);
     KEY->len=32;
 }
 
@@ -564,7 +564,7 @@ void PQIBE_CCA_DECRYPT(char *ID,const int16_t *csk,octet *CT,octet *KEY) {
 
 	SHA3_init(&sh,SHA3_HASH256);
 	for (i=0;i<CT->len;i++)
-		SHA3_process(&sh,CT->val[i]); 
+		SHA3_process(&sh,(unsigned char)CT->val[i]); 
 	for (i=0;i<DEGREE/8;i++)
 		SHA3_process(&sh,ikey[i]); 
 	SHA3_hash(&sh,KEY->val);

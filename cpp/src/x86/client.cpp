@@ -106,6 +106,9 @@ static void bad_input()
     printf("    -r remove stored ticket\n");
     printf("    -r <hostname> remove stored ticket and connect to hostname\n");
     printf("    -s show SAL capabilities\n");
+	printf("    -b try pairing-based IBE connection\n");
+	printf("    -q try post-quantum IBE connection\n");
+	printf("    -h try hybrid IBE connection\n");
     printf("Example:- client www.bbc.co.uk\n");
 }
 
@@ -260,7 +263,6 @@ int main(int argc, char const *argv[])
 
     if (strcmp(argv[ip],"-p")==0)
     {
-        ip++;
         if (ip<argc)
         {
             printf("PSK mode selected - have a shared key\n");
@@ -276,9 +278,8 @@ int main(int argc, char const *argv[])
         }
     }
 
-    if (strcmp(argv[ip],"-b")==0)
+    else if (strcmp(argv[ip],"-b")==0)
     {
-        ip++;
         if (ip<argc)
         {
             printf("PSK mode selected - using pairing based IBE\n");
@@ -288,9 +289,8 @@ int main(int argc, char const *argv[])
         }
     }
 
-    if (strcmp(argv[ip],"-q")==0)
+    else if (strcmp(argv[ip],"-q")==0)
     {
-        ip++;
         if (ip<argc)
         {
             printf("PSK mode selected - using post-quantum IBE\n");
@@ -300,9 +300,8 @@ int main(int argc, char const *argv[])
         }
     }
 
-    if (strcmp(argv[ip],"-h")==0)
+    else if (strcmp(argv[ip],"-h")==0)
     {
-        ip++;
         if (ip<argc)
         {
             printf("PSK mode selected - using hybrid IBE\n");
@@ -312,7 +311,7 @@ int main(int argc, char const *argv[])
         }
     }
 
-    if (strcmp(argv[ip],"-r")==0)
+    else if (strcmp(argv[ip],"-r")==0)
     {
         printf("Ticket removed\n");
         removeTicket(); ip++;
@@ -320,7 +319,7 @@ int main(int argc, char const *argv[])
         //exit(0);
     }
 
-    if (strcmp(argv[ip],"-s")==0)
+    else if (strcmp(argv[ip],"-s")==0)
     { // interrogate SAL
         int i,ns,iterations;
         int nt[20];
@@ -372,7 +371,6 @@ int main(int argc, char const *argv[])
         }
         exit(0);
     }
-
     if (strcmp(argv[ip],"localhost")==0)
     {
         strcpy(hostname, "localhost");

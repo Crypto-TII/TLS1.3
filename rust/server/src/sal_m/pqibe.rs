@@ -322,6 +322,7 @@ fn nextword(ab: usize,t: &[u8],ptr:&mut usize,bts: &mut usize) -> u32 {
 }
 
 // pack ciphertext
+/*
 fn pack_ct(ct: &mut[u8],u: &[u32],v: &[u32]) -> usize {
     let mut n=0;
     let mut ptr=0;
@@ -335,6 +336,7 @@ fn pack_ct(ct: &mut[u8],u: &[u32],v: &[u32]) -> usize {
     }
     return n;
 }
+*/
 
 // pack ciphertext
 fn chk_pack_ct(ct: &[u8],u: &[u32],v: &[u32]) -> u8 {
@@ -423,13 +425,14 @@ fn cpa_base_encrypt(identity: &[u8],ikey: &[u8],ud: &mut [u32],vd: &mut [u32]) {
 }
 
 // ID is identity, ikey is input session key, ct is ciphertext
+/*
 fn cpa_encrypt(identity: &[u8],ikey: &[u8],ct: &mut[u8]) {
 	let mut ud: [u32; DEGREE] = [0; DEGREE];
 	let mut vd: [u32; DEGREE] = [0; DEGREE];
 	cpa_base_encrypt(identity,ikey,&mut ud,&mut vd);
 	pack_ct(ct,&ud,&vd);
 }
-
+*/
 // ID is identity, ikey is output session key, ct is ciphertext
 // This time checking that (ud,vd) does in fact compress to ct
 fn cpa_check_encrypt(identity: &[u8],ikey: &[u8],ct: &[u8]) -> u8 {
@@ -483,10 +486,11 @@ fn cpa_decrypt(csk: &[i16],ct: &[u8],ikey: &mut[u8]) {
 }
 
 // encapsulate 32-byte key inside ciphertext ct
-pub fn pqibe_cca_encrypt(identity: &[u8],r32: &[u8],key: &mut[u8],ct: &mut[u8]) {
+/*
+pub fn cca_encrypt(id: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) {
 	let mut ikey: [u8;DEGREE/8]=[0;DEGREE/8];
     let mut ss: [u8;32]=[0;32];
-	
+    let identity=id.as_bytes();
     let mut sh = SHA3::new(sha3::SHAKE256);
 	for i in 0..32 {
 		sh.process(r32[i]);
@@ -506,10 +510,11 @@ pub fn pqibe_cca_encrypt(identity: &[u8],r32: &[u8],key: &mut[u8],ct: &mut[u8]) 
     }
 	sh.hash(key);
 }
-
+*/
 // decapsulate 32-byte key inside ciphertext ct
-pub fn pqibe_cca_decrypt(identity: &[u8],csk: &[i16],ct: &[u8],key: &mut[u8]) {
+pub fn cca_decrypt(id: &str,csk: &[i16],ct: &[u8],key: &mut[u8]) {
 	let mut ikey: [u8;DEGREE/8]=[0;DEGREE/8];
+	let identity=id.as_bytes();
 	cpa_decrypt(csk,ct,&mut ikey);
 	let mask=cpa_check_encrypt(identity,&ikey,ct); // make sure to generate the same ciphertext
 
@@ -553,13 +558,13 @@ fn main() {
         for j in 0..32 {
             r32[j]=((i+j)%256) as u8;
         }
-        pqibe_cca_encrypt(identity,&r32,&mut key,&mut ct);
+        cca_encrypt(identity,&r32,&mut key,&mut ct);
         print!("EK= ");
         for i in 0..32 {
             print!("{},",key[i]);
         }
         println!("");
-        pqibe_cca_decrypt(identity,&CSK,&ct,&mut key2);
+        cca_decrypt(identity,&CSK,&ct,&mut key2);
         print!("DK= ");
         for i in 0..32 {
             print!("{},",key2[i]);

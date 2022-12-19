@@ -158,6 +158,9 @@ fn bad_input()
     println!("    /r remove stored ticket");
     println!("    /r <hostname> remove stored ticket and connect to hostname");
     println!("    /s show SAL capabilities");
+    println!("    /b <hostname> try pairing based IBE connection");
+    println!("    /q <hostname> try post-quantum IBE connection");
+    println!("    /h <hostname> try hybrid IBE connection");
     println!("Example:- client www.bbc.co.uk");
 }
 

@@ -107,8 +107,9 @@ pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes
 //pub const MAX_FRAG:usize = 4;
 pub const MAX_RECORD:usize = 4096;              // default Maximum Record size
 
-pub const MAX_TICKET_SIZE:usize = 1024; 
-pub const MAX_EXTENSIONS:usize = 2048;       
+// Both of these are bumped up by PQ IBE and Hybrid
+pub const MAX_TICKET_SIZE:usize = 4196; //4000+161 PQ+IBE
+pub const MAX_EXTENSIONS:usize = 6144;       
 
 // message types 
 pub const CLIENT_HELLO: u8 = 0x01;               // Client Hello message  

@@ -4,28 +4,28 @@ extern crate mcore;
 use mcore::sha3;
 use mcore::sha3::SHA3;
 use mcore::rand::RAND;
-use mcore::hmac;
+//use mcore::hmac;
 
 use mcore::bls12381::big;
 use mcore::bls12381::big::BIG;
-use mcore::bls12381::dbig::DBIG;
+//use mcore::bls12381::dbig::DBIG;
 use mcore::bls12381::ecp;
 use mcore::bls12381::ecp::ECP;
 use mcore::bls12381::ecp2::ECP2;
-use mcore::bls12381::fp::FP;
-use mcore::bls12381::fp2::FP2;
+//use mcore::bls12381::fp::FP;
+//use mcore::bls12381::fp2::FP2;
 //use mcore::bls12381::fp12::FP12;
 use mcore::bls12381::pair;
 use mcore::bls12381::rom;
 
 pub const FS: usize = big::MODBYTES as usize;
 
-const TAPK: &str = "0402d506a111d406dd0ad9d64b6515c4e15fd28ab45595b89817871d9220f0242c7b7ef1800ad8e6a8f047100088702ac8042add1af478ae20672c6670959ae36f19dcdee948f6b40a3498af69d708fbf15e81b536dacac484a697a59f3742063b";
+//const TAPK: &str = "0402d506a111d406dd0ad9d64b6515c4e15fd28ab45595b89817871d9220f0242c7b7ef1800ad8e6a8f047100088702ac8042add1af478ae20672c6670959ae36f19dcdee948f6b40a3498af69d708fbf15e81b536dacac484a697a59f3742063b";
 
-fn roundup(a:usize,b:usize) -> usize {
-    return 1+(a-1)/b;
-}
-
+//fn roundup(a:usize,b:usize) -> usize {
+//    return 1+(a-1)/b;
+//}
+/*
 fn char2int(inp: u8) -> u8 {
     if inp>='0' as u8 && inp <='9' as u8 {
         return inp-'0' as u8;
@@ -52,8 +52,8 @@ fn decode_hex(x: &mut[u8],s: &str) -> usize {
     }
     return i;
 }
-
-/* Encode octet to curve point on G2 */
+*/
+/* Encode octet to curve point on G2 
 fn h1(identity:&str) -> ECP2 {
     let mut okm:[u8;128]=[0;128];
     let id=identity.as_bytes();
@@ -73,7 +73,7 @@ fn h1(identity:&str) -> ECP2 {
     P.cfp();
     P.affine();
     return P;
-}
+} */
 
 /* create random r in Zq from U and V, and rP */
 fn h3(u: &[u8],v: &[u8],r: &mut BIG) -> ECP {
@@ -105,7 +105,8 @@ fn h4(i: &[u8],o: &mut [u8]) {
 }
 
 // encapsulate 32-byte key inside ciphertext ct
-pub fn bfibe_cca_encrypt(identity: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) -> bool {
+/*
+pub fn cca_encrypt(identity: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) -> bool {
 	let mut sigma: [u8;32]=[0;32];
     let mut u: [u8;2*FS+1]=[0;2*FS+1];
 	let mut v: [u8;32]=[0;32];
@@ -159,9 +160,9 @@ pub fn bfibe_cca_encrypt(identity: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) -
     }
     return true;
 }
-
+*/
 // decapsulate 32-byte key inside ciphertext ct
-pub fn bfibe_cca_decrypt(csk: &[u8],ct: &[u8],key: &mut[u8]) -> bool {
+pub fn cca_decrypt(csk: &[u8],ct: &[u8],key: &mut[u8]) -> bool {
 	let mut sigma: [u8;32]=[0;32];
 	let u=&ct[0..2*FS+1];
     let v=&ct[2*FS+1..2*FS+33];
@@ -195,7 +196,7 @@ pub fn bfibe_cca_decrypt(csk: &[u8],ct: &[u8],key: &mut[u8]) -> bool {
 }
 
 pub const KYLEN:usize = 32;
-pub const CTLEN:usize = 161;
+//pub const CTLEN:usize = 161;
 
 /*
 const ID: &str = "localhost";
@@ -216,14 +217,14 @@ fn main() {
         for j in 0..32 {
             r32[j]=((i+j)%256) as u8;
         }
-        bfibe_cca_encrypt(ID,&r32,&mut key,&mut ct);
+        cca_encrypt(ID,&r32,&mut key,&mut ct);
         print!("EK= ");
         for i in 0..32 {
             print!("{:02x}",key[i]);
         }
         println!("");
 
-        bfibe_cca_decrypt(&csk,&ct,&mut key2);
+        cca_decrypt(&csk,&ct,&mut key2);
         print!("DK= ");
         for i in 0..32 {
             print!("{:02x}",key2[i]);

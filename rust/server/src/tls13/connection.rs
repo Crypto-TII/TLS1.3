@@ -21,6 +21,10 @@ use crate::tls13::logger::log;
 use crate::tls13::utils;
 use crate::tls13::utils::RET;
 
+use crate::sal_m::bfibe;
+use crate::sal_m::pqibe;
+
+
 /// Milliseconds since epoch
 pub fn millis() -> usize {
     return SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis() as usize;    
@@ -1385,6 +1389,40 @@ impl SESSION {
                 return r;
             }
             r.err= BAD_TICKET;
+            return r;
+        }
+
+        if self.ticket_obf_age==0 { // assume its an IBE connection
+            log(IO_PROTOCOL,"Its an IBE connection\n",-1,None);
+            let ticklen=self.tklen;
+            let tick=&self.ticket[0..ticklen];
+
+            match CRYPTO_SETTING {
+                TYPICAL | TINY_ECC => {
+                    const HAFLEN:usize=servercert::BFSK.len()/2;
+                    let mut bfsk: [u8; HAFLEN]=[0;HAFLEN];
+                    utils::decode_hex(&mut bfsk,&servercert::BFSK);
+                    bfibe::cca_decrypt(&bfsk,tick,psk);
+                    *psklen=bfibe::KYLEN;
+                },
+                POST_QUANTUM => {
+                    pqibe::cca_decrypt(&servercert::ID,&servercert::PQSK,tick,psk);
+                    *psklen=pqibe::KYLEN;
+                },
+                HYBRID => {
+                    pqibe::cca_decrypt(&servercert::ID,&servercert::PQSK,&tick[0..pqibe::CTLEN],&mut psk[0..32]);
+                    const HAFLEN:usize=servercert::BFSK.len()/2;
+                    let mut bfsk: [u8; HAFLEN]=[0;HAFLEN];
+                    utils::decode_hex(&mut bfsk,&servercert::BFSK);
+                    bfibe::cca_decrypt(&bfsk,&tick[pqibe::CTLEN..],&mut psk[32..64]);
+                    *psklen=bfibe::KYLEN+pqibe::KYLEN;
+                },
+                _ => {
+                    r.err= BAD_TICKET;
+                },
+            }
+
+            r.val=EXTERNAL_PSK;
             return r;
         }
 

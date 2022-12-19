@@ -164,7 +164,6 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_CLIENT_CHAIN_LEN 1             /**< Maximum Client Certificate chain length - one self signed here */
 #define TLS_MAX_CLIENT_CHAIN_SIZE (TLS_MAX_CLIENT_CHAIN_LEN*TLS_MAX_CERT_SIZE) /**< Maximum Client Certificate chain length in bytes */
 
-
 #define TLS_MAX_SHARED_SECRET_SIZE 256	 /**< Max key exchange Shared secret size */
 #define TLS_MAX_TICKET_SIZE 1024          /**< maximum resumption ticket size - beware some servers send much bigger tickets! */
 #define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
