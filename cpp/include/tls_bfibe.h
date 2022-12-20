@@ -26,8 +26,13 @@ using namespace core;
 
 /* Field size is assumed to be greater than or equal to group size */
 
+#if CHUNK == 32
+#define PGS_BLS12381 MODBYTES_B384_29  /**< MPIN Group Size */
+#define PFS_BLS12381 MODBYTES_B384_29  /**< MPIN Field Size */
+#else
 #define PGS_BLS12381 MODBYTES_B384_58  /**< MPIN Group Size */
 #define PFS_BLS12381 MODBYTES_B384_58  /**< MPIN Field Size */
+#endif
 
 #define IBE_OK             0    /**< Function completed without error */
 #define IBE_INVALID_POINT  -14	/**< Point is NOT on the curve */

@@ -403,7 +403,7 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
             r64[i]=SAL_randomByte();
         KYBER768_keypair(r64,&MC_SK,&MC_PK);
     }
-    if (group==HYBRID)
+    if (group==HYBRID_KX)
     {
         byte r64[64];
         for (int i=0;i<64;i++)

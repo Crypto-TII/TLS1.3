@@ -963,7 +963,6 @@ impl SESSION {
         let mut got_sig_algs_ext=false;
         let mut got_supported_groups_ext=false;
         let mut got_key_share_ext=false;
-  
 
         *early_indication=false;
         while left>0 {
@@ -981,6 +980,7 @@ impl SESSION {
                 return r;
             }
             left-=4+extlen;
+
             match ext {
                 SERVER_NAME => {
                     r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
@@ -1176,7 +1176,6 @@ impl SESSION {
             }
             if r.err!=0 {return r;}
         }
-
 // check for missing extensions
         if !got_psk_ext { // not an attempted resumption
             if !got_sig_algs_ext || !got_supported_groups_ext {
@@ -1372,7 +1371,6 @@ impl SESSION {
         let mut iv:[u8;12]=[0;12];
         let mut tag:[u8;16]=[0;16];
         let mut r:RET=RET{val:0,err:0};
-
         if self.tklen<=32 { //.. assume its a label, not a ticket
             let ticklen=self.tklen;
             let tick=&self.ticket[0..ticklen];
@@ -1397,6 +1395,7 @@ impl SESSION {
             let ticklen=self.tklen;
             let tick=&self.ticket[0..ticklen];
 
+// process it depending on the active crypto-setting
             match CRYPTO_SETTING {
                 TYPICAL | TINY_ECC => {
                     const HAFLEN:usize=servercert::BFSK.len()/2;
@@ -1410,6 +1409,7 @@ impl SESSION {
                     *psklen=pqibe::KYLEN;
                 },
                 HYBRID => {
+
                     pqibe::cca_decrypt(&servercert::ID,&servercert::PQSK,&tick[0..pqibe::CTLEN],&mut psk[0..32]);
                     const HAFLEN:usize=servercert::BFSK.len()/2;
                     let mut bfsk: [u8; HAFLEN]=[0;HAFLEN];

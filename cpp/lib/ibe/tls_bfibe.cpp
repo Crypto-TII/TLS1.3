@@ -26,7 +26,12 @@
 #include "randapi.h"
 #include "tls_bfibe.h"
 
+#if CHUNK == 32
+using namespace B384_29;
+#else
 using namespace B384_58;
+#endif
+
 using namespace BLS12381;
 
 #define ROUNDUP(a,b) ((a)-1)/(b)+1
@@ -137,6 +142,7 @@ static void bfibe_get_ta_public(BIG s, octet *PK)
 } 
 
 char *tapk=(char *)"0402d506a111d406dd0ad9d64b6515c4e15fd28ab45595b89817871d9220f0242c7b7ef1800ad8e6a8f047100088702ac8042add1af478ae20672c6670959ae36f19dcdee948f6b40a3498af69d708fbf15e81b536dacac484a697a59f3742063b";
+
 /* IBE Encrypt */
 bool BFIBE_CCA_ENCRYPT(char *ID,octet *R32,octet *M,octet *CT)
 {
@@ -173,12 +179,13 @@ bool BFIBE_CCA_ENCRYPT(char *ID,octet *R32,octet *M,octet *CT)
 
     OCT_fromHex(&U,tapk);
     if (!ECP_fromOctet(&Ppub,&U)) return false;
-    
+
     PAIR_G1mul(&Ppub,r);
     ECP_toOctet(&U,&rP,false);
     PAIR_ate(&g, &Qid, &Ppub); // e(HID,r.Ppub)
     PAIR_fexp(&g);
     FP12_toOctet(&Z,&g);
+
     h4(&Z,&MASK);
 
     OCT_copy(&V,&SIGMA);
@@ -266,12 +273,12 @@ int main()
             r32[j]=((i+j)%256);
         }
 
-        IBE_CCA_ENCRYPT(id,&R32,&M,&CT);
+        BFIBE_CCA_ENCRYPT(id,&R32,&M,&CT);
 
         printf("EM= ");
         OCT_output(&M);
 
-        IBE_CCA_DECRYPT(&SK,&CT,&M);
+        BFIBE_CCA_DECRYPT(&SK,&CT,&M);
         printf("DM= ");
         OCT_output(&M);
     }

@@ -4,6 +4,8 @@
 #include "tls_sal.h"
 #include "tls_protocol.h"
 #include "tls_wifi.h"
+#include "tls_bfibe.h"
+#include "tls_pqibe.h"
 
 int readLine(char *line) {
   int i=0;
@@ -176,16 +178,94 @@ void setup()
 #endif
 }
 
+// convert TLS octad to MIRACL core octet
+static octet octad_to_octet(octad *x)
+{
+    octet y;
+    if (x!=NULL) {
+        y.len=x->len;
+        y.max=x->max;
+        y.val=x->val;
+    } else {
+        y.len=y.max=0;
+        y.val=NULL;
+    }
+    return y;
+}
+
+// define this to test IBE PSK
+//#define HAVE_PSK
+
 void testTLSconnect(Socket *client,char *hostname,int port)
 {
     char get[256];
     octad GET={0,sizeof(get),get};     // initial message
     char resp[40];
     octad RESP={0,sizeof(resp),resp};  // response
+    char r32[32];
+    octad R32={0,sizeof(r32),r32};
     int start,elapsed;
     TLS_session state=TLS13_start(client,hostname);
     TLS_session *session=&state;
     log(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
+
+#ifdef HAVE_PSK
+        strcpy(hostname, "localhost"); // for now assume its only for use with localhost
+#if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL
+        log(IO_PROTOCOL,(char *)"Using Pairing-Based IBE\n",NULL,0,NULL);
+        SAL_randomOctad(32,&R32);
+        octet MC_R32=octad_to_octet(&R32);
+        octet MC_PSK=octad_to_octet(&session->T.PSK);
+        octet MC_TICK=octad_to_octet(&session->T.TICK);
+        BFIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+        session->T.PSK.len=MC_PSK.len;
+        session->T.TICK.len=MC_TICK.len;
+        session->T.favourite_group=X25519;
+#endif
+#if CRYPTO_SETTING == POST_QUANTUM
+        log(IO_PROTOCOL,(char *)"Using Post Quantum IBE\n",NULL,0,NULL);
+        SAL_randomOctad(32,&R32);
+        octet MC_R32=octad_to_octet(&R32);
+        octet MC_PSK=octad_to_octet(&session->T.PSK);
+        octet MC_TICK=octad_to_octet(&session->T.TICK);
+        PQIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+        session->T.PSK.len=MC_PSK.len;
+        session->T.TICK.len=MC_TICK.len;
+        session->T.favourite_group=KYBER768;
+#endif
+#if CRYPTO_SETTING == HYBRID
+        log(IO_PROTOCOL,(char *)"Using Hybrid Pairing based/Post Quantum IBE\n",NULL,0,NULL);
+        char psk2[32];
+        octad PSK2={0,sizeof(psk2),psk2};
+        char tick2[256];
+        octad TICK2={0,sizeof(tick2),tick2};
+
+        SAL_randomOctad(32,&R32);
+        octet MC_R32=octad_to_octet(&R32);
+        octet MC_PSK=octad_to_octet(&session->T.PSK);
+        octet MC_TICK=octad_to_octet(&session->T.TICK);
+        PQIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+        session->T.PSK.len=MC_PSK.len;
+        session->T.TICK.len=MC_TICK.len;
+
+        SAL_randomOctad(32,&R32);
+        MC_PSK=octad_to_octet(&PSK2);
+        MC_TICK=octad_to_octet(&TICK2);
+        BFIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+        PSK2.len=MC_PSK.len;
+        TICK2.len=MC_TICK.len;
+
+        OCT_append_octad(&session->T.PSK,&PSK2);
+        OCT_append_octad(&session->T.TICK,&TICK2);
+        session->T.favourite_group=HYBRID_KX;
+#endif
+        session->T.max_early_data=1024;
+        session->T.cipher_suite=TLS_AES_128_GCM_SHA256;
+        session->T.origin=TLS_EXTERNAL_PSK;
+        session->T.valid=true;
+
+#endif
+
 
     make_client_message(&GET,hostname);
 // make connection using full handshake...
@@ -214,6 +294,7 @@ void testTLSconnect(Socket *client,char *hostname,int port)
 
     log(IO_PROTOCOL,(char *)"Connection closed\n\n",NULL,0,NULL);
     delay(5000);
+
 
 // try to resume connection using...
     if (!client->connect(hostname,port))

@@ -283,12 +283,9 @@ pub const TLS_EARLY_DATA_ACCEPTED:usize = 3;
 pub const SET_RECORD_LIMIT: bool=false;  // Max record size (non-standard?) extension
 pub const LOG_OUTPUT_TRUNCATION: usize= 256;       // Output Hex digits before truncation 
 
-
 pub const PSK_NOT:usize = 0;        // no PSK
 pub const PSK_KEY:usize = 1;        // Using PSK from database 
-pub const PSK_BFIBE:usize = 2;      // Using pairing-based IBE based PSK
-pub const PSK_PQIBE:usize = 3;      // Using post-quantum IBE based PSK
-pub const PSK_HYIBE:usize = 4;      // Using Hybrid IBE based PSK
+pub const PSK_IBE:usize = 2;        // Using IBE based PSK
 
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level

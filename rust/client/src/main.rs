@@ -158,9 +158,7 @@ fn bad_input()
     println!("    /r remove stored ticket");
     println!("    /r <hostname> remove stored ticket and connect to hostname");
     println!("    /s show SAL capabilities");
-    println!("    /b <hostname> try pairing based IBE connection");
-    println!("    /q <hostname> try post-quantum IBE connection");
-    println!("    /h <hostname> try hybrid IBE connection");
+    println!("    /i <hostname> try IBE connection");
     println!("Example:- client www.bbc.co.uk");
 }
 
@@ -308,32 +306,22 @@ fn main() {
         println!("PSK mode selected - have a shared key");
         have_psk=true;
         psk_type=PSK_KEY;
+        ip+=1;
     }
 
-    if args[ip].as_str() == "/b" { 
-        println!("PSK mode selected - using pairing based IBE");
+    if args[ip].as_str() == "/i" { 
+        println!("PSK mode selected");
         have_psk=true;
-        psk_type=PSK_BFIBE;
-    }
-
-    if args[ip].as_str() == "/q" { 
-        println!("PSK mode selected - using post-quantum IBE");
-        have_psk=true;
-        psk_type=PSK_PQIBE;
-    }
-
-    if args[ip].as_str() == "/h" { 
-        println!("PSK mode selected - using hybrid IBE");
-        have_psk=true;
-        psk_type=PSK_HYIBE;
+        psk_type=PSK_IBE;
+        ip+=1;
     }
 
     let mut localhost=false;
-    if args[ip].as_str()=="localhost" || have_psk {
+    if args[ip].as_str()=="localhost" {
         localhost=true;
     }
 
-    let host:&str;
+    let mut host:&str;
     let fullhost:&str;
     if localhost {
         host="localhost";
@@ -363,6 +351,7 @@ fn main() {
             let mut have_ticket=true;
             let mut ticket_failed=false;
             if have_psk {   
+                host= "localhost";
                 if psk_type == PSK_KEY {
                     let pl=args[2].as_bytes();  // Insert a special ticket into session 
                     for i in 0..pl.len() {
@@ -375,28 +364,33 @@ fn main() {
                     session.t.psklen=16;
                     session.t.favourite_group=X25519;
                 }
-                if psk_type == PSK_BFIBE {
-                    let mut r32:[u8;32]=[0;32];
-                    sal::random_bytes(32,&mut r32);
-                    bfibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
-                    session.t.psklen=bfibe::KYLEN; session.t.tklen=bfibe::CTLEN;
-                    session.t.favourite_group=X25519;
-                }
-                if psk_type == PSK_PQIBE {
-                    let mut r32:[u8;32]=[0;32];
-                    sal::random_bytes(32,&mut r32);
-                    pqibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
-                    session.t.psklen=pqibe::KYLEN; session.t.tklen=pqibe::CTLEN;
-                    session.t.favourite_group=KYBER768;
-                }
-                if psk_type == PSK_HYIBE {
-                    let mut r32:[u8;32]=[0;32];
-                    sal::random_bytes(32,&mut r32);
-                    pqibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
-                    sal::random_bytes(32,&mut r32);
-                    bfibe::cca_encrypt(&host,&r32,&mut session.t.psk[pqibe::KYLEN..],&mut session.t.tick[pqibe::CTLEN..]);
-                    session.t.psklen=pqibe::KYLEN+bfibe::KYLEN; session.t.tklen=pqibe::CTLEN+bfibe::CTLEN;
-                    session.t.favourite_group=HYBRID_KX;
+                if psk_type == PSK_IBE {
+                    if CRYPTO_SETTING == TYPICAL || CRYPTO_SETTING == TINY_ECC {
+                        log(IO_PROTOCOL,"Using Pairing-Based IBE\n",-1,None);
+                        let mut r32:[u8;32]=[0;32];
+                        sal::random_bytes(32,&mut r32);
+                        bfibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
+                        session.t.psklen=bfibe::KYLEN; session.t.tklen=bfibe::CTLEN;
+                        session.t.favourite_group=X25519;
+                    }
+                    if CRYPTO_SETTING == POST_QUANTUM {
+                        log(IO_PROTOCOL,"Using Post Quantum IBE\n",-1,None);
+                        let mut r32:[u8;32]=[0;32];
+                        sal::random_bytes(32,&mut r32);
+                        pqibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
+                        session.t.psklen=pqibe::KYLEN; session.t.tklen=pqibe::CTLEN;
+                        session.t.favourite_group=KYBER768;
+                    }
+                    if CRYPTO_SETTING == HYBRID {
+                        log(IO_PROTOCOL,"Using Hybrid Pairing based/Post Quantum IBE\n",-1,None);
+                        let mut r32:[u8;32]=[0;32];
+                        sal::random_bytes(32,&mut r32);
+                        pqibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
+                        sal::random_bytes(32,&mut r32);
+                        bfibe::cca_encrypt(&host,&r32,&mut session.t.psk[pqibe::KYLEN..],&mut session.t.tick[pqibe::CTLEN..]);
+                        session.t.psklen=pqibe::KYLEN+bfibe::KYLEN; session.t.tklen=pqibe::CTLEN+bfibe::CTLEN;
+                        session.t.favourite_group=HYBRID_KX;
+                    }
                 }
                 session.t.cipher_suite=AES_128_GCM_SHA256;
                 session.t.max_early_data=1024;

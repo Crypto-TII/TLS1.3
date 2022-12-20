@@ -165,8 +165,10 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_CLIENT_CHAIN_SIZE (TLS_MAX_CLIENT_CHAIN_LEN*TLS_MAX_CERT_SIZE) /**< Maximum Client Certificate chain length in bytes */
 
 #define TLS_MAX_SHARED_SECRET_SIZE 256	 /**< Max key exchange Shared secret size */
-#define TLS_MAX_TICKET_SIZE 1024          /**< maximum resumption ticket size - beware some servers send much bigger tickets! */
-#define TLS_MAX_EXTENSIONS 2048          /**< Max extensions size */
+
+// Both of these are bumped up by PQ IBE and Hybrid
+#define TLS_MAX_TICKET_SIZE 4196         /**< maximum resumption ticket size - beware some servers send much bigger tickets! */
+#define TLS_MAX_EXTENSIONS 6144          /**< Max extensions size */
 
 #define TLS_MAX_ECC_FIELD 66            /**< Max ECC field size in bytes */
 #define TLS_MAX_IV_SIZE 12              /**< Max IV size in bytes */
@@ -322,9 +324,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // PSK modes
 #define PSK_NOT 0           /**< No PSK */
 #define PSK_KEY 1           /**< Using PSK from database */
-#define PSK_BFIBE 2         /**< Using pairing-based IBE based PSK */
-#define PSK_PQIBE 3         /**< Using post-quantum IBE based PSK */
-#define PSK_HYIBE 4         /**< Using Hybrid IBE based PSK */
+#define PSK_IBE 2           /**< Using IBE based PSK */
 
 /**
  * @brief function return structure */

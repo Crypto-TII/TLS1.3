@@ -106,9 +106,7 @@ static void bad_input()
     printf("    -r remove stored ticket\n");
     printf("    -r <hostname> remove stored ticket and connect to hostname\n");
     printf("    -s show SAL capabilities\n");
-	printf("    -b try pairing-based IBE connection\n");
-	printf("    -q try post-quantum IBE connection\n");
-	printf("    -h try hybrid IBE connection\n");
+	printf("    -i try IBE connection\n");
     printf("Example:- client www.bbc.co.uk\n");
 }
 
@@ -278,35 +276,13 @@ int main(int argc, char const *argv[])
         }
     }
 
-    else if (strcmp(argv[ip],"-b")==0)
+    else if (strcmp(argv[ip],"-i")==0)
     {
         if (ip<argc)
         {
-            printf("PSK mode selected - using pairing based IBE\n");
+            printf("PSK mode selected\n");
             ip++;
-            psk_type=PSK_BFIBE;
-            HAVE_PSK=true;
-        }
-    }
-
-    else if (strcmp(argv[ip],"-q")==0)
-    {
-        if (ip<argc)
-        {
-            printf("PSK mode selected - using post-quantum IBE\n");
-            ip++;
-            psk_type=PSK_PQIBE;
-            HAVE_PSK=true;
-        }
-    }
-
-    else if (strcmp(argv[ip],"-h")==0)
-    {
-        if (ip<argc)
-        {
-            printf("PSK mode selected - using hybrid IBE\n");
-            ip++;
-            psk_type=PSK_HYIBE;
+            psk_type=PSK_IBE;
             HAVE_PSK=true;
         }
     }
@@ -426,14 +402,17 @@ int main(int argc, char const *argv[])
     HAVE_TICKET=true;
     if (HAVE_PSK)
     {
+        strcpy(hostname, "localhost"); // for now assume its only for use with localhost
         if (psk_type==PSK_KEY)
         {
             OCT_copy(&session->T.TICK,&PSK_label);      // Insert a special ticket into session 
             OCT_copy(&session->T.PSK,&PSK);
             session->T.favourite_group=X25519;
         }
-        if (psk_type==PSK_BFIBE)
+        if (psk_type==PSK_IBE)
         {
+#if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL
+            log(IO_PROTOCOL,(char *)"Using Pairing-Based IBE\n",NULL,0,NULL);
             SAL_randomOctad(32,&R32);
             octet MC_R32=octad_to_octet(&R32);
             octet MC_PSK=octad_to_octet(&session->T.PSK);
@@ -442,9 +421,9 @@ int main(int argc, char const *argv[])
             session->T.PSK.len=MC_PSK.len;
             session->T.TICK.len=MC_TICK.len;
             session->T.favourite_group=X25519;
-        }
-        if (psk_type==PSK_PQIBE)
-        {
+#endif
+#if CRYPTO_SETTING == POST_QUANTUM
+            log(IO_PROTOCOL,(char *)"Using Post Quantum IBE\n",NULL,0,NULL);
             SAL_randomOctad(32,&R32);
             octet MC_R32=octad_to_octet(&R32);
             octet MC_PSK=octad_to_octet(&session->T.PSK);
@@ -453,9 +432,9 @@ int main(int argc, char const *argv[])
             session->T.PSK.len=MC_PSK.len;
             session->T.TICK.len=MC_TICK.len;
             session->T.favourite_group=KYBER768;
-        }
-        if (psk_type==PSK_HYIBE)
-        {
+#endif
+#if CRYPTO_SETTING == HYBRID
+            log(IO_PROTOCOL,(char *)"Using Hybrid Pairing based/Post Quantum IBE\n",NULL,0,NULL);
             char psk2[32];
             octad PSK2={0,sizeof(psk2),psk2};
             char tick2[256];
@@ -479,6 +458,7 @@ int main(int argc, char const *argv[])
             OCT_append_octad(&session->T.PSK,&PSK2);
             OCT_append_octad(&session->T.TICK,&TICK2);
             session->T.favourite_group=HYBRID_KX;
+#endif
         }
         session->T.max_early_data=1024;
         session->T.cipher_suite=TLS_AES_128_GCM_SHA256;
