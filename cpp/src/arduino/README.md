@@ -20,12 +20,12 @@ The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calc
 2.	Copy in all from the cpp directory of https://github.com/miracl/core
 3.	Copy in all from the arduino directory of https://github.com/miracl/core
 4.	(If ever asked to overwrite a file, go ahead and overwrite it)
-5.	Copy in all of the TLS1.3 C++ code from the lib/, include/, sal/ and src/arduino directories (but not from subdirectories)
+5.	Copy in all of the TLS1.3 C++ code from the lib/, lib/ibe, include/, sal/ and src/arduino directories (but not from subdirectories)
 6.	Edit the file core.h to define CORE_ARDUINO (line 31)
 7.	Edit the file tls_octads.h to define TLS_ARDUINO (line 13). 
 8.	Edit tls1_3.h. Define VERBOSITY as IO_DEBUG for more debug output. Decide on CRYPTO_SETTING. Stack only, or Stack plus heap. 
 9.	Edit the file client.cpp to set your wifi SSID and password (near line 150)
-10.	Run py config.py, and select options 2, 8, 41 and 43. This creates the default SAL (in this case using miracl + ECC608A hardware).
+10.	Run py config.py, and select options 2, 8, 31, 41 and 43. This creates the default SAL (in this case using miracl + ECC608A hardware).
 11.	Drop the working directory into where the Arduino IDE expects it. 
 12.	(In the IDE select File->Preferences and find the Sketchbook location - its the libraries directory off that.)
 13.	Open the Arduino app, and look in File->Examples->tiitls, and look for the example "client"
@@ -37,7 +37,7 @@ or before executing step 10, search for $\*$\*$\*$\* in config.py (around line 1
 If using miracl alone, without hardware support, option 3 must be selected as well.
 If using assembly language code for X25519, copy x25519.S from https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
 into working directory and remove option 2. This creates the SAL (in this case using miracl + ECC608A hardware + Pornin's x25519).
-If experimenting with post-quantum primitives, also select options 45 and 46, for Kyber and Dilithium support. 
+If experimenting with post-quantum primitives, also select options 45 and 46, for Dilithium and Kyber support.
 
 The example TLS1.3 client code first connects to the wireless network, and after that it should connect to standard websites, as
 long as they support TLS1.3. The example program first makes a full TLS handshake, and exits after receiving some HTML from the server.

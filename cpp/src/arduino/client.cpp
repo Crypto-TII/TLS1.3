@@ -142,7 +142,11 @@ static void nameSigAlg(int sigAlg)
 void myloop( void *pvParameters );
 #endif
 
+// may need increasing to 80000     
 #define STACKSIZE 65536
+// define this to experiment with IBE PSK
+//#define HAVE_PSK
+
 
 // This rather strange program structure is required by the Arduino development environment
 // A hidden main() functions calls setup() once, and then repeatedly calls loop()
@@ -152,7 +156,7 @@ void myloop( void *pvParameters );
 
 void setup()
 {
-    char* ssid = (char *)"eir79562322-2.4G";
+    char* ssid = (char *)"Shamus";
     char* password =  (char *)"********";
 //    char* ssid = (char *)"TP-LINK_5B40F0";
 //    char* password =  (char *)"********";
@@ -193,9 +197,6 @@ static octet octad_to_octet(octad *x)
     return y;
 }
 
-// define this to test IBE PSK
-//#define HAVE_PSK
-
 void testTLSconnect(Socket *client,char *hostname,int port)
 {
     char get[256];
@@ -204,20 +205,22 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     octad RESP={0,sizeof(resp),resp};  // response
     char r32[32];
     octad R32={0,sizeof(r32),r32};
+    char myhostname[TLS_MAX_SERVER_NAME];
+
     int start,elapsed;
     TLS_session state=TLS13_start(client,hostname);
     TLS_session *session=&state;
     log(IO_PROTOCOL,(char *)"\nHostname= ",hostname,0,NULL);
 
 #ifdef HAVE_PSK
-        strcpy(hostname, "localhost"); // for now assume its only for use with localhost
+        strcpy(myhostname, "localhost"); // for now assume its only for use with localhost
 #if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL
         log(IO_PROTOCOL,(char *)"Using Pairing-Based IBE\n",NULL,0,NULL);
         SAL_randomOctad(32,&R32);
         octet MC_R32=octad_to_octet(&R32);
         octet MC_PSK=octad_to_octet(&session->T.PSK);
         octet MC_TICK=octad_to_octet(&session->T.TICK);
-        BFIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+        BFIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
         session->T.PSK.len=MC_PSK.len;
         session->T.TICK.len=MC_TICK.len;
         session->T.favourite_group=X25519;
@@ -228,7 +231,7 @@ void testTLSconnect(Socket *client,char *hostname,int port)
         octet MC_R32=octad_to_octet(&R32);
         octet MC_PSK=octad_to_octet(&session->T.PSK);
         octet MC_TICK=octad_to_octet(&session->T.TICK);
-        PQIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+        PQIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
         session->T.PSK.len=MC_PSK.len;
         session->T.TICK.len=MC_TICK.len;
         session->T.favourite_group=KYBER768;
@@ -244,14 +247,14 @@ void testTLSconnect(Socket *client,char *hostname,int port)
         octet MC_R32=octad_to_octet(&R32);
         octet MC_PSK=octad_to_octet(&session->T.PSK);
         octet MC_TICK=octad_to_octet(&session->T.TICK);
-        PQIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+        PQIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
         session->T.PSK.len=MC_PSK.len;
         session->T.TICK.len=MC_TICK.len;
 
         SAL_randomOctad(32,&R32);
         MC_PSK=octad_to_octet(&PSK2);
         MC_TICK=octad_to_octet(&TICK2);
-        BFIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+        BFIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
         PSK2.len=MC_PSK.len;
         TICK2.len=MC_TICK.len;
 
@@ -265,7 +268,6 @@ void testTLSconnect(Socket *client,char *hostname,int port)
         session->T.valid=true;
 
 #endif
-
 
     make_client_message(&GET,hostname);
 // make connection using full handshake...

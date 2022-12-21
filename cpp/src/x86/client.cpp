@@ -225,6 +225,7 @@ int main(int argc, char const *argv[])
     char resp[40];
     octad RESP={0,sizeof(resp),resp};  // response (will be truncated)
     char hostname[TLS_MAX_SERVER_NAME];
+    char myhostname[TLS_MAX_SERVER_NAME];
     char psk[TLS_MAX_KEY];
     octad PSK = {0,sizeof(psk),psk};    // Pre-Shared Key   
     char psk_label[32];
@@ -402,7 +403,7 @@ int main(int argc, char const *argv[])
     HAVE_TICKET=true;
     if (HAVE_PSK)
     {
-        strcpy(hostname, "localhost"); // for now assume its only for use with localhost
+        strcpy(myhostname, "localhost"); // for now assume its only for use with localhost
         if (psk_type==PSK_KEY)
         {
             OCT_copy(&session->T.TICK,&PSK_label);      // Insert a special ticket into session 
@@ -417,7 +418,7 @@ int main(int argc, char const *argv[])
             octet MC_R32=octad_to_octet(&R32);
             octet MC_PSK=octad_to_octet(&session->T.PSK);
             octet MC_TICK=octad_to_octet(&session->T.TICK);
-            BFIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+            BFIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
             session->T.PSK.len=MC_PSK.len;
             session->T.TICK.len=MC_TICK.len;
             session->T.favourite_group=X25519;
@@ -428,7 +429,7 @@ int main(int argc, char const *argv[])
             octet MC_R32=octad_to_octet(&R32);
             octet MC_PSK=octad_to_octet(&session->T.PSK);
             octet MC_TICK=octad_to_octet(&session->T.TICK);
-            PQIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+            PQIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
             session->T.PSK.len=MC_PSK.len;
             session->T.TICK.len=MC_TICK.len;
             session->T.favourite_group=KYBER768;
@@ -444,14 +445,14 @@ int main(int argc, char const *argv[])
             octet MC_R32=octad_to_octet(&R32);
             octet MC_PSK=octad_to_octet(&session->T.PSK);
             octet MC_TICK=octad_to_octet(&session->T.TICK);
-            PQIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+            PQIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
             session->T.PSK.len=MC_PSK.len;
             session->T.TICK.len=MC_TICK.len;
 
             SAL_randomOctad(32,&R32);
             MC_PSK=octad_to_octet(&PSK2);
             MC_TICK=octad_to_octet(&TICK2);
-            BFIBE_CCA_ENCRYPT(hostname,&MC_R32,&MC_PSK,&MC_TICK);
+            BFIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
             PSK2.len=MC_PSK.len;
             TICK2.len=MC_TICK.len;
 

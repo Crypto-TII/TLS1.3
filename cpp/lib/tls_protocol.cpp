@@ -104,6 +104,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     octad CSK = {0, TLS_MAX_KEX_SECRET_KEY_SIZE, (char *)malloc(TLS_MAX_KEX_SECRET_KEY_SIZE)};
     octad CPK = {0, TLS_MAX_KEX_PUB_KEY_SIZE, (char *)malloc(TLS_MAX_KEX_PUB_KEY_SIZE)}; 
     octad SPK = {0, TLS_MAX_KEX_CIPHERTEXT_SIZE, (char *)malloc(TLS_MAX_KEX_CIPHERTEXT_SIZE)};   
+    octad EXT = {0, TLS_MAX_EXTENSIONS, (char *)malloc(TLS_MAX_EXTENSIONS)};
 #else
     char csk[TLS_MAX_KEX_SECRET_KEY_SIZE];   // clients key exchange secret key
     octad CSK = {0, sizeof(csk), csk};
@@ -111,13 +112,13 @@ static int TLS13_exchange_hellos(TLS_session *session)
     octad CPK = {0, sizeof(cpk), cpk}; 
     char spk[TLS_MAX_KEX_CIPHERTEXT_SIZE];
     octad SPK = {0, sizeof(spk), spk};       // Server's key exchange Public Key/Ciphertext
+    char ext[TLS_MAX_EXTENSIONS];
+    octad EXT={0,sizeof(ext),ext};       // Extensions   
 #endif
     char ss[TLS_MAX_SHARED_SECRET_SIZE];     // key exchange Shared Secret 
     octad SS = {0, sizeof(ss), ss};    
     char ch[TLS_MAX_HELLO];              // Client Hello
-    octad CH = {0, sizeof(ch), ch};
-    char ext[TLS_MAX_EXTENSIONS];
-    octad EXT={0,sizeof(ext),ext};       // Extensions                  
+    octad CH = {0, sizeof(ch), ch};      
     char es[TLS_MAX_HASH];               // Early Secret
     octad ES = {0,sizeof(es),es};
     char hh[TLS_MAX_HASH];               
@@ -165,7 +166,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     if (badResponse(session,rtn)) 
     {
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val); free(EXT.val);
 #endif
         return TLS_FAILURE;
     }
@@ -183,7 +184,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
         log(IO_DEBUG,(char *)"Cipher_suite not valid\n",NULL,0,NULL);
         log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
         return TLS_FAILURE;
     }
@@ -210,7 +211,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
             log(IO_DEBUG,(char *)"Group not supported, or no change as result of HRR\n",NULL,0,NULL);   
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -242,7 +243,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
         if (badResponse(session,rtn)) 
         {
 #ifdef SHALLOW_STACK
-			free(CSK.val); free(CPK.val); free(SPK.val);
+			free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -253,7 +254,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
             sendAlert(session,UNEXPECTED_MESSAGE);
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -264,7 +265,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
             sendAlert(session,ILLEGAL_PARAMETER);
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -293,7 +294,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
         sendAlert(session,ILLEGAL_PARAMETER);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
         return TLS_FAILURE;
 	}
@@ -314,7 +315,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     log(IO_DEBUG,(char *)"Server handshake key= ",NULL,0,&(session->K_recv.K));
     log(IO_DEBUG,(char *)"Server handshake iv= ",NULL,0,&(session->K_recv.IV));
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
 // 1. get encrypted extensions
     rtn=getServerEncryptedExtensions(session,&enc_ext_expt,&enc_ext_resp);   
@@ -608,6 +609,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad CSK = {0, TLS_MAX_KEX_SECRET_KEY_SIZE, (char *)malloc(TLS_MAX_KEX_SECRET_KEY_SIZE)};
     octad CPK = {0, TLS_MAX_KEX_PUB_KEY_SIZE, (char *)malloc(TLS_MAX_KEX_PUB_KEY_SIZE)}; 
     octad SPK = {0, TLS_MAX_KEX_CIPHERTEXT_SIZE, (char *)malloc(TLS_MAX_KEX_CIPHERTEXT_SIZE)};   
+    octad EXT = {0, TLS_MAX_EXTENSIONS, (char *)malloc(TLS_MAX_EXTENSIONS)};
 #else
     char csk[TLS_MAX_KEX_SECRET_KEY_SIZE];   
     octad CSK = {0, sizeof(csk), csk};   // clients key exchange secret key
@@ -615,16 +617,16 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad CPK = {0, sizeof(cpk), cpk};   // Client's key exchange Public Key
     char spk[TLS_MAX_KEX_CIPHERTEXT_SIZE];
     octad SPK = {0, sizeof(spk), spk};   // Server's key exchange Public Key/Ciphertext
+    char ext[TLS_MAX_EXTENSIONS];
+    octad EXT={0,sizeof(ext),ext};       // Extensions  
 #endif
     char es[TLS_MAX_HASH];               // Early Secret
     octad ES = {0,sizeof(es),es};
     char ss[TLS_MAX_SHARED_SECRET_SIZE];
     octad SS = {0, sizeof(ss), ss};      // Shared Secret
-
     char ch[TLS_MAX_HELLO];    // Client Hello
     octad CH = {0, sizeof(ch), ch};
-    char ext[TLS_MAX_EXTENSIONS];
-    octad EXT={0,sizeof(ext),ext};       // Extensions  
+
     char hh[TLS_MAX_HASH];               
     octad HH={0,sizeof(hh),hh};          // Transcript hashes
     char fh[TLS_MAX_HASH];
@@ -771,7 +773,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     {
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val); free(EXT.val);
 #endif
         return TLS_FAILURE;
     }
@@ -790,7 +792,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
         return TLS_FAILURE; 
     }
@@ -801,7 +803,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
         return TLS_FAILURE;
 	}
@@ -816,7 +818,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
         return TLS_FAILURE;
     }
@@ -829,7 +831,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         sendAlert(session,ILLEGAL_PARAMETER);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);
+        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
         return TLS_FAILURE;
 	}
@@ -844,7 +846,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     log(IO_DEBUG,(char *)"Server handshake traffic secret= ",NULL,0,&session->STS);
 
 #ifdef SHALLOW_STACK
-    free(CSK.val); free(CPK.val); free(SPK.val);
+    free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
 
 // 1. get encrypted extensions

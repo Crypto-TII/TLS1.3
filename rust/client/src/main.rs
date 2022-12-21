@@ -321,7 +321,7 @@ fn main() {
         localhost=true;
     }
 
-    let mut host:&str;
+    let host:&str;
     let fullhost:&str;
     if localhost {
         host="localhost";
@@ -351,7 +351,7 @@ fn main() {
             let mut have_ticket=true;
             let mut ticket_failed=false;
             if have_psk {   
-                host= "localhost";
+                let myhost= "localhost"; // for now assume its only for use with localhost
                 if psk_type == PSK_KEY {
                     let pl=args[2].as_bytes();  // Insert a special ticket into session 
                     for i in 0..pl.len() {
@@ -369,7 +369,7 @@ fn main() {
                         log(IO_PROTOCOL,"Using Pairing-Based IBE\n",-1,None);
                         let mut r32:[u8;32]=[0;32];
                         sal::random_bytes(32,&mut r32);
-                        bfibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
+                        bfibe::cca_encrypt(&myhost,&r32,&mut session.t.psk,&mut session.t.tick);
                         session.t.psklen=bfibe::KYLEN; session.t.tklen=bfibe::CTLEN;
                         session.t.favourite_group=X25519;
                     }
@@ -377,7 +377,7 @@ fn main() {
                         log(IO_PROTOCOL,"Using Post Quantum IBE\n",-1,None);
                         let mut r32:[u8;32]=[0;32];
                         sal::random_bytes(32,&mut r32);
-                        pqibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
+                        pqibe::cca_encrypt(&myhost,&r32,&mut session.t.psk,&mut session.t.tick);
                         session.t.psklen=pqibe::KYLEN; session.t.tklen=pqibe::CTLEN;
                         session.t.favourite_group=KYBER768;
                     }
@@ -385,9 +385,9 @@ fn main() {
                         log(IO_PROTOCOL,"Using Hybrid Pairing based/Post Quantum IBE\n",-1,None);
                         let mut r32:[u8;32]=[0;32];
                         sal::random_bytes(32,&mut r32);
-                        pqibe::cca_encrypt(&host,&r32,&mut session.t.psk,&mut session.t.tick);
+                        pqibe::cca_encrypt(&myhost,&r32,&mut session.t.psk,&mut session.t.tick);
                         sal::random_bytes(32,&mut r32);
-                        bfibe::cca_encrypt(&host,&r32,&mut session.t.psk[pqibe::KYLEN..],&mut session.t.tick[pqibe::CTLEN..]);
+                        bfibe::cca_encrypt(&myhost,&r32,&mut session.t.psk[pqibe::KYLEN..],&mut session.t.tick[pqibe::CTLEN..]);
                         session.t.psklen=pqibe::KYLEN+bfibe::KYLEN; session.t.tklen=pqibe::CTLEN+bfibe::CTLEN;
                         session.t.favourite_group=HYBRID_KX;
                     }
