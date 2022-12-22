@@ -29,6 +29,8 @@ set(SRC
        ./lib/tls_tickets.cpp
        ./lib/tls_x509.cpp
        ./lib/tls_sal.cpp
+       ./lib/ibe/tls_bfibe.cpp
+       ./lib/ibe/tls_pqibe.cpp
         )
 
 # Add a library
