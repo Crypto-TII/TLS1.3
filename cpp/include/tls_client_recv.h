@@ -161,9 +161,10 @@ extern ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,oct
 /**	@brief process a Certificate Request
  *
 	@param session the TLS session structure
+    @param context NULL or octad to receive context
 	@return response structure
  */
-extern ret getCertificateRequest(TLS_session *session);
+extern ret getCertificateRequest(TLS_session *session,octad *context);
 
 
 

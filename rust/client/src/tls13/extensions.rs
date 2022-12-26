@@ -156,6 +156,14 @@ pub fn add_early_data(ext: &mut [u8],ptr: usize) -> usize {
     return nptr;
 }
 
+/// indicate willingness to do post handshake authentication
+pub fn add_post_handshake_auth(ext: &mut [u8],ptr: usize) -> usize {
+    let mut nptr=ptr; 
+    nptr=utils::append_int(ext,nptr,POST_HANDSHAKE_AUTH,2);
+    nptr=utils::append_int(ext,nptr,0,2);
+    return nptr;
+}
+
 /// Add Pre-Shared-Key ....but omit binding
 pub fn add_presharedkey(ext: &mut [u8],ptr: usize,age: usize,ids: &[u8],sha: usize,extra: &mut usize) -> usize {
     let mut nptr=ptr;

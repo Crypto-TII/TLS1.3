@@ -21,7 +21,6 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 	state.RMS={0,TLS_MAX_HASH,state.rms};					// Resumption Master secret
 	state.STS={0,TLS_MAX_HASH,state.sts};					// Server traffic secret
 	state.CTS={0,TLS_MAX_HASH,state.cts};					// Client traffic secret
-
 #ifdef SHALLOW_STACK
     state.IO= {0,TLS_MAX_IO_SIZE,(char *)malloc(TLS_MAX_IO_SIZE)};  // main input/output buffer
 #else
@@ -462,7 +461,7 @@ static void TLS13_client_trust(TLS_session *session)
     if (kind!=0)
     { // Yes, I can do that kind of signature
         log(IO_PROTOCOL,(char *)"Client is authenticating\n",NULL,0,NULL);
-        sendClientCertificateChain(session,&CLIENT_CERTCHAIN);
+        sendClientCertificateChain(session,&CLIENT_CERTCHAIN,NULL);
 //
 //
 //  {client Certificate} ---------------------------------------------------->
@@ -477,7 +476,7 @@ static void TLS13_client_trust(TLS_session *session)
 //
 //
     } else { // No, I can't - send a null cert, and no verifier
-        sendClientCertificateChain(session,NULL);
+        sendClientCertificateChain(session,NULL,NULL);
     }
 #ifdef SHALLOW_STACK
     free(CLIENT_KEY.val); free(CLIENT_CERTCHAIN.val); free(CCVSIG.val);
@@ -522,7 +521,7 @@ static int TLS13_full(TLS_session *session)
     if (rtn.val==CERT_REQUEST)
     { // 2a. optional certificate request received
         gotacertrequest=true;
-        rtn=getCertificateRequest(session);
+        rtn=getCertificateRequest(session,NULL);
 //
 //
 //  <---------------------------------------------------- {Certificate Request}
@@ -557,7 +556,7 @@ static int TLS13_full(TLS_session *session)
 #if CLIENT_CERT != NOCERT
         TLS13_client_trust(session);
 #else
-        sendClientCertificateChain(session,NULL);
+        sendClientCertificateChain(session,NULL,NULL);
 #endif
     } 
     transcriptHash(session,&TH);
@@ -716,6 +715,9 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     {
         addEarlyDataExt(&EXT); enc_ext_expt.early_data=true;   // try sending client message as early data if allowed
     }
+#ifdef POST_HS_AUTH
+    addPostHSAuth(&EXT);  // willing to do post handshake authentication
+#endif
     age=0;
     if (!external_psk)
     { // Its NOT an external pre-shared key

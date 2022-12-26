@@ -161,6 +161,13 @@ void addEarlyDataExt(octad *EXT)
     OCT_append_int(EXT,0,2);
 }
 
+// indicate willingness to do post handshake authentication
+void addPostHSAuth(octad *EXT)
+{
+    OCT_append_int(EXT,POST_HANDSHAKE_AUTH,2);
+    OCT_append_int(EXT,0,2);
+}
+
 // Create 32-byte random octad
 /*
 int clientRandom(octad *RN)
@@ -360,21 +367,33 @@ void sendClientCertVerify(TLS_session *session, int sigAlg, octad *CCVSIG)
 }
 
 // Send Client Certificate 
-void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN)
+void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN,octad *CTX)
 {
-    char pt[10];
+    char pt[50];
     octad PT={0,sizeof(pt),pt};
 
     OCT_append_byte(&PT,CERTIFICATE,1);
     if (CERTCHAIN==NULL) {  // no acceptable certificate available
         OCT_append_int(&PT,4,3);
-        OCT_append_byte(&PT,0,1); // cert context
+        if (CTX==NULL)
+        {
+            OCT_append_byte(&PT,0,1); // cert context
+        } else {
+            OCT_append_byte(&PT,CTX->len,1);
+            OCT_append_octad(&PT,CTX);
+        }
         OCT_append_int(&PT,0,3);  // zero length
         runningHash(session,&PT);
         sendClientMessage(session,HSHAKE,TLS1_2,&PT,NULL,true);
     } else {
         OCT_append_int(&PT,4+CERTCHAIN->len,3);
-        OCT_append_byte(&PT,0,1); // cert context
+        if (CTX==NULL)
+        {
+            OCT_append_byte(&PT,0,1); // cert context
+        } else {
+            OCT_append_byte(&PT,CTX->len,1);
+            OCT_append_octad(&PT,CTX);
+        }
         OCT_append_int(&PT,CERTCHAIN->len,3);  // length of certificate chain
         runningHash(session,&PT);
         runningHash(session,CERTCHAIN);

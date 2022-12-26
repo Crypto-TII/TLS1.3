@@ -50,7 +50,10 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 #define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
+
+#define POST_HS_AUTH              /**< Willing to do post handshake authentication */
 #define CLIENT_CERT ECC_SS        /**< Indicate capability of authenticating with a cert plus signing key */
+
 #define CRYPTO_SETTING TYPICAL   /**< Determine Cryptography settings */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
@@ -232,6 +235,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define SERVER_NAME 0x0000              /**< Server Name extension */
 #define SUPPORTED_GROUPS 0x000a         /**< Supported Group extension */
 #define SIG_ALGS 0x000d                 /**< Signature algorithms extension */
+#define POST_HANDSHAKE_AUTH 0x0031      /**< Post Handshake Authentication */
 #define SIG_ALGS_CERT 0x0032            /**< Signature algorithms Certificate extension */
 #define KEY_SHARE 0x0033                /**< Key Share extension */
 #define PSK_MODE 0x002d                 /**< Preshared key mode extension */

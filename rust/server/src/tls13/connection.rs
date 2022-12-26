@@ -48,11 +48,12 @@ pub struct SESSION {
     pub hs: [u8;MAX_HASH],      // Handshake secret Secret  
     pub rms: [u8;MAX_HASH],     // Resumption Master Secret         
     pub sts: [u8;MAX_HASH],     // Server Traffic secret             
-    pub cts: [u8;MAX_HASH],     // Client Traffic secret                
+    pub cts: [u8;MAX_HASH],     // Client Traffic secret   
     pub io: [u8;MAX_IO],        // Main IO buffer for this connection 
     pub tlshash: UNIHASH,       // Transcript hash recorder 
     pub clientid: [u8;MAX_X509_FIELD], // Client identity for this session
     pub cidlen: usize,          // client id length
+    pub post_hs_auth: bool,
 
     ticket: [u8;MAX_TICKET_SIZE], //psk identity (resumption ticket)
     tklen: usize,           // psk identity length
@@ -145,11 +146,12 @@ impl SESSION {
             hs: [0;MAX_HASH],
             rms: [0;MAX_HASH],
             sts: [0;MAX_HASH],
-            cts: [0;MAX_HASH],   
+            cts: [0;MAX_HASH],  
             io: [0;MAX_IO],
             tlshash:{UNIHASH{state:[0;MAX_HASH_STATE],htype:0}},
             clientid:[0;MAX_X509_FIELD],
             cidlen: 0,
+            post_hs_auth: false,
 
             ticket: [0;MAX_TICKET_SIZE],
             tklen: 0,
@@ -476,7 +478,7 @@ impl SESSION {
     }
 
 /// Send Server Certificate Request 
-    fn send_certificate_request(&mut self) { 
+    fn send_certificate_request(&mut self,context: bool) { 
         let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; 
         let mut cert_sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; 
         let mut pt:[u8;17+4*MAX_SUPPORTED_SIGS]=[0;17+4*MAX_SUPPORTED_SIGS];
@@ -488,7 +490,14 @@ impl SESSION {
         let mut ptr=0;
         ptr=utils::append_byte(&mut pt,ptr,CERT_REQUEST,1); // indicates handshake message "certificate request"
         ptr=utils::append_int(&mut pt,ptr,len-4,3); // .. and its length
-        ptr=utils::append_int(&mut pt,ptr,0,1);   // .. Request Context
+        if context {
+            let mut rn:[u8;32]=[0;32];
+            sal::random_bytes(32,&mut rn);
+            ptr=utils::append_int(&mut pt,ptr,32,1);   // .. 32-byte Request Context
+            ptr=utils::append_bytes(&mut pt,ptr,&rn);
+        } else {
+            ptr=utils::append_int(&mut pt,ptr,0,1);   // .. Request Context
+        }
         ptr=utils::append_int(&mut pt,ptr,len-7,2);
         ptr=utils::append_int(&mut pt,ptr,SIG_ALGS,2); // extension
 
@@ -559,13 +568,13 @@ impl SESSION {
         let mut sptr=0;
 
 // put 12 bytes of iv in here
-        sptr=utils::append_bytes(&mut state,sptr,&mut iv);
+        sptr=utils::append_bytes(&mut state,sptr,&iv);
         sptr=utils::append_int(&mut state,sptr,millis(),4);
         sptr=utils::append_int(&mut state,sptr,ticket_age_add as usize,4);
         sptr=utils::append_int(&mut state,sptr,self.cipher_suite as usize,2);
         sptr=utils::append_int(&mut state,sptr,self.favourite_group as usize,2);
         sptr=utils::append_byte(&mut state,sptr,hlen as u8,1);
-        sptr=utils::append_bytes(&mut state,sptr,&mut psk[0..hlen]);
+        sptr=utils::append_bytes(&mut state,sptr,&psk[0..hlen]);
         sptr=utils::append_int(&mut state,sptr,self.cidlen as usize,2);
         sptr=utils::append_bytes(&mut state,sptr,&self.clientid[0..self.cidlen]);
 // encrypt state
@@ -1131,7 +1140,14 @@ impl SESSION {
                         return r;
                     }
                     *early_indication=true;
-                }
+                },
+                POST_HANDSHAKE_AUTH => {
+                    if extlen!=0 {
+                        r.err=UNRECOGNIZED_EXT;
+                        return r;
+                    }
+                    self.post_hs_auth=true;
+                },
                 PRESHARED_KEY => {  // extlen=tlen1+tlen2+4
                     r=self.parse_int_pull(2); let tlen1=r.val; if r.err!=0 {return r;}
 //println!("r.val= {} extlen= {} binders {}",r.val,extlen,2+33);
@@ -1168,7 +1184,7 @@ impl SESSION {
                     got_psk_ext=true;
                     binder_bytes=extlen-tlen1-2;
 //println!("Room for binders= {} {}",binder_bytes,nbndrs);
-                }
+                },
                 _ => {
                     r=self.parse_pull(extlen); if r.err!=0 {return r;} // just ignore
                     log(IO_DEBUG,"Unrecognized Extension = ",ext as isize,None);
@@ -1759,7 +1775,7 @@ impl SESSION {
 
             if CERTIFICATE_REQUEST {  // request a client certificate?
                 log(IO_DEBUG,"Server is sending certificate request\n",-1,None);
-                self.send_certificate_request();
+                self.send_certificate_request(false);
 //
 //   Server Certificate request ----------------------------------------------------------> 
 //

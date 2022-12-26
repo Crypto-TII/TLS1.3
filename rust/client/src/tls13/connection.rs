@@ -36,7 +36,7 @@ pub struct SESSION {
     hs: [u8;MAX_HASH],      // Handshake secret
     rms: [u8;MAX_HASH],     // Resumption Master Secret         
     sts: [u8;MAX_HASH],     // Server Traffic secret             
-    cts: [u8;MAX_HASH],     // Client Traffic secret                
+    cts: [u8;MAX_HASH],     // Client Traffic secret           
     io: [u8;MAX_IO],        // Main IO buffer for this connection 
     tlshash: UNIHASH,       // Transcript hash recorder 
     pub t: TICKET           // resumption ticket    
@@ -102,7 +102,7 @@ impl SESSION {
             hs: [0;MAX_HASH],
             rms: [0;MAX_HASH],
             sts: [0;MAX_HASH],
-            cts: [0;MAX_HASH],   
+            cts: [0;MAX_HASH], 
             io: [0;MAX_IO],
             tlshash:{UNIHASH{state:[0;MAX_HASH_STATE],htype:0}},
             t: {TICKET{valid: false,tick: [0;MAX_TICKET_SIZE],nonce: [0;256],psk : [0;MAX_HASH],psklen: 0,tklen: 0,nnlen: 0,age_obfuscator: 0,max_early_data: 0,birth: 0,lifetime: 0,cipher_suite: 0,favourite_group: 0,origin: 0}}
@@ -443,19 +443,29 @@ impl SESSION {
     }
 
 /// Send Client Certificate
-    fn send_client_certificate(&mut self,certchain: Option<&[u8]>) {
-        let mut pt:[u8;8]=[0;8];
+    fn send_client_certificate(&mut self,certchain: Option<&[u8]>,ctx: Option<&[u8]> ) {
+        let mut pt:[u8;50]=[0;50];
         let mut ptr=0;
         ptr=utils::append_byte(&mut pt,ptr,CERTIFICATE,1);
         if let Some(chain) = certchain {
             ptr=utils::append_int(&mut pt,ptr,4+chain.len(),3);
-            ptr=utils::append_byte(&mut pt,ptr,0,1);
+            if let Some(sctx) = ctx { // certificate context
+                ptr=utils::append_int(&mut pt,ptr,sctx.len(),1);
+                ptr=utils::append_bytes(&mut pt,ptr,sctx);
+            } else {
+                ptr=utils::append_byte(&mut pt,ptr,0,1);  
+            }
             ptr=utils::append_int(&mut pt,ptr,chain.len(),3);
             self.running_hash(&pt[0..ptr]);
             self.running_hash(chain);
         } else {
-            ptr=utils::append_int(&mut pt,ptr,4,3);
-            ptr=utils::append_byte(&mut pt,ptr,0,1);
+            ptr=utils::append_int(&mut pt,ptr,4,3);  
+            if let Some(sctx) = ctx { // certificate context
+                ptr=utils::append_int(&mut pt,ptr,sctx.len(),1);
+                ptr=utils::append_bytes(&mut pt,ptr,sctx);
+            } else {
+                ptr=utils::append_byte(&mut pt,ptr,0,1);  
+            }
             ptr=utils::append_int(&mut pt,ptr,0,3);
             self.running_hash(&pt[0..ptr]);
         }
@@ -591,7 +601,8 @@ impl SESSION {
     }
 
 /// Receive Certificate Request - the Server wants the client to supply a certificate chain
-    fn get_certificate_request(&mut self) -> RET {
+// return contxt
+    fn get_certificate_request(&mut self,ctx: Option<&mut [u8]>,ctxlen: Option<&mut usize>) -> RET {
         //let mut ptr=0;
         let mut unexp=0;
         let mut sigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
@@ -607,10 +618,19 @@ impl SESSION {
 
         r=self.parse_int_pull(3); let left=r.val; if r.err!=0 {return r;}
         r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r;}
-        if nb!=0 {
-            r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
-            return r;
+
+        if let Some(sctx) = ctx {
+            if let Some(sctxlen) = ctxlen {
+                r=self.parse_bytes_pull(&mut sctx[0..nb]); if r.err!=0 {return r;}
+                *sctxlen=nb;
+            }
+        } else {
+            if nb!=0 {
+                r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
+                return r;
+            }
         }
+
         r=self.parse_int_pull(2); let mut len=r.val; if r.err!=0 {return r;} // length of extensions
  
         if left!=len+3 {
@@ -1267,6 +1287,9 @@ impl SESSION {
         if have_early_data {
             extlen=extensions::add_early_data(&mut ext,extlen); expected.early_data=true;                 // try sending client message as early data if allowed
         }
+        if POST_HS_AUTH {
+            extlen=extensions::add_post_handshake_auth(&mut ext, extlen); // willing to do post handshake authentication
+        }
         let mut age=0;
         if !external_psk { // Its NOT an external pre-shared key
             let time_ticket_used=ticket::millis();
@@ -1748,7 +1771,7 @@ impl SESSION {
             log(IO_PROTOCOL,"Client is authenticating\n",-1,None);
             let cc_s=&client_certchain[0..cclen];
             let ck_s=&client_key[0..cklen];
-            self.send_client_certificate(Some(cc_s));
+            self.send_client_certificate(Some(cc_s),None);
 //
 //
 //  {client Certificate} ---------------------------------------------------->
@@ -1767,7 +1790,7 @@ impl SESSION {
 //
 //
         } else { // No, I can't - send a null cert
-            self.send_client_certificate(None);
+            self.send_client_certificate(None,None);
         }
     }
 
@@ -1803,7 +1826,7 @@ impl SESSION {
 // Maybe Server is requesting certificate from Client
         if rtn.val == CERT_REQUEST as usize { 
             gotacertrequest=true;
-            rtn=self.get_certificate_request();
+            rtn=self.get_certificate_request(None,None);
 //
 //
 //  <---------------------------------------------------- {Certificate Request}
@@ -1831,7 +1854,7 @@ impl SESSION {
             if HAVE_CLIENT_CERT { // do I have one?
                 self.client_trust();
             } else {
-                self.send_client_certificate(None);
+                self.send_client_certificate(None,None);
             }
         }
         self.transcript_hash(th_s);

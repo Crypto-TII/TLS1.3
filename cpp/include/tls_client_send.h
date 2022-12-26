@@ -128,6 +128,12 @@ extern void addCookieExt(octad *EXT,octad *CK);
  */
 extern void addEarlyDataExt(octad *EXT);
 
+/**	@brief indicate willingness to do post handshake authentication
+ *
+	@param EXT the extensions octad which is being built
+ */
+extern void addPostHSAuth(octad *EXT);
+
 /**	@brief Generate 32-byte random octad
  *
 	@param RN the output 32-byte octad 
@@ -210,8 +216,9 @@ extern void sendClientFinish(TLS_session *session,octad *CHF);
  *
 	@param session the TLS session structure
     @param CERTCHAIN the client certificate chain
+    @param CTX Certificate Context
  */
-extern void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN);
+extern void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN,octad *CTX);
 
 /**	@brief Send client Certificate Verify message to the Server
  *

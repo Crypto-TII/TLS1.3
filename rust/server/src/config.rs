@@ -149,6 +149,7 @@ pub const TLS1_3:usize = 0x0304;                   // TLS 1.3 version
 pub const SERVER_NAME:usize = 0x0000;             // Server Name extension 
 pub const SUPPORTED_GROUPS:usize = 0x000a;        // Supported Group extension 
 pub const SIG_ALGS:usize = 0x000d;                // Signature algorithms extension 
+pub const POST_HANDSHAKE_AUTH:usize = 0x0031;     // Post Handshake Authentication
 pub const SIG_ALGS_CERT:usize = 0x0032;           // Signature algorithms Certificate extension 
 pub const KEY_SHARE:usize = 0x0033;               // Key Share extension 
 pub const PSK_MODE:usize = 0x002d;                // Preshared key mode extension 

@@ -513,7 +513,7 @@ static bool overlap(int *serverSigAlgs,int nssa,int *serverCertSigAlgs,int nscsa
 }
 
 // Receive a Certificate request
-ret getCertificateRequest(TLS_session *session)
+ret getCertificateRequest(TLS_session *session,octad *CTX)
 {
     ret r;
     int i,left,nb,ext,len,tlen,nssa,nscsa;//,ptr=0;
@@ -531,9 +531,14 @@ ret getCertificateRequest(TLS_session *session)
 
     r=parseIntorPull(session,3); left=r.val; if (r.err) return r;         // message length 
     r=parseIntorPull(session,1); nb=r.val; if (r.err) return r;
-    if (nb!=0x00) {
-        r.err= MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
-        return r;
+    if (CTX==NULL)
+    {
+        if (nb!=0x00) {
+            r.err= MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
+            return r;
+        } 
+    } else {
+        r=parseoctadorPull(session,CTX,nb); if (r.err) return r;
     }
     r=parseIntorPull(session,2); len=r.val; if (r.err) return r; // length of extensions
 
