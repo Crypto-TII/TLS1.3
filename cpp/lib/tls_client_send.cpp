@@ -367,7 +367,7 @@ void sendClientCertVerify(TLS_session *session, int sigAlg, octad *CCVSIG)
 }
 
 // Send Client Certificate 
-void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN,octad *CTX)
+void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN)
 {
     char pt[50];
     octad PT={0,sizeof(pt),pt};
@@ -375,25 +375,19 @@ void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN,octad *CTX
     OCT_append_byte(&PT,CERTIFICATE,1);
     if (CERTCHAIN==NULL) {  // no acceptable certificate available
         OCT_append_int(&PT,4,3);
-        if (CTX==NULL)
-        {
-            OCT_append_byte(&PT,0,1); // cert context
-        } else {
-            OCT_append_byte(&PT,CTX->len,1);
-            OCT_append_octad(&PT,CTX);
-        }
+		int nb=session->CTX.len;
+        OCT_append_byte(&PT,nb,1); // cert context
+        if (nb>0)
+            OCT_append_octad(&PT,&session->CTX);
         OCT_append_int(&PT,0,3);  // zero length
         runningHash(session,&PT);
         sendClientMessage(session,HSHAKE,TLS1_2,&PT,NULL,true);
     } else {
         OCT_append_int(&PT,4+CERTCHAIN->len,3);
-        if (CTX==NULL)
-        {
-            OCT_append_byte(&PT,0,1); // cert context
-        } else {
-            OCT_append_byte(&PT,CTX->len,1);
-            OCT_append_octad(&PT,CTX);
-        }
+		int nb=session->CTX.len;
+        OCT_append_byte(&PT,nb,1); // cert context
+        if (nb>0)
+            OCT_append_octad(&PT,&session->CTX);
         OCT_append_int(&PT,CERTCHAIN->len,3);  // length of certificate chain
         runningHash(session,&PT);
         runningHash(session,CERTCHAIN);

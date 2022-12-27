@@ -431,14 +431,14 @@ fn main() {
             
             let mut rplen:isize;
             if !localhost {
-                rplen=session.recv(&mut resp);
+                rplen=session.recv(Some(&mut resp));
                 if rplen>0 {
                     log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
                     session.stop();
                 }
             } else {
                 loop {
-                    rplen=session.recv(&mut resp);
+                    rplen=session.recv(Some(&mut resp));
                     if rplen<0 { // Either problem on my side, or I got an alert
                         break;
                     } 

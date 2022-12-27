@@ -86,16 +86,23 @@ fn handle_client(stream: TcpStream,port: u16) {
     let mut mslen=msize as isize;
 
     if rtn==TLS_SUCCESS {
+// Only if client has indicated support and client has not already authenticated and server was looking for authentication...
+        if session.requires_post_hs_auth() {
+            println!("Sending certificate request");
+            session.create_request_context();  // create a random context
+            session.send_certificate_request(); // want to wait for client authentication before issuing ticket
+            session.recv(None);  // wait for a response before continuing
+        }
+        println!("Sending Resumption Ticket");  // maybe updated to reflect client authentication
         session.send_ticket();
-        //session.send_ticket();
-        //session.send_key_update(UPDATE_NOT_REQUESTED);  // UPDATE_REQUESTED can be used here instead
+        session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
 
 // got to recv here, or we miss key update!
 
         if mslen>0 {
             log(IO_APPLICATION,"Received client message as early data\n",-1,Some(&mess[0..mslen as usize]));
         } else { // wait for a message from client
-            mslen=session.recv(&mut mess);
+            mslen=session.recv(Some(&mut mess));
             if mslen>=0 {
                 if mslen>0 {
                     log(IO_APPLICATION,"Received client message\n",-1,Some(&mess[0..mslen as usize]));
@@ -115,7 +122,7 @@ fn handle_client(stream: TcpStream,port: u16) {
 // Each party MUST send a close notify before it stops sending
 
         loop { // but wait for close-notify response from client - ignore messages
-            mslen=session.recv(&mut mess);
+            mslen=session.recv(Some(&mut mess));
             if mslen<0 { // hopefully close notify alert
                 break;
             }

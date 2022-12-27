@@ -21,6 +21,7 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 	state.RMS={0,TLS_MAX_HASH,state.rms};					// Resumption Master secret
 	state.STS={0,TLS_MAX_HASH,state.sts};					// Server traffic secret
 	state.CTS={0,TLS_MAX_HASH,state.cts};					// Client traffic secret
+	state.CTX={0,TLS_MAX_HASH,state.ctx};					// Client traffic secret
 #ifdef SHALLOW_STACK
     state.IO= {0,TLS_MAX_IO_SIZE,(char *)malloc(TLS_MAX_IO_SIZE)};  // main input/output buffer
 #else
@@ -461,7 +462,7 @@ static void TLS13_client_trust(TLS_session *session)
     if (kind!=0)
     { // Yes, I can do that kind of signature
         log(IO_PROTOCOL,(char *)"Client is authenticating\n",NULL,0,NULL);
-        sendClientCertificateChain(session,&CLIENT_CERTCHAIN,NULL);
+        sendClientCertificateChain(session,&CLIENT_CERTCHAIN);
 //
 //
 //  {client Certificate} ---------------------------------------------------->
@@ -476,7 +477,7 @@ static void TLS13_client_trust(TLS_session *session)
 //
 //
     } else { // No, I can't - send a null cert, and no verifier
-        sendClientCertificateChain(session,NULL,NULL);
+        sendClientCertificateChain(session,NULL);
     }
 #ifdef SHALLOW_STACK
     free(CLIENT_KEY.val); free(CLIENT_CERTCHAIN.val); free(CCVSIG.val);
@@ -521,7 +522,7 @@ static int TLS13_full(TLS_session *session)
     if (rtn.val==CERT_REQUEST)
     { // 2a. optional certificate request received
         gotacertrequest=true;
-        rtn=getCertificateRequest(session,NULL);
+        rtn=getCertificateRequest(session,false);
 //
 //
 //  <---------------------------------------------------- {Certificate Request}
@@ -556,7 +557,7 @@ static int TLS13_full(TLS_session *session)
 #if CLIENT_CERT != NOCERT
         TLS13_client_trust(session);
 #else
-        sendClientCertificateChain(session,NULL,NULL);
+        sendClientCertificateChain(session,NULL);
 #endif
     } 
     transcriptHash(session,&TH);
@@ -986,6 +987,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
     session->ptr=0;
     nticks=0; // number of tickets received
 	bool PENDING_KEY_UPDATE=false;
+	bool PENDING_AUTHENTICATION=false;
     while (1)
     {
         log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
@@ -1005,20 +1007,15 @@ int TLS13_recv(TLS_session *session,octad *REC)
         {
             while (1)
             {
-                r=parseIntorPull(session,1); nb=r.val; if (r.err) break;
-                r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
+
+				r=parseIntorPull(session,1); nb=r.val; if (r.err) return r; 
+				session->ptr-=1; // peek ahead
+
                 switch (nb)
                 {
                 case TICKET :   // keep last ticket
-                   /* if (gotaticket)
-                    {
-                        session->ptr+=len;
-
-                        if (session->ptr==session->IO.len)
-                            fin=true; // record finished
-                        if (fin) break;
-                            continue;
-                    } */
+					r=parseIntorPull(session,1); if (r.err) break;
+					r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
                     r=parseoctadorPullptrX(session,&TICK,len);    // just copy out pointer to this
                     nticks++;
                     rtn=parseTicket(&TICK,(unsign32)millis(),&session->T);       // extract into ticket structure T, and keep for later use  
@@ -1042,6 +1039,9 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     continue;
 
                case KEY_UPDATE :
+					r=parseIntorPull(session,1); if (r.err) break;
+					r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
+
                     if (len!=1)
                     {
                         log(IO_PROTOCOL,(char *)"Something wrong\n",NULL,0,NULL);
@@ -1070,8 +1070,20 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     if (session->ptr==session->IO.len) fin=true; // record finished
                     if (fin) break;
                     continue;
+#ifdef POST_HS_AUTH
+				case CERT_REQUEST:
+					r=getCertificateRequest(session,true);
+					if (badResponse(session,r)) {
+						return BAD_MESSAGE;
+					}
+					PENDING_AUTHENTICATION=true;
+                    if (session->ptr==session->IO.len) fin=true; // record finished
+                    if (fin) break;
+#endif				
 
                 default:
+					r=parseIntorPull(session,1); if (r.err) break;
+					r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
                     log(IO_PROTOCOL,(char *)"Unsupported Handshake message type ",(char *)"%x",nb,NULL);
 					sendAlert(session,UNEXPECTED_MESSAGE);
 					return WRONG_MESSAGE;
@@ -1091,6 +1103,13 @@ int TLS13_recv(TLS_session *session,octad *REC)
 			log(IO_PROTOCOL,(char *)"SENDING KEYS UPDATED\n",NULL,0,NULL);
             PENDING_KEY_UPDATE=false;
 		}
+#ifdef POST_HS_AUTH
+		if (PENDING_AUTHENTICATION)
+		{
+
+			PENDING_AUTHENTICATION=false;
+		}
+#endif
         if (type==APPLICATION)
         { // application data received - return it
             OCT_copy(REC,&session->IO);

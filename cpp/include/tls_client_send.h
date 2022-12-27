@@ -216,9 +216,8 @@ extern void sendClientFinish(TLS_session *session,octad *CHF);
  *
 	@param session the TLS session structure
     @param CERTCHAIN the client certificate chain
-    @param CTX Certificate Context
  */
-extern void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN,octad *CTX);
+extern void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN);
 
 /**	@brief Send client Certificate Verify message to the Server
  *

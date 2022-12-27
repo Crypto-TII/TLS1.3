@@ -36,7 +36,9 @@ pub struct SESSION {
     hs: [u8;MAX_HASH],      // Handshake secret
     rms: [u8;MAX_HASH],     // Resumption Master Secret         
     sts: [u8;MAX_HASH],     // Server Traffic secret             
-    cts: [u8;MAX_HASH],     // Client Traffic secret           
+    cts: [u8;MAX_HASH],     // Client Traffic secret  
+    ctx: [u8;MAX_HASH],           // certificate request context
+    ctxlen: usize,          // context length 
     io: [u8;MAX_IO],        // Main IO buffer for this connection 
     tlshash: UNIHASH,       // Transcript hash recorder 
     pub t: TICKET           // resumption ticket    
@@ -103,6 +105,8 @@ impl SESSION {
             rms: [0;MAX_HASH],
             sts: [0;MAX_HASH],
             cts: [0;MAX_HASH], 
+            ctx: [0;MAX_HASH],
+            ctxlen: 0,
             io: [0;MAX_IO],
             tlshash:{UNIHASH{state:[0;MAX_HASH_STATE],htype:0}},
             t: {TICKET{valid: false,tick: [0;MAX_TICKET_SIZE],nonce: [0;256],psk : [0;MAX_HASH],psklen: 0,tklen: 0,nnlen: 0,age_obfuscator: 0,max_early_data: 0,birth: 0,lifetime: 0,cipher_suite: 0,favourite_group: 0,origin: 0}}
@@ -155,7 +159,7 @@ impl SESSION {
         return r;
     }
 
-/// Pull bytes into input buffer
+/// Pull bytes into input buffer, process them there, in place
     fn parse_pull(&mut self,n: usize) -> RET { // get n bytes into self.io
         let mut r=RET{val:0,err:0};
         while self.ptr+n>self.iolen {
@@ -443,28 +447,26 @@ impl SESSION {
     }
 
 /// Send Client Certificate
-    fn send_client_certificate(&mut self,certchain: Option<&[u8]>,ctx: Option<&[u8]> ) {
+    fn send_client_certificate(&mut self,certchain: Option<&[u8]> ) {
         let mut pt:[u8;50]=[0;50];
         let mut ptr=0;
         ptr=utils::append_byte(&mut pt,ptr,CERTIFICATE,1);
         if let Some(chain) = certchain {
             ptr=utils::append_int(&mut pt,ptr,4+chain.len(),3);
-            if let Some(sctx) = ctx { // certificate context
-                ptr=utils::append_int(&mut pt,ptr,sctx.len(),1);
-                ptr=utils::append_bytes(&mut pt,ptr,sctx);
-            } else {
-                ptr=utils::append_byte(&mut pt,ptr,0,1);  
+            let nb=self.ctxlen;
+            ptr=utils::append_int(&mut pt,ptr,nb,1);
+            if nb>0 { // certificate context
+                ptr=utils::append_bytes(&mut pt,ptr,&self.ctx[0..nb]);
             }
             ptr=utils::append_int(&mut pt,ptr,chain.len(),3);
             self.running_hash(&pt[0..ptr]);
             self.running_hash(chain);
         } else {
             ptr=utils::append_int(&mut pt,ptr,4,3);  
-            if let Some(sctx) = ctx { // certificate context
-                ptr=utils::append_int(&mut pt,ptr,sctx.len(),1);
-                ptr=utils::append_bytes(&mut pt,ptr,sctx);
-            } else {
-                ptr=utils::append_byte(&mut pt,ptr,0,1);  
+            let nb=self.ctxlen;
+            ptr=utils::append_int(&mut pt,ptr,nb,1);
+            if nb>0 { // certificate context
+                ptr=utils::append_bytes(&mut pt,ptr,&self.ctx[0..nb]);
             }
             ptr=utils::append_int(&mut pt,ptr,0,3);
             self.running_hash(&pt[0..ptr]);
@@ -601,8 +603,8 @@ impl SESSION {
     }
 
 /// Receive Certificate Request - the Server wants the client to supply a certificate chain
-// return contxt
-    fn get_certificate_request(&mut self,ctx: Option<&mut [u8]>,ctxlen: Option<&mut usize>) -> RET {
+// context is true if expecting a context
+    fn get_certificate_request(&mut self,context: bool) -> RET {
         //let mut ptr=0;
         let mut unexp=0;
         let mut sigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
@@ -618,12 +620,17 @@ impl SESSION {
 
         r=self.parse_int_pull(3); let left=r.val; if r.err!=0 {return r;}
         r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r;}
-
-        if let Some(sctx) = ctx {
-            if let Some(sctxlen) = ctxlen {
-                r=self.parse_bytes_pull(&mut sctx[0..nb]); if r.err!=0 {return r;}
-                *sctxlen=nb;
+        if context { // expecting a context
+            let start=self.ptr;
+            r=self.parse_pull(nb); if r.err!=0 {return r;}
+            if nb==0 {
+                r.err=MISSING_REQUEST_CONTEXT;// expecting a Request context
+                return r;
             }
+            for i in 0..nb {
+                self.ctx[i]=self.io[start+i];
+            }
+            self.ctxlen=nb;
         } else {
             if nb!=0 {
                 r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
@@ -1771,7 +1778,7 @@ impl SESSION {
             log(IO_PROTOCOL,"Client is authenticating\n",-1,None);
             let cc_s=&client_certchain[0..cclen];
             let ck_s=&client_key[0..cklen];
-            self.send_client_certificate(Some(cc_s),None);
+            self.send_client_certificate(Some(cc_s));
 //
 //
 //  {client Certificate} ---------------------------------------------------->
@@ -1790,7 +1797,7 @@ impl SESSION {
 //
 //
         } else { // No, I can't - send a null cert
-            self.send_client_certificate(None,None);
+            self.send_client_certificate(None);
         }
     }
 
@@ -1826,7 +1833,7 @@ impl SESSION {
 // Maybe Server is requesting certificate from Client
         if rtn.val == CERT_REQUEST as usize { 
             gotacertrequest=true;
-            rtn=self.get_certificate_request(None,None);
+            rtn=self.get_certificate_request(false);
 //
 //
 //  <---------------------------------------------------- {Certificate Request}
@@ -1854,7 +1861,7 @@ impl SESSION {
             if HAVE_CLIENT_CERT { // do I have one?
                 self.client_trust();
             } else {
-                self.send_client_certificate(None,None);
+                self.send_client_certificate(None);
             }
         }
         self.transcript_hash(th_s);
@@ -1926,11 +1933,13 @@ impl SESSION {
 /// Process Server records received post-handshake. Should be mostly application data, but could be more handshake data disguised as application data
 // For example could include a ticket. Also receiving key K_recv might be updated.
 // returns +ve length of message, or negative error
-    pub fn recv(&mut self,mess: &mut [u8]) -> isize {
+// Stay inside looping on Handshake messages. Exit on (a) received an application message, or (b) nothing to read 
+    pub fn recv(&mut self,mess: Option<&mut [u8]>) -> isize {
         let mut fin=false;
         let mut kind:isize;
-        let mut pending=false;
-        let mslen:isize;
+        let mut pending_update=false;
+        let mut pending_authentication=false;
+        let mut mslen:isize=0;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
             self.clean_io();
@@ -1947,9 +1956,11 @@ impl SESSION {
                 let mut r:RET;
                 loop {
                     r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {break;}
-                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
+                    self.ptr -= 1; // peek ahead - put it back
                     match nb as u8 {
                         TICKET => {
+                            r=self.parse_int_pull(1); if r.err!=0 {break;}
+                            r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
                             let start=self.ptr;
                             r=self.parse_pull(len);
                             let ticket=&self.io[start..start+len];
@@ -1963,13 +1974,15 @@ impl SESSION {
                                 self.t.valid=true;
                                 log(IO_PROTOCOL,"Got a ticket with lifetime (minutes)= ",(self.t.lifetime/60) as isize,None);
                             }
-                            if self.ptr==self.iolen {
+                            if self.ptr==self.iolen { // nothing left
                                 fin=true;
                                 self.rewind();
                             }
                             if !fin {continue;}
                         }
                         KEY_UPDATE => {
+                            r=self.parse_int_pull(1); if r.err!=0 {break;}
+                            r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
                             if len!=1 {
                                 log(IO_PROTOCOL,"Something wrong\n",-1,None);
                                 self.send_alert(DECODE_ERROR);
@@ -1984,7 +1997,7 @@ impl SESSION {
                             }
                             if kur==UPDATE_REQUESTED {
                                 self.k_recv.update(&mut self.sts[0..hlen]);
-                                pending=true;
+                                pending_update=true;
                                 log(IO_PROTOCOL,"Key update notified - client should do the same  \n",-1,None);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",-1,None);
                             }
@@ -1993,17 +2006,36 @@ impl SESSION {
                                 self.send_alert(ILLEGAL_PARAMETER);
                                 return BAD_REQUEST_UPDATE;
                             }
-                            if self.ptr==self.iolen {
+                            if self.ptr==self.iolen { // nothing left
+                                fin=true;
+                                self.rewind();
+                            }
+                            if !fin {continue;}
+                        }
+                        CERT_REQUEST => {
+                            if !POST_HS_AUTH {  // not unless I agreed to it in the first place
+                                self.send_alert(UNEXPECTED_MESSAGE);
+                                return WRONG_MESSAGE;
+                            }
+                            r=self.get_certificate_request(true);  // 
+                            if self.bad_response(&r) {
+                                self.send_alert(DECODE_ERROR);
+                                return BAD_MESSAGE;
+                            }
+                            pending_authentication=true;
+
+                            if self.ptr==self.iolen { // nothing left
                                 fin=true;
                                 self.rewind();
                             }
                             if !fin {continue;}
                         }
                         _ => {
+                            r=self.parse_int_pull(1); if r.err!=0 {break;}
+                            r=self.parse_int_pull(3); let _len=r.val; if r.err!=0 {break;}   // message length
                             log(IO_PROTOCOL,"Unsupported Handshake message type \n",nb as isize,None);
                             self.send_alert(UNEXPECTED_MESSAGE);
                             return WRONG_MESSAGE;
-                            //fin=true;
                         }
                     }
                     if fin {break;}
@@ -2013,22 +2045,70 @@ impl SESSION {
                     return r.err;
                 }
             }
-            if pending {
-                self.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys
+
+            if pending_authentication { // send certificate, cert_verify and client finish
+                let hash_type=sal::hash_type(self.cipher_suite);
+                let hlen=sal::hash_len(hash_type);
+                let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
+// get client credentials
+                let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
+                let mut client_certchain:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
+                let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
+                let mut cclen=0;
+                let mut cklen=0;
+                let kind=certchain::get_client_credentials(&mut client_key,&mut cklen,&mut client_certchain,&mut cclen);
+
+                if kind!=0 { // Yes, I can do that signature
+                    log(IO_PROTOCOL,"Client asked to authenticate post-handshake\n",-1,None);
+                    let cc_s=&client_certchain[0..cclen];
+                    let ck_s=&client_key[0..cklen];
+                    self.send_client_certificate(Some(cc_s));
+                    self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate
+//
+//
+//  {client Certificate} ---------------------------------------------------->
+//
+//
+                    cclen=keys::create_client_cert_verifier(kind,fh_s,ck_s,&mut ccvsig);
+                    self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
+                    self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate
+
+//
+//
+//  {Certificate Verify} ---------------------------------------------------->
+//
+//
+                } else { // No, I can't - send a null cert
+                    self.send_client_certificate(None);
+                    self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate
+                }
+
+                let mut chf: [u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
+                // create client verify data and send it to Server
+                keys::derive_verifier_data(hash_type,chf_s,&self.cts[0..hlen],fh_s);
+                self.send_client_finish(chf_s);
+
+                pending_authentication=false;
+            }
+
+            if pending_update { // tell server to update their receiving keys
+                self.send_key_update(UPDATE_NOT_REQUESTED);  
                 log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
-                pending=false;
+                pending_update=false;
                 // dont exit yet, wait for some data
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iolen;
-                let mut n=mess.len();
-                if n>self.ptr {
-                    n=self.ptr;
+                if let Some(mymess) = mess {
+                    let mut n=mymess.len();
+                    if n>self.ptr {
+                        n=self.ptr;
+                    }
+                    for i in 0..n {
+                        mymess[i]=self.io[i];
+                    }
+                    mslen=n as isize;
                 }
-                for i in 0..n {
-                    mess[i]=self.io[i];
-                }
-                mslen=n as isize;
                 self.rewind();
                 break;
             }

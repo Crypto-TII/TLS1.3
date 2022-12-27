@@ -411,6 +411,8 @@ typedef struct
     char sts[TLS_MAX_HASH]; /**< Server Traffic secret data */
     octad CTS;              /**< Client Traffic secret */
     char cts[TLS_MAX_HASH]; /**< Client Traffic secret data */
+    octad CTX;              /**< Certificate Request Context */
+    char ctx[TLS_MAX_HASH];	/**< Certificate Request Context data */
     octad IO;               /**< Main IO buffer for this connection */
 #ifndef SHALLOW_STACK
     char io[TLS_MAX_IO_SIZE]; /**< Byte array for main IO buffer for this connection */

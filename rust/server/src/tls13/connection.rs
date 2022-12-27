@@ -49,6 +49,8 @@ pub struct SESSION {
     pub rms: [u8;MAX_HASH],     // Resumption Master Secret         
     pub sts: [u8;MAX_HASH],     // Server Traffic secret             
     pub cts: [u8;MAX_HASH],     // Client Traffic secret   
+    pub ctx: [u8;MAX_HASH],           // certificate request context
+    pub ctxlen: usize,          // context length
     pub io: [u8;MAX_IO],        // Main IO buffer for this connection 
     pub tlshash: UNIHASH,       // Transcript hash recorder 
     pub clientid: [u8;MAX_X509_FIELD], // Client identity for this session
@@ -147,6 +149,8 @@ impl SESSION {
             rms: [0;MAX_HASH],
             sts: [0;MAX_HASH],
             cts: [0;MAX_HASH],  
+            ctx: [0;MAX_HASH],
+            ctxlen: 0,
             io: [0;MAX_IO],
             tlshash:{UNIHASH{state:[0;MAX_HASH_STATE],htype:0}},
             clientid:[0;MAX_X509_FIELD],
@@ -194,7 +198,7 @@ impl SESSION {
         return r;
     }
 
-/// Pull bytes into input buffer
+/// Pull bytes into input buffer, process them there, in place
     fn parse_pull(&mut self,n: usize) -> RET { // get n bytes into self.io
         let mut r=RET{val:0,err:0};
         while self.ptr+n>self.iolen {
@@ -266,7 +270,16 @@ impl SESSION {
     pub fn create_recv_crypto_context(&mut self) {
         self.k_recv.init(self.cipher_suite,&self.cts);
     }
-    
+
+/// Only if client has indicated support and client has not already authenticated and server was looking for authentication...
+    pub fn requires_post_hs_auth(&mut self) -> bool {
+        if self.post_hs_auth && self.cidlen==0 && CERTIFICATE_REQUEST {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
 /// Get Client and Server Handshake secrets for encrypting rest of handshake, from Shared secret SS and early secret ES
     pub fn derive_handshake_secrets(&mut self,ss: &[u8],es: &[u8],h: &[u8]) {
         let dr="derived";
@@ -306,6 +319,13 @@ impl SESSION {
             keys::hkdf_expand_label(htype,&mut sems[0..hlen],&ms[0..hlen],eh.as_bytes(),Some(sfh));
         }
         keys::hkdf_expand_label(htype,&mut self.rms[0..hlen],&ms[0..hlen],rh.as_bytes(),Some(cfh));
+    }
+
+    pub fn create_request_context(&mut self) {
+        self.ctxlen=32;
+        for i in 0..32 { // create a context
+            self.ctx[i]=sal::random_byte();
+        }
     }
 
 /// Send a message - could/should be broken down into multiple records.
@@ -478,7 +498,7 @@ impl SESSION {
     }
 
 /// Send Server Certificate Request 
-    fn send_certificate_request(&mut self,context: bool) { 
+    pub fn send_certificate_request(&mut self) { 
         let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; 
         let mut cert_sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; 
         let mut pt:[u8;17+4*MAX_SUPPORTED_SIGS]=[0;17+4*MAX_SUPPORTED_SIGS];
@@ -490,14 +510,12 @@ impl SESSION {
         let mut ptr=0;
         ptr=utils::append_byte(&mut pt,ptr,CERT_REQUEST,1); // indicates handshake message "certificate request"
         ptr=utils::append_int(&mut pt,ptr,len-4,3); // .. and its length
-        if context {
-            let mut rn:[u8;32]=[0;32];
-            sal::random_bytes(32,&mut rn);
-            ptr=utils::append_int(&mut pt,ptr,32,1);   // .. 32-byte Request Context
-            ptr=utils::append_bytes(&mut pt,ptr,&rn);
-        } else {
-            ptr=utils::append_int(&mut pt,ptr,0,1);   // .. Request Context
-        }
+       
+        let nb=self.ctxlen;
+        ptr=utils::append_int(&mut pt,ptr,nb,1);   // .. Request Context
+        if nb>0 {
+            ptr=utils::append_bytes(&mut pt,ptr,&self.ctx[0..nb]);
+        } 
         ptr=utils::append_int(&mut pt,ptr,len-7,2);
         ptr=utils::append_int(&mut pt,ptr,SIG_ALGS,2); // extension
 
@@ -658,10 +676,19 @@ impl SESSION {
         let mut r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}         // message length   
         log(IO_DEBUG,"Certificate Chain Length= ",len as isize,None);
         r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r;} 
-        if nb!=0x00 {
-            r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
-            return r;
+        if nb!=self.ctxlen {
+                r.err=MISSING_REQUEST_CONTEXT;// wrong Request context
+                return r;
         }
+        if nb>0 {
+            let start=self.ptr;
+            r=self.parse_pull(nb); if r.err!=0 {return r;}
+            if &self.io[start..start+nb] != &self.ctx[0..nb] {
+                r.err=MISSING_REQUEST_CONTEXT;// wrong Request context
+                return r;
+            }
+        } 
+
         r=self.parse_int_pull(3); let tlen=r.val; if r.err!=0 {return r;}   // get length of certificate chain
 	    if tlen==0 {
 		    r.err=EMPTY_CERT_CHAIN;
@@ -1775,7 +1802,7 @@ impl SESSION {
 
             if CERTIFICATE_REQUEST {  // request a client certificate?
                 log(IO_DEBUG,"Server is sending certificate request\n",-1,None);
-                self.send_certificate_request(false);
+                self.send_certificate_request();
 //
 //   Server Certificate request ----------------------------------------------------------> 
 //
@@ -1967,11 +1994,16 @@ impl SESSION {
 /// Should be mostly application data, but could be more handshake data disguised as application data
 // Also sending key K_send might be updated.
 // returns +ve length of message, or negative error, or 0 for a handshake
-    pub fn recv(&mut self,mess: &mut [u8]) -> isize {
+    pub fn recv(&mut self,mess: Option<&mut [u8]>) -> isize {
         let mut fin=false;
         let mut kind:isize;
         let mut pending=false;
-        let mslen:isize;
+        let mut mslen:isize=0;
+        let hash_type=sal::hash_type(self.cipher_suite);
+        let hlen=sal::hash_len(hash_type);
+        let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];  // transcript hash
+        let mut cpk: [u8; MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];       // client public key
+        let mut cpklen=0;
         loop {
             log(IO_PROTOCOL,"Waiting for Client input\n",-1,None);
             self.clean_io();
@@ -1984,13 +2016,15 @@ impl SESSION {
                 log(IO_PROTOCOL,"TIME_OUT\n",-1,None);
                 return TIME_OUT;
             }
-            if kind==HSHAKE as isize { // should check here for key update
+            if kind==HSHAKE as isize { // should check here for key update or certificate request
                 let mut r:RET;
                 loop {
                     r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {break;}
-                    r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
+                    self.ptr -= 1; // peek ahead - put it back
                     match nb as u8 {
                         KEY_UPDATE => {
+                            r=self.parse_int_pull(1); if r.err!=0 {break;}
+                            r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
                             if len!=1 {
                                 log(IO_PROTOCOL,"Something wrong\n",-1,None);
                                 self.send_alert(DECODE_ERROR);
@@ -2020,11 +2054,73 @@ impl SESSION {
                             }
                             if !fin {continue;}
                         }
+                        CERTIFICATE => {               // these handshake messages should come one after the other
+                            if !self.requires_post_hs_auth() {
+                                self.send_alert(UNEXPECTED_MESSAGE);
+                                return WRONG_MESSAGE;
+                            }
+                            r=self.get_check_client_certificatechain(&mut cpk,&mut cpklen);            // get full name
+    //
+    //
+    //  <---------------------------------------------------------- {Client Certificate}
+    //
+    //
+                            if self.bad_response(&r) {
+                                self.send_alert(DECODE_ERROR);
+                                return BAD_MESSAGE;
+                            }    
+                            log(IO_PROTOCOL,"Client attempting to authenticate post-handshake\n",-1,None);  
+                            self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate
+                            // don't exit - wait for cert verify
+                        }
+                        CERT_VERIFY => {
+                            let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
+                            let mut siglen=0;
+                            let mut sigalg:u16=0;
+                            r=self.get_client_cert_verify(&mut ccvsig,&mut siglen,&mut sigalg);  
+                            if self.bad_response(&r) {
+                                self.send_alert(DECODE_ERROR);
+                                return BAD_MESSAGE;
+                            }
+
+                            let ccvsig_s=&mut ccvsig[0..siglen];
+                            let cpk_s=&cpk[0..cpklen];
+                            if !keys::check_client_cert_verifier(sigalg,ccvsig_s,fh_s,cpk_s) { 
+                                self.send_alert(DECRYPT_ERROR);
+                                return CERT_VERIFY_FAIL;
+                            }
+                            self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate+cert_verify
+                            // don't exit - wait for finished
+                        }
+                        FINISHED => {
+                            let mut fnlen=0;
+                            let mut finish:[u8;MAX_HASH]=[0;MAX_HASH];
+                            r=self.get_client_finished(&mut finish,&mut fnlen);     
+                            if self.bad_response(&r) {
+                                self.send_alert(DECODE_ERROR);
+                                return BAD_MESSAGE;
+                            }
+                            let fin_s=&finish[0..fnlen];
+
+                            let verified=keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],fh_s);
+                            if !verified {  
+                                self.send_alert(DECRYPT_ERROR);
+                                return FINISH_FAIL;
+                            }
+                            log(IO_PROTOCOL,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen])); 
+
+                            if self.ptr==self.iolen { // OK now I can exit if nothing left
+                                fin=true;
+                                self.rewind();
+                            }
+                            if !fin {continue;}
+                        }
                         _ => {
+                            r=self.parse_int_pull(1); if r.err!=0 {break;}
+                            r=self.parse_int_pull(3); let _len=r.val; if r.err!=0 {break;}   // message length
                             log(IO_PROTOCOL,"Unsupported Handshake message type ",nb as isize,None);
                             self.send_alert(UNEXPECTED_MESSAGE);
                             return WRONG_MESSAGE;
-                            //fin=true;
                         }
                     }
                     if fin {break;}
@@ -2034,22 +2130,25 @@ impl SESSION {
                     return r.err;
                 }
             }
+
             if pending {
-                    self.send_key_update(UPDATE_NOT_REQUESTED);  // tell server to update their receiving keys
+                    self.send_key_update(UPDATE_NOT_REQUESTED);  // tell client to update their receiving keys
                     log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
                     pending=false;
                     //return 0;
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iolen; // grab all of it
-                let mut n=mess.len();
-                if n>self.ptr {
-                    n=self.ptr;
+                if let Some(mymess) = mess {
+                    let mut n=mymess.len();
+                    if n>self.ptr {
+                        n=self.ptr;
+                    }
+                    for i in 0..n {
+                        mymess[i]=self.io[i];
+                    }
+                    mslen=n as isize;
                 }
-                for i in 0..n {
-                    mess[i]=self.io[i];
-                }
-                mslen=n as isize;
                 self.rewind();
                 break;
             }
@@ -2062,6 +2161,7 @@ impl SESSION {
                     return ERROR_ALERT_RECEIVED;
                 }
             }
+            if fin {break;}
         }
         return mslen; 
     }
