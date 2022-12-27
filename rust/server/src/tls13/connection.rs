@@ -1997,7 +1997,7 @@ impl SESSION {
     pub fn recv(&mut self,mess: Option<&mut [u8]>) -> isize {
         let mut fin=false;
         let mut kind:isize;
-        let mut pending=false;
+        let mut pending_update=false;
         let mut mslen:isize=0;
         let hash_type=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(hash_type);
@@ -2039,7 +2039,7 @@ impl SESSION {
                             }
                             if kur==UPDATE_REQUESTED {
                                 self.k_recv.update(&mut self.sts[0..hlen]);
-                                pending=true;
+                                pending_update=true;
                                 log(IO_PROTOCOL,"Key update notified - server should do the same\n",-1,None);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",-1,None);
                             }
@@ -2131,10 +2131,10 @@ impl SESSION {
                 }
             }
 
-            if pending {
+            if pending_update {
                     self.send_key_update(UPDATE_NOT_REQUESTED);  // tell client to update their receiving keys
                     log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
-                    pending=false;
+                    pending_update=false;
                     //return 0;
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
