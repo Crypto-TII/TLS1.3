@@ -440,9 +440,6 @@ static int TLS13_server_trust(TLS_session *session)
 // client supplies trust to server, given servers list of acceptable signature types
 static void TLS13_client_trust(TLS_session *session)
 {
-    int hashtype;
-	int nsc,nsg,nsac;
-
 #ifdef SHALLOW_STACK
     octad CLIENT_KEY={0,TLS_MAX_SIG_SECRET_KEY_SIZE,(char *)malloc(TLS_MAX_SIG_SECRET_KEY_SIZE)};   // Client secret key
     octad CLIENT_CERTCHAIN={0,TLS_MAX_CLIENT_CHAIN_SIZE,(char *)malloc(TLS_MAX_CLIENT_CHAIN_SIZE)};   // Client certificate chain
@@ -712,12 +709,11 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 		resmode=2;
 	buildExtensions(session,&EXT,&CPK,&enc_ext_expt,resmode);	
 	
-    if (have_early_data)
-    {
+    if (have_early_data) {
         addEarlyDataExt(&EXT); enc_ext_expt.early_data=true;   // try sending client message as early data if allowed
     }
 #ifdef POST_HS_AUTH
-    addPostHSAuth(&EXT);  // willing to do post handshake authentication
+    addPostHSAuth(&EXT);  // willing to do post handshake authentication if necessary
 #endif
     age=0;
     if (!external_psk)
@@ -1008,7 +1004,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
             while (1)
             {
 
-				r=parseIntorPull(session,1); nb=r.val; if (r.err) return r; 
+				r=parseIntorPull(session,1); nb=r.val; if (r.err) break; 
 				session->ptr-=1; // peek ahead
 
                 switch (nb)
@@ -1106,6 +1102,53 @@ int TLS13_recv(TLS_session *session,octad *REC)
 #ifdef POST_HS_AUTH
 		if (PENDING_AUTHENTICATION)
 		{
+#ifdef SHALLOW_STACK
+            octad CLIENT_KEY={0,TLS_MAX_SIG_SECRET_KEY_SIZE,(char *)malloc(TLS_MAX_SIG_SECRET_KEY_SIZE)};   // Client secret key
+            octad CLIENT_CERTCHAIN={0,TLS_MAX_CLIENT_CHAIN_SIZE,(char *)malloc(TLS_MAX_CLIENT_CHAIN_SIZE)};   // Client certificate chain
+            octad CCVSIG={0,TLS_MAX_SIGNATURE_SIZE,(char *)malloc(TLS_MAX_SIGNATURE_SIZE)}; 
+#else 
+            char client_key[TLS_MAX_SIG_SECRET_KEY_SIZE];           
+            octad CLIENT_KEY={0,sizeof(client_key),client_key};   // Client secret key
+            char client_certchain[TLS_MAX_CLIENT_CHAIN_SIZE];           
+            octad CLIENT_CERTCHAIN={0,sizeof(client_certchain),client_certchain};   // Client certificate chain
+            char ccvsig[TLS_MAX_SIGNATURE_SIZE];
+            octad CCVSIG={0,sizeof(ccvsig),ccvsig};           // Client's digital signature on transcript
+#endif
+            char fh[TLS_MAX_HASH];
+            octad FH={0,sizeof(fh),fh};  // Transcript hash
+
+            int kind=getClientPrivateKeyandCertChain(&CLIENT_KEY,&CLIENT_CERTCHAIN);
+            if (kind!=0)
+            { // Yes, I can do that kind of signature
+                log(IO_PROTOCOL,(char *)"Client is authenticating\n",NULL,0,NULL);
+                sendClientCertificateChain(session,&CLIENT_CERTCHAIN);
+                transcriptHash(session,&FH);
+//
+//
+//  {client Certificate} ---------------------------------------------------->
+//
+//
+                createClientCertVerifier(kind,&FH,&CLIENT_KEY,&CCVSIG);      
+                sendClientCertVerify(session,kind,&CCVSIG);
+//
+//
+//  {Certificate Verify} ---------------------------------------------------->
+//
+//
+            } else { // No, I can't - send a null cert, and no verifier
+                sendClientCertificateChain(session,NULL);
+            }
+            transcriptHash(session,&FH);
+#ifdef SHALLOW_STACK
+            free(CLIENT_KEY.val); free(CLIENT_CERTCHAIN.val); free(CCVSIG.val);
+#endif
+            int hashtype=SAL_hashType(session->cipher_suite);
+
+            char chf[TLS_MAX_HASH];                           
+            octad CHF={0,sizeof(chf),chf};      // client verify
+// create client verify data and send it to Server
+            deriveVeriferData(hashtype,&CHF,&session->CTS,&FH);  
+            sendClientFinish(session,&CHF);  
 
 			PENDING_AUTHENTICATION=false;
 		}

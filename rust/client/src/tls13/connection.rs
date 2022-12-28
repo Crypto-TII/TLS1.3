@@ -2071,18 +2071,15 @@ impl SESSION {
 //
                     cclen=keys::create_client_cert_verifier(kind,fh_s,ck_s,&mut ccvsig);
                     self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
-                    self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate
-
 //
 //
 //  {Certificate Verify} ---------------------------------------------------->
 //
 //
-                } else { // No, I can't - send a null cert
+                } else { // No, I can't - send a null cert, and no verifier
                     self.send_client_certificate(None);
-                    self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate
                 }
-
+                self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate
                 let mut chf: [u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
                 // create client verify data and send it to Server
                 keys::derive_verifier_data(hash_type,chf_s,&self.cts[0..hlen],fh_s);

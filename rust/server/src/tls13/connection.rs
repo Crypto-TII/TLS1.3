@@ -56,6 +56,7 @@ pub struct SESSION {
     pub clientid: [u8;MAX_X509_FIELD], // Client identity for this session
     pub cidlen: usize,          // client id length
     pub post_hs_auth: bool,
+    pub client_authenticated: bool,
 
     ticket: [u8;MAX_TICKET_SIZE], //psk identity (resumption ticket)
     tklen: usize,           // psk identity length
@@ -156,6 +157,7 @@ impl SESSION {
             clientid:[0;MAX_X509_FIELD],
             cidlen: 0,
             post_hs_auth: false,
+            client_authenticated: false,
 
             ticket: [0;MAX_TICKET_SIZE],
             tklen: 0,
@@ -273,7 +275,7 @@ impl SESSION {
 
 /// Only if client has indicated support and client has not already authenticated and server was looking for authentication...
     pub fn requires_post_hs_auth(&mut self) -> bool {
-        if self.post_hs_auth && self.cidlen==0 && CERTIFICATE_REQUEST {
+        if self.post_hs_auth && !self.client_authenticated && CERTIFICATE_REQUEST {
             return true;
         } else {
             return false;
@@ -593,8 +595,12 @@ impl SESSION {
         sptr=utils::append_int(&mut state,sptr,self.favourite_group as usize,2);
         sptr=utils::append_byte(&mut state,sptr,hlen as u8,1);
         sptr=utils::append_bytes(&mut state,sptr,&psk[0..hlen]);
-        sptr=utils::append_int(&mut state,sptr,self.cidlen as usize,2);
-        sptr=utils::append_bytes(&mut state,sptr,&self.clientid[0..self.cidlen]);
+        if self.client_authenticated {
+            sptr=utils::append_int(&mut state,sptr,self.cidlen as usize,2);
+            sptr=utils::append_bytes(&mut state,sptr,&self.clientid[0..self.cidlen]);
+        } else {
+            sptr=utils::append_int(&mut state,sptr,0,2);
+        }
 // encrypt state
         let mut context=keys::CRYPTO::new();
         context.special_init(&iv);
@@ -1518,6 +1524,10 @@ impl SESSION {
         log(IO_DEBUG,"PSK= ",0,Some(&psk[0..*psklen]));
         r=utils::parse_int(&state,2,&mut ptr); self.cidlen=r.val; if r.err!=0 {return r;}
         r=utils::parse_bytes(&mut self.clientid[0..self.cidlen],&state,&mut ptr); 
+
+        //if self.cidlen>0 {
+        //    self.client_authenticated=true;
+        //}
         r.val=FULL_HANDSHAKE;  // return PSK origin
         return r;
     }
@@ -1634,9 +1644,9 @@ impl SESSION {
             if self.bad_response(&r) {
                 return TLS_FAILURE;
             }
-            if self.cidlen>0 {
-                log(IO_PROTOCOL,"Client Identity is ",-1,Some(&self.clientid[0..self.cidlen]));
-            }
+            //if self.client_authenticated {
+            //    log(IO_PROTOCOL,"Client Authenticated Identity - ",-1,Some(&self.clientid[0..self.cidlen]));
+            //}
             let mut external_psk=false;
             if r.val==EXTERNAL_PSK {
                 external_psk=true;
@@ -1916,7 +1926,7 @@ impl SESSION {
                         log(IO_DEBUG,"Client Cert Verification failed\n",-1,None);
                         log(IO_PROTOCOL,"Full Handshake will fail\n",-1,None);
                     }
-                    log(IO_PROTOCOL,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));                      // **** output client full name        
+                    log(IO_DEBUG,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));                      // **** output client full name        
                 }
             } else {
                 for i in 0..hlen {
@@ -1955,7 +1965,12 @@ impl SESSION {
                 delayed_alert=FINISH_FAIL;
             }
 // don't send alert now - haven't calculated traffic keys yet
-            log(IO_DEBUG,"Client Data is NOT verified\n",-1,None);
+            log(IO_PROTOCOL,"Client Data is NOT verified\n",-1,None);
+        } else {
+            if self.cidlen>0 { // got an identity
+                log(IO_PROTOCOL,"Client Authenticated Identity - ",-1,Some(&self.clientid[0..self.cidlen]));
+                self.client_authenticated=true;
+            }
         }
 
         self.transcript_hash(fh_s);
@@ -2107,7 +2122,11 @@ impl SESSION {
                                 self.send_alert(DECRYPT_ERROR);
                                 return FINISH_FAIL;
                             }
-                            log(IO_PROTOCOL,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen])); 
+
+                            if self.cidlen>0 {
+                                log(IO_PROTOCOL,"Client Authenticated Identity - ",-1,Some(&self.clientid[0..self.cidlen])); 
+                                self.client_authenticated=true;
+                            }
 
                             if self.ptr==self.iolen { // OK now I can exit if nothing left
                                 fin=true;
