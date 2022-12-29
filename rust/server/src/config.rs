@@ -287,11 +287,11 @@ pub const TLS_SUCCESS:usize = 1;
 pub const LOG_OUTPUT_TRUNCATION: usize= 512;       /**< Output Hex digits before truncation */
 
 // User defined controls
-pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
-pub const ALLOW_SELF_SIGNED:bool= true; // allow self-signed server certs
-pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting - determines certificate chain
-pub const THIS_YEAR: usize = 2022;      // Set to this year - crudely used to deprecate old certificates       
+pub const VERBOSITY:usize= IO_PROTOCOL;     // Set log reporting level
+pub const ALLOW_SELF_SIGNED:bool= true;     // allow self-signed server certs
+pub const CRYPTO_SETTING: usize = TYPICAL;  // Decide on crypto setting - determines certificate chain
+pub const THIS_YEAR: usize = 2023;          // Set to this year - crudely used to deprecate old certificates       
 pub const APPLICATION_PROTOCOL:&str="http/1.1";  // ALPN extension
-pub const CERTIFICATE_REQUEST: bool=false; // Does server require client authentication?
-pub const TICKET_LIFETIME: u32 = 86400;   // 86400 seconds in a day
+pub const CERTIFICATE_REQUEST: bool=false;  // Does server require client authentication?
+pub const TICKET_LIFETIME: u32 = 86400;     // 86400 seconds in a day
 pub const MAX_EARLY_DATA: usize = 1024;     // maximum amount of early data a client can send 

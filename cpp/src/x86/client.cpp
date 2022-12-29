@@ -106,7 +106,7 @@ static void bad_input()
     printf("    -r remove stored ticket\n");
     printf("    -r <hostname> remove stored ticket and connect to hostname\n");
     printf("    -s show SAL capabilities\n");
-	printf("    -i try IBE connection\n");
+	printf("    -i <hostname> try IBE connection\n");
     printf("Example:- client www.bbc.co.uk\n");
 }
 

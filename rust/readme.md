@@ -13,9 +13,11 @@ Ideally keys, chains and key stores should be kept in external files, but in an 
 In this code the root certificate store is in the source code file *cacerts.rs*. For the client the private key and certificate are stored in the source code file *clientcert.rs*. 
 For the server the private key and certificate are stored in the source code file *servercert.rs*. 
 
-Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL. First clone the repository and move to the *TLS13/rust* directory (where this README is)
+Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL. First clone the repository and move to 
+the *TLS13/rust* directory (where this README is)
 
-Currently the Rust implementation only supports a MIRACL-based SAL. To install from this directory (TLS1.3/rust). In the unlikely event that yours is a 32-bit environment specify *config32* instead.
+Currently the Rust implementation only supports a MIRACL-based SAL. To install from this directory (TLS1.3/rust) proceed as follows. In the unlikely event that yours is a 32-bit environment 
+specify *config32* instead.
 
 	git clone https://github.com/miracl/core.git
 	cd core/rust

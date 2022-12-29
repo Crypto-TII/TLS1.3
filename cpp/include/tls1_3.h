@@ -49,7 +49,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // So best to place a popular group (such as X25519) at top of list in SAL
 
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
-#define THIS_YEAR 2022            /**< Set to this year - crudely used to deprecate old certificates */
+#define THIS_YEAR 2023            /**< Set to this year - crudely used to deprecate old certificates */
 
 #define POST_HS_AUTH              /**< Willing to do post handshake authentication */
 #define CLIENT_CERT ECC_SS        /**< Indicate capability of authenticating with a cert plus signing key */
@@ -58,7 +58,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
 #define ALLOW_SELF_SIGNED		 /**< allow self-signed server cert */
-//#define NO_CERT_CHECKS		 /**< Dont do any checks on server certs */
+//#define NO_CERT_CHECKS		 /**< Don't do any checks on server certs */
 #define TRY_EARLY_DATA           /**< Try to send early data on resumptions */
 
 // Note that the IOBUFF, Certificates and crypto keys can be quite large, and therefore maybe better taken from the heap

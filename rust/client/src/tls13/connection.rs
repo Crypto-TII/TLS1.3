@@ -1767,8 +1767,7 @@ impl SESSION {
 
         let hash_type=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(hash_type);
-// extract slices.. Depends on cipher suite
-        let mut th: [u8;MAX_HASH]=[0;MAX_HASH]; let th_s=&mut th[0..hlen];
+// extract slice.. Depends on cipher suite
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
 
         let mut cclen=0;
@@ -1784,13 +1783,11 @@ impl SESSION {
 //  {client Certificate} ---------------------------------------------------->
 //
 //
-            self.transcript_hash(th_s);
-            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(th_s)); 
-            cclen=keys::create_client_cert_verifier(kind,th_s,ck_s,&mut ccvsig);
-            self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
             self.transcript_hash(fh_s);
-            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+SCT+SCV) = ",0,Some(fh_s));
+            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(fh_s)); 
+            cclen=keys::create_client_cert_verifier(kind,fh_s,ck_s,&mut ccvsig);
             log(IO_DEBUG,"Client Transcript Signature = ",0,Some(&ccvsig[0..cclen]));
+            self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
 //
 //
 //  {Certificate Verify} ---------------------------------------------------->
@@ -2046,45 +2043,18 @@ impl SESSION {
                 }
             }
 
-            if pending_authentication { // send certificate, cert_verify and client finish
+            if pending_authentication { // send certificate chain, cert_verify and client finish
                 let hash_type=sal::hash_type(self.cipher_suite);
                 let hlen=sal::hash_len(hash_type);
                 let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
-// get client credentials
-                let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
-                let mut client_certchain:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
-                let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
-                let mut cclen=0;
-                let mut cklen=0;
-                let kind=certchain::get_client_credentials(&mut client_key,&mut cklen,&mut client_certchain,&mut cclen);
-
-                if kind!=0 { // Yes, I can do that signature
-                    log(IO_PROTOCOL,"Client asked to authenticate post-handshake\n",-1,None);
-                    let cc_s=&client_certchain[0..cclen];
-                    let ck_s=&client_key[0..cklen];
-                    self.send_client_certificate(Some(cc_s));
-                    self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate
-//
-//
-//  {client Certificate} ---------------------------------------------------->
-//
-//
-                    cclen=keys::create_client_cert_verifier(kind,fh_s,ck_s,&mut ccvsig);
-                    self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
-//
-//
-//  {Certificate Verify} ---------------------------------------------------->
-//
-//
-                } else { // No, I can't - send a null cert, and no verifier
-                    self.send_client_certificate(None);
-                }
-                self.transcript_hash(fh_s);  // get transcript hash following Handshake Context+Certificate
                 let mut chf: [u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
+// send client credentials
+                self.client_trust();
+// get transcript hash following Handshake Context+Certificate
+                self.transcript_hash(fh_s);  
                 // create client verify data and send it to Server
                 keys::derive_verifier_data(hash_type,chf_s,&self.cts[0..hlen],fh_s);
                 self.send_client_finish(chf_s);
-
                 pending_authentication=false;
             }
 
