@@ -273,6 +273,7 @@ int main(int argc, char const *argv[])
             PSK.len=16;
             for (int i=0;i<16;i++)
                 PSK.val[i]=i+1;                // Fake a 128-bit pre-shared key
+			ip++;
             HAVE_PSK=true;
         }
     }

@@ -32,7 +32,7 @@ To build in release mode (much faster code)
 
 	cargo build --release
 
-To build and run the server program move to the *server* directory and 
+To build and run the server program move to the *server* directory in a new window and 
 
 	cargo run
 	

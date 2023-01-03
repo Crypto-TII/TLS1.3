@@ -13,7 +13,7 @@ mkdir -p sal/miracl/includes
 cd .temp
 git clone https://github.com/miracl/core.git
 cd core/cpp
-python3 ./config64.py --options=2 --options=3 --options=8 --options=41 --options=43
+python3 ./config64.py --options=2 --options=3 --options=8 --options=31 --options=41 --options=43
 cd ../../../
 
 # Copy built library and includes to SAL

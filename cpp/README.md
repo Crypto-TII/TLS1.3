@@ -1,6 +1,6 @@
 # TIIGER TLS C++
 
-This C++ project implements a TLS1.3 client. There is also a Rust version available from this site. This C++ version is really just C plus namespaces plus pass-by-reference. These the only features 
+This C++ project implements a TLS1.3 client. There is also a Rust version available from this site. This C++ version is really just C plus namespaces plus pass-by-reference. These are the only features 
 of C++ that are used. Documentation can be found in the doxygen generated file doc/refman.pdf
 
 <img src="https://img.shields.io/badge/language-c++-blue.svg"/>
@@ -15,10 +15,11 @@ To build the client on an IoT node like the Arduino RP2040, see the readme file 
 Private keys, server/client certificate chains, and CA root stores are all fixed in the code.
 
 Ideally keys, chains and key stores should be kept in external files, but in an IoT setting there may not be a file system. 
-In this C++ code the client private key and certificate (only required for client-side authentication) are stored in the source code file *tls_client_cert.cpp*. The root certificate store is stored in the file *tls_cacert.cpp*.
+In this C++ code the client private key and certificate (only required for client-side authentication) are stored in the source code file *tls_client_cert.cpp*. The root certificate store is 
+stored in the file *tls_cacert.cpp*.
 When using secure hardware, the client private key may not be embedded in the source code, rather it exists in secure on-board memory.
 
-The installation process requires the *cmake* utility to be installed.
+The installation process requires the *cmake* utility to be installed. Copy all files and subdirectories from this directory to a working directory.
 
 ## Miracl
 
@@ -237,8 +238,6 @@ Again we will use OpenSSL to mimic a TLS1.3 server
 and connect via
 
 	./client -p 42 localhost
-
-
 
 An important setting in *tls1_3.h* is CRYPTO\_SETTING. For the above tests is is assumed that this is set to the default TYPICAL, which allows 
 interaction with standard websites. However it may also be set to TINY\_ECC, POST\_QUANTUM and HYBRID. These last three support interaction 

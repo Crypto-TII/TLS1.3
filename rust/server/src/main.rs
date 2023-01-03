@@ -95,7 +95,7 @@ fn handle_client(stream: TcpStream,port: u16) {
         }
         println!("Sending Resumption Ticket");  // maybe updated to reflect client authentication
         session.send_ticket();
-        session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
+        //session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
 
 // got to recv here, or we miss key update!
 

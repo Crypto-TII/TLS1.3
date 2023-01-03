@@ -3,7 +3,7 @@
 
 use crate::config::*;
 
-// ECC-SS keys 256 bit
+// ECC-SS keys 256 bit. Certificate expires May 2023
 
 pub const MYPRIVATE: &str = 
 "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgkYO7LpVcia9BoJSQ\
