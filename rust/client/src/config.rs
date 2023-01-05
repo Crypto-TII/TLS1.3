@@ -82,9 +82,9 @@ pub const MAX_CERT_SIZE:usize = 6144;               // Max client private key/ce
 pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size (less extensions) KEX public key is largest component
 
 // These all blow up post quantum
-pub const MAX_SIG_PUBLIC_KEY: usize = 1952+100;         // Maximum signature Public key size Dilithium 3
-pub const MAX_SIG_SECRET_KEY: usize = 4000+100;         // Maximum signature Public key size Dilithium 3
-pub const MAX_SIGNATURE_SIZE: usize = 3296+100;         // Maximum signature size in bytes - Dilithium 3 
+pub const MAX_SIG_PUBLIC_KEY: usize = 1952+100;        // Maximum signature Public key size Dilithium 3
+pub const MAX_SIG_SECRET_KEY: usize = 4000+100;        // Maximum signature Public key size Dilithium 3
+pub const MAX_SIGNATURE_SIZE: usize = 3296+100;        // Maximum signature size in bytes - Dilithium 3 
 pub const MAX_KEX_PUBLIC_KEY: usize = 1184+32;         // Maximum key exchange public key size (also Encapsulation size for KEM) - was 136 pre-quantum
 pub const MAX_KEX_CIPHERTEXT: usize = 1088+32;         // Maximum key exchange (KEM) ciphertext size
 pub const MAX_KEX_SECRET_KEY: usize = 2400+32;         // Maximum key exchange Secret key size. The +32 is for hybrid with X25519
@@ -93,7 +93,7 @@ pub const MAX_KEX_SECRET_KEY: usize = 2400+32;         // Maximum key exchange S
 pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
 
 // Certificate size limits
-//pub const MAX_SERVER_CHAIN_LEN:usize = 2;                  // Maximum Server Chain length (omit Root Cert)
+//pub const MAX_SERVER_CHAIN_LEN:usize = 2;                // Maximum Server Chain length (omit Root Cert)
 //pub const MAX_SERVER_CHAIN_SIZE:usize = MAX_SERVER_CHAIN_LEN*MAX_CERT_SIZE;
 pub const MAX_CLIENT_CHAIN_LEN:usize = 1;                  // Maximum Client Chain length
 pub const MAX_CLIENT_CHAIN_SIZE:usize = MAX_CLIENT_CHAIN_LEN*MAX_CERT_SIZE;
@@ -165,7 +165,7 @@ pub const APP_PROTOCOL:usize = 0x0010;            // Application Layer Protocol 
 pub const RECORD_SIZE_LIMIT:usize = 0x001c;       // Record Size Limit 
 
 // pre-shared Key (PSK) modes 
-//pub const PSKOK:usize = 0x00;                     // Preshared Key only mode 
+//pub const PSKOK:usize = 0x00;                   // Preshared Key only mode 
 pub const PSKWECDHE:usize = 0x01;                 // Preshared Key with Diffie-Hellman key exchange mode 
 
 // Causes of server error - which should generate a client alert 
@@ -193,8 +193,8 @@ pub const BAD_MESSAGE:isize=-23;                  // Badly formed mesage
 pub const CERT_VERIFY_FAIL:isize= -24;            // Certificate Verification failure */
 pub const BAD_HANDSHAKE:isize=-26;                // Could not agree
 pub const BAD_REQUEST_UPDATE:isize= -27;		  // Bad Request Update value
-pub const CLOSURE_ALERT_RECEIVED:isize=-28;         // alert received
-pub const MISSING_EXTENSIONS:isize= -30;         // Missing one or more extesions
+pub const CLOSURE_ALERT_RECEIVED:isize=-28;       // alert received
+pub const MISSING_EXTENSIONS:isize= -30;          // Missing one or more extesions
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -224,7 +224,7 @@ pub const RECORD_OVERFLOW: u8 =  0x16;            // Record Overflow
 pub const BAD_RECORD_MAC: u8 = 0x14;			  // Bad Record Mac 
 pub const HANDSHAKE_FAILURE: u8 = 0x28;           // Handshake failure
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
-//pub const MISSING_EXTENSION: u8 = 0x6D;             // Missing extensions
+//pub const MISSING_EXTENSION: u8 = 0x6D;         // Missing extensions
 
 /// Universal Hash Function structure 
 pub struct UNIHASH {
@@ -234,7 +234,7 @@ pub struct UNIHASH {
 
 // logging
 pub const IO_NONE:usize= 0;           // Run silently 
-//pub const IO_ERROR:usize= 1;          // Report only errors
+//pub const IO_ERROR:usize= 1;        // Report only errors
 pub const IO_APPLICATION:usize= 2;    // Report application traffic + errors 
 pub const IO_PROTOCOL:usize= 3;       // Report protocol progress + application traffic 
 pub const IO_DEBUG:usize= 4;          // print lots of debug information + protocol progress + application progress 
@@ -281,8 +281,8 @@ pub const TLS_SUCCESS:usize = 1;
 pub const TLS_RESUMPTION_REQUIRED:usize = 2;
 pub const TLS_EARLY_DATA_ACCEPTED:usize = 3;
 
-pub const SET_RECORD_LIMIT: bool=false;  // Max record size (non-standard?) extension
-pub const LOG_OUTPUT_TRUNCATION: usize= 256;       // Output Hex digits before truncation 
+pub const SET_RECORD_LIMIT: bool=false;         // Max record size (non-standard?) extension
+pub const LOG_OUTPUT_TRUNCATION: usize= 256;    // Output Hex digits before truncation 
 
 pub const PSK_NOT:usize = 0;        // no PSK
 pub const PSK_KEY:usize = 1;        // Using PSK from database 
@@ -291,7 +291,7 @@ pub const PSK_IBE:usize = 2;        // Using IBE based PSK
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true;    // allow self-signed server certs
-pub const CRYPTO_SETTING: usize = TYPICAL;  // Decide on crypto setting -  determines group used for initial key exchange
+pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting -  determines group used for initial key exchange
 pub const POST_HS_AUTH:bool= true;         // Willing to do post handshake authentication
 pub const HAVE_CLIENT_CERT:bool= true;     // client-side authentication
 pub const THIS_YEAR: usize = 2023;         // Set to this year - crudely used to deprecate old certificates 

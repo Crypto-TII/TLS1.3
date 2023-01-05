@@ -180,7 +180,6 @@ impl CRYPTO {
         }
         hkdf_expand_label(htype,&mut self.k[0..klen],ts,ky.as_bytes(),None);
         hkdf_expand_label(htype,&mut self.iv[0..12],ts,iv.as_bytes(),None);
-
         self.record=0;
         self.active=true;
     }  
@@ -238,18 +237,12 @@ pub fn check_client_cert_verifier(sigalg: u16,ccvsig: &mut [u8],h: &[u8],certpk:
     let mut siglen=ccvsig.len();
 // Special case processing required here for ECDSA signatures -  scvsig is modified
     if sigalg==ECDSA_SECP256R1_SHA256 || sigalg==ECDSA_SECP384R1_SHA384 {
-        //let mut hts=SHA256_T;
-        //if sigalg==ECDSA_SECP384R1_SHA384 {
-        //    hts=SHA384_T;
-        //}
         let ret=x509::ecdsa_sig_decode(ccvsig);
         siglen=ret.length;
-        //siglen=parse_out_ecdsa_sig(/*sal::hash_type_sig(sigalg)*/hts,ccvsig);
         if siglen == 0 {
             return false;
         }    
     }
-    //log(IO_DEBUG,"Certificate Signature = ",0,Some(&ccvsig[0..siglen]));
     return sal::tls_signature_verify(sigalg,&ccv[0..ptr],&ccvsig[0..siglen],certpk);
 }
 

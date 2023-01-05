@@ -21,12 +21,12 @@ use crate::tls13::ticket::TICKET;
 
 /// TLS1.3 session structure
 pub struct SESSION {
-    pub status: usize,     // Connection status 
-    max_record: usize, // Server's max record size 
-    pub sockptr: TcpStream,   // Pointer to socket 
+    pub status: usize,      // Connection status 
+    max_record: usize,      // Server's max record size 
+    pub sockptr: TcpStream, // Pointer to socket 
     iolen: usize,           // IO buffer length
     ptr: usize,             // IO buffer pointer - consumed portion
-    session_id:[u8;32],  // legacy session ID
+    session_id:[u8;32],     // legacy session ID
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
     pub hlen: usize,        // hostname length
     cipher_suite: u16,      // agreed cipher suite 
@@ -37,7 +37,7 @@ pub struct SESSION {
     rms: [u8;MAX_HASH],     // Resumption Master Secret         
     sts: [u8;MAX_HASH],     // Server Traffic secret             
     cts: [u8;MAX_HASH],     // Client Traffic secret  
-    ctx: [u8;MAX_HASH],           // certificate request context
+    ctx: [u8;MAX_HASH],     // certificate request context
     ctxlen: usize,          // context length 
     io: [u8;MAX_IO],        // Main IO buffer for this connection 
     tlshash: UNIHASH,       // Transcript hash recorder 
@@ -337,7 +337,6 @@ impl SESSION {
         if flush {
             //self.sockptr.write(&self.io[0..ptr]).unwrap();
             socket::send_bytes(&mut self.sockptr,&self.io[0..ptr]);
-
             self.clean_io();
         }
     }   
@@ -691,8 +690,6 @@ impl SESSION {
             if r.err!=0 {return r;}
         }
         self.running_hash_io();
-        //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
         r.val=CERT_REQUEST as usize;
         if nssa==0 {
             r.err= MISSING_EXTENSIONS;
@@ -731,8 +728,6 @@ impl SESSION {
             r.err=BAD_MESSAGE;
         }
         self.running_hash_io();
-        //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
         r.val=FINISHED as usize;
         return r;
     }
@@ -847,8 +842,6 @@ impl SESSION {
         if rlen>MAX_PLAIN_FRAG {
             return MAX_EXCEEDED;
         }
-
-
         if (lb == HSHAKE || lb == ALERT) && rlen==0 {
             return WRONG_MESSAGE; // Implementations MUST NOT send zero-length fragments of Handshake types
         }
@@ -875,25 +868,22 @@ impl SESSION {
 
         self.ptr=0;  
         self.iolen=0;
-
-        let mut r=self.parse_int_pull(1);  if r.err!=0 {return r;}
+        let mut r=self.parse_int_pull(1);  if r.err!=0 {return r;} 
         if r.val!=SERVER_HELLO as usize { // should be Server Hello
+
             r.err=BAD_HELLO;
             return r;
         }
+
         r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;} // If not enough, pull in another fragment
         r=self.parse_int_pull(2); /*let svr=r.val;*/ if r.err!=0 {return r;}
-
+   
         if left<72 {
             r.err=BAD_HELLO;
             return r;
         }
 
         left-=2;                // whats left in message
-        //if svr!=TLS1_2 { 
-        //    r.err=NOT_TLS1_3;  // don't ask
-        //    return r;
-        //}
         r= self.parse_bytes_pull(&mut srn); if r.err!=0 {return r;}
         left-=32;
         let mut retry=false;
@@ -906,7 +896,7 @@ impl SESSION {
             r.err=BAD_HELLO;
             return r;
         }
-     
+ 
         left-=1;
         r=self.parse_bytes_pull(&mut sid[0..silen]); if r.err!=0 {return r;}
         left-=silen;  
@@ -982,13 +972,9 @@ impl SESSION {
                     }
                     r=self.parse_int_pull(2); let tls=r.val; if r.err!=0 {return r;}
                     supported_version=tls;
-                    //if tls!=TLS1_3 {
-                    //    r.err=NOT_TLS1_3;
-                    //}
                 },
                 _ => {
                     r.err=UNRECOGNIZED_EXT;
-                    //break;
                 }
             }
             if r.err!=0 {return r;}
@@ -1226,7 +1212,6 @@ impl SESSION {
         let mut crn: [u8;32]=[0;32];
 
 // Extract Ticket parameters
-        //let lifetime=self.t.lifetime;
         let age_obfuscator=self.t.age_obfuscator;
         let max_early_data=self.t.max_early_data;
         let time_ticket_received=self.t.birth;
@@ -1355,6 +1340,7 @@ impl SESSION {
         let mut pskid:isize=-1;
         let mut cklen=0;
         let mut rtn = self.get_server_hello(&mut kex,&mut cookie,&mut cklen,pk_s,&mut pskid);
+
         if self.bad_response(&rtn) {
             return TLS_FAILURE;
         }   
@@ -1365,7 +1351,6 @@ impl SESSION {
 //
         self.running_hash_io();         // Hashing Server Hello
         self.transcript_hash(hh_s);     // HH = hash of clientHello+serverHello
-
         if pskid<0 { // Ticket rejected by Server (as out of date??)
             log(IO_PROTOCOL,"Ticket rejected by server\n",-1,None);
             log(IO_PROTOCOL,"Resumption Handshake failed\n",-1,None);
@@ -1524,7 +1509,6 @@ impl SESSION {
 //   
         log(IO_DEBUG,"Client Hello sent\n",-1,None);
 // process server hello
-
         pklen=sal::server_public_key_size(self.favourite_group);
         pk_s=&mut spk[0..pklen];
         let mut kex=0;
@@ -1618,20 +1602,17 @@ impl SESSION {
                 log(IO_PROTOCOL,"Full Handshake failed\n",-1,None);
                 return TLS_FAILURE;
             }
-
             if kex!=skex {
                 log(IO_DEBUG,"Server came back with wrong group\n",-1,None);
                 self.send_alert(ILLEGAL_PARAMETER);
                 log(IO_PROTOCOL,"Full Handshake failed\n",-1,None);
                 return TLS_FAILURE;
-
             }
 //
 //
 //  <---------------------------------------------------------- server Hello
 //
 //
-
             resumption_required=true;
         }
         log(IO_DEBUG,"Server Hello= ",0,Some(&self.io[0..self.iolen]));
@@ -1657,7 +1638,6 @@ impl SESSION {
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
         self.derive_handshake_secrets(ss_s,es_s,hh_s);
-
         self.create_send_crypto_context();
         self.create_recv_crypto_context();
         log(IO_DEBUG,"Handshake secret= ",0,Some(&self.hs[0..hlen]));
@@ -2097,7 +2077,7 @@ impl SESSION {
         }
         return mslen; 
     }
-
+/// controlled stop
     pub fn stop(&mut self) {
         self.send_alert(CLOSE_NOTIFY);
     }

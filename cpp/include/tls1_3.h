@@ -58,7 +58,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
 #define ALLOW_SELF_SIGNED		 /**< allow self-signed server cert */
-//#define NO_CERT_CHECKS		 /**< Don't do any checks on server certs */
+//#define NO_CERT_CHECKS		 /**< Don't do any checks on server certs - useful for Anvil testing */
 #define TRY_EARLY_DATA           /**< Try to send early data on resumptions */
 
 // Note that the IOBUFF, Certificates and crypto keys can be quite large, and therefore maybe better taken from the heap

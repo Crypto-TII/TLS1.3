@@ -30,6 +30,7 @@ void initTicketContext(ticket *T)
     T->origin=0;
 }
 
+// terminate a ticket
 void endTicketContext(ticket *T)
 {
     OCT_kill(&T->NONCE);
@@ -54,10 +55,10 @@ int parseTicket(octad *TICK,unsign32 birth,ticket *T)
     r=parseInt(TICK,4,ptr);  if (r.err) return r.err; T->lifetime=r.val;
     r=parseInt(TICK,4,ptr);  if (r.err) return r.err; T->age_obfuscator=r.val;
     r=parseInt(TICK,1,ptr); len=r.val;  if (r.err) return r.err;
-    r=parseoctad(&T->NONCE,len,TICK,ptr);  if (r.err) return r.err;   // could be a single byte 0,1,2,3,... incremented for each ticket issued on this connection 
+    r=parseoctad(&T->NONCE,len,TICK,ptr);  if (r.err) return r.err;		// could be a single byte 0,1,2,3,... incremented for each ticket issued on this connection 
     r=parseInt(TICK,2,ptr); len=r.val; if (r.err) return r.err;
-    r=parseoctad(&T->TICK,len,TICK,ptr);  if (r.err) return r.err; // extract ticket
-    r=parseInt(TICK,2,ptr); len=r.val; if (r.err) return r.err;    // length of extensions
+    r=parseoctad(&T->TICK,len,TICK,ptr);  if (r.err) return r.err;		// extract ticket
+    r=parseInt(TICK,2,ptr); len=r.val; if (r.err) return r.err;			// length of extensions
 
     T->birth=birth;
     T->max_early_data=0;
@@ -94,22 +95,12 @@ bool ticket_still_good(ticket *T)
     unsign32 time_ticket_received,time_ticket_used;
     unsign32 age;
 	if (T->origin==TLS_EXTERNAL_PSK) return true;
-//printf("Got here 1\n");
     if (T->lifetime<=0 || !T->valid)
         return false;
-//printf("Got here 2\n");
     time_ticket_received=T->birth;
     time_ticket_used=(unsign32)millis();
-//printf("rec= %x\n",time_ticket_received);
-//printf("usd= %x\n",time_ticket_used);
-//printf("Birth= %x\n",T->birth);
-//printf("Lifetime= %x\n",T->lifetime);
-
     age=time_ticket_used-time_ticket_received;
-//printf("age= %d\n",age);
-//printf("lt= %d\n",T->lifetime);
     if (age>1000*T->lifetime)
         return false;
-//printf("Got here 3\n");
     return true;
 }

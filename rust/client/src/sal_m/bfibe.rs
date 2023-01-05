@@ -1,3 +1,5 @@
+//! Boneh and Franklin pairing-based IBE
+
 #![allow(non_snake_case)]
 extern crate mcore;
 
@@ -20,11 +22,13 @@ use mcore::bls12381::rom;
 
 pub const FS: usize = big::MODBYTES as usize;
 
+// Trusted Authority Public key
 const TAPK: &str = "0402d506a111d406dd0ad9d64b6515c4e15fd28ab45595b89817871d9220f0242c7b7ef1800ad8e6a8f047100088702ac8042add1af478ae20672c6670959ae36f19dcdee948f6b40a3498af69d708fbf15e81b536dacac484a697a59f3742063b";
 fn roundup(a:usize,b:usize) -> usize {
     return 1+(a-1)/b;
 }
 
+/// convert character to integer
 fn char2int(inp: u8) -> u8 {
     if inp>='0' as u8 && inp <='9' as u8 {
         return inp-'0' as u8;
@@ -38,6 +42,7 @@ fn char2int(inp: u8) -> u8 {
     return 0;
 }
 
+/// decode Hex string to byte array
 // s better have even number of characters!
 fn decode_hex(x: &mut[u8],s: &str) -> usize {
     let c=s.as_bytes();
@@ -52,7 +57,7 @@ fn decode_hex(x: &mut[u8],s: &str) -> usize {
     return i;
 }
 
-/* Encode octet to curve point on G2 */
+/// encode octet to curve point on G2 
 fn h1(identity:&str) -> ECP2 {
     let mut okm:[u8;128]=[0;128];
     let id=identity.as_bytes();
@@ -74,7 +79,7 @@ fn h1(identity:&str) -> ECP2 {
     return P;
 }
 
-/* create random r in Zq from U and V, and rP */
+/// create random r in Zq from U and V, and rP 
 fn h3(u: &[u8],v: &[u8],r: &mut BIG) -> ECP {
     let q = BIG::new_ints(&rom::CURVE_ORDER);
     let mut raw:[u8;128]=[0;128];
@@ -94,7 +99,7 @@ fn h3(u: &[u8],v: &[u8],r: &mut BIG) -> ECP {
     return pair::g1mul(&G, r);
 }
 
-// hash input octet to 32 bytes
+/// hash input octet to 32 bytes
 fn h4(i: &[u8],o: &mut [u8]) {
 	let mut sh = SHA3::new(sha3::HASH256); 
     for j in 0..i.len() {
@@ -103,7 +108,7 @@ fn h4(i: &[u8],o: &mut [u8]) {
     sh.hash(o);
 }
 
-// encapsulate 32-byte key inside ciphertext ct
+/// encapsulate 32-byte key inside ciphertext ct
 pub fn cca_encrypt(identity: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) -> bool {
 	let mut sigma: [u8;32]=[0;32];
     let mut u: [u8;2*FS+1]=[0;2*FS+1];
@@ -159,8 +164,8 @@ pub fn cca_encrypt(identity: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) -> bool
     return true;
 }
 
-// decapsulate 32-byte key inside ciphertext ct
 /*
+/// decapsulate 32-byte key inside ciphertext ct
 pub fn cca_decrypt(csk: &[u8],ct: &[u8],key: &mut[u8]) -> bool {
 	let mut sigma: [u8;32]=[0;32];
 	let u=&ct[0..2*FS+1];

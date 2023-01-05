@@ -250,22 +250,6 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
     }
 
     if ptr==chain.len() { // the chain ends here
-// parse root ca cert - extract its public key
-/*        let mut capklen=0;
-        if !find_root_ca(&issuer[0..islen],&ct.sgt,&mut capk, &mut capklen) {
-            log(IO_DEBUG,"Root Certificate not found = ",0,Some(&issuer[0..islen]));
-            return BAD_CERT_CHAIN;
-        }
-        log(IO_DEBUG,"\nPublic Key from root cert= ",0,Some(&capk[0..capklen]));
-    
-        if !check_cert_sig(&ct.sgt,&cert,&ct.sig[0..ct.sgt.len],&capk[0..capklen]) {
-            log(IO_DEBUG,"Root Certificate signature is NOT OK",-1,None);
-            return BAD_CERT_CHAIN;
-        }
-        log(IO_DEBUG,"Root Certificate signature is OK",-1,None);
-
-        return 0;
-*/
         log(IO_DEBUG,"Non-self-signed Chain of length 1 ended unexpectedly\n",-1,None);
         return BAD_CERT_CHAIN;
     }

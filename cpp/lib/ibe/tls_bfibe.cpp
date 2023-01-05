@@ -1,24 +1,7 @@
-/*
- * Copyright (c) 2012-2020 MIRACL UK Ltd.
- *
- * This file is part of MIRACL Core
- * (see https://github.com/miracl/core).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/* IBE 128-bit API Functions */
-
+//
+// Pairing-based B&F IBE 128-bit API Functions
+// Uses MIRACL
+//
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -235,6 +218,7 @@ bool BFIBE_CCA_DECRYPT(octet *SK,octet *CT,octet *M)
     return true;
 } 
 
+// secret key for "localhost"
 char *idsk=(char *)"040ec014966d3442e85ed19b46044d9655d8ed91ef05e6678e57a51cfd9202c8dad2c854850b09fc919b6cb000a2f5b05801b767a87194d62d45cb1b1a9cd15b63ea733770361de22f64946631c2c21826d8abf884e4d07159d54c91b79662e2e4050ae782a9fb9394853669540b4cb1f46098ca690bd572b9c47587ca12a2f2c268e1a22ebc0d752f95bcf926a8b6e2cb1452dc7bf03eab18c5b68822b0da20279d1e8997a759637abdffec93f4c985f9256deed1cca5c50e2c37ae6c10c67c13";
 
 /*

@@ -4,7 +4,6 @@
 //
 
 #include "tls_octads.h"
-//#include <stdio.h>
 
 // read milliseconds from a stop-watch
 // (Arduino has a built in function with the same name)
@@ -30,7 +29,6 @@ void OCT_append_int(octad *y, unsigned int x, int len)
     n = y->len + len;
     if (n > y->max || len <= 0) 
     {
-//        printf("1. ************************** Octad Problem!\n");
         return;
     }
     for (i = y->len; i < n; i++) y->val[i] = 0;
@@ -58,7 +56,6 @@ void OCT_append_octad(octad *y, octad *x)
         if (j >= y->max)
         {
             y->len = y->max;
- //           printf("2. ************************** Octad Problem!\n");
             return;
         }
         y->val[j] = x->val[i];
@@ -127,8 +124,6 @@ void OCT_from_hex(octad *dst, char *src)
         j += 2;
     }
     dst->len = i;
-//    if (dst->len>=dst->max)
-//        printf("3. ************************** Octad Problem!\n");
 }
 
 /* Appends C string to an octad - truncates if no room  */
@@ -144,8 +139,6 @@ void OCT_append_string(octad *y, char *s)
         i++;
         j++;
     }
- //   if (y->len>=y->max)
- //       printf("4. ************************** Octad Problem!\n");
 }
 
 /* Append byte to octad rep times */
@@ -159,8 +152,6 @@ void OCT_append_byte(octad *y, int ch, int rep)
         y->len++;
         i++;
     }
-//    if (y->len>=y->max)
-//        printf("5. ************************** Octad Problem!\n");
 }
 
 /* Append byte array to octad - truncates if no room */
@@ -174,8 +165,6 @@ void OCT_append_bytes(octad *y, char *b, int len)
         y->len++;
         i++;
     }
-//    if (y->len>=y->max)
-//        printf("6. ************************** Octad Problem!\n");
 }
 
 /* Convert to octad from a base64 string */
@@ -240,7 +229,6 @@ void OCT_copy(octad *y, octad *x)
     y->len = x->len;
     if (y->len > y->max) 
     {
-//        printf("7. ************************** Octad Problem!\n");
         y->len = y->max;
     }
     for (i = 0; i < y->len; i++)

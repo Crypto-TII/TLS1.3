@@ -1,4 +1,6 @@
-/* X.509 Functions */
+//
+// X.509 Functions 
+//
 
 #include <stdio.h>
 #include "tls_octads.h"  
@@ -288,7 +290,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
 
     len = getalen(INT, c->val, j);
     if (len < 0) return ret;
-    j += skip(len) + len; // jump over serial number clause (if there is one)
+    j += skip(len) + len;			// jump over serial number clause (if there is one)
 
     len = getalen(SEQ, c->val, j); 
     if (len < 0) return ret;        
@@ -474,12 +476,12 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         for (i=rlen-len;i<rlen;i++)
             pk->val[i]=c->val[j++];
 
-        flen=rlen;          // should be same length for all
+        flen=rlen;				// should be same length for all
         for (k=1;k<5;k++)
         {
             len = getalen(INT,c->val,j);
             if (len<0) return ret;
-            j += skip(len);  // get q,dp,dq,c
+            j += skip(len);		// get q,dp,dq,c
             if (c->val[j] == 0)
             { // skip leading zero
                 j++;
@@ -503,7 +505,6 @@ pktype X509_extract_private_key(octad *c,octad *pk)
 //  Return 0 for failure, ECC for Elliptic Curve signature, RSA for RSA signature
 //  Note that signature type is not provided here - its the type of the public key that
 //  is used to verify it that matters, and which determines for example the curve to be used!
-
 pktype X509_extract_cert_sig(octad *sc, octad *sig)
 {
     int i, j, k, fin, len, rlen, slen, sj, ex, end, siglen;
@@ -816,7 +817,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
 
     len = getalen(ANY, c->val, j);
     if (len < 0) return ret;
-    j += skip(len) + len; //jump over version clause
+    j += skip(len) + len;				// jump over version clause
 
     len = getalen(INT, c->val, j);
 
@@ -824,7 +825,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
 
     len = getalen(SEQ, c->val, j);
     if (len < 0) return ret;
-    j += skip(len) + len; // jump over signature algorithm
+    j += skip(len) + len;				// jump over signature algorithm
 
     len = getalen(SEQ, c->val, j);
     if (len < 0) return ret;
@@ -971,15 +972,15 @@ int X509_find_issuer(octad *c)
 
     len = getalen(ANY, c->val, j);
     if (len < 0) return 0;
-    j += skip(len) + len; //jump over version clause
+    j += skip(len) + len;				// jump over version clause
 
     len = getalen(INT, c->val, j);
 
-    if (len > 0) j += skip(len) + len; // jump over serial number clause (if there is one)
+    if (len > 0) j += skip(len) + len;	// jump over serial number clause (if there is one)
 
     len = getalen(SEQ, c->val, j);
     if (len < 0) return 0;
-    j += skip(len) + len; // jump over signature algorithm
+    j += skip(len) + len;				// jump over signature algorithm
 
     return j;
 }
@@ -1131,6 +1132,7 @@ int X509_find_expiry_date(octad *c, int start)
     return j;
 }
 
+// find certificate extensions
 int X509_find_extensions(octad *c)
 {
     int j, len;
@@ -1148,6 +1150,7 @@ int X509_find_extensions(octad *c)
     return j;
 }
 
+// find a particular extension
 int X509_find_extension(octad *c, octad *SOID, int start, int *flen)
 {
     int i, j, k, fin, len, tlen, nj;

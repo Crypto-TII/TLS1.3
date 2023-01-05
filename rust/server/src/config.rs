@@ -81,17 +81,17 @@ pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size (less 
 pub const MAX_SIG_PUBLIC_KEY: usize = 1952+100;         // Maximum signature Public key size Dilithium 3
 pub const MAX_SIG_SECRET_KEY: usize = 4000+100;         // Maximum signature Public key size Dilithium 3
 pub const MAX_SIGNATURE_SIZE: usize = 3296+100;         // Maximum signature size in bytes - Dilithium 3  
-pub const MAX_KEX_PUBLIC_KEY: usize = 1184+32;         // Maximum key exchange public key size (also Encapsulation size for KEM) - was 136 pre-quantum
-pub const MAX_KEX_CIPHERTEXT: usize = 1088+32;         // Maximum key exchange (KEM) ciphertext size
-pub const MAX_KEX_SECRET_KEY: usize = 2400+32;         // Maximum key exchange Secret key size
+pub const MAX_KEX_PUBLIC_KEY: usize = 1184+32;          // Maximum key exchange public key size (also Encapsulation size for KEM) - was 136 pre-quantum
+pub const MAX_KEX_CIPHERTEXT: usize = 1088+32;          // Maximum key exchange (KEM) ciphertext size
+pub const MAX_KEX_SECRET_KEY: usize = 2400+32;          // Maximum key exchange Secret key size
 
 
-pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
+pub const MAX_SHARED_SECRET_SIZE:usize = 256;           // Maximum shared secret size - was 66 pre-quantum 
 
 // Certificate size limits
-pub const MAX_SERVER_CHAIN_LEN:usize = 2;                  // Maximum Server Chain length (omit Root Cert)
+pub const MAX_SERVER_CHAIN_LEN:usize = 2;               // Maximum Server Chain length (omit Root Cert)
 pub const MAX_SERVER_CHAIN_SIZE:usize = MAX_SERVER_CHAIN_LEN*MAX_CERT_SIZE;
-//pub const MAX_CLIENT_CHAIN_LEN:usize = 1;                  // Maximum Client Chain length
+//pub const MAX_CLIENT_CHAIN_LEN:usize = 1;             // Maximum Client Chain length
 //pub const MAX_CLIENT_CHAIN_SIZE:usize = MAX_CLIENT_CHAIN_LEN*MAX_CERT_SIZE;
 
 // Bloated by testing clients offering pre TLS1.3 suites and groups
@@ -105,7 +105,7 @@ pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes
 pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes 
 
 //pub const MAX_FRAG:usize = 4;
-pub const MAX_RECORD:usize = 4096;              // default Maximum Record size
+pub const MAX_RECORD:usize = 4096;               // default Maximum Record size
 
 // Both of these are bumped up by PQ IBE and Hybrid
 pub const MAX_TICKET_SIZE:usize = 4196; //4000+161 PQ+IBE
@@ -141,7 +141,7 @@ pub const HYBRID_KX: u16 = 0x421d;
 //pub const X448: u16 = 0x001e;
 
 // TLS versions
-//pub const TLS1_0:usize = 0x0301;                   // TLS 1.0 version 
+//pub const TLS1_0:usize = 0x0301;                 // TLS 1.0 version 
 pub const TLS1_2:usize = 0x0303;                   // TLS 1.2 version 
 pub const TLS1_3:usize = 0x0304;                   // TLS 1.3 version 
 
@@ -155,7 +155,7 @@ pub const KEY_SHARE:usize = 0x0033;               // Key Share extension
 pub const PSK_MODE:usize = 0x002d;                // Preshared key mode extension 
 pub const PRESHARED_KEY:usize = 0x0029;           // Preshared key extension 
 pub const TLS_VER:usize = 0x002b;                 // TLS version extension 
-//pub const COOKIE:usize = 0x002c;                  // Cookie extension 
+//pub const COOKIE:usize = 0x002c;                // Cookie extension 
 pub const EARLY_DATA:usize = 0x002a;              // Early Data extension 
 pub const MAX_FRAG_LENGTH:usize = 0x0001;         // max fragmentation length extension 
 pub const PADDING:usize = 0x0015;                 // Padding extension 
@@ -163,7 +163,7 @@ pub const APP_PROTOCOL:usize = 0x0010;            // Application Layer Protocol 
 pub const RECORD_SIZE_LIMIT:usize = 0x001c;       // Record Size Limit 
 
 // pre-shared Key (PSK) modes 
-//pub const PSKOK:usize = 0x00;                     // Preshared Key only mode 
+//pub const PSKOK:usize = 0x00;                   // Preshared Key only mode 
 pub const PSKWECDHE:usize = 0x01;                 // Preshared Key with Diffie-Hellman key exchange mode 
 
 // Causes of server error - which should generate a client alert 
@@ -194,7 +194,7 @@ pub const BAD_HANDSHAKE:isize=-26;                // Could not agree
 pub const BAD_REQUEST_UPDATE:isize= -27;		  // Bad Request Update value
 pub const CLOSURE_ALERT_RECEIVED:isize=-28;       // alert received
 pub const FINISH_FAIL:isize= -29;                 // Certificate Verification failure */
-pub const MISSING_EXTENSIONS:isize= -30;         // Missing one or more extesions
+pub const MISSING_EXTENSIONS:isize= -30;          // Missing one or more extesions
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -225,7 +225,7 @@ pub const BAD_RECORD_MAC: u8 = 0x14;			  // Bad Record Mac
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
 pub const NO_APPLICATION_PROTOCOL: u8 = 0x78;     // Wrong Application protocol
 pub const HANDSHAKE_FAILURE: u8 = 0x28;           // Handshake failed
-pub const MISSING_EXTENSION: u8 = 0x6D;             // Missing extensions
+pub const MISSING_EXTENSION: u8 = 0x6D;           // Missing extensions
 
 /// Universal Hash Function structure 
 pub struct UNIHASH {
@@ -235,7 +235,7 @@ pub struct UNIHASH {
 
 // logging
 pub const IO_NONE:usize= 0;           // Run silently 
-//pub const IO_ERROR:usize= 1;          // Report only errors
+//pub const IO_ERROR:usize= 1;        // Report only errors
 pub const IO_APPLICATION:usize= 2;    // Report application traffic + errors 
 pub const IO_PROTOCOL:usize= 3;       // Report protocol progress + application traffic 
 pub const IO_DEBUG:usize= 4;          // print lots of debug information + protocol progress + application progress 
@@ -283,8 +283,8 @@ pub const EXTERNAL_PSK:usize =  2;      // External Pre-Shared Key
 pub const TLS_FAILURE:usize = 0;
 pub const TLS_SUCCESS:usize = 1;
 
-//pub const SET_RECORD_LIMIT: bool=false;  // Max record size (non-standard?) extension
-pub const LOG_OUTPUT_TRUNCATION: usize= 512;       /**< Output Hex digits before truncation */
+//pub const SET_RECORD_LIMIT: bool=false;   // Max record size (non-standard?) extension
+pub const LOG_OUTPUT_TRUNCATION: usize= 512; // Hex digits output before truncation 
 
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;     // Set log reporting level

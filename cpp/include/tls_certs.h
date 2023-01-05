@@ -16,7 +16,7 @@ extern const char *cacerts;   /**< The Root Certificate store */
 
 /**	@brief Get Client Certificate chain requirements
  *
-    @param sigReq list of signature requirements
+    @param sigReqs list of signature requirements
     @return number of such requirements
  */
 extern int getSigRequirements(int *sigReqs);

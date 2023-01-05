@@ -114,7 +114,7 @@ extern void createRecvCryptoContext(TLS_session *session,octad *TS);
  *
 	@param session the TLS session structure
  */
-extern void recoverPSK(TLS_session *);
+extern void recoverPSK(TLS_session *session);
 
 /**	@brief Extract Early Secret Key and Binder Key from Preshared Key (External or Resumption)
  *

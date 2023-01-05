@@ -84,7 +84,7 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 	} 
 }
 
-// Exchange Client/Server "Hellos"
+// Phase 1 - Exchange Client/Server "Hellos"
 static int TLS13_exchange_hellos(TLS_session *session)
 {
     ret rtn;
@@ -92,8 +92,6 @@ static int TLS13_exchange_hellos(TLS_session *session)
     int kex,hashtype;
 	int nsa,nsc,nsg,nsac;
     bool resumption_required=false;
-
-//    int csigAlgs[TLS_MAX_SUPPORTED_SIGS]; // acceptable client cert signature types
 
 	int ciphers[TLS_MAX_CIPHER_SUITES];
 	nsc=SAL_ciphers(ciphers);  
@@ -211,7 +209,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
             log(IO_DEBUG,(char *)"Group not supported, or no change as result of HRR\n",NULL,0,NULL);   
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
+			free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -254,7 +252,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
             sendAlert(session,UNEXPECTED_MESSAGE);
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
+			free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -265,7 +263,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
             sendAlert(session,ILLEGAL_PARAMETER);
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
+			free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -274,14 +272,12 @@ static int TLS13_exchange_hellos(TLS_session *session)
 //  <---------------------------------------------------------- server Hello
 //
 //
-
-
         resumption_required=true;
     }
     log(IO_DEBUG,(char *)"Server Hello= ",NULL,0,&session->IO); 
     logServerHello(session->cipher_suite,pskid,&SPK,&COOK);
     logKeyExchange(kex);
-// Hash Transcript the Hellos 
+// Hash Transcript of the Hellos 
     runningHash(session,&CH);
     runningHash(session,&EXT);
     runningHashIOrewind(session);
@@ -315,7 +311,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     log(IO_DEBUG,(char *)"Server handshake key= ",NULL,0,&(session->K_recv.K));
     log(IO_DEBUG,(char *)"Server handshake iv= ",NULL,0,&(session->K_recv.IV));
 #ifdef SHALLOW_STACK
-        free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
+    free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
 // 1. get encrypted extensions
     rtn=getServerEncryptedExtensions(session,&enc_ext_expt,&enc_ext_resp);   
@@ -333,7 +329,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     return TLS_SUCCESS;
 }
 
-// check that the server is trusted
+// Phase 2 - check that the server is trusted
 static int TLS13_server_trust(TLS_session *session)
 {
     ret rtn;
@@ -421,7 +417,6 @@ static int TLS13_server_trust(TLS_session *session)
 //  <------------------------------------------------------ {Server Finished}
 //
 //
-
     if (badResponse(session,rtn))
         return TLS_FAILURE;
     
@@ -437,7 +432,7 @@ static int TLS13_server_trust(TLS_session *session)
     return TLS_SUCCESS;
 }
 
-// client supplies trust to server, given servers list of acceptable signature types
+// Phase 3 - client supplies trust to server, given servers list of acceptable signature types
 static void TLS13_client_trust(TLS_session *session)
 {
 #ifdef SHALLOW_STACK
@@ -495,8 +490,9 @@ static int TLS13_full(TLS_session *session)
     char th[TLS_MAX_HASH];
     octad TH={0,sizeof(th),th};  
     char chf[TLS_MAX_HASH];                           
-    octad CHF={0,sizeof(chf),chf};                    // client verify
+    octad CHF={0,sizeof(chf),chf};       // client verify
 
+// Exchange Hellos
     int rval=TLS13_exchange_hellos(session);
     if (rval==TLS_FAILURE)
     {
@@ -506,7 +502,7 @@ static int TLS13_full(TLS_session *session)
     if (rval==TLS_RESUMPTION_REQUIRED)
         resumption_required=true;
         
-// 2. get certificate request (maybe..) and certificate chain, check it, get Server public key
+// get certificate request (maybe..) and certificate chain, check it, get Server public key
 
     hashtype=SAL_hashType(session->cipher_suite);
     rtn=seeWhatsNext(session);  // get next message type
@@ -517,7 +513,7 @@ static int TLS13_full(TLS_session *session)
     }
 
     if (rtn.val==CERT_REQUEST)
-    { // 2a. optional certificate request received
+    { // optional certificate request received
         gotacertrequest=true;
         rtn=getCertificateRequest(session,false);
 //
@@ -621,7 +617,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad ES = {0,sizeof(es),es};
     char ss[TLS_MAX_SHARED_SECRET_SIZE];
     octad SS = {0, sizeof(ss), ss};      // Shared Secret
-    char ch[TLS_MAX_HELLO];    // Client Hello
+    char ch[TLS_MAX_HELLO];				 // Client Hello
     octad CH = {0, sizeof(ch), ch};
 
     char hh[TLS_MAX_HASH];               
@@ -640,8 +636,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad COOK={0,sizeof(cook),cook};   // Cookie
     char bnd[TLS_MAX_HASH];
     octad BND={0,sizeof(bnd),bnd};
-    //char bl[TLS_MAX_HASH+3];
-    //octad BL={0,sizeof(bl),bl};
     char psk[TLS_MAX_HASH];
     octad PSK={0,sizeof(psk),psk};      // Pre-shared key
     char bk[TLS_MAX_HASH];
@@ -720,8 +714,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     { // Its NOT an external pre-shared key
         time_ticket_used=(unsign32)millis();
         age=time_ticket_used-time_ticket_received; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
-//printf("Ticket age= %d\n",age);
-//age+=500;
         log(IO_DEBUG,(char *)"Ticket age= ",(char *)"%x",age,NULL);
         age+=age_obfuscator;
         log(IO_DEBUG,(char *)"obfuscated age = ",(char *)"%x",age,NULL);
@@ -781,7 +773,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 //  <---------------------------------------------------------- server Hello
 //
 //
-    //runningHash(session,&session->IO); // Hashing Server Hello
     runningHashIOrewind(session); // Hashing Server Hello
     transcriptHash(session,&HH);       // HH = hash of clientHello+serverHello
 
@@ -835,7 +826,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         return TLS_FAILURE;
 	}
     log(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
-
 
     deriveHandshakeSecrets(session,&SS,&ES,&HH); 
     createRecvCryptoContext(session,&session->STS);
@@ -969,19 +959,18 @@ void TLS13_send(TLS_session *state,octad *GET)
 // Process Server records received post-handshake
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
-// For example could include a ticket. Also receiving key K_recv might be updated.
+// For example could include a ticket. Or key update.
 
 int TLS13_recv(TLS_session *session,octad *REC)
 {
     ret r;
     int nce,nb,len,te,type,nticks,kur,rtn;//,ptr=0;
     bool fin=false;
-    //bool gotaticket=false;
     unsign32 time_ticket_received;
-    octad TICK;  // Ticket raw data
+    octad TICK;		// Ticket raw data
     TICK.len=0;
     session->ptr=0;
-    nticks=0; // number of tickets received
+    nticks=0;		// number of tickets received
 	bool PENDING_KEY_UPDATE=false;
 	bool PENDING_AUTHENTICATION=false;
     while (1)
@@ -1135,7 +1124,6 @@ int TLS13_recv(TLS_session *session,octad *REC)
     if (session->T.valid)
     { // if ticket received, recover PSK
         recoverPSK(session); // recover PSK using NONCE and RMS, and store it with ticket
-//printf("2. PSK.len= %d\n",session->T.PSK.len);
         session->T.origin=TLS_FULL_HANDSHAKE;
     } else {
         log(IO_PROTOCOL,(char *)"No ticket provided \n",NULL,0,NULL);

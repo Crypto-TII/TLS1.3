@@ -165,7 +165,6 @@ impl CRYPTO {
         }
         hkdf_expand_label(htype,&mut self.k[0..klen],ts,ky.as_bytes(),None);
         hkdf_expand_label(htype,&mut self.iv[0..12],ts,iv.as_bytes(),None);
-
         self.record=0;
         self.active=true;
     }  
@@ -192,12 +191,7 @@ pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut 
 
     let mut cclen=sal::tls_signature(sigalg,key,&ccv[0..ptr],ccvsig);
     if sigalg==ECDSA_SECP256R1_SHA256 || sigalg==ECDSA_SECP384R1_SHA384 {
-        //let mut hts=SHA256_T;
-        //if sigalg==ECDSA_SECP384R1_SHA384 {
-        //    hts=SHA384_T;
-        //}
         cclen=x509::ecdsa_sig_encode(cclen,ccvsig);
-        //cclen=parse_in_ecdsa_sig(/*sal::hash_type_sig(sigalg)*/hts,ccvsig);
     }
     return cclen;
 }

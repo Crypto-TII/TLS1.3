@@ -61,12 +61,6 @@ fn store_ticket(s: &SESSION,fname: &str) {
     }
     writeln!(&mut fp).unwrap();
 
-//
-//    for i in 0..s.t.nnlen {
-//        write!(&mut fp,"{:02X}",s.t.nonce[i]).unwrap();
-//    }
-//    writeln!(&mut fp).unwrap();
-//
     for i in 0..s.t.psklen {
         write!(&mut fp,"{:02X}",s.t.psk[i]).unwrap();
     }

@@ -1,5 +1,17 @@
-#ifndef IBE_H
-#define IBE_H
+/**
+ * @file tls_pqibe.h
+ * @author Mike Scott
+ * @brief Ducas et al. IBE
+ *
+ */
+//
+// Lattice-based B&F IBE 128-bit API Functions 
+// Ducas et al. Method
+// Implementation by M.Scott
+//
+
+#ifndef PQIBE_H
+#define PQIBE_H
 
 #include "core.h"
 
@@ -11,7 +23,6 @@ using namespace core;
     @param R32 32 random bytes
 	@param KEY random session key generated
 	@param CT encapsulating ciphertext
-
  */
 extern void PQIBE_CCA_ENCRYPT(char *ID,octet *R32,octet *KEY,octet *CT);
 

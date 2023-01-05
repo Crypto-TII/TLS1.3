@@ -25,9 +25,10 @@ void runningHashIO(TLS_session *session)
     SAL_hashProcessArray(&session->tlshash,session->IO.val,session->ptr);
 }
 
+// Shift octad left - rewind IO buffer to start 
 void rewindIO(TLS_session *session)
 {
-    OCT_shift_left(&session->IO,session->ptr);  // Shift octad left - rewind IO buffer to start 
+    OCT_shift_left(&session->IO,session->ptr);  
     session->ptr=0;
 }
 
@@ -55,9 +56,6 @@ void runningSyntheticHash(TLS_session *session,octad *O,octad *E)
  // RFC 8446 - "special synthetic message"
     SAL_hashProcessArray(&rhash,O->val,O->len);
     SAL_hashProcessArray(&rhash,E->val,E->len);
-
-    //runningHash(O,&rhash);
-    //runningHash(E,&rhash);
     HH.len=SAL_hashOutput(&rhash,HH.val);
     
     char t[4];
@@ -118,16 +116,16 @@ void incrementCryptoContext(crypto *C)
 // create expanded HKDF label LB from label and context
 static void hkdfLabel(octad *LB,int length,octad *Label,octad *CTX)
 {
-    OCT_append_int(LB,length,2);    // 2
-    OCT_append_byte(LB,(char)(6+Label->len),1);  // 1
-    OCT_append_string(LB,(char *)"tls13 ");   // 6
-    OCT_append_octad(LB,Label);  // Label->len
+    OCT_append_int(LB,length,2);					// 2
+    OCT_append_byte(LB,(char)(6+Label->len),1);		// 1
+    OCT_append_string(LB,(char *)"tls13 ");			// 6
+    OCT_append_octad(LB,Label);						// Label->len
     if (CTX!=NULL)
     {
-        OCT_append_byte(LB, (char)(CTX->len), 1); // 1
-        OCT_append_octad(LB,CTX);   // CTX->len
+        OCT_append_byte(LB, (char)(CTX->len), 1);	// 1
+        OCT_append_octad(LB,CTX);					// CTX->len
     } else {
-        OCT_append_byte(LB,0,1);   // 1
+        OCT_append_byte(LB,0,1);					// 1
     }
 }
 
@@ -255,16 +253,16 @@ void deriveEarlySecrets(int htype,octad *PSK,octad *ES,octad *BKE,octad *BKR)
 
     int hlen=SAL_hashLen(htype);
 
-    OCT_append_byte(&ZK,0,hlen);  // Zero key
+    OCT_append_byte(&ZK,0,hlen);	// Zero key
 
     if (PSK==NULL)
-        OCT_copy(&EMH,&ZK);   // if no PSK available use ZK
+        OCT_copy(&EMH,&ZK);			// if no PSK available use ZK
     else
         OCT_copy(&EMH,PSK);
 
     SAL_hkdfExtract(htype,ES,&ZK,&EMH);  // hash function, ES is output, ZK is salt and EMH is IKM
 
-    SAL_hashNull(htype,&EMH);  // EMH = hash of ""
+    SAL_hashNull(htype,&EMH);		// EMH = hash of ""
 
     if (BKE!=NULL)
     {  // External Binder Key
@@ -313,7 +311,7 @@ void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES,octad *H)
     int htype=SAL_hashType(session->cipher_suite);
     int hlen=SAL_hashLen(htype);
 
-    SAL_hashNull(htype,&EMH);      // hash of ""
+    SAL_hashNull(htype,&EMH);			// hash of ""
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"derived");
@@ -348,8 +346,8 @@ void deriveApplicationSecrets(TLS_session *session,octad *SFH,octad *CFH,octad *
     int htype=SAL_hashType(session->cipher_suite);
     int hlen=SAL_hashLen(htype);
 
-    OCT_append_byte(&ZK,0,hlen);           // 00..00  
-    SAL_hashNull(htype,&EMH);  // hash("")
+    OCT_append_byte(&ZK,0,hlen);			// 00..00  
+    SAL_hashNull(htype,&EMH);				// hash("")
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"derived");
@@ -377,59 +375,6 @@ void deriveApplicationSecrets(TLS_session *session,octad *SFH,octad *CFH,octad *
     hkdfExpandLabel(htype,&session->RMS,hlen,&MS,&INFO,CFH);
 }
 
-// Convert ECDSA signature to DER encoded form
-/*
-static void parse_in_ecdsa_sig(int sha,octad *CCVSIG)
-{ // parse ECDSA signature into DER encoded (r,s) form
-	int shalen=SAL_hashLen(sha);
-    char c[TLS_MAX_ECC_FIELD];
-    octad C={0,sizeof(c),c};
-    char d[TLS_MAX_ECC_FIELD];
-    octad D={0,sizeof(d),d};
-    int len,clen=shalen;
-    bool cinc=false;
-    bool dinc=false;
-
-    C.len=D.len=clen;
-    for (int i=0;i<clen;i++)
-    {
-        C.val[i]=CCVSIG->val[i];
-        D.val[i]=CCVSIG->val[clen+i];
-    }
-
-    if (C.val[0]&0x80) cinc=true;
-    if (D.val[0]&0x80) dinc=true;
-
-    len=2*clen+4;
-    if (cinc) len++;    // -ve values need leading zero inserted
-    if (dinc) len++;
-
-    OCT_kill(CCVSIG);
-    OCT_append_byte(CCVSIG,0x30,1);  // ASN.1 SEQ
-    OCT_append_byte(CCVSIG,len,1);
-// C
-    OCT_append_byte(CCVSIG,0x02,1);  // ASN.1 INT type
-    if (cinc)
-    {
-        OCT_append_byte(CCVSIG,clen+1,1);
-        OCT_append_byte(CCVSIG,0,1);
-    } else {
-        OCT_append_byte(CCVSIG,clen,1);
-    }
-    OCT_append_octad(CCVSIG,&C);
-// D
-    OCT_append_byte(CCVSIG,0x02,1);  // ASN.1 INT type
-    if (dinc)
-    {
-        OCT_append_byte(CCVSIG,clen+1,1);
-        OCT_append_byte(CCVSIG,0,1);
-    } else {
-        OCT_append_byte(CCVSIG,clen,1);
-    }
-    OCT_append_octad(CCVSIG,&D);
-}
-*/
-
 // Create Client Cert Verify message, a digital signature using KEY on some TLS1.3 specific message+transcript hash
 void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
 {
@@ -454,76 +399,17 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     }
 
     SAL_tlsSignature(sigAlg,KEY,&CCV,CCVSIG);
-//printf("KEY len= %d\n",KEY->len);
 // adjustment for ECDSA signatures
     if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384)
     {
-        //int hts=TLS_SHA256_T;
-        //if (sigAlg==ECDSA_SECP384R1_SHA384)
-        //    hts=TLS_SHA384_T;
-        //parse_in_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,CCVSIG);
         ecdsa_sig_encode(CCVSIG);
     }
-//printf("SIG len= %d\n",CCVSIG->len);
-
 
     return;
 }
 
-// Convert DER encoded signature to ECDSA signature
-/*
-static bool parse_out_ecdsa_sig(int sha,octad *SCVSIG)
-{ // parse out DER encoded (r,s) ECDSA signature into a single SIG 
-    ret rt;
-    int lzero,der,rlen,slen,Int,ptr=0;
-    int len=SCVSIG->len;
-	int shalen=SAL_hashLen(sha);
-    char r[TLS_MAX_ECC_FIELD];
-    octad R={0,sizeof(r),r};
-    char s[TLS_MAX_ECC_FIELD];
-    octad S={0,sizeof(s),s};
-
-    rt=parseInt(SCVSIG,1,ptr); der=rt.val;
-    if (rt.err || der!=0x30) return false;
-    rt=parseInt(SCVSIG,1,ptr); slen=rt.val;
-    if (rt.err || slen+2!=len) return false;
-
-// get R
-    rt=parseInt(SCVSIG,1,ptr); Int=rt.val;
-    if (rt.err || Int!=0x02) return false;
-    rt=parseInt(SCVSIG,1,ptr); rlen=rt.val;
-    if (rt.err) return false;
-    if (rlen==shalen+1)
-    { // one too big
-        rlen--;
-        rt=parseInt(SCVSIG,1,ptr); lzero=rt.val;
-        if (rt.err || lzero!=0) return false;
-    }
-    rt=parseoctad(&R,shalen,SCVSIG,ptr); if (rt.err) return false;
-
-// get S
-    rt=parseInt(SCVSIG,1,ptr); Int=rt.val;
-    if (rt.err || Int!=0x02) return false;
-    rt=parseInt(SCVSIG,1,ptr); slen=rt.val;
-    if (rt.err) return false;
-    if (slen==shalen+1)
-    { // one too big
-        slen--;
-        rt=parseInt(SCVSIG,1,ptr); lzero=rt.val;
-        if (rt.err || lzero!=0) return false;
-    }
-    rt=parseoctad(&S,shalen,SCVSIG,ptr); if (rt.err) return false;
-
-    if (rlen<shalen || slen<shalen) return false;
-
-    OCT_copy(SCVSIG,&R);
-    OCT_append_octad(SCVSIG,&S);
-    return true;
-}
-*/
 // check that SCVSIG is digital signature (using sigAlg algorithm) of some TLS1.3 specific message+transcript hash, 
 // as verified by Server Certificate public key CERTPK
-
 bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
 {
 // Server Certificate Verify
@@ -559,13 +445,8 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
 
 // Special case processing required here for ECDSA signatures -  SCVSIG is modified
     if (sigAlg==ECDSA_SECP256R1_SHA256 || sigAlg==ECDSA_SECP384R1_SHA384) {
-        //int hts=TLS_SHA256_T;
-        //if (sigAlg==ECDSA_SECP384R1_SHA384)
-        //    hts=TLS_SHA384_T;
-        //if (!parse_out_ecdsa_sig(/*SAL_hashTypeSig(sigAlg)*/hts,SCVSIG)) return false;
         if (!ecdsa_sig_decode(SCVSIG)) return false;
     }
     log(IO_DEBUG,(char *)"Certificate Signature = ",NULL,0,SCVSIG);
     return SAL_tlsSignatureVerify(sigAlg,&SCV,SCVSIG,CERTPK);
 }
-

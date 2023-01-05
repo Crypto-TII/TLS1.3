@@ -22,7 +22,6 @@ void myprintf(char *s)
 // log debug string and info or octad
 // if string is not NULL, output info, with format in string
 // if O is not null, output octad in hex.
-// undefine LOGGER in tls1_3.h to save space
 
 void log(int logit,char *preamble,char *string,unsign32 info,octad *O)
 {
@@ -223,7 +222,6 @@ void logServerHello(int cipher_suite,int pskid,octad *PK,octad *CK)
 #if VERBOSITY >= IO_DEBUG
     log(IO_DEBUG,(char *)"Parsing serverHello\n",NULL,0,NULL);
     logCipherSuite(cipher_suite);
-    //logKeyExchange(kex);
     if (pskid>=0) log(IO_DEBUG,(char *)"PSK Identity= ",(char *)"%d",pskid,NULL);
     if (PK->len>0) {
         log(IO_DEBUG,(char *)"Server Public Key= ",NULL,0,PK);//OCT_output(PK);

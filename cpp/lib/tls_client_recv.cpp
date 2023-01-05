@@ -37,6 +37,7 @@ ret parseoctad(octad *E,int len,octad *M,int &ptr)
     return r;
 }
 
+// parse out an array of bytes of length len
 ret parsebytes(char *e,int len,octad *M,int &ptr)
 {
     ret r={0,BAD_RECORD};
@@ -67,6 +68,7 @@ ret parseoctadptr(octad *E,int len,octad *M,int &ptr)
     return r;
 }
 
+// parse out an integer of length len
 ret parseInt(octad *M,int len,int &ptr)
 {
 	ret r={0,BAD_RECORD};
@@ -119,17 +121,13 @@ int getServerRecord(TLS_session *session)
     if (RH.val[0]==CHANGE_CIPHER)
     { // read it, and ignore it
         char sccs[10];
-        //octad SCCS={0,sizeof(sccs),sccs};
         left=getInt16(session->sockptr);
 		if (left!=1) return BAD_RECORD;					// ** RM
-        //OCT_append_octad(&SCCS,&RH);
-        //OCT_append_int(&SCCS,left,2);
-        rtn=getBytes(session->sockptr,sccs/*&SCCS.val[5]*/,left);
+        rtn=getBytes(session->sockptr,sccs,left);
         if (rtn<0)
             return TIMED_OUT;
 		if (session->status!=TLS13_HANDSHAKING)
 			return WRONG_MESSAGE;
-        //SCCS.len+=left;
         rtn=getOctad(session->sockptr,&RH,3); // get the next record and carry on
 		if (rtn<0)
 			return TIMED_OUT;
@@ -304,8 +302,6 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
     if (r.err==ALERT)
     { // received an alert from the Server - abort
         log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
-        //if (r.val==CLOSE_NOTIFY)
-		//    sendAlert(session,CLOSE_NOTIFY);  // I'm closing down, and so are you
         logAlert(r.val);
         return true;
     }
@@ -328,7 +324,6 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
 // extract Encrypted Extensions, Certificate Chain, Server Certificate Signature and Server Verifier Data
 // update transcript hash
 // Bad actor Server could be throwing anything at us - so be careful
-
 ret seeWhatsNext(TLS_session *session)
 {
     int nb;//,ptr=0;
@@ -353,8 +348,6 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     ret r;
     int nb,left,ext,len,tlen,xlen,mfl;//,ptr=0;
     int unexp=0;
-    //session->ptr=0;
-    //OCT_kill(&session->IO); // clear IO buffer
 
     r=parseIntorPull(session,1);
     if (r.err) return r;
@@ -593,8 +586,6 @@ ret getCertificateRequest(TLS_session *session,bool context)
             break;
 
         default:    // ignore all other extensions
-            //r=parseoctadorPull(session->sockptr,&U,tlen,ptr,recv);   // to look at extension
-            //printf("Unexpected Extension= "); OCT_output(&U);
             session->ptr+=tlen; // skip over it
             unexp++;
             break;
@@ -625,11 +616,9 @@ ret getCertificateRequest(TLS_session *session,bool context)
 ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG)
 {
     ret r;
-    int nb,len,tlen;//,ptr=0;
+    int nb,len,tlen;
     octad CERTCHAIN;       // // Clever re-use of memory - share memory rather than make a copy!
     CERTCHAIN.len=0;
-
-    //session->ptr=0;
 
     r=parseIntorPull(session,1); // get message type
     if (r.err!=0) {return r;}
@@ -660,7 +649,7 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG
 		r.err=EMPTY_CERT_CHAIN;
 		return r;
 	}
-	if (tlen+4!=len)															// ** RM
+	if (tlen+4!=len)
 	{
 		r.err=BAD_CERT_CHAIN;
 		return r;
@@ -689,9 +678,6 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
     int nb,left,len;//,ptr=0;
 	int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
 	int nsa=SAL_sigs(sigAlgs);
-
-    //session->ptr=0;
-    //r=parseIntorPull(session,1,ptr); // get message type
     r=parseIntorPull(session,1); // get message type
     if (r.err!=0) {return r;}
     nb=r.val;
@@ -716,8 +702,6 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
     r=parseIntorPull(session,2); len=r.val; if (r.err) return r;    // sig data follows
     r=parseoctadorPull(session,SCVSIG,len); if (r.err) return r;
 
-
-    //left-=4+len;
     if (left!=len+4) {
         r.err=BAD_MESSAGE;
         return r;
@@ -734,9 +718,7 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
 ret getServerFinished(TLS_session *session,octad *HFIN)
 {
     ret r;
-    int nb,len;//,ptr=0;
-
-    //session->ptr=0;
+    int nb,len;
     r=parseIntorPull(session,1); // get message type
     if (r.err!=0) {return r;}
     nb=r.val;
@@ -781,9 +763,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
     OCT_from_hex(&HRR,(char *)hrrh);
 
     kex=-1;
-	//cipher=-1;
     pskid=-1;
-
 
     OCT_kill(CK); OCT_kill(PK);
 // get first fragment - not encrypted
@@ -811,15 +791,8 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
     left-=2;                // whats left in message
 
 	int legacy_version=svr;
-/*
-    if (svr!=TLS1_2) { // ServerHello.legacy
-        r.err=NOT_TLS1_3;  // don't ask, but maybe ignore?
-        return r;
-    }
-*/
     r= parseoctadorPull(session,&SRN,32); if (r.err) return r;
     left-=32;
-
     if (OCT_compare(&SRN,&HRR))
     {
         retry=true;        // "random" data was not random at all - indicated Handshake Retry Request!
@@ -874,7 +847,6 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 // process extensions
     while (extLen>0)
     {
-//printf("Extlen = %d\n",extLen);
         r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
         r=parseIntorPull(session,2); tmplen=r.val; if (r.err) break;
 		if (extLen<4+tmplen)
@@ -883,7 +855,6 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 			return r;
 		}
 		extLen-=(4+tmplen);
-//printf("Ext = %d\n",ext);
         switch (ext)
         {
         case KEY_SHARE :
@@ -896,7 +867,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
                     r=parseoctadorPull(session,PK,pklen); 
 					glen+=(2+pklen);
                 }
-				if (tmplen!=glen)														// ** RM
+				if (tmplen!=glen)	
 				{
 					r.err=BAD_HELLO;
 					return r;
@@ -905,7 +876,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
             }
         case PRESHARED_KEY :
             { // Indicate acceptance of pre-shared key
-				if (tmplen!=2)															// ** RM
+				if (tmplen!=2)	
 				{
 					r.err=BAD_HELLO;
 					return r;
@@ -920,14 +891,13 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
             }
         case TLS_VER :
             { // report TLS version
-				if (tmplen!=2)															// ** RM
+				if (tmplen!=2)		
 				{
 					r.err=BAD_HELLO;
 					return r;
 				}
                 r=parseIntorPull(session,2); tls=r.val; if (r.err) break; // get TLS version
 				supported_version=tls;
-                //if (tls!=TLS1_3) r.err=NOT_TLS1_3;
                 break;
             }
        default :

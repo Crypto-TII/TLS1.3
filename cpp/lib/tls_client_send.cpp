@@ -5,7 +5,7 @@
 #include "tls_client_send.h"
 #include "tls_logger.h"
 
-// send Change Cipher Suite - helps get past middleboxes
+// send Change Cipher Suite - helps get past middleboxes (WTF?)
 void sendCCCS(TLS_session *session)
 {
     char cccs[10];
@@ -21,11 +21,11 @@ void addServerNameExt(octad *EXT,char *servername)
 {
     int len=strlen(servername);
     OCT_append_int(EXT,SERVER_NAME,2);  // This extension is SERVER_NAME(0)
-    OCT_append_int(EXT,5+len,2);   // In theory its a list..
-    OCT_append_int(EXT,3+len,2);   // but only one entry
-    OCT_append_int(EXT,0,1);     // Server is of type DNS Hostname (only one type supported, and only one of each type)
-    OCT_append_int(EXT,len,2);   // serverName length
-    OCT_append_string(EXT,servername); // servername
+    OCT_append_int(EXT,5+len,2);		// In theory its a list..
+    OCT_append_int(EXT,3+len,2);		// but only one entry
+    OCT_append_int(EXT,0,1);			// Server is of type DNS Hostname (only one type supported, and only one of each type)
+    OCT_append_int(EXT,len,2);			// serverName length
+    OCT_append_string(EXT,servername);	// servername
 }
     
 // Build Supported Groups Extension
@@ -34,27 +34,27 @@ void addSupportedGroupsExt(octad *EXT,int nsg,int *supportedGroups)
     OCT_append_int(EXT,SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
     OCT_append_int(EXT,2*nsg+2,2);          // Total length
     OCT_append_int(EXT,2*nsg,2);            // Number of entries
-    for (int i=0;i<nsg;i++)          // One entry per supported group 
+    for (int i=0;i<nsg;i++)					// One entry per supported group 
         OCT_append_int(EXT,supportedGroups[i],2);
 }
 
 // Build Signature algorithms Extension
 void addSigAlgsExt(octad *EXT,int nsa,int *sigAlgs)
 {
-    OCT_append_int(EXT,SIG_ALGS,2);  // This extension is SIGNATURE_ALGORITHMS(0x0d)
-    OCT_append_int(EXT,2*nsa+2,2);   // Total length
-    OCT_append_int(EXT,2*nsa,2);     // Number of entries
-    for (int i=0;i<nsa;i++)   // One entry per supported signature algorithm
+    OCT_append_int(EXT,SIG_ALGS,2);		// This extension is SIGNATURE_ALGORITHMS(0x0d)
+    OCT_append_int(EXT,2*nsa+2,2);		// Total length
+    OCT_append_int(EXT,2*nsa,2);		// Number of entries
+    for (int i=0;i<nsa;i++)				// One entry per supported signature algorithm
         OCT_append_int(EXT,sigAlgs[i],2);
 }
 
 // Build Signature algorithms Cert Extension
 void addSigAlgsCertExt(octad *EXT,int nsac,int *sigAlgsCert)
 {
-    OCT_append_int(EXT,SIG_ALGS_CERT,2);  // This extension is SIGNATURE_ALGORITHMS_CERT (0x32)
-    OCT_append_int(EXT,2*nsac+2,2);   // Total length
-    OCT_append_int(EXT,2*nsac,2);     // Number of entries
-    for (int i=0;i<nsac;i++)   // One entry per supported signature algorithm
+    OCT_append_int(EXT,SIG_ALGS_CERT,2);	// This extension is SIGNATURE_ALGORITHMS_CERT (0x32)
+    OCT_append_int(EXT,2*nsac+2,2);			// Total length
+    OCT_append_int(EXT,2*nsac,2);			// Number of entries
+    for (int i=0;i<nsac;i++)				// One entry per supported signature algorithm
         OCT_append_int(EXT,sigAlgsCert[i],2);
 }
 
@@ -168,15 +168,6 @@ void addPostHSAuth(octad *EXT)
     OCT_append_int(EXT,0,2);
 }
 
-// Create 32-byte random octad
-/*
-int clientRandom(octad *RN)
-{
-    SAL_randomOctad(32,RN);
-    return 32;
-}
-*/
-
 // build cipher-suites octad from ciphers we support
 int cipherSuites(octad *CS,int ncs,int *ciphers)
 {
@@ -212,9 +203,6 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
 
     int rbytes=SAL_randomByte()%16; // random padding bytes
 
-    //OCT_kill(&session->IO);
-    //session->ptr=0;
-
     reclen=CM->len;
     if (EXT!=NULL) reclen+=EXT->len;
     if (!session->K_send.active)
@@ -249,8 +237,6 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
 // build and transmit unencrypted client hello. Append pre-prepared extensions
 void sendClientHello(TLS_session *session,int version,octad *CH,octad *CRN,bool already_agreed,octad *EXTENSIONS,int extra,bool resume,bool flush)
 {
-    //char rn[32];
-    //octad RN = {0, sizeof(rn), rn};
     char cs[2+TLS_MAX_CIPHER_SUITES*2];
     octad CS = {0, sizeof(cs), cs};
 	int nsc;
@@ -276,16 +262,15 @@ void sendClientHello(TLS_session *session,int version,octad *CH,octad *CRN,bool 
     total+=cipherSuites(&CS,nsc,ciphers);
 
     OCT_kill(CH);
-    OCT_append_byte(CH,CLIENT_HELLO,1);  // clientHello handshake message  // 1
-    OCT_append_int(CH,total+extlen-2,3);   // 3
+    OCT_append_byte(CH,CLIENT_HELLO,1);		// clientHello handshake message  // 1
+    OCT_append_int(CH,total+extlen-2,3);	// 3
 
-    OCT_append_int(CH,TLS1_2,2);           // 2
-    OCT_append_octad(CH,CRN);              // 32
-    OCT_append_byte(CH,32,1);        // 1   
-    OCT_append_bytes(CH,session->id,32);              // 32
-    OCT_append_octad(CH,&CS);              // 2+TLS_MAX_CIPHER_SUITES*2
+    OCT_append_int(CH,TLS1_2,2);			// 2
+    OCT_append_octad(CH,CRN);				// 32
+    OCT_append_byte(CH,32,1);				// 1   
+    OCT_append_bytes(CH,session->id,32);    // 32
+    OCT_append_octad(CH,&CS);				// 2+TLS_MAX_CIPHER_SUITES*2
     OCT_append_int(CH,compressionMethods,2);  // 2
-
     OCT_append_int(CH,extlen,2);              // 2
 
 // transmit it
@@ -311,8 +296,6 @@ void sendAlert(TLS_session *session,int type)
 {
     char pt[2];
     octad PT={0,sizeof(pt),pt};
-    //char buff[48];
-    //octad BUFF={0,sizeof(buff),buff};
     OCT_append_byte(&PT,0x02,1);  // alerts are always fatal
     OCT_append_byte(&PT,type,1);  // alert type
     OCT_kill(&session->IO); session->ptr=0;
@@ -334,7 +317,7 @@ void sendKeyUpdate(TLS_session *session,int type)
 	OCT_append_int(&UP,type,1);
 	OCT_kill(&session->IO); session->ptr=0;
 	sendClientMessage(session,HSHAKE,TLS1_2,&UP,NULL,true); // sent using old keys
-	deriveUpdatedKeys(&session->K_send,&session->STS); // now update keys
+	deriveUpdatedKeys(&session->K_send,&session->STS);		// now update keys
     log(IO_PROTOCOL,(char *)"KEY UPDATE REQUESTED\n",NULL,0,NULL);
 }
 
@@ -344,8 +327,8 @@ void sendClientFinish(TLS_session *session,octad *CHF)
     char pt[4];
     octad PT={0,sizeof(pt),pt};
 
-    OCT_append_byte(&PT,FINISHED,1);  // indicates handshake message "client finished" 
-    OCT_append_int(&PT,CHF->len,3); // .. and its length 
+    OCT_append_byte(&PT,FINISHED,1);	// indicates handshake message "client finished" 
+    OCT_append_int(&PT,CHF->len,3);		// .. and its length 
 
     runningHash(session,&PT);
     runningHash(session,CHF);

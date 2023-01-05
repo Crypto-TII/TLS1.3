@@ -35,12 +35,12 @@ pub struct SESSION {
     pub port: u16,         // Connection port
     pub status: usize,     // Connection status 
     pub max_record: usize, // max record size I should send
-    pub sockptr: TcpStream,   // Pointer to socket 
+    pub sockptr: TcpStream,     // Pointer to socket 
     pub iolen: usize,           // IO buffer length - input decrypted data
     pub ptr: usize,             // IO buffer pointer - consumed portion
-    pub session_id:[u8;33],  // legacy session ID
+    pub session_id:[u8;33],     // legacy session ID
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
-    pub hlen: usize,        // hostname length
+    pub hlen: usize,            // hostname length
     pub cipher_suite: u16,      // agreed cipher suite 
     pub favourite_group: u16,   // favourite key exchange group 
     pub k_send: keys::CRYPTO,   // Sending Key 
@@ -49,7 +49,7 @@ pub struct SESSION {
     pub rms: [u8;MAX_HASH],     // Resumption Master Secret         
     pub sts: [u8;MAX_HASH],     // Server Traffic secret             
     pub cts: [u8;MAX_HASH],     // Client Traffic secret   
-    pub ctx: [u8;MAX_HASH],           // certificate request context
+    pub ctx: [u8;MAX_HASH],     // certificate request context
     pub ctxlen: usize,          // context length
     pub io: [u8;MAX_IO],        // Main IO buffer for this connection 
     pub tlshash: UNIHASH,       // Transcript hash recorder 
@@ -378,19 +378,9 @@ impl SESSION {
             ptr=utils::append_bytes(&mut self.io,ptr,&tag[0..taglen]);
         }
 
-// trying to create TCP fragmentation
-//self.sockptr.set_nodelay(true);
-//        if ptr>20 {
-//            self.sockptr.write(&self.io[0..10]).unwrap();
-//let ten_millis = Duration::from_millis(1000);
-
-
-//thread::sleep(ten_millis);
-//            self.sockptr.write(&self.io[10..ptr]).unwrap();
-//        } else {
-            //self.sockptr.write(&self.io[0..ptr]).unwrap();
-            socket::send_bytes(&mut self.sockptr,&self.io[0..ptr]);
-//        }
+// might try to TCP fragment here?
+        self.iolen=ptr;
+        socket::send_bytes(&mut self.sockptr,&self.io[0..ptr]);
         self.clean_io();
     }   
 
@@ -1183,7 +1173,6 @@ impl SESSION {
                 },
                 PRESHARED_KEY => {  // extlen=tlen1+tlen2+4
                     r=self.parse_int_pull(2); let tlen1=r.val; if r.err!=0 {return r;}
-//println!("r.val= {} extlen= {} binders {}",r.val,extlen,2+33);
                     if extlen <= tlen1+2 {  // no room for binders!
                         r.err=BAD_HELLO;
                         return r;
@@ -1216,7 +1205,6 @@ impl SESSION {
                     resume=true;    // proceed as for resumption
                     got_psk_ext=true;
                     binder_bytes=extlen-tlen1-2;
-//println!("Room for binders= {} {}",binder_bytes,nbndrs);
                 },
                 _ => {
                     r=self.parse_pull(extlen); if r.err!=0 {return r;} // just ignore
@@ -1360,7 +1348,6 @@ impl SESSION {
             }
             self.running_hash_io();
         }
-        //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr); // rewind io buffer - but beware if it was a resumption there may be binders in there
 // now construct server hello (or HRR) + extensions
         let mut ptr=0;
         ptr=utils::append_byte(sh,ptr,SERVER_HELLO,1);
@@ -1384,7 +1371,6 @@ impl SESSION {
         if mfl_mode>0 {
             extlen=extensions::add_mfl(encext,extlen,mfl_mode);
         }
-        //extlen=extensions::add_rsl(encext,extlen,MAX_RECORD);   //oops chrome does not like this!
         if sni_ack {
             extlen=extensions::add_server_name(encext,extlen);
         }
@@ -1525,9 +1511,6 @@ impl SESSION {
         r=utils::parse_int(&state,2,&mut ptr); self.cidlen=r.val; if r.err!=0 {return r;}
         r=utils::parse_bytes(&mut self.clientid[0..self.cidlen],&state,&mut ptr); 
 
-        //if self.cidlen>0 {
-        //    self.client_authenticated=true;
-        //}
         r.val=FULL_HANDSHAKE;  // return PSK origin
         return r;
     }
@@ -1619,7 +1602,6 @@ impl SESSION {
         if self.bad_response(&rtn) {
             return TLS_FAILURE;
         }
-
 //
 //
 //   <---------------------------------------------------------- client Hello received
@@ -1644,9 +1626,6 @@ impl SESSION {
             if self.bad_response(&r) {
                 return TLS_FAILURE;
             }
-            //if self.client_authenticated {
-            //    log(IO_PROTOCOL,"Client Authenticated Identity - ",-1,Some(&self.clientid[0..self.cidlen]));
-            //}
             let mut external_psk=false;
             if r.val==EXTERNAL_PSK {
                 external_psk=true;
@@ -1682,7 +1661,6 @@ impl SESSION {
             log(IO_DEBUG,"Server handshake traffic secret= ",0,Some(&self.sts[0..hlen]));
 
             self.send_encrypted_extensions(&ext[0..enclen]);
-
 //
 //   Encrypted extensions sent ----------------------------------------------------------> 
 //
@@ -1694,7 +1672,6 @@ impl SESSION {
             keys::derive_verifier_data(hash_type,shf_s,&self.sts[0..hlen],th_s);
             self.send_server_finish(shf_s);                    
             self.transcript_hash(hh_s);
-
 //
 //   server Finish sent ----------------------------------------------------------------> 
 //
@@ -1757,8 +1734,6 @@ impl SESSION {
 
                 shlen=0;
                 enclen=0;
-                //nsa=0;
-
 //
 //   <---------------------------------------------------------- receive updated client Hello
 //
@@ -1772,12 +1747,9 @@ impl SESSION {
                     self.clean();
                     return TLS_FAILURE;
                 }
-                //self.running_hash_io(); // contains client Hello plus extensions
             }
-            //self.running_hash_io(); // contains client Hello plus extensions
             self.running_hash(&sh[0..shlen]);
             self.transcript_hash(hh_s);                                   
-            //log(IO_DEBUG,"Client Hello = ",0,Some(&self.io[0..self.iolen]));
             log(IO_DEBUG,"Client Hello processed\n",-1,None);
             log(IO_DEBUG,"Host= ",-1,Some(&self.hostname[0..self.hlen]));
             let sslen=sal::shared_secret_size(self.favourite_group);
@@ -1792,11 +1764,9 @@ impl SESSION {
             if !ccs_sent {
                 self.send_cccs();
             }
-
 //
 //   server Hello sent ----------------------------------------------------------> 
 //
-
     // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
             self.derive_handshake_secrets(ss_s,es_s,hh_s);
 
@@ -1950,7 +1920,6 @@ impl SESSION {
     //
     //  <---------------------------------------------------- {Client finished}
     //
-
         log(IO_DEBUG,"Server receives client finished\n",-1,None);
         log(IO_DEBUG,"Client Verify Data= ",0,Some(&fin[0..fnlen])); 
         let fin_s=&fin[0..fnlen];
@@ -1959,7 +1928,6 @@ impl SESSION {
         if delayed_alert==0 { // only worth doing if there is no earlier alert
             verified=keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s);
         }
-        //let verified=keys::check_verifier_data(hash_type,fin_s,&self.cts[0..hlen],th_s);
         if !verified {  
             if delayed_alert==0 { // otherwise send earlier alert
                 delayed_alert=FINISH_FAIL;
@@ -2149,7 +2117,6 @@ impl SESSION {
                     return r.err;
                 }
             }
-
             if pending_update {
                     self.send_key_update(UPDATE_NOT_REQUESTED);  // tell client to update their receiving keys
                     log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
@@ -2205,7 +2172,7 @@ impl SESSION {
         self.ptr=0;
         self.iolen=0;
     }
-
+/// controlled stop
     pub fn stop(&mut self) {
         self.send_alert(CLOSE_NOTIFY);
     }

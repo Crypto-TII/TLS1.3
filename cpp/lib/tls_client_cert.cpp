@@ -7,7 +7,7 @@
 
 #if CLIENT_CERT == ECC_SS
 
-// My personal ECC private key 
+// My personal ECC private key - Certificate expires May 2023
 const char *myprivate=(char *)
 "-----BEGIN PRIVATE KEY-----\n"
 "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgkYO7LpVcia9BoJSQ\n"
@@ -43,7 +43,7 @@ int getSigRequirements(int *sigReqs) {
 #endif
 
 #if CLIENT_CERT == HW_1
-// My first Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0.
+// My first Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0. Expires November 2026
 const char *myprivate=NULL;
 
 const char *mycert=(char *) 
@@ -65,7 +65,7 @@ int getSigRequirements(int *sigReqs) {
 #endif
 
 #if CLIENT_CERT == HW_2
-// My second Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0.
+// My second Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0. Expires December 2026
 const char *myprivate=NULL;
 
 const char *mycert=(char *) 
@@ -86,7 +86,7 @@ int getSigRequirements(int *sigReqs) {
 #endif
 
 /*
-// My Arduino Nano 33 IoT self-signed Cert. Private key is on the board slot 0.
+// My Arduino Nano 33 IoT self-signed Cert. Private key is on the board slot 0. Expires July 2031
 const char *myprivate=NULL;
 
 const char *mycert=(char *) 
@@ -98,66 +98,67 @@ const char *mycert=(char *)
 "IhLI/gFGVjsAU+WK7ulsW5YgxCqjAjAAMAoGCCqGSM49BAMCA0gAMEUCIQDYWgeH\n"
 "TF7AcJH+3nr7VQo8acgoyhlPnR62xwjj0AsUcwIgQ9qgNjVtZgoZC5+fTpPyG7dt\n"
 "1YI/aNe4SDOv0a2jtmc=\n"
-"-----END CERTIFICATE-----\n"
+"-----END CERTIFICATE-----\n";
 */
 
 #if CLIENT_CERT == RSA_SS
-// My personal private key RSA 2048 bits 
+// My personal private key RSA 2048 bits - expires October 2025
 const char *myprivate=(char *)
 "-----BEGIN PRIVATE KEY-----\n"
-"MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQCoCw+tQ0BRraq+\n"
-"f3ex9kF+jsBLMsPdXrbMPNmLRAQU0CIYV0hLikmMGE7vmBr8jZJXP8fb7/fBlpKC\n"
-"5Qn8T+BWFjBbZrFelgCIh6UgS1hAkvS7cn6lJwouIkw6iKgwQr5Q1Eju30W16wvi\n"
-"C0Vri5/RKsNNOZ/IS+2yh9pFL3C1drvTJRUyqcCmCZt5TkRgkcOIprYc13+Rm9l5\n"
-"TmPVK2OBAte5UmgQQGF3rLdpfg7ud19jPC+rjC2ueRnkvozaPVVq8rbtr8dIOb11\n"
-"Fx2JjNcN1oEwa5ZtJrqclighgjgTYIv7dVWa+b3HC31IGfmsS1eMCbj1i4MaXSpy\n"
-"XbsfqsNBAgMBAAECggEADlnre9ObgZ5AT8aZFVS/oSxV1dY/Df/Rwr2Loq4rXw+r\n"
-"acLChNkJkPJeg23NGDaLAfKLgggLc7gFSTKAWNEFirSYaqXpjfdnkkFrY8ergNBM\n"
-"IFoV4MrlvqzlL7aODpkUodiPZf8hd/jb6fEme5nQC1AIn+bE85kwcqfRh0kW6hhX\n"
-"YJm6NP8Y2OGOS7+K7BI36g00aYW/M1XHj43/MZ5c/DJz2NNHJ+WuI/9mRE4zxlKu\n"
-"LhjAa40I/CLxUvbgxFAyvm8yjMAtSwnOemIBV8HhaU/p5sTk7waPG9Mobm8HD41H\n"
-"5fujL9IU8p2lEzaV8NhTcCOVVcxX/NBdzLbxMLtk9QKBgQDUApM96rrYV/eUn35g\n"
-"oyK1G4e0/s9JEc9+DAcSuzLlGnjfYm+B8W9In3kRJATnxWrHHm2LyEWqpYFIbZjY\n"
-"oE23LyGEhI5LBIGrndS73M27FitBAPX/zbpe06RuhAIpBP6s6prXTodXmQtOGK9p\n"
-"VXUxzsfHt+lNshGzCWlxidPsrwKBgQDK6RS1Wv4N24WldYOoeuxV51Rn81m7aZH0\n"
-"FnDb7668NrjN+PqXq5u32Oir6Sai84OViN6gCCpzEHj2p8IkmQdO5Mdo15o72r5z\n"
-"Eqbh2IIhuMNkGtcprTa/HK4FGlib/yK7Mc6AhNScZNwzuEhAsDKp/p4J4GMNm4GM\n"
-"ID3LRQmrDwKBgQCFVEVDGB5/NfsmhZNVtOJ74R9cLS8w9bl2vJuqJP4h5J8FZQNZ\n"
-"RfvFQT1DEVLga1/2b2VXFhDx+3mtkfcgrNeTD1nV3AMcnG3r/qstpfPf51Y2YCNU\n"
-"xw2g2xq6wdwV7eU326abJvConz/j0lRmOu8j7rXnHPrk+Mp2vMGKPLKBUwKBgQCB\n"
-"2rpC+ZF+os8bvWHdb5VRwHJ29/ikBILAV6AwUGpdzxNj1YPhjpRgCrOUWOg9/mNm\n"
-"TipS9gbcjl0rVN7c9wYDSkwHX3s39NxO3k/oVtuo4wpARSEPbeeMVLlVULAGXTgH\n"
-"3m8ONnOuBqoZe0TaCSjTO7w+C9i4O52jZHrHXE48pwKBgQCigvvQFHJ7kxlMNHas\n"
-"5tRrLtmzQr6xdE/n6BjfSQfA18VP6jOGQ0EvvBv/yvq85IPSZnztzk3xvnzfoCL0\n"
-"bAyaRlQR/jw8daenMig6Jbat/Ru0kGEwVfdv4stNR/tlF5TixlQL34MWBO6OCuLL\n"
-"GLIR9z6iWmmkZoFmTTaaDhTpOw==\n"
+"MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDPopFHQN4sWfEO\n"
+"fwKMqZAYOZCbpS13lZTYGlIsDOe4Ak3ZoKpkQw/evePpmfRJt3c76m57c9CM53z0\n"
+"P0P820IOahlzU+02WcAfgDCBYrCmbKwm2H5HhylBiHF5AlvgoOf/J2xXadK6Afll\n"
+"7+gCEZTfBpbfqX2uPO8zLzzrRRVxi8NMky3hVtjoZMtfn9yshLe2Tb9UfZjXMe60\n"
+"u4Zc9+azAA3QBilUWtSAFI461svZzSQvkZs5n14hcbTqzNBMR4qQXBZtqq/SDYQs\n"
+"p5jqFVmDEQOSTFndwIBEJ+g7vBAberjeh9R+bAHftHAGkMvmrqHLMkD5qAp1D1bc\n"
+"8l+3i8etAgMBAAECggEACxUYP/9cXG2oiieJUUyznjdkWopkdN+NBEPTYvqFW7Lz\n"
+"yMvkjFlv/WmRQqSu/0hFmvMWVoyF8x9f8gF2dYaWbgKHvTobjS0ZLhU/gYhs+VUP\n"
+"kzs28kZqk07fD6BqmwC7oUjPZZMGZls4npJBheq+UXEemG2JgcVK1yaMT9puHJNK\n"
+"dKqP4i37KSKzXmhWTptCrk7cOXZYYFzhKm7xbG+wWqPpVhVbJIAMEvA4PBOMY2f5\n"
+"M+OXF3W82nl6hRTHEUUl26NkkKrzFHHkLbTZsBocnpy42tIImOCHPvlf6AJqEO6Y\n"
+"mp47sCCg5N3AE8Ztg2EF+EAwCDNEZf+df66lLzztgQKBgQD6qgOluasejwJLzmOp\n"
+"E6iI4YgPkEG+8HIquJn3EtmVaOWl2w0f5g6PpEjMum8nqyb+qBEgRiV7FYy+KyCv\n"
+"c82/jPyN7wtvUZpjBmDEX3mHMvlFFvd1u0/W5AroH8JnHMNRb5cTwJPVNFp5iL/T\n"
+"ipgSuRGrvnx0jgT8t5MQ1yICkQKBgQDUDhFSPJyNxWpdh022rMxH5FIphbFATt9E\n"
+"/I/uxIxUVtFelvP4dmhUcq5laeE9gegdV7o5cnbKS2T22qffaj5uTcicivPfNeBr\n"
+"+UQX8rEjfq+25278zecQv6WlHNR6Duo6aLtOQR1VGrD7y6XX4T62NF2+oBHtVrgh\n"
+"HQTJ1d3JXQKBgQDaWT7UHefxtqFJZ39oyLcGhW8AH6klqk3I6QU1NDZU8AsbbrUA\n"
+"FGaauYCw1bX92Bkfu0cv1erQTPVMskTGkRmowic9e/15+puBpwykAobaPozkohzt\n"
+"cT0a84qMqR2utF9vkMUJb7dXAUPOmlB+9TuDE7NQ552B6jRt73ssMDpwAQKBgF7F\n"
+"ssQYRret5W3LjNX5wIrY5keccq2VEoAYiJNj0HvZGVW3DW6cLOChKIQ2n+4HYx/K\n"
+"F3aZS7H5pDQXYTOenixaIzCjgX7e62AWVXKGiticRBfws0/VDlIT9QooKmYqyFA2\n"
+"go/k1iE0/qhqScKD7q0sFkGd9KUoPr6942f5Z1gZAoGBALbA84ln9+6WilePWd56\n"
+"9Stjm1hFbMvxH4GfFRWYyyKLI2/xRhF/botoOw9s5KaWv515ENphKjkSlOe/2ymm\n"
+"2TmDZxokL5ZtxJrUzYOGA1Y1rfFspquDiiMSV/nk4VBucNHXk855l/x1S8DeR2K2\n"
+"lYtWM/F1mJ0keAIM9bnn1iII\n"
 "-----END PRIVATE KEY-----\n";
 
 // A chain of certificates - just one self-signed here
 const char *mycert=(char *)
 "-----BEGIN CERTIFICATE-----\n"
-"MIIEBzCCAu+gAwIBAgIUD8w/2H11mv/GLZOF2JgzBfciYKgwDQYJKoZIhvcNAQEL\n"
-"BQAwgZIxCzAJBgNVBAYTAklFMQ4wDAYDVQQIDAVDYXZhbjEXMBUGA1UEBwwOQmFs\n"
-"bHlqYW1lc2R1ZmYxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEW\n"
-"MBQGA1UEAwwNTWljaGFlbCBTY290dDEfMB0GCSqGSIb3DQEJARYQbXNjb3R0QGlu\n"
-"ZGlnby5pZTAeFw0yMTAzMzEwOTAzMTlaFw0yMjAzMzEwOTAzMTlaMIGSMQswCQYD\n"
-"VQQGEwJJRTEOMAwGA1UECAwFQ2F2YW4xFzAVBgNVBAcMDkJhbGx5amFtZXNkdWZm\n"
-"MSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQxFjAUBgNVBAMMDU1p\n"
-"Y2hhZWwgU2NvdHQxHzAdBgkqhkiG9w0BCQEWEG1zY290dEBpbmRpZ28uaWUwggEi\n"
-"MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCoCw+tQ0BRraq+f3ex9kF+jsBL\n"
-"MsPdXrbMPNmLRAQU0CIYV0hLikmMGE7vmBr8jZJXP8fb7/fBlpKC5Qn8T+BWFjBb\n"
-"ZrFelgCIh6UgS1hAkvS7cn6lJwouIkw6iKgwQr5Q1Eju30W16wviC0Vri5/RKsNN\n"
-"OZ/IS+2yh9pFL3C1drvTJRUyqcCmCZt5TkRgkcOIprYc13+Rm9l5TmPVK2OBAte5\n"
-"UmgQQGF3rLdpfg7ud19jPC+rjC2ueRnkvozaPVVq8rbtr8dIOb11Fx2JjNcN1oEw\n"
-"a5ZtJrqclighgjgTYIv7dVWa+b3HC31IGfmsS1eMCbj1i4MaXSpyXbsfqsNBAgMB\n"
-"AAGjUzBRMB0GA1UdDgQWBBS4dxYkZxgSy/La72wKDeJG0/Yx+TAfBgNVHSMEGDAW\n"
-"gBS4dxYkZxgSy/La72wKDeJG0/Yx+TAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3\n"
-"DQEBCwUAA4IBAQAODJqMGgduTv2r/dKM/jd+cqgEWGhlFtjRZlfkDoFdsY6RiCgI\n"
-"+8Z/c08TMTjHDxzmACxwbG15QE7Dp628YWPuS6oeSwLJNqXVmoig2pgDwWYhHmQt\n"
-"qCuZ4naSTuzOXEIDJGzjkMTYJTNXRqtqxmC9NJTjztg0Ub9uJFAOycjVZh1X3wNy\n"
-"kmzYSU1jb+VLnjL1tQ/5xAMt4GNAVxEIWPK/Fxv2whS4dwZOpgKvZE4qtTtGBbdg\n"
-"zZQC8pPt3dKHDhM4IKPbhGhl/zKDqyZaYx7QQd5YZ8U5vdF+qrrdYwao91jSSLSW\n"
-"wPM17xpdd/yeQkV8kJMhmYfgkgCQvCFLiMX+\n"
+"MIIEJzCCAw+gAwIBAgIUT1xD+P/lcf5CVT4nEnjkDHCx2BYwDQYJKoZIhvcNAQEL\n"
+"BQAwgaIxCzAJBgNVBAYTAklFMQ8wDQYDVQQIDAZVbHN0ZXIxFzAVBgNVBAcMDkJh\n"
+"bGx5amFtZXNkdWZmMRgwFgYDVQQKDA9TaGFtdXMgU29mdHdhcmUxETAPBgNVBAsM\n"
+"CFJlc2VhcmNoMRYwFAYDVQQDDA1NaWNoYWVsIFNjb3R0MSQwIgYJKoZIhvcNAQkB\n"
+"FhVtaWtlLnNjb3R0QG1pcmFjbC5jb20wHhcNMjMwMTA1MDU1MDU2WhcNMjUxMDAx\n"
+"MDU1MDU2WjCBojELMAkGA1UEBhMCSUUxDzANBgNVBAgMBlVsc3RlcjEXMBUGA1UE\n"
+"BwwOQmFsbHlqYW1lc2R1ZmYxGDAWBgNVBAoMD1NoYW11cyBTb2Z0d2FyZTERMA8G\n"
+"A1UECwwIUmVzZWFyY2gxFjAUBgNVBAMMDU1pY2hhZWwgU2NvdHQxJDAiBgkqhkiG\n"
+"9w0BCQEWFW1pa2Uuc2NvdHRAbWlyYWNsLmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD\n"
+"ggEPADCCAQoCggEBAM+ikUdA3ixZ8Q5/AoypkBg5kJulLXeVlNgaUiwM57gCTdmg\n"
+"qmRDD9694+mZ9Em3dzvqbntz0IznfPQ/Q/zbQg5qGXNT7TZZwB+AMIFisKZsrCbY\n"
+"fkeHKUGIcXkCW+Cg5/8nbFdp0roB+WXv6AIRlN8Glt+pfa487zMvPOtFFXGLw0yT\n"
+"LeFW2Ohky1+f3KyEt7ZNv1R9mNcx7rS7hlz35rMADdAGKVRa1IAUjjrWy9nNJC+R\n"
+"mzmfXiFxtOrM0ExHipBcFm2qr9INhCynmOoVWYMRA5JMWd3AgEQn6Du8EBt6uN6H\n"
+"1H5sAd+0cAaQy+auocsyQPmoCnUPVtzyX7eLx60CAwEAAaNTMFEwHQYDVR0OBBYE\n"
+"FC4O3mIGz/e49iRpegbDKk+Dmp9tMB8GA1UdIwQYMBaAFC4O3mIGz/e49iRpegbD\n"
+"Kk+Dmp9tMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBACyDnPof\n"
+"l/BFzmLTssYJ0tyH0vDYK2Q/vvaz59DmBxDPxIlk/mR7AZILxH1gIy82DYBL/4Qg\n"
+"N29yI7zQlpIrygE9z5oKzeUwj9oqzw/la2D9uLegs9X6eYuTUSNGH2uxWmtNnfku\n"
+"ZPNpbeKtKD+IibtTRBeMsygZftmAzRmGkO74VIt/mmr6A2dU/wkpywLLmeiD8Bnu\n"
+"5Lk4x+HPjtgVYR7D1FXOU6+q5zS2SrCj3yTNxw5dBq2WfQnnFZCFWkgxZ9hBDQ9P\n"
+"+5XjRXUpUH2VbfSNBjktYJKZpuXWj4yVChzPtYsGJfuqpMAoWziZNHNHP1RCyzZw\n"
+"Y3ErhHcLL7Z4dRk=\n"
 "-----END CERTIFICATE-----\n";
 
 // Report signature requirements for our certificate chain
@@ -259,7 +260,7 @@ const char *myprivate=(char *)
 "u6taoqDv\n"
 "-----END PRIVATE KEY-----\n";
 
-// A chain of certificates - just one self-signed here
+// A chain of certificates - just one self-signed here. Expires August 2023
 const char *mycert=(char *)
 "-----BEGIN CERTIFICATE-----\n"
 "MIIQKTCCBligAwIBAgIUWEGWHej9h0YdDKgO+9exOw6AcNswCAYGK84PAgcBMCEx\n"
@@ -359,7 +360,6 @@ int getSigRequirements(int *sigReqs) {
 }
 
 #endif
-
 
 #if CLIENT_CERT == DLT_SS
 
@@ -491,6 +491,8 @@ const char *myprivate=(char *)
 "eD5S0+0Yeddp3lx4J5eS+3xP6zxjqpswtSIQbhMd1rmZnC84mPc28oaLJhkJmQ8H\n"
 "C7+nxVM/RSaC6FGZpuJKUWvMd/dY/yiFiga8qrup\n"
 "-----END PRIVATE KEY-----\n";
+
+// A chain of certificates - just one self-signed here. Expires June 2023
 
 const char *mycert=(char *)
 "-----BEGIN CERTIFICATE-----\n"

@@ -1,3 +1,5 @@
+//! Ducas et al. lattice-based IBE
+
 extern crate mcore;
 
 use mcore::sha3;
@@ -26,23 +28,23 @@ const H: [u32;1024] = [0x377e3ac,0x2360cb0,0x5841181,0x3ef642b,0x4fb0d0,0x17c0de
 const RKEY: [u8;128] = [103,198,105,115,81,255,74,236,41,205,186,171,242,251,227,70,124,194,84,248,27,232,231,141,118,90,46,99,51,159,201,154,102,50,13,183,49,88,163,90,37,93,5,23,88,233,94,212,171,178,205,198,155,180,84,17,14,130,116,65,33,61,220,135,112,233,62,161,65,225,252,103,62,1,126,151,234,220,107,150,143,56,92,42,236,176,59,251,50,175,60,84,236,24,219,92,2,26,254,67,251,250,170,58,251,41,209,230,5,60,124,148,117,216,190,97,137,249,92,187,168,153,15,149,177,235,241,179];
 
 /* Montgomery stuff */
-
+/// Montgomery REDC function
 fn redc(w: u64) -> u32 {
     let dp=PRIME as u64;
     let m=(((w&0xffffffff) * ND)&0xffffffff) as u32;
     return (((m as u64)*dp+w)>>32) as u32;
 }
-
+/// conevrt to n-residue
 fn nres(x: u32) -> u32 {
 	return redc((x as u64)*R2MODP);
 }
-
+/// modular multiplication with no division
 fn modmul(a: u32,b: u32) -> u32 {
 	return redc((a as u64)*(b as u64));
 }
 
 /* NTT code */
-/* Cooley-Tukey NTT */
+/// Cooley-Tukey NTT 
 fn ntt(b: &mut [u32]) {
     let q=PRIME;
     let mut t=DEGREE/2;
@@ -68,10 +70,9 @@ fn ntt(b: &mut [u32]) {
 	}
 }
 
-/* Gentleman-Sande INTT */
+/// Gentleman-Sande INTT 
 fn intt(b: &mut[u32]) {
     let mut t=1;
-    //let q=PRIME;
 	let mut m=DEGREE/2;
 	let mut n=LGN;
 
@@ -146,7 +147,7 @@ fn intt(b: &mut[u32]) {
 	}
 }
 
-/* reduces inputs that are already < 2q */
+/// reduce inputs that are already < 2q 
 fn poly_soft_reduce(poly: &mut[u32]) {
 	for i in 0..DEGREE {
         let sp=PRIME as i32;
@@ -155,7 +156,7 @@ fn poly_soft_reduce(poly: &mut[u32]) {
 	}
 }
 
-/* fully reduces modulo q */
+/// fully reduces modulo q 
 fn poly_hard_reduce(poly: &mut[u32]) {
 	for i in 0..DEGREE {
         let sp=PRIME as i32;
@@ -165,6 +166,7 @@ fn poly_hard_reduce(poly: &mut[u32]) {
 	}
 }
 
+/// polynomial multiplication in frequency domain
 fn poly_mul(p1: &mut[u32],p2: &[u32],p3: &[u32]) {
 	for i in 0..DEGREE {
 		p1[i]=modmul(p2[i],p3[i]);
@@ -172,6 +174,7 @@ fn poly_mul(p1: &mut[u32],p2: &[u32],p3: &[u32]) {
 	poly_hard_reduce(p1);
 }
 
+/// in-place polynomial multiplication in frequency domain
 fn poly_smul(p1: &mut[u32],p3: &[u32]) {
 	for i in 0..DEGREE {
 		p1[i]=modmul(p1[i],p3[i]);
@@ -179,12 +182,14 @@ fn poly_smul(p1: &mut[u32],p3: &[u32]) {
 	poly_hard_reduce(p1);
 }
 
+/// in-place polynomial addition
 fn poly_incr(p1: &mut[u32],p3: &[u32]) {
 	for i in 0..DEGREE {
 		p1[i]+=p3[i];    //**
     }
 }
 
+/// in-place polynomial subtraction
 fn poly_dec(p1: &mut[u32],p3: &[u32]) {
 // p3 must be fully reduced
 	for i in 0..DEGREE {
@@ -192,7 +197,7 @@ fn poly_dec(p1: &mut[u32],p3: &[u32]) {
     }
 }
 
-// shorten, but round
+/// polynomial truncate, but round
 fn poly_shorten(p: &mut[u32]) {
 	for i in 0..DEGREE {
 		p[i]/=1<<(UBITS-VBITS-1);
@@ -205,13 +210,14 @@ fn poly_shorten(p: &mut[u32]) {
     }
 }
 
+/// polynomial unshorten
 fn poly_lengthen(p: &mut[u32]) {
 	for i in 0..DEGREE {
 		p[i]*=1<<(UBITS-VBITS);
     }
 }
 
-// hash identity to polynomial
+/// hash identity to polynomial
 fn hid(identity: &[u8],id: &mut[u32]) { 
 	let mut sh = SHA3::new(sha3::SHAKE128);
 	let mut hash: [u8; 4*DEGREE] = [0; 4*DEGREE];
@@ -231,14 +237,14 @@ fn hid(identity: &[u8],id: &mut[u32]) {
 	}
 }
 
-// get n-th bit from byte array
+/// get n-th bit from byte array
 fn getbit(b: &[u8],n: usize) -> u32 {
 	let wd=n/8;
 	let bt=n%8;
 	return ((b[wd]>>bt)&1) as u32;
 }
 
-// centered binomial distribution
+/// centered binomial distribution
 fn cbd(bts: &[u8],f: &mut[u32]) {
 	for i in 0..DEGREE {
 		let a=getbit(bts,2*i);
@@ -247,7 +253,7 @@ fn cbd(bts: &[u8],f: &mut[u32]) {
 	}
 }
 
-// hash internal key of length DEGREE/8 into external key of length 32 
+/// hash internal key of length DEGREE/8 into external key of length 32 
 fn hdk(ikey: &[u8],key: &mut[u8]) {
 	let mut sh = SHA3::new(sha3::HASH256);
     for i in 0..DEGREE/8 {
@@ -256,6 +262,7 @@ fn hdk(ikey: &[u8],key: &mut[u8]) {
     sh.hash(key);
 }
 
+/// expand key into a polynomial
 fn expand(ikey: &[u8],key: &mut[u32]) {
     let mut m=0; let mut k=0; let mut next=0 as u8;
 	for i in 0..DEGREE { // expand into polynomial
@@ -265,6 +272,7 @@ fn expand(ikey: &[u8],key: &mut[u32]) {
 	}
 }
 
+/// shrink polynomial into byte array
 fn shrink(key: &[u32],ikey: &mut[u8]) {
 	let mut next=0;
     let mut m=0; let mut k=0;
@@ -279,7 +287,7 @@ fn shrink(key: &[u32],ikey: &mut[u8]) {
 }
 
 // array t has ab active bits per word
-// extract bytes from array of words
+/// extract bytes from array of words
 // if mx!=0 then -mx<=t[i]<=+mx
 fn nextbyte32(ab: usize,t: &[u32],ptr:&mut usize,bts: &mut usize) -> u8 {
     let mut left=ab-*bts;
@@ -300,6 +308,7 @@ fn nextbyte32(ab: usize,t: &[u32],ptr:&mut usize,bts: &mut usize) -> u8 {
     return r as u8;
 }
 
+/// extract word from array of bytes
 fn nextword(ab: usize,t: &[u8],ptr:&mut usize,bts: &mut usize) -> u32 {
     let mut r=(t[*ptr]>>*bts) as u32;
     let mask=(1<<ab)-1;
@@ -321,8 +330,8 @@ fn nextword(ab: usize,t: &[u8],ptr:&mut usize,bts: &mut usize) -> u32 {
     return w;
 }
 
-// pack ciphertext
 /*
+/// pack ciphertext
 fn pack_ct(ct: &mut[u8],u: &[u32],v: &[u32]) -> usize {
     let mut n=0;
     let mut ptr=0;
@@ -338,7 +347,7 @@ fn pack_ct(ct: &mut[u8],u: &[u32],v: &[u32]) -> usize {
 }
 */
 
-// pack ciphertext
+/// pack ciphertext and check its the same
 fn chk_pack_ct(ct: &[u8],u: &[u32],v: &[u32]) -> u8 {
     let mut n=0;
     let mut ptr=0;
@@ -356,7 +365,7 @@ fn chk_pack_ct(ct: &[u8],u: &[u32],v: &[u32]) -> u8 {
     return diff;
 }
 
-// unpack ciphertext
+/// unpack ciphertext
 fn unpack_ct(u: &mut[u32],v: &mut [u32],pk: &[u8]) {
     let mut ptr=0;
     let mut bts=0;
@@ -368,7 +377,7 @@ fn unpack_ct(u: &mut[u32],v: &mut [u32],pk: &[u8]) {
     }
 }
 
-// ID is identity, ikey is input session key, ud/vt is ciphertext
+/// ID is identity, ikey is input session key, ud/vt is ciphertext
 fn cpa_base_encrypt(identity: &[u8],ikey: &[u8],ud: &mut [u32],vd: &mut [u32]) {
 	let mut rd: [u32; DEGREE] = [0; DEGREE];
 	let mut e: [u32; DEGREE] = [0; DEGREE];
@@ -424,8 +433,8 @@ fn cpa_base_encrypt(identity: &[u8],ikey: &[u8],ud: &mut [u32],vd: &mut [u32]) {
 	poly_shorten(vd);
 }
 
-// ID is identity, ikey is input session key, ct is ciphertext
 /*
+/// ID is identity, ikey is input session key, ct is ciphertext
 fn cpa_encrypt(identity: &[u8],ikey: &[u8],ct: &mut[u8]) {
 	let mut ud: [u32; DEGREE] = [0; DEGREE];
 	let mut vd: [u32; DEGREE] = [0; DEGREE];
@@ -433,8 +442,8 @@ fn cpa_encrypt(identity: &[u8],ikey: &[u8],ct: &mut[u8]) {
 	pack_ct(ct,&ud,&vd);
 }
 */
-// ID is identity, ikey is output session key, ct is ciphertext
-// This time checking that (ud,vd) does in fact compress to ct
+/// ID is identity, ikey is output session key, ct is ciphertext
+/// This time checking that (ud,vd) does in fact compress to ct
 fn cpa_check_encrypt(identity: &[u8],ikey: &[u8],ct: &[u8]) -> u8 {
 	let mut ud: [u32; DEGREE] = [0; DEGREE];
 	let mut vd: [u32; DEGREE] = [0; DEGREE];
@@ -447,6 +456,7 @@ fn cpa_check_encrypt(identity: &[u8],ikey: &[u8],ct: &[u8]) -> u8 {
     }
 }
 
+/// use secret key csk to extract ikey from ciphertext ct
 fn cpa_decrypt(csk: &[i16],ct: &[u8],ikey: &mut[u8]) {
 	let mut sk: [u32; DEGREE] = [0; DEGREE];
 	let mut u: [u32; DEGREE] = [0; DEGREE];
@@ -460,12 +470,6 @@ fn cpa_decrypt(csk: &[i16],ct: &[u8],ikey: &mut[u8]) {
         sk[i]=n as u32;
     }
 
-
-  //      if csk[i]<0 {
-  //          sk[i]=cs
-//		sk[i]=csk[i] as u32;
-//		if sk[i]<0 { sk[i]+=PRIME; }
-//	}
 	poly_lengthen(&mut v);
 	ntt(&mut sk);
 	ntt(&mut u);
@@ -485,8 +489,8 @@ fn cpa_decrypt(csk: &[i16],ct: &[u8],ikey: &mut[u8]) {
 	shrink(&v,ikey);
 }
 
-// encapsulate 32-byte key inside ciphertext ct
 /*
+/// encapsulate 32-byte key inside ciphertext ct
 pub fn cca_encrypt(id: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) {
 	let mut ikey: [u8;DEGREE/8]=[0;DEGREE/8];
     let mut ss: [u8;32]=[0;32];
@@ -511,7 +515,7 @@ pub fn cca_encrypt(id: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) {
 	sh.hash(key);
 }
 */
-// decapsulate 32-byte key inside ciphertext ct
+/// decapsulate 32-byte key inside ciphertext ct
 pub fn cca_decrypt(id: &str,csk: &[i16],ct: &[u8],key: &mut[u8]) {
 	let mut ikey: [u8;DEGREE/8]=[0;DEGREE/8];
 	let identity=id.as_bytes();

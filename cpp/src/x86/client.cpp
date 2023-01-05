@@ -1,4 +1,4 @@
-// Client side C++ program to demonstrate TLS1.3 
+// Client side test C++ program to demonstrate TLS1.3 
 // Linux version
 // ./client www.bbc.co.uk
 
@@ -30,10 +30,6 @@ static void storeTicket(TLS_session *session)
     fprintf(fp,"%x\n",session->T.favourite_group);
     fprintf(fp,"%x\n",session->T.origin);
     fclose(fp);
-
-//printf("PSK.len= %d\n",session->T.PSK.len);
-//printf("YYY Lifetime= %x\n",session->T.lifetime);
-
 }
 
 // restore ticket into session from cookie file
@@ -64,8 +60,6 @@ static bool recoverTicket(TLS_session *session)
     if (fscanf(fp,"%x",&session->T.favourite_group)) {};
     if (fscanf(fp,"%x",&session->T.origin)) {};
     fclose(fp);
-
-//printf("XXX Lifetime= %x\n",session->T.lifetime);
 
     session->T.valid=true;
     return true;
@@ -102,11 +96,11 @@ static void bad_input()
     printf("(port defaults to 443, or 4433 on localhost)\n");
     printf("Resumption automatically attempted if recent ticket found\n");
     printf("Valid flags:- \n");
-    printf("    -p <n> hostname (where <n> is preshared key identity)\n");
     printf("    -r remove stored ticket\n");
     printf("    -r <hostname> remove stored ticket and connect to hostname\n");
     printf("    -s show SAL capabilities\n");
 	printf("    -i <hostname> try IBE connection\n");
+    printf("    -p <n> hostname (where <n> is preshared key identity - here must be 42)\n");
     printf("Example:- client www.bbc.co.uk\n");
 }
 
@@ -198,7 +192,6 @@ static void nameSigAlg(int sigAlg)
         break;
     }
 }
-
 
 // convert TLS octad to MIRACL core octet
 static octet octad_to_octet(octad *x)
@@ -411,7 +404,7 @@ int main(int argc, char const *argv[])
             OCT_copy(&session->T.PSK,&PSK);
             session->T.favourite_group=X25519;
         }
-        if (psk_type==PSK_IBE)
+        if (psk_type==PSK_IBE)	// Use IBE shared key
         {
 #if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL
             log(IO_PROTOCOL,(char *)"Using Pairing-Based IBE\n",NULL,0,NULL);
@@ -517,7 +510,6 @@ int main(int argc, char const *argv[])
 	}
 	if (port==4433)
 	{ // Wait for Server to end it with a close notify alert
-        
 		for (; ; )
 		{
 			rtn=TLS13_recv(session,&RESP);

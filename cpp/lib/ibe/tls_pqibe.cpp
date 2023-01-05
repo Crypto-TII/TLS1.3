@@ -1,3 +1,9 @@
+//
+// Lattice-based B&F IBE 128-bit API Functions 
+// Ducas et al. Method
+// Implementation by M.Scott
+//
+
 #include <iostream>
 #include <stdlib.h>
 #include <cstdint>
@@ -178,6 +184,7 @@ static void intt(int32_t *b)
 	}
 }
 
+// polynomial functions
 /* reduces inputs < 2q */
 static void poly_soft_reduce(int32_t *poly)
 {
@@ -203,6 +210,7 @@ static void poly_hard_reduce(int32_t *poly)
 	}
 }
 
+// multiply two polynomials in frequency domain
 static void poly_mul(int32_t *p1,int32_t *p2,int32_t *p3)
 {
 	int i;
@@ -389,7 +397,7 @@ static int pack_ct(byte ct[],int32_t *u,int32_t *v)
     return n;
 }
 
-// pack ciphertext
+// pack ciphertext and check its the same
 static int chk_pack_ct(byte ct[],int32_t *u,int32_t *v)
 {
     int ptr,bts,i,n=0;

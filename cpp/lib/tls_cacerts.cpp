@@ -13,7 +13,7 @@
 
 const char *cacerts=(char *)
 #if CRYPTO_SETTING == HYBRID
-"-----BEGIN CERTIFICATE-----\n"
+"-----BEGIN CERTIFICATE-----\n"                                       // Expires July 2023
 "MIIQITCCBk6gAwIBAgIUFJOOxlIuqQwRXFiAlXGzk64MtsIwCAYGK84PAgcBMBwx\n"
 "GjAYBgNVBAMMEVRpaWdlclRMUyByb290IENBMB4XDTIyMDcyMDEyMTgwOFoXDTIz\n"
 "MDcyMDEyMTgwOFowHDEaMBgGA1UEAwwRVGlpZ2VyVExTIHJvb3QgQ0EwggV0MAgG\n"
@@ -104,7 +104,7 @@ const char *cacerts=(char *)
 "-----END CERTIFICATE-----\n"
 #endif
 #if CRYPTO_SETTING == POST_QUANTUM
-"-----BEGIN CERTIFICATE-----\n"
+"-----BEGIN CERTIFICATE-----\n"                                       // Expires May 2023
 "MIIVfjCCCImgAwIBAgIUasq9hKzKYhZKDB2NiSb57u05bTIwDQYLKwYBBAECggsH\n"
 "BgUwFzEVMBMGA1UEAwwMVGlpZ2VyVExTIENBMB4XDTIyMDUyNTExMzgzOVoXDTIz\n"
 "MDUyNTExMzgzOVowFzEVMBMGA1UEAwwMVGlpZ2VyVExTIENBMIIHtDANBgsrBgEE\n"
@@ -223,7 +223,7 @@ const char *cacerts=(char *)
 "-----END CERTIFICATE-----\n"
 #endif
 #if CRYPTO_SETTING == TINY_ECC
-"-----BEGIN CERTIFICATE-----\n"
+"-----BEGIN CERTIFICATE-----\n"                                       // Expires June 2023
 "MIIBjTCCATOgAwIBAgIUbraw40ya/lt/Pja8JrDeNgC1lk4wCgYIKoZIzj0EAwIw\n"
 "HDEaMBgGA1UEAwwRVGlpZ2VyVExTIHJvb3QgQ0EwHhcNMjIwNjI1MTcxNzUzWhcN\n"
 "MjMwNjI1MTcxNzUzWjAcMRowGAYDVQQDDBFUaWlnZXJUTFMgcm9vdCBDQTBZMBMG\n"

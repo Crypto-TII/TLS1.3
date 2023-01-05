@@ -1,4 +1,6 @@
+//
 // TLS1.3 Certificate Processing Code
+//
 
 #include "tls_cert_chain.h"
 
@@ -17,6 +19,7 @@ static void createFullName(octad *FN,octad *CERT,int ic)
     OCT_append_bytes(FN,&CERT->val[c],len);
 }
 
+// read a line of base64
 static int readaline(char *line,const char *rom,int &ptr)
 {
     int i=0;
@@ -37,6 +40,7 @@ static pktype getPublicKeyFromCert(octad *CERT,octad *PUBLIC_KEY)
     return pk;
 }
 
+// extract host name
 static bool checkHostnameInCert(octad *CERT,char *hostname)
 {
     int len;
@@ -45,6 +49,7 @@ static bool checkHostnameInCert(octad *CERT,char *hostname)
     return (bool)X509_find_alt_name(CERT,c,hostname);
 }
 
+// Crude check for certificate validity
 static bool checkCertNotExpired(octad *CERT)
 {
     int len;
@@ -65,12 +70,11 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
     octad OWNER={0,sizeof(owner),owner};
 #ifdef SHALLOW_STACK
     char *b=(char *)malloc(TLS_MAX_CERT_B64);
-    octad SC={0,TLS_MAX_CERT_B64,b};       // optimization - share memory - can convert from base64 to binary in place
+    octad SC={0,TLS_MAX_CERT_B64,b};		// optimization - share memory - can convert from base64 to binary in place
 #else
-    char b[TLS_MAX_CERT_B64];  // maximum size for CA root signed certs in base64
-    octad SC={0,sizeof(b),b};       // optimization - share memory - can convert from base64 to binary in place
+    char b[TLS_MAX_CERT_B64];				// maximum size for CA root signed certs in base64
+    octad SC={0,sizeof(b),b};				// optimization - share memory - can convert from base64 to binary in place
 #endif
-
     char line[80]; int ptr=0;
 
     for (;;)
@@ -160,7 +164,7 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
     if (st.type== X509_PQ)
         res=SAL_tlsSignatureVerify(DILITHIUM3,CERT,SIG,PUBKEY);
 
-   // probably deepest into the stack at this stage.... (especially for Dilithium)
+// probably deepest into the stack at this stage.... (especially for Dilithium)
 
     if (st.type==X509_HY)
     {
@@ -194,7 +198,6 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
     octad SC={0,TLS_MAX_CERT_B64,b};       // optimization - share memory - can convert from base64 to binary in place
 #else
     char b[TLS_MAX_CERT_B64];    // maximum size key/cert
-    //char sc[TLS_MAX_CERT_SIZE];  // X.509 .pem file (is it a cert or a cert chain??)
     octad SC={0,sizeof(b),b};    // share memory - can convert from base64 to binary in place
 #endif
     char line[80]; 
@@ -214,10 +217,7 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
                 b[i++]=line[j];
             b[i]=0;
         }
-//printf("b len= %d\n",i);
         OCT_from_base64(&SC,b);
-
-//printf("SC len= %d\n",SC.len);
 
 // add to Certificate Chain
         OCT_append_int(CERTCHAIN,SC.len,3);
@@ -230,9 +230,6 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
             first=false;
         }
     }
-
-
-//printf("Certchain len= %d\n",CERTCHAIN->len);
 
     if (myprivate!=NULL)
     { // unless private key is in protected hardware, so SAL has it already
@@ -247,11 +244,7 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
             b[i]=0;
         }
         OCT_from_base64(&SC,b);
-
         X509_extract_private_key(&SC, PRIVKEY); // returns signature type
-
-//printf("Privkey len= %d\n",PRIVKEY->len);
-
     }
 
 #ifdef SHALLOW_STACK
@@ -345,8 +338,6 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
     ret r;
     int rtn,len,c,ptr=0;
     pktype sst,ist,spt,ipt;
-    //char server_sig[TLS_MAX_SIGNATURE_SIZE];  // signature on server certificate
-    //octad SERVER_SIG={0,sizeof(server_sig),server_sig};
 
 // Clever re-use of memory - use pointers into cert chain rather than extracting certs
     octad SERVER_CERT;  // server certificate
@@ -365,8 +356,8 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
     r=parseoctadptr(&SERVER_CERT,len,CERTCHAIN,ptr); if (r.err) return r.err;
     r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return r.err;
     ptr+=len;   // skip certificate extensions
-// Check and parse Server Cert
 
+// Check and parse Server Cert
 	rtn=parseCert(&SERVER_CERT,sst,SERVER_SIG,&ISSUER,spt,PUBKEY);
 	if (rtn != 0) {
 		if (rtn==SELF_SIGNED_CERT)
@@ -464,5 +455,4 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
 #endif
     return 0;
 }
-
 
