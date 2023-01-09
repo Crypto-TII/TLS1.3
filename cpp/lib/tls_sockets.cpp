@@ -51,20 +51,7 @@ int getIPaddress(char *ip,char *hostname)
 // Send Octet
 void sendOctad(Socket *client,octad *B)
 {
-#ifdef TLS_ARDUINO
-    int len=B->len;
-    if (len>4096) { // Split large buffers, as Arduino can't cope....
-        int len1=len/2;
-        int len2=len-len1;
-        client->write(B->val,len1);
-        delay(5);
-        client.write(&B->val[len1],len2);
-    } else {
-        client->write(B->val,len);
-    }
-#else
-    client->write(B->val,B->len);
-#endif
+	client->write(B->val,B->len);
 //BYTES_WRITTEN+=B->len;
 
 #if VERBOSITY >= IO_WIRE

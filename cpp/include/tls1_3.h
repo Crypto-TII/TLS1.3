@@ -61,13 +61,13 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 //#define NO_CERT_CHECKS		 /**< Don't do any checks on server certs - useful for Anvil testing */
 #define TRY_EARLY_DATA           /**< Try to send early data on resumptions */
 
-// Note that the IOBUFF, Certificates and crypto keys can be quite large, and therefore maybe better taken from the heap
+// Note that BUFF, Certificates and crypto keys can be quite large, and therefore maybe better taken from the heap
 // on systems with a shallow stack. Define this to use the heap.
 
 //#define SHALLOW_STACK           /**< Get large arrays from heap, else stack */
 
 // comment out if no max record size. In practise TLS1.3 doesn't seem to support this record_size_limit extension, so use with caution
-// #define MAX_RECORD 1024     /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IO_SIZE below */
+// #define MAX_RECORD 1024     /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IBUFF_SIZE below */
 // Note that if this is not used, max_fragment_size extension is tried instead, see TLS_MAX_FRAG below
 // *****************************************************************************
 
@@ -85,11 +85,11 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_X509_MAX_FIELD 256           /**< Maximum X.509 field size */
 #define TLS_MAX_EXT_LABEL 256            /**< Max external psk label size */
 
-// Max Frag length must be less than TLS_MAX_IO_SIZE
-#define TLS_MAX_FRAG 4					/**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
+// Max Frag length must be less than TLS_MAX_IBUFF_SIZE
+#define TLS_MAX_FRAG 2					/**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
 
 #if CRYPTO_SETTING==TYPICAL
- #define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_IBUFF_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
 
@@ -107,7 +107,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 #if CRYPTO_SETTING == POST_QUANTUM
 
- #define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_IBUFF_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
 
@@ -126,7 +126,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 #if CRYPTO_SETTING == HYBRID
 
- #define TLS_MAX_IO_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_IBUFF_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
 
@@ -145,7 +145,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 
 #if CRYPTO_SETTING==TINY_ECC
- #define TLS_MAX_IO_SIZE (4096+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_IBUFF_SIZE (4096+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 4096		 /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (4096+256)  /**< Max Ciphertext Fragment size */
 
@@ -177,6 +177,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_IV_SIZE 12              /**< Max IV size in bytes */
 #define TLS_MAX_TAG_SIZE 16             /**< Max HMAC tag length in bytes */    
 #define TLS_MAX_COOKIE 128              /**< Max Cookie size */    
+
+#define TLS_MAX_OUTPUT_RECORD_SIZE 1024   /**< Max output record size */
+#define TLS_MAX_OBUFF_SIZE (TLS_MAX_OUTPUT_RECORD_SIZE+TLS_MAX_TAG_SIZE+1) /**< Max output buffer size */
 
 #define TLS_MAX_SERVER_NAME 128         /**< Max server name size in bytes */
 #define TLS_MAX_SUPPORTED_GROUPS 10      /**< Max number of supported crypto groups */
@@ -413,19 +416,21 @@ typedef struct
     char cts[TLS_MAX_HASH]; /**< Client Traffic secret data */
     octad CTX;              /**< Certificate Request Context */
     char ctx[TLS_MAX_HASH];	/**< Certificate Request Context data */
-    octad IO;               /**< Main IO buffer for this connection */
+    octad IBUFF;               /**< Main input buffer for this connection */
+	octad OBUFF;			/**< output buffer for this connection */
 #ifndef SHALLOW_STACK
-    char io[TLS_MAX_IO_SIZE]; /**< Byte array for main IO buffer for this connection */
+    char ibuff[TLS_MAX_IBUFF_SIZE]; /**< Byte array for main input buffer for this connection */
+	char obuff[TLS_MAX_OBUFF_SIZE]; /**< output buffer for this connection */
 #endif
-    int ptr;                /**< pointer into IO buffer */
+    int ptr;                /**< pointer into IBUFF buffer */
     unihash tlshash;        /**< Transcript hash recorder */
     ticket T;               /**< resumption ticket */
 } TLS_session;
 
-// IO buffer
+// IBUFF buffer
 // xxxxxxxxxxxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyy
-// -------------ptr---------->----------IO.len----------->
+// -------------ptr---------->----------IBUFF.len------->
 //
-// when ptr becomes equal to IO.len, pull in another record (and maybe decrypt it)
+// when ptr becomes equal to IBUFF.len, pull in another record (and maybe decrypt it)
 
 #endif

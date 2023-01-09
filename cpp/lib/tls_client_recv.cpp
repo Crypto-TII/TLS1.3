@@ -103,7 +103,7 @@ int getServerRecord(TLS_session *session)
     char tag[TLS_MAX_TAG_SIZE];
     octad TAG={0,sizeof(tag),tag};
 
-    pos=session->IO.len;               // current end of IO
+    pos=session->IBUFF.len;               // current end of IO
     rtn=getOctad(session->sockptr,&RH,3);  // Get record Header - should be something like 17 03 03 XX YY
 
 // Need to check RH.val for correctness
@@ -113,7 +113,7 @@ int getServerRecord(TLS_session *session)
     {  // plaintext alert
         left=getInt16(session->sockptr);
 		if (left!=2) return BAD_RECORD;                     // ** RM
-        rtn=getOctad(session->sockptr,&session->IO,left);
+        rtn=getOctad(session->sockptr,&session->IBUFF,left);
         if (rtn<0)
             return TIMED_OUT;
         return ALERT;
@@ -141,7 +141,7 @@ int getServerRecord(TLS_session *session)
 		return MAX_EXCEEDED;
 
     OCT_append_int(&RH,left,2);
-    if (left+pos>session->IO.max)
+    if (left+pos>session->IBUFF.max)
     { // this commonly happens with big records of application data from server
 		log(IO_DEBUG,(char *)"Record received of length= ",(char *)"%d",left+pos,NULL);
         return MEM_OVERFLOW;   // record is too big - memory overflow
@@ -155,10 +155,10 @@ int getServerRecord(TLS_session *session)
 			return MAX_EXCEEDED;
 		if (left==0)
 			return WRONG_MESSAGE;
-        rtn=getBytes(session->sockptr,&session->IO.val[pos],left);  // read in record body
+        rtn=getBytes(session->sockptr,&session->IBUFF.val[pos],left);  // read in record body
         if (rtn<0)
             return TIMED_OUT;
-        session->IO.len+=left;
+        session->IBUFF.len+=left;
         return HSHAKE;
     }
 	if (RH.val[0]==HSHAKE) {
@@ -170,27 +170,27 @@ int getServerRecord(TLS_session *session)
   
 	rlen=left-taglen; // plaintext record length
 
-    rtn=getBytes(session->sockptr,&session->IO.val[pos],rlen);  // read in record body
+    rtn=getBytes(session->sockptr,&session->IBUFF.val[pos],rlen);  // read in record body
     if (rtn<0)
         return TIMED_OUT;
 
-    session->IO.len+=(rlen);    // place record into iobuff
+    session->IBUFF.len+=(rlen);    // place record into iobuff
     rtn=getOctad(session->sockptr,&TAG,taglen);        // extract TAG
     if (rtn<0)
         return TIMED_OUT;
-    bool success=SAL_aeadDecrypt(&session->K_recv,RH.len,RH.val,rlen,&session->IO.val[pos],&TAG);
+    bool success=SAL_aeadDecrypt(&session->K_recv,RH.len,RH.val,rlen,&session->IBUFF.val[pos],&TAG);
     if (!success)
        return AUTHENTICATION_FAILURE;     // tag is wrong   
     
     incrementCryptoContext(&session->K_recv); // update IV
 
 // get record ending - encodes real (disguised) record type. Could be an Alert.
-    int lb=session->IO.val[session->IO.len-1]; 
-    session->IO.len--; rlen--; // remove it
-    while (lb==0 && rlen>0 /*session->IO.len>0*/)
+    int lb=session->IBUFF.val[session->IBUFF.len-1]; 
+    session->IBUFF.len--; rlen--; // remove it
+    while (lb==0 && rlen>0 /*session->IBUFF.len>0*/)
     { // could be zero padding
-        lb=session->IO.val[session->IO.len-1];   // need to track back through zero padding for this....
-        session->IO.len--; rlen--;// remove it
+        lb=session->IBUFF.val[session->IBUFF.len-1];   // need to track back through zero padding for this....
+        session->IBUFF.len--; rlen--;// remove it
     }
 
 	if (rlen>TLS_MAX_PLAIN_FRAG) return MAX_EXCEEDED;
@@ -204,7 +204,7 @@ int getServerRecord(TLS_session *session)
         return APPLICATION;
     if (lb==ALERT)
     { // Disguised Alert record received, delete anything in IO prior to alert, and just return 2-byte alert
-        OCT_shift_left(&session->IO,pos);
+        OCT_shift_left(&session->IBUFF,pos);
         return ALERT;
     }
     return WRONG_MESSAGE;
@@ -214,17 +214,17 @@ int getServerRecord(TLS_session *session)
 // ALL of these records SHOULD be of type HSHAKE
 ret parseIntorPull(TLS_session *session,int len)
 {
-    ret r=parseInt(&session->IO,len,session->ptr);
+    ret r=parseInt(&session->IBUFF,len,session->ptr);
     while (r.err)
     { // not enough bytes in IO - Pull in some more
         int rtn=getServerRecord(session); 
         if (rtn!=HSHAKE) {  // Bad input from server (Authentication failure? Wrong record type?)
             r.err=rtn;  // probably negative error
-            if (rtn==ALERT) r.val=session->IO.val[1];
+            if (rtn==ALERT) r.val=session->IBUFF.val[1];
 			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
-        r=parseInt(&session->IO,len,session->ptr);
+        r=parseInt(&session->IBUFF,len,session->ptr);
     }
     return r;
 }
@@ -232,17 +232,17 @@ ret parseIntorPull(TLS_session *session,int len)
 // Get an octad O of length len from the IO buffer. Create a copy.
 ret parseoctadorPull(TLS_session *session,octad *O,int len)
 {
-    ret r=parseoctad(O,len,&session->IO,session->ptr);
+    ret r=parseoctad(O,len,&session->IBUFF,session->ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
         int rtn=getServerRecord(session);
         if (rtn!=HSHAKE) {
             r.err=rtn;
-            if (rtn==ALERT) r.val=session->IO.val[1];
+            if (rtn==ALERT) r.val=session->IBUFF.val[1];
 			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
-        r=parseoctad(O,len,&session->IO,session->ptr);
+        r=parseoctad(O,len,&session->IBUFF,session->ptr);
     }
     return r;
 }
@@ -250,17 +250,17 @@ ret parseoctadorPull(TLS_session *session,octad *O,int len)
 // Get byte array o of length len from the IO buffer. Create a copy.
 ret parsebytesorPull(TLS_session *session,char *o,int len)
 {
-    ret r=parsebytes(o,len,&session->IO,session->ptr);
+    ret r=parsebytes(o,len,&session->IBUFF,session->ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
         int rtn=getServerRecord(session);
         if (rtn!=HSHAKE) {
             r.err=rtn;
-            if (rtn==ALERT) r.val=session->IO.val[1];
+            if (rtn==ALERT) r.val=session->IBUFF.val[1];
 			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
-        r=parsebytes(o,len,&session->IO,session->ptr);
+        r=parsebytes(o,len,&session->IBUFF,session->ptr);
     }
     return r;
 }
@@ -268,17 +268,17 @@ ret parsebytesorPull(TLS_session *session,char *o,int len)
 // Get an octad O of length len from the IO buffer, but this time the output octad is a pointer into the IO buffer
 ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
 {
-    ret r=parseoctadptr(O,len,&session->IO,session->ptr);
+    ret r=parseoctadptr(O,len,&session->IBUFF,session->ptr);
     while (r.err)
     { // not enough bytes in IO - pull in another fragment
         int rtn=getServerRecord(session); 
         if (rtn!=HSHAKE) {
             r.err=rtn;
-            if (rtn==ALERT) r.val=session->IO.val[1];
+            if (rtn==ALERT) r.val=session->IBUFF.val[1];
 			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
-        r=parseoctadptr(O,len,&session->IO,session->ptr);
+        r=parseoctadptr(O,len,&session->IBUFF,session->ptr);
     }
     return r;
 }
@@ -767,7 +767,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 
     OCT_kill(CK); OCT_kill(PK);
 // get first fragment - not encrypted
-    OCT_kill(&session->IO);
+    OCT_kill(&session->IBUFF);
 
 // start parsing mandatory components
     session->ptr=0;

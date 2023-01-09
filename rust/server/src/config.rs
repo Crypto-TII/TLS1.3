@@ -56,8 +56,8 @@ pub const MAX_KEY: usize = 32;
 pub const MAX_X509_FIELD:usize = 256;               
 
 // IO buffer limits
-/// Maximum Input/Output buffer size.
-pub const MAX_IO: usize = 16384+256;         
+/// Maximum Input buffer size.
+pub const MAX_IBUFF_SIZE: usize = 16384+256;         
 /// Max Plaintext Fragment size 
 pub const MAX_PLAIN_FRAG: usize = 16384;        
 /// Max Ciphertext Fragment size 
@@ -85,7 +85,6 @@ pub const MAX_KEX_PUBLIC_KEY: usize = 1184+32;          // Maximum key exchange 
 pub const MAX_KEX_CIPHERTEXT: usize = 1088+32;          // Maximum key exchange (KEM) ciphertext size
 pub const MAX_KEX_SECRET_KEY: usize = 2400+32;          // Maximum key exchange Secret key size
 
-
 pub const MAX_SHARED_SECRET_SIZE:usize = 256;           // Maximum shared secret size - was 66 pre-quantum 
 
 // Certificate size limits
@@ -105,7 +104,10 @@ pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes
 pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes 
 
 //pub const MAX_FRAG:usize = 4;
-pub const MAX_RECORD:usize = 4096;               // default Maximum Record size
+//pub const MAX_RECORD:usize = 4096;               // default Maximum Record size
+
+pub const MAX_OUTPUT_RECORD_SIZE:usize = 4096;   // Max output record size
+pub const MAX_OBUFF_SIZE:usize = MAX_OUTPUT_RECORD_SIZE+MAX_TAG_SIZE+1; // Max output buffer size
 
 // Both of these are bumped up by PQ IBE and Hybrid
 pub const MAX_TICKET_SIZE:usize = 4196; //4000+161 PQ+IBE

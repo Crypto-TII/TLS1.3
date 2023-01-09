@@ -22,13 +22,13 @@ void runningHash(TLS_session *session,octad *O)
 // Add IO buffer to transcript hash
 void runningHashIO(TLS_session *session)
 {
-    SAL_hashProcessArray(&session->tlshash,session->IO.val,session->ptr);
+    SAL_hashProcessArray(&session->tlshash,session->IBUFF.val,session->ptr);
 }
 
 // Shift octad left - rewind IO buffer to start 
 void rewindIO(TLS_session *session)
 {
-    OCT_shift_left(&session->IO,session->ptr);  
+    OCT_shift_left(&session->IBUFF,session->ptr);  
     session->ptr=0;
 }
 

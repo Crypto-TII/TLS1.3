@@ -90,7 +90,7 @@ fn handle_client(stream: TcpStream,port: u16) {
         if session.requires_post_hs_auth() {
             println!("Sending certificate request");
             session.create_request_context();  // create a random context
-            session.send_certificate_request(); // want to wait for client authentication before issuing ticket
+            session.send_certificate_request(true); // flush it out and wait for client authentication before issuing ticket
             session.recv(None);  // wait for a response before continuing
         }
         println!("Sending Resumption Ticket");  // maybe updated to reflect client authentication

@@ -23,9 +23,11 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 	state.CTS={0,TLS_MAX_HASH,state.cts};					// Client traffic secret
 	state.CTX={0,TLS_MAX_HASH,state.ctx};					// Client traffic secret
 #ifdef SHALLOW_STACK
-    state.IO= {0,TLS_MAX_IO_SIZE,(char *)malloc(TLS_MAX_IO_SIZE)};  // main input/output buffer
+    state.IBUFF= {0,TLS_MAX_IBUFF_SIZE,(char *)malloc(TLS_MAX_IBUFF_SIZE)};  // main input buffer
+	state.OBUFF={0,TLS_MAX_OBUFF_SIZE,(char *)malloc(TLS_MAX_OBUFF_SIZE)};  // main input buffer
 #else
-	state.IO={0,TLS_MAX_IO_SIZE,state.io};
+	state.IBUFF={0,TLS_MAX_IBUFF_SIZE,state.ibuff};
+	state.OBUFF={0,TLS_MAX_OBUFF_SIZE,state.obuff};
 #endif
     state.ptr=0;
     state.favourite_group=0;							    // default key exchage group
@@ -195,7 +197,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     initTranscriptHash(session);
     if (rtn.val==HANDSHAKE_RETRY)  // Was serverHello an helloRetryRequest?
     {
-        log(IO_DEBUG,(char *)"Server HelloRetryRequest= ",NULL,0,&session->IO);
+        log(IO_DEBUG,(char *)"Server HelloRetryRequest= ",NULL,0,&session->IBUFF);
         runningSyntheticHash(session,&CH,&EXT); // RFC 8446 section 4.4.1
         runningHashIOrewind(session);      // Hash of helloRetryRequest
 
@@ -274,7 +276,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
 //
         resumption_required=true;
     }
-    log(IO_DEBUG,(char *)"Server Hello= ",NULL,0,&session->IO); 
+    log(IO_DEBUG,(char *)"Server Hello= ",NULL,0,&session->IBUFF); 
     logServerHello(session->cipher_suite,pskid,&SPK,&COOK);
     logKeyExchange(kex);
 // Hash Transcript of the Hellos 
@@ -542,7 +544,7 @@ static int TLS13_full(TLS_session *session)
 
 // Now its the clients turn to respond
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
-    OCT_kill(&session->IO);
+    OCT_kill(&session->IBUFF);
     session->ptr=0;
 
     if (gotacertrequest)
@@ -585,7 +587,7 @@ static int TLS13_full(TLS_session *session)
     log(IO_PROTOCOL,(char *)"FULL Handshake succeeded\n",NULL,0,NULL);
     if (resumption_required) log(IO_PROTOCOL,(char *)"... after handshake resumption\n",NULL,0,NULL);
 
-    OCT_kill(&session->IO);  // clean up IO buffer
+    OCT_kill(&session->IBUFF);  // clean up IO buffer
 
     if (resumption_required) return TLS_RESUMPTION_REQUIRED;
     return TLS_SUCCESS;
@@ -733,7 +735,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     transcriptHash(session,&HH);            // HH = hash of Truncated clientHello
     log(IO_DEBUG,(char *)"Hash of Truncated client Hello",NULL,0,&HH);
     deriveVeriferData(hashtype,&BND,&BK,&HH);
-    sendBinder(session,&BND,true);               // Send Binders
+    sendBinder(session,&BND);               // Send Binders
     log(IO_DEBUG,(char *)"Client Hello + Binder sent\n",NULL,0,NULL);
     log(IO_DEBUG,(char *)"Binder= ",NULL,0,&BND);
   
@@ -812,7 +814,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 #endif
         return TLS_FAILURE;
     }
-    log(IO_DEBUG,(char *)"serverHello= ",NULL,0,&session->IO); 
+    log(IO_DEBUG,(char *)"serverHello= ",NULL,0,&session->IBUFF); 
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
     bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
@@ -910,7 +912,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     log(IO_DEBUG,(char *)"Server application traffic secret= ",NULL,0,&session->STS);
     log(IO_PROTOCOL,(char *)"RESUMPTION Handshake succeeded\n",NULL,0,NULL);
 
-    OCT_kill(&session->IO);  // clean up IO buffer
+    OCT_kill(&session->IBUFF);  // clean up IO buffer
 
     if (enc_ext_resp.early_data)
     {
@@ -976,7 +978,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
     while (1)
     {
         log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
-        OCT_kill(&session->IO); session->ptr=0;
+        OCT_kill(&session->IBUFF); session->ptr=0;
         type=getServerRecord(session);  // get first fragment to determine type
         if (type<0)
 		{
@@ -1014,10 +1016,10 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         log(IO_PROTOCOL,(char *)"Got a ticket with lifetime (minutes)= ",(char *)"%d",session->T.lifetime/60,NULL);
                     }
 
-                    if (session->ptr==session->IO.len)
+                    if (session->ptr==session->IBUFF.len)
                     {
                         fin=true; // record finished
-                        //OCT_shift_left(&session->IO,session->ptr); // rewind IO buffer
+                        //OCT_shift_left(&session->IBUFF,session->ptr); // rewind IO buffer
                     }
                     //gotaticket=true;
                     if (fin) break;
@@ -1052,7 +1054,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         sendAlert(session,ILLEGAL_PARAMETER);
                         return BAD_REQUEST_UPDATE;
 					}
-                    if (session->ptr==session->IO.len) fin=true; // record finished
+                    if (session->ptr==session->IBUFF.len) fin=true; // record finished
                     if (fin) break;
                     continue;
 #ifdef POST_HS_AUTH
@@ -1062,7 +1064,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
 						return BAD_MESSAGE;
 					}
 					PENDING_AUTHENTICATION=true;
-                    if (session->ptr==session->IO.len) fin=true; // record finished
+                    if (session->ptr==session->IBUFF.len) fin=true; // record finished
                     if (fin) break;
 #endif				
 
@@ -1107,14 +1109,14 @@ int TLS13_recv(TLS_session *session,octad *REC)
 #endif
         if (type==APPLICATION)
         { // application data received - return it
-            OCT_copy(REC,&session->IO);
+            OCT_copy(REC,&session->IBUFF);
             break;
         }
         if (type==ALERT)
         {
             log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
-            logAlert(session->IO.val[1]);
-            if (session->IO.val[1]==CLOSE_NOTIFY)
+            logAlert(session->IBUFF.val[1]);
+            if (session->IBUFF.val[1]==CLOSE_NOTIFY)
                 return CLOSURE_ALERT_RECEIVED;
 		    else
                 return ERROR_ALERT_RECEIVED;    // Alert received
@@ -1135,7 +1137,8 @@ int TLS13_recv(TLS_session *session,octad *REC)
 // clean up buffers, kill crypto keys
 void TLS13_clean(TLS_session *session)
 {
-    OCT_kill(&session->IO);
+    OCT_kill(&session->IBUFF);
+	OCT_kill(&session->OBUFF);
     OCT_kill(&session->CTS);
     OCT_kill(&session->STS);
     OCT_kill(&session->RMS);
@@ -1155,6 +1158,7 @@ void TLS13_end(TLS_session *session)
     TLS13_clean(session);
     endTicketContext(&session->T);
 #ifdef SHALLOW_STACK
-    free(session->IO.val);
+    free(session->IBUFF.val);
+	free(session->OBUFF.val);
 #endif
 }

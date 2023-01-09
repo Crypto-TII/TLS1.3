@@ -24,8 +24,8 @@ pub struct SESSION {
     pub status: usize,      // Connection status 
     max_record: usize,      // Server's max record size 
     pub sockptr: TcpStream, // Pointer to socket 
-    iolen: usize,           // IO buffer length
-    ptr: usize,             // IO buffer pointer - consumed portion
+    iblen: usize,           // Input buffer length
+    ptr: usize,             // Input buffer pointer - consumed portion
     session_id:[u8;32],     // legacy session ID
     pub hostname: [u8;MAX_SERVER_NAME],     // Server name for connection 
     pub hlen: usize,        // hostname length
@@ -39,7 +39,9 @@ pub struct SESSION {
     cts: [u8;MAX_HASH],     // Client Traffic secret  
     ctx: [u8;MAX_HASH],     // certificate request context
     ctxlen: usize,          // context length 
-    io: [u8;MAX_IO],        // Main IO buffer for this connection 
+    ibuff: [u8;MAX_IBUFF_SIZE], // Main input buffer for this connection 
+    obuff: [u8;MAX_OBUFF_SIZE], // output buffer
+    optr: usize,            // output buffer pointer
     tlshash: UNIHASH,       // Transcript hash recorder 
     pub t: TICKET           // resumption ticket    
 }
@@ -83,16 +85,16 @@ fn malformed(rval: usize,maxm: usize) -> bool {
 
 // IO buffer
 // xxxxxxxxxxxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyy
-// -------------ptr---------->----------iolen----------->
+// -------------ptr---------->----------iblen----------->
 //
-// when ptr becomes equal to iolen, pull in another record (and maybe decrypt it)
+// when ptr becomes equal to iblen, pull in another record (and maybe decrypt it)
 impl SESSION {
     pub fn new(stream: TcpStream,host: &str) -> SESSION  {
         let mut this=SESSION {
             status:DISCONNECTED,
             max_record: 0,
             sockptr: stream,
-            iolen: 0,
+            iblen: 0,
             ptr: 0,
             session_id: [0;32],
             hostname: [0; MAX_SERVER_NAME],
@@ -107,7 +109,9 @@ impl SESSION {
             cts: [0;MAX_HASH], 
             ctx: [0;MAX_HASH],
             ctxlen: 0,
-            io: [0;MAX_IO],
+            ibuff: [0;MAX_IBUFF_SIZE],
+            obuff: [0;MAX_OBUFF_SIZE],
+            optr: 0,
             tlshash:{UNIHASH{state:[0;MAX_HASH_STATE],htype:0}},
             t: {TICKET{valid: false,tick: [0;MAX_TICKET_SIZE],nonce: [0;256],psk : [0;MAX_HASH],psklen: 0,tklen: 0,nnlen: 0,age_obfuscator: 0,max_early_data: 0,birth: 0,lifetime: 0,cipher_suite: 0,favourite_group: 0,origin: 0}}
         }; 
@@ -121,40 +125,40 @@ impl SESSION {
 
 /// Get an integer of length len bytes from io stream
     fn parse_int_pull(&mut self,len:usize) -> RET {
-        let mut r=utils::parse_int(&self.io[0..self.iolen],len,&mut self.ptr);
+        let mut r=utils::parse_int(&self.ibuff[0..self.iblen],len,&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
-            let rtn=self.get_record();  // gets more stuff and increments iolen
+            let rtn=self.get_record();  // gets more stuff and increments iblen
             if rtn!=HSHAKE as isize {
                 r.err=rtn;
                 if rtn==ALERT as isize {
-                    r.val=self.io[1] as usize;
+                    r.val=self.ibuff[1] as usize;
                 }
                 if rtn==APPLICATION as isize {
                     r.err=WRONG_MESSAGE;
                 }
                 break;
             }
-            r=utils::parse_int(&self.io[0..self.iolen],len,&mut self.ptr);
+            r=utils::parse_int(&self.ibuff[0..self.iblen],len,&mut self.ptr);
         }
         return r;
     }  
     
 /// Pull bytes from io into array
     fn parse_bytes_pull(&mut self,e: &mut[u8]) -> RET {
-        let mut r=utils::parse_bytes(e,&self.io[0..self.iolen],&mut self.ptr);
+        let mut r=utils::parse_bytes(e,&self.ibuff[0..self.iblen],&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
-            let rtn=self.get_record();  // gets more stuff and increments iolen
+            let rtn=self.get_record();  // gets more stuff and increments iblen
             if rtn!=HSHAKE as isize  {
                 r.err=rtn;
                 if rtn==ALERT as isize {
-                    r.val=self.io[1] as usize;    // 0 is alert level, 1 is alert description
+                    r.val=self.ibuff[1] as usize;    // 0 is alert level, 1 is alert description
                 }
                 if rtn==APPLICATION as isize {
                     r.err=WRONG_MESSAGE;
                 }
                 break;
             }
-            r=utils::parse_bytes(e,&self.io[0..self.iolen],&mut self.ptr);
+            r=utils::parse_bytes(e,&self.ibuff[0..self.iblen],&mut self.ptr);
         }
         return r;
     }
@@ -162,12 +166,12 @@ impl SESSION {
 /// Pull bytes into input buffer, process them there, in place
     fn parse_pull(&mut self,n: usize) -> RET { // get n bytes into self.io
         let mut r=RET{val:0,err:0};
-        while self.ptr+n>self.iolen {
+        while self.ptr+n>self.iblen {
             let rtn=self.get_record();
             if rtn!=HSHAKE  as isize  {
                 r.err=rtn;
                 if rtn==ALERT as isize {
-                    r.val=self.io[1] as usize;    // 0 is alert level, 1 is alert description
+                    r.val=self.ibuff[1] as usize;    // 0 is alert level, 1 is alert description
                 }
                 if rtn==APPLICATION as isize {
                     r.err=WRONG_MESSAGE;
@@ -181,13 +185,13 @@ impl SESSION {
 
 /// Rewind iobuffer
     fn rewind(&mut self) {
-        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],self.ptr); // rewind
+        self.iblen=utils::shift_left(&mut self.ibuff[0..self.iblen],self.ptr); // rewind
         self.ptr=0;        
     }
 
 /// Add I/O buffer self.io to transcript hash 
     fn running_hash_io(&mut self) {
-        sal::hash_process_array(&mut self.tlshash,&self.io[0..self.ptr]);
+        sal::hash_process_array(&mut self.tlshash,&self.ibuff[0..self.ptr]);
         self.rewind();
     }
 
@@ -222,7 +226,7 @@ impl SESSION {
         let t:[u8;4]=[MESSAGE_HASH,0,0,hlen as u8];
         sal::hash_process_array(&mut self.tlshash,&t);
         self.running_hash(&h[0..hlen]);
-//        self.iolen=utils::shift_left(&mut self.io[0..self.iolen],self.ptr); // rewind
+//        self.iblen=utils::shift_left(&mut self.ibuff[0..self.iblen],self.ptr); // rewind
 //        self.ptr=0;
     }
 
@@ -286,59 +290,63 @@ impl SESSION {
         self.t.psklen=hlen;
     }
 
-/// Send a message - could/should be broken down into multiple records.
+    /// send one or more records, maybe encrypted.
+    fn send_record(&mut self,rectype: u8,version: usize,data: &[u8],flush: bool) {
+        let mut rh:[u8;5]=[0;5];  // record header
+        for i in 0..data.len() {
+            self.obuff[self.optr]=data[i];
+            self.optr+=1;
+            if self.optr==MAX_OUTPUT_RECORD_SIZE || (i==data.len()-1 && flush) { // block is full, or its the last one and we want to flush
+                let reclen:usize;
+                if !self.k_send.active { // no encryption
+                    reclen=self.optr;
+                    rh[0]=rectype;
+                    rh[1]=(version/256) as u8;
+                    rh[2]=(version%256) as u8;
+                    rh[3]=(reclen/256) as u8;
+                    rh[4]=(reclen%256) as u8;
+                } else {
+                    let mut tag:[u8;MAX_TAG_SIZE]=[0;MAX_TAG_SIZE];
+                    let taglen=self.k_send.taglen;
+                    reclen=MAX_OUTPUT_RECORD_SIZE+1+taglen;    // pad record to max size, so all encrypted records are of same size
+                    rh[0]=APPLICATION;
+                    rh[1]=(TLS1_2/256) as u8;
+                    rh[2]=(TLS1_2%256) as u8;
+                    rh[3]=(reclen/256) as u8;
+                    rh[4]=(reclen%256) as u8;
+                    self.obuff[self.optr]=rectype;
+                    let ctlen=MAX_OUTPUT_RECORD_SIZE+1; // pad to full length
+                    sal::aead_encrypt(&self.k_send,&rh,&mut self.obuff[0..ctlen],&mut tag[0..taglen]);
+                    self.k_send.increment_crypto_context(); //increment iv
+                    for j in 0..taglen { // append tag
+                        self.obuff[ctlen+j]=tag[j];
+                    }
+                }
+                socket::send_bytes(&mut self.sockptr,&rh);
+                socket::send_bytes(&mut self.sockptr,&self.obuff[0..reclen]);
+                self.optr=0;
+                for j in 0..reclen {
+                    self.obuff[j]=0; // padding by zeros ensured, kill evidence
+                }
+            }
+        }
+    }
+
+/// Send a message - broken down into multiple records.
 /// Message comes in two halves - cm and (optional) ext.
-/// message is constructed in IO buffer, and finally written to the socket.
-/// note that the IO buffer is overwritten
+/// flush if end of pass, or change of key
     fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>,flush: bool) {
         if self.status==DISCONNECTED {
-            self.clean_io();
             return;
         }
-        let mut ptr=self.iolen;
-        let rbytes=(sal::random_byte()%16) as usize;
-        if !self.k_send.active { // no encryption
-            ptr=utils::append_byte(&mut self.io,ptr,rectype,1);
-            ptr=utils::append_int(&mut self.io,ptr,version,2);
-            if let Some(sext) = ext {
-                ptr=utils::append_int(&mut self.io,ptr,cm.len()+sext.len(),2);
-                ptr=utils::append_bytes(&mut self.io,ptr,cm);
-                ptr=utils::append_bytes(&mut self.io,ptr,sext);
-            } else {
-                ptr=utils::append_int(&mut self.io,ptr,cm.len(),2);
-                ptr=utils::append_bytes(&mut self.io,ptr,cm);
-            }   
-        } else { // encrypted, and sent disguised as application record
-            let mut tag:[u8;MAX_TAG_SIZE]=[0;MAX_TAG_SIZE];
-            ptr=utils::append_byte(&mut self.io,ptr,APPLICATION,1);
-            ptr=utils::append_int(&mut self.io,ptr,TLS1_2,2);
-            let taglen=self.k_send.taglen;
-            let mut reclen=cm.len()+taglen+rbytes+1; // 16 for the TAG, 1 for the record type, + some random padding
-            if let Some(sext) = ext {
-                reclen += sext.len();
-                ptr=utils::append_int(&mut self.io,ptr,reclen,2);
-                ptr=utils::append_bytes(&mut self.io,ptr,cm);
-                ptr=utils::append_bytes(&mut self.io,ptr,sext);
-            } else {
-                ptr=utils::append_int(&mut self.io,ptr,reclen,2);
-                ptr=utils::append_bytes(&mut self.io,ptr,cm);
-            }
-            ptr=utils::append_byte(&mut self.io,ptr,rectype,1); // append and encrypt actual record type
-            ptr=utils::append_byte(&mut self.io,ptr,0,rbytes);
-            let mut rh:[u8;5]=[0;5];  // record header - may form part of transcript hash!
-            for i in 0..5 {
-                rh[i]=self.io[i];
-            }
-            sal::aead_encrypt(&self.k_send,&rh,&mut self.io[5..5+reclen-taglen],&mut tag[0..taglen]);
-            self.k_send.increment_crypto_context(); //increment iv
-            ptr=utils::append_bytes(&mut self.io,ptr,&tag[0..taglen]);
+
+        if let Some(sext) = ext {
+            self.send_record(rectype,version,cm,false);
+            self.send_record(rectype,version,sext,flush);
+        } else {
+            self.send_record(rectype,version,cm,flush);
         }
-        self.iolen=ptr;
-        if flush {
-            //self.sockptr.write(&self.io[0..ptr]).unwrap();
-            socket::send_bytes(&mut self.sockptr,&self.io[0..ptr]);
-            self.clean_io();
-        }
+
     }   
 
 /// Send Client Hello
@@ -442,7 +450,7 @@ impl SESSION {
         ptr=utils::append_byte(&mut ed,ptr,END_OF_EARLY_DATA,1);
         ptr=utils::append_int(&mut ed,ptr,0,3);
         self.running_hash(&ed[0..ptr]);
-        self.send_message(HSHAKE,TLS1_2,&ed[0..ptr],None,true);
+        self.send_message(HSHAKE,TLS1_2,&ed[0..ptr],None,true); // flush, because a change of key is about to happen
     }
 
 /// Send Client Certificate
@@ -470,7 +478,7 @@ impl SESSION {
             ptr=utils::append_int(&mut pt,ptr,0,3);
             self.running_hash(&pt[0..ptr]);
         }
-        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],certchain,true);
+        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],certchain,false); // don't flush, more to come
     }
 
 /// Send Client Certificate Verify 
@@ -483,7 +491,7 @@ impl SESSION {
         ptr=utils::append_int(&mut pt,ptr,ccvsig.len(),2);
         self.running_hash(&pt[0..ptr]);
         self.running_hash(ccvsig);
-        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(ccvsig),true);
+        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(ccvsig),false);  // don't flush, more to come
 }
 
 /// Send final client handshake verification data
@@ -494,7 +502,7 @@ impl SESSION {
         ptr=utils::append_int(&mut pt,ptr,chf.len(),3); // .. and its length
         self.running_hash(&pt[0..ptr]);
         self.running_hash(chf);
-        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(chf),true);
+        self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],Some(chf),true); // flush, client is finished
     }
 
 /// Send Key update demand
@@ -542,7 +550,7 @@ impl SESSION {
         extlen=extensions::add_psk(ext,extlen,psk_mode);
         extlen=extensions::add_version(ext,extlen,tls_version);
         if SET_RECORD_LIMIT {
-            extensions::add_rsl(ext,extlen,MAX_RECORD);
+            extensions::add_rsl(ext,extlen,MAX_INPUT_RECORD_SIZE);
         } else {
             if mode!=2 { // PSK mode has a problem with this (?)
                 extlen=extensions::add_mfl(ext,extlen,MAX_FRAG); expected.max_frag_len=true;
@@ -570,7 +578,6 @@ impl SESSION {
         }
 
         r=self.parse_int_pull(3); let left=r.val; if r.err!=0 {return r;} // find message length
-
         r=self.parse_int_pull(2); *sigalg=r.val as u16; if r.err!=0 {return r;}
 
         let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
@@ -595,8 +602,8 @@ impl SESSION {
         }
         *siglen=len;
         self.running_hash_io();
-        //sal::hash_process_array(&mut self.tlshash,&self.io[0..ptr]);
-        //self.iolen=utils::shift_left(&mut self.io[0..self.iolen],ptr);
+        //sal::hash_process_array(&mut self.tlshash,&self.ibuff[0..ptr]);
+        //self.iblen=utils::shift_left(&mut self.ibuff[0..self.iblen],ptr);
         r.val=CERT_VERIFY as usize;
         return r;
     }
@@ -627,7 +634,7 @@ impl SESSION {
                 return r;
             }
             for i in 0..nb {
-                self.ctx[i]=self.io[start+i];
+                self.ctx[i]=self.ibuff[start+i];
             }
             self.ctxlen=nb;
         } else {
@@ -745,7 +752,7 @@ impl SESSION {
     pub fn get_record(&mut self) -> isize {
         let mut rh:[u8;5]=[0;5];
         let mut tag:[u8;MAX_TAG_SIZE]=[0;MAX_TAG_SIZE];
-        let pos=self.iolen;
+        let pos=self.iblen;
         if !socket::get_bytes(&mut self.sockptr,&mut rh[0..3]) {
             return TIMED_OUT as isize;
         }
@@ -754,10 +761,10 @@ impl SESSION {
             if left!=2 {
                 return BAD_RECORD;
             }
-            if !socket::get_bytes(&mut self.sockptr,&mut self.io[0..left]) {
+            if !socket::get_bytes(&mut self.sockptr,&mut self.ibuff[0..left]) {
                 return TIMED_OUT as isize;
             } 
-            self.iolen=left;
+            self.iblen=left;
             return ALERT as isize;
         }
         if rh[0]==CHANGE_CIPHER { // read it, and ignore it
@@ -782,7 +789,7 @@ impl SESSION {
             return MAX_EXCEEDED;
         }
         utils::append_int(&mut rh,3,left,2);
-        if left+pos>self.io.len() { // this commonly happens with big records of application data from server
+        if left+pos>self.ibuff.len() { // this commonly happens with big records of application data from server
             return MEM_OVERFLOW;    // record is too big - memory overflow
         }
         if !self.k_recv.is_active() { // not encrypted
@@ -799,10 +806,10 @@ impl SESSION {
             if left==0 {
                 return WRONG_MESSAGE;
             }
-            if !socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+left]) {  // ignore it and carry on
+            if !socket::get_bytes(&mut self.sockptr,&mut self.ibuff[pos..pos+left]) {  // ignore it and carry on
                 return TIMED_OUT as isize;
             } 
-            self.iolen+=left; // read in record body
+            self.iblen+=left; // read in record body
             return HSHAKE as isize;
         }
 
@@ -819,24 +826,24 @@ impl SESSION {
         }
         let mut rlen=left-taglen;
 
-        if !socket::get_bytes(&mut self.sockptr,&mut self.io[pos..pos+rlen]) {  // read in record body
+        if !socket::get_bytes(&mut self.sockptr,&mut self.ibuff[pos..pos+rlen]) {  // read in record body
             return TIMED_OUT as isize;
         }
-        self.iolen+=rlen;
+        self.iblen+=rlen;
         if !socket::get_bytes(&mut self.sockptr,&mut tag[0..taglen]) {
             return TIMED_OUT as isize;
         }
-        let success=sal::aead_decrypt(&self.k_recv,&rh,&mut self.io[pos..pos+rlen],&tag[0..taglen]);
+        let success=sal::aead_decrypt(&self.k_recv,&rh,&mut self.ibuff[pos..pos+rlen],&tag[0..taglen]);
         if !success {
             return AUTHENTICATION_FAILURE;
         }
         self.k_recv.increment_crypto_context();
 // get record ending - encodes real (disguised) record type. Could be an Alert.        
-        let mut lb=self.io[self.iolen-1];
-        self.iolen -= 1; rlen -=1; // remove it
+        let mut lb=self.ibuff[self.iblen-1];
+        self.iblen -= 1; rlen -=1; // remove it
         while lb==0 && rlen>0 {
-            lb=self.io[self.iolen-1];
-            self.iolen -= 1; rlen -= 1;// remove it
+            lb=self.ibuff[self.iblen-1];
+            self.iblen -= 1; rlen -= 1;// remove it
         }
 
         if rlen>MAX_PLAIN_FRAG {
@@ -852,7 +859,7 @@ impl SESSION {
             return APPLICATION as isize;
         }
         if lb==ALERT { // Alert record received, delete anything in IO prior to alert, and just return 2-byte alert
-            self.iolen=utils::shift_left(&mut self.io[0..self.iolen],pos); // rewind
+            self.iblen=utils::shift_left(&mut self.ibuff[0..self.iblen],pos); // rewind
             return ALERT as isize;
         }
         return WRONG_MESSAGE;
@@ -867,7 +874,7 @@ impl SESSION {
         //let mut ptr=0;
 
         self.ptr=0;  
-        self.iolen=0;
+        self.iblen=0;
         let mut r=self.parse_int_pull(1);  if r.err!=0 {return r;} 
         if r.val!=SERVER_HELLO as usize { // should be Server Hello
 
@@ -1162,7 +1169,7 @@ impl SESSION {
         let mut identity:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];    // extracting cert identity - but not sure what to do with it!
         let mut idlen=0;
 
-        r.err=certchain::check_certchain(&self.io[start..start+tlen],Some(&self.hostname[0..self.hlen]),spk,spklen,&mut identity,&mut idlen);
+        r.err=certchain::check_certchain(&self.ibuff[start..start+tlen],Some(&self.hostname[0..self.hlen]),spk,spklen,&mut identity,&mut idlen);
         if NO_CERT_CHECKS {
             r.err=0;
         }
@@ -1176,7 +1183,7 @@ impl SESSION {
     pub fn clean(&mut self) {
 
         self.status=DISCONNECTED;
-        self.io.zeroize();
+        self.ibuff.zeroize();
         self.hs.zeroize();
         self.cts.zeroize();
         self.sts.zeroize();
@@ -1187,11 +1194,11 @@ impl SESSION {
 
 /// Clean out IO buffer
     fn clean_io(&mut self) {
-        for i in 0..self.iolen {
-            self.io[i]=0;
+        for i in 0..self.iblen {
+            self.ibuff[i]=0;
         } 
         self.ptr=0;
-        self.iolen=0;
+        self.iblen=0;
     }
 
 /// TLS1.3 RESUMPTION handshake. Can optionally start with some early data
@@ -1375,7 +1382,7 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
         }
-        log(IO_DEBUG,"serverHello= ",0,Some(&self.io[0..self.iolen])); 
+        log(IO_DEBUG,"serverHello= ",0,Some(&self.ibuff[0..self.iblen])); 
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
         let nonzero=sal::generate_shared_secret(kex,csk_s,pk_s,ss_s); 
@@ -1550,7 +1557,7 @@ impl SESSION {
         log(IO_DEBUG,"Early secret= ",0,Some(es_s));
 
         if rtn.val==HANDSHAKE_RETRY { // Was server hello actually an Hello Retry Request?
-            log(IO_DEBUG,"Server Hello Retry Request= ",0,Some(&self.io[0..self.iolen]));
+            log(IO_DEBUG,"Server Hello Retry Request= ",0,Some(&self.ibuff[0..self.iblen]));
             self.running_synthetic_hash(&ch[0..chlen],&ext[0..extlen]);
             self.running_hash_io();
 
@@ -1615,7 +1622,7 @@ impl SESSION {
 //
             resumption_required=true;
         }
-        log(IO_DEBUG,"Server Hello= ",0,Some(&self.io[0..self.iolen]));
+        log(IO_DEBUG,"Server Hello= ",0,Some(&self.ibuff[0..self.iblen]));
         logger::log_server_hello(self.cipher_suite,pskid,pk_s,&cookie[0..cklen]);
         logger::log_key_exchange(IO_PROTOCOL,self.favourite_group);
 // Transcript hash the Hellos 
@@ -1940,7 +1947,7 @@ impl SESSION {
                             r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {break;}   // message length
                             let start=self.ptr;
                             r=self.parse_pull(len);
-                            let ticket=&self.io[start..start+len];
+                            let ticket=&self.ibuff[start..start+len];
                             let rtn=self.t.create(ticket::millis(),ticket);  // extract into ticket structure T, and keep for later use
                             if rtn==BAD_TICKET {
                                 self.t.valid=false;
@@ -1951,7 +1958,7 @@ impl SESSION {
                                 self.t.valid=true;
                                 log(IO_PROTOCOL,"Got a ticket with lifetime (minutes)= ",(self.t.lifetime/60) as isize,None);
                             }
-                            if self.ptr==self.iolen { // nothing left
+                            if self.ptr==self.iblen { // nothing left
                                 fin=true;
                                 self.rewind();
                             }
@@ -1983,7 +1990,7 @@ impl SESSION {
                                 self.send_alert(ILLEGAL_PARAMETER);
                                 return BAD_REQUEST_UPDATE;
                             }
-                            if self.ptr==self.iolen { // nothing left
+                            if self.ptr==self.iblen { // nothing left
                                 fin=true;
                                 self.rewind();
                             }
@@ -2001,7 +2008,7 @@ impl SESSION {
                             }
                             pending_authentication=true;
 
-                            if self.ptr==self.iolen { // nothing left
+                            if self.ptr==self.iblen { // nothing left
                                 fin=true;
                                 self.rewind();
                             }
@@ -2045,14 +2052,14 @@ impl SESSION {
                 // dont exit yet, wait for some data
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
-                self.ptr=self.iolen;
+                self.ptr=self.iblen;
                 if let Some(mymess) = mess {
                     let mut n=mymess.len();
                     if n>self.ptr {
                         n=self.ptr;
                     }
                     for i in 0..n {
-                        mymess[i]=self.io[i];
+                        mymess[i]=self.ibuff[i];
                     }
                     mslen=n as isize;
                 }
@@ -2061,8 +2068,8 @@ impl SESSION {
             }
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);
-                logger::log_alert(self.io[1]);
-                if self.io[1]==CLOSE_NOTIFY {
+                logger::log_alert(self.ibuff[1]);
+                if self.ibuff[1]==CLOSE_NOTIFY {
                     return CLOSURE_ALERT_RECEIVED; 
                 } else {
                     return ERROR_ALERT_RECEIVED;

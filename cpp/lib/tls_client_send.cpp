@@ -178,60 +178,61 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
     return CS->len;
 }
 
-// flush out IO buffer
-void sendFlushIO(TLS_session *session)
-{
-    sendOctad(session->sockptr,&session->IO);     // transmit it
-    OCT_kill(&session->IO);
-    session->ptr=0;
+// send one or more records, maybe encrypted.
+static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush) {
+    char rh[5];
+    octad RH={5,sizeof(rh),rh};
+    for (int i=0;i<DATA->len;i++) {
+		OCT_append_byte(&session->OBUFF,DATA->val[i],1);
+        if (session->OBUFF.len==TLS_MAX_OUTPUT_RECORD_SIZE || (i==DATA->len-1 && flush))
+        {
+			int reclen;
+            if (!session->K_send.active) { // no encryption
+                reclen=session->OBUFF.len;
+                rh[0]=rectype;
+				rh[1]=(version/256);
+                rh[2]=(version%256);
+                rh[3]=(reclen/256);
+                rh[4]=(reclen%256);
+            } else {
+				char tag[TLS_MAX_TAG_SIZE];
+				octad TAG={0,sizeof(tag),tag};
+				int taglen=session->K_send.taglen;
+                reclen=TLS_MAX_OUTPUT_RECORD_SIZE+1+taglen;    // pad record to max size, so all encrypted records are of same size
+                rh[0]=APPLICATION;
+                rh[1]=(TLS1_2/256);
+                rh[2]=(TLS1_2%256);
+                rh[3]=(reclen/256);
+                rh[4]=(reclen%256);
+				OCT_append_byte(&session->OBUFF,rectype,1);
+                int ctlen=TLS_MAX_OUTPUT_RECORD_SIZE+1; // pad to full length - should be padded with 0s
+				session->OBUFF.len=ctlen; // pad to full length
+				SAL_aeadEncrypt(&session->K_send,5,rh,ctlen,session->OBUFF.val,&TAG);
+				incrementCryptoContext(&session->K_send);  // increment IV
+				OCT_append_octad(&session->OBUFF,&TAG);
+            }
+			sendOctad(session->sockptr,&RH);
+			sendOctad(session->sockptr,&session->OBUFF);     // transmit it
+			OCT_kill(&session->OBUFF); // empty it
+        }
+    }
 }
 
 // ALL Client to Server output goes via this function 
-// Send a client message CM|EXT (as a single record). AEAD encrypted if send!=NULL
-// May need to break up into multiple records??
+// Send a client message CM|EXT (as a single record). 
 void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT,bool flush)
 {
-    int reclen,taglen;
-    char tag[TLS_MAX_TAG_SIZE];
-    octad TAG={0,sizeof(tag),tag};
-
     if (session->status==TLS13_DISCONNECTED) {
-        OCT_kill(&session->IO);
-        session->ptr=0;
         return;
     }
 
-    int rbytes=SAL_randomByte()%16; // random padding bytes
-
-    reclen=CM->len;
-    if (EXT!=NULL) reclen+=EXT->len;
-    if (!session->K_send.active)
-    { // no encryption
-        OCT_append_byte(&session->IO,rectype,1);
-        OCT_append_int(&session->IO,version,2);
-        OCT_append_int(&session->IO,reclen,2);
-
-        OCT_append_octad(&session->IO,CM); // CM->len
-        if (EXT!=NULL) OCT_append_octad(&session->IO,EXT);
-    } else { // encrypted, and sent disguised as application record
-        OCT_append_byte(&session->IO,APPLICATION,1);
-        OCT_append_int(&session->IO,TLS1_2,2);
-		taglen=session->K_send.taglen;
-        reclen+=taglen+1+rbytes; // 16 for the TAG, 1 for the record type, + some random padding
-        OCT_append_int(&session->IO,reclen,2);
-
-        OCT_append_octad(&session->IO,CM); 
-        if (EXT!=NULL) OCT_append_octad(&session->IO,EXT);
-        OCT_append_byte(&session->IO,rectype,1); // append and encrypt actual record type
-// add some random padding after this...
-        OCT_append_byte(&session->IO,0,rbytes);
-
-        SAL_aeadEncrypt(&session->K_send,5,&session->IO.val[0],reclen-taglen,&session->IO.val[5],&TAG);
-        incrementCryptoContext(&session->K_send);  // increment IV
-        OCT_append_octad(&session->IO,&TAG);
-    }
-    if (flush)
-        sendFlushIO(session);
+	if (EXT!=NULL)
+	{
+		sendRecord(session,rectype,version,CM,false);
+		sendRecord(session,rectype,version,EXT,flush);
+	} else {
+		sendRecord(session,rectype,version,CM,flush);
+	} 
 }
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
@@ -278,7 +279,7 @@ void sendClientHello(TLS_session *session,int version,octad *CH,octad *CRN,bool 
 }
 
 // Send "binder",
-void sendBinder(TLS_session *session,octad *BND,bool flush)
+void sendBinder(TLS_session *session,octad *BND)
 {
     char b[TLS_MAX_HASH+3];
     octad B={0,sizeof(b),b};
@@ -288,7 +289,7 @@ void sendBinder(TLS_session *session,octad *BND,bool flush)
     OCT_append_int(&B,BND->len,1);
     OCT_append_octad(&B,BND);
     runningHash(session,&B);
-    sendClientMessage(session,HSHAKE,TLS1_2,&B,NULL,flush);
+    sendClientMessage(session,HSHAKE,TLS1_2,&B,NULL,true);
 }
 
 // send client alert - might be encrypted if send!=NULL
@@ -298,7 +299,7 @@ void sendAlert(TLS_session *session,int type)
     octad PT={0,sizeof(pt),pt};
     OCT_append_byte(&PT,0x02,1);  // alerts are always fatal
     OCT_append_byte(&PT,type,1);  // alert type
-    OCT_kill(&session->IO); session->ptr=0;
+    OCT_kill(&session->IBUFF); session->ptr=0;
     sendClientMessage(session,ALERT,TLS1_2,&PT,NULL,true);
     if (session->status!=TLS13_DISCONNECTED)
     {
@@ -315,7 +316,7 @@ void sendKeyUpdate(TLS_session *session,int type)
 	OCT_append_byte(&UP,KEY_UPDATE,1);
 	OCT_append_int(&UP,1,3);
 	OCT_append_int(&UP,type,1);
-	OCT_kill(&session->IO); session->ptr=0;
+	OCT_kill(&session->IBUFF); session->ptr=0;
 	sendClientMessage(session,HSHAKE,TLS1_2,&UP,NULL,true); // sent using old keys
 	deriveUpdatedKeys(&session->K_send,&session->STS);		// now update keys
     log(IO_PROTOCOL,(char *)"KEY UPDATE REQUESTED\n",NULL,0,NULL);
@@ -332,7 +333,7 @@ void sendClientFinish(TLS_session *session,octad *CHF)
 
     runningHash(session,&PT);
     runningHash(session,CHF);
-    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CHF,true);
+    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CHF,true); // now we can flush
 }
 
 /* Send Client Cert Verify */
@@ -346,7 +347,7 @@ void sendClientCertVerify(TLS_session *session, int sigAlg, octad *CCVSIG)
     OCT_append_int(&PT,CCVSIG->len,2);
     runningHash(session,&PT);
     runningHash(session,CCVSIG);
-    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CCVSIG,true);
+    sendClientMessage(session,HSHAKE,TLS1_2,&PT,CCVSIG,false);
 }
 
 // Send Client Certificate 
@@ -374,15 +375,8 @@ void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN)
         OCT_append_int(&PT,CERTCHAIN->len,3);  // length of certificate chain
         runningHash(session,&PT);
         runningHash(session,CERTCHAIN);
-        if (CERTCHAIN->len>4000)
-        { // Break up exceptionally big record that can arise for PQ certs
-            octad FIRST={2048,2048,&CERTCHAIN->val[0]};
-            octad SECOND={CERTCHAIN->len-2048,CERTCHAIN->max-2048,&CERTCHAIN->val[2048]};
-            sendClientMessage(session,HSHAKE,TLS1_2,&PT,&FIRST,true);
-            sendClientMessage(session,HSHAKE,TLS1_2,&SECOND,NULL,true);
-        } else {
-            sendClientMessage(session,HSHAKE,TLS1_2,&PT,CERTCHAIN,true);
-        }
+        sendClientMessage(session,HSHAKE,TLS1_2,&PT,CERTCHAIN,false);
+       
     }
 } 
 
@@ -394,7 +388,7 @@ void sendEndOfEarlyData(TLS_session *session)
     OCT_append_byte(&ED,END_OF_EARLY_DATA,1);
     OCT_append_int(&ED,0,3);
     runningHash(session,&ED);
-    sendClientMessage(session,HSHAKE,TLS1_2,&ED,NULL,true);
+    sendClientMessage(session,HSHAKE,TLS1_2,&ED,NULL,true); // change of encryption keys coming, so flush
 }
 
 //

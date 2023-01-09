@@ -58,9 +58,9 @@ pub const MAX_KEY: usize = 32;
 /// Maximum X.509 field size 
 pub const MAX_X509_FIELD:usize = 256;               
 
-// IO buffer limits
+// Input buffer limits
 /// Maximum Input/Output buffer size.
-pub const MAX_IO: usize = 16384+256;       
+pub const MAX_IBUFF_SIZE: usize = 16384+256;       
 /// Max Plaintext Fragment size 
 pub const MAX_PLAIN_FRAG: usize = 16384;         
 /// Max Ciphertext Fragment size
@@ -75,7 +75,6 @@ pub const POST_QUANTUM: usize = 2;
 /// HYBRID support
 pub const HYBRID: usize = 3;
 
-
 // These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
 pub const MAX_CERT_SIZE:usize = 6144;               // Max client private key/cert 
@@ -89,8 +88,7 @@ pub const MAX_KEX_PUBLIC_KEY: usize = 1184+32;         // Maximum key exchange p
 pub const MAX_KEX_CIPHERTEXT: usize = 1088+32;         // Maximum key exchange (KEM) ciphertext size
 pub const MAX_KEX_SECRET_KEY: usize = 2400+32;         // Maximum key exchange Secret key size. The +32 is for hybrid with X25519
 
-
-pub const MAX_SHARED_SECRET_SIZE:usize = 256;       // Maximum shared secret size - was 66 pre-quantum 
+pub const MAX_SHARED_SECRET_SIZE:usize = 256;          // Maximum shared secret size - was 66 pre-quantum 
 
 // Certificate size limits
 //pub const MAX_SERVER_CHAIN_LEN:usize = 2;                // Maximum Server Chain length (omit Root Cert)
@@ -107,8 +105,11 @@ pub const MAX_COOKIE: usize = 128;               // Max Cookie size
 pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes 
 pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes 
 
-pub const MAX_FRAG:usize = 4;
-pub const MAX_RECORD:usize = 1024;
+pub const MAX_OUTPUT_RECORD_SIZE:usize = 1024;   // Max output record size
+pub const MAX_OBUFF_SIZE:usize = MAX_OUTPUT_RECORD_SIZE+MAX_TAG_SIZE+1;
+
+pub const MAX_FRAG:usize = 4;                    // Request max record size - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384
+pub const MAX_INPUT_RECORD_SIZE:usize = 1024;
 
 // Both of these are bumped up by PQ IBE and Hybrid
 pub const MAX_TICKET_SIZE:usize = 4196;  //4000+161 PQ+IBE
