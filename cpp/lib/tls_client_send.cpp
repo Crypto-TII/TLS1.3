@@ -194,7 +194,9 @@ static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,
 
     for (int i=0;i<DATA->len;i++) {
 		OCT_append_byte(&session->OBUFF,DATA->val[i],1); alen++;
-        if (alen==TLS_MAX_OUTPUT_RECORD_SIZE || (i==DATA->len-1 && flush))
+        bool flushing=false;
+        if (i==DATA->len-1 && flush) flushing=true;;
+        if (alen==TLS_MAX_OUTPUT_RECORD_SIZE || flushing)
         {
 			int reclen,ctlen;
             if (!session->K_send.active) { // no encryption
@@ -233,18 +235,19 @@ static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,
 
 			sendOctad(session->sockptr,&session->OBUFF); // transmit it
 			OCT_kill(&session->OBUFF); // empty it
+            alen=0;
+            session->OBUFF.len=5;
         }
+        if (flushing) session->OBUFF.len=0;
     }
-}
-
-
+} 
 
 
 /* send one or more records, maybe encrypted.
 static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush) {
 	char rh[5];
     for (int i=0;i<DATA->len;i++) {
-		OCT_append_byte(&session->OBUFF,DATA->val[i],1); alen++;
+		OCT_append_byte(&session->OBUFF,DATA->val[i],1); 
         if (session->OBUFF.len==TLS_MAX_OUTPUT_RECORD_SIZE || (i==DATA->len-1 && flush))
         {
 			int reclen,ctlen;
