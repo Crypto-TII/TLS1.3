@@ -211,7 +211,7 @@ static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,
                 rh[3]=(reclen/256);
                 rh[4]=(reclen%256);
 
-				SAL_aeadEncrypt(&session->K_send,5,rh,ctlen,session->OBUFF.val,&TAG);
+				SAL_aeadEncrypt(&session->K_send,5,rh,ctlen,&session->OBUFF.val[0],&TAG);
 				incrementCryptoContext(&session->K_send);  // increment IV
 				OCT_append_octad(&session->OBUFF,&TAG);
             }

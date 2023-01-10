@@ -294,7 +294,7 @@ impl SESSION {
     fn send_record(&mut self,rectype: u8,version: usize,data: &[u8],flush: bool) {
         let mut rh:[u8;5]=[0;5];  // record header
         for i in 0..data.len() {
-            self.obuff[self.optr]=data[i];
+            self.obuff[self.optr+5]=data[i];
             self.optr+=1;
             if self.optr==MAX_OUTPUT_RECORD_SIZE || (i==data.len()-1 && flush) { // block is full, or its the last one and we want to flush
                 let reclen:usize;
@@ -308,7 +308,7 @@ impl SESSION {
                 } else {
                     let mut tag:[u8;MAX_TAG_SIZE]=[0;MAX_TAG_SIZE];
                     let taglen=self.k_send.taglen;
-                    self.obuff[self.optr]=rectype;
+                    self.obuff[self.optr+5]=rectype;
                     let ctlen:usize;
                     if PAD_SHORT_RECORDS {
                         ctlen=MAX_OUTPUT_RECORD_SIZE+1; // pad ciphertext to full length
@@ -322,15 +322,15 @@ impl SESSION {
                     rh[3]=(reclen/256) as u8;
                     rh[4]=(reclen%256) as u8;
                     
-                    sal::aead_encrypt(&self.k_send,&rh,&mut self.obuff[0..ctlen],&mut tag[0..taglen]);
+                    sal::aead_encrypt(&self.k_send,&rh,&mut self.obuff[5..ctlen+5],&mut tag[0..taglen]);
                     self.k_send.increment_crypto_context(); //increment iv
                     for j in 0..taglen { // append tag
-                        self.obuff[ctlen+j]=tag[j];
+                        self.obuff[ctlen+j+5]=tag[j];
                     }
                 }
-                for j in (0..reclen).rev() {
-                    self.obuff[j+5]=self.obuff[j];
-                }
+                //for j in (0..reclen).rev() {
+                //    self.obuff[j+5]=self.obuff[j];
+                //}
                 for j in 0..5 {
                     self.obuff[j]=rh[j];
                 }
