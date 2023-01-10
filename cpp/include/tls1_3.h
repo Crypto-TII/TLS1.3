@@ -71,6 +71,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // Note that if this is not used, max_fragment_size extension is tried instead, see TLS_MAX_FRAG below
 // *****************************************************************************
 
+// define this so that all encrypted records are padded with 0s to full length
+// #define PAD_SHORT_RECORDS		/**< Pad short output records */ 
+
 // Standard Hash Types
 
 #define TLS_SHA256_T 1           /**< SHA256 hash  */
@@ -179,7 +182,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_COOKIE 128              /**< Max Cookie size */    
 
 #define TLS_MAX_OUTPUT_RECORD_SIZE 1024   /**< Max output record size */
-#define TLS_MAX_OBUFF_SIZE (TLS_MAX_OUTPUT_RECORD_SIZE+TLS_MAX_TAG_SIZE+1) /**< Max output buffer size */
+#define TLS_MAX_OBUFF_SIZE (TLS_MAX_OUTPUT_RECORD_SIZE+TLS_MAX_TAG_SIZE+6) /**< Max output buffer size */
 
 #define TLS_MAX_SERVER_NAME 128         /**< Max server name size in bytes */
 #define TLS_MAX_SUPPORTED_GROUPS 10      /**< Max number of supported crypto groups */

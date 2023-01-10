@@ -45,7 +45,7 @@ To connect to a Website
 
 	./client swifttls.org
 
-The output should (if VERBOSITY has been set to IO_DEBUG in tls1_3.h) look something like this
+The output should (if VERBOSITY has been set to IO\_DEBUG in *tls1_3.h*) look something like this
 
 	Hostname= swifttls.org
 	Private key= 0373AF7D060E0E80959254DC071A068FCBEDA5F0C1B6FFFC02C7EB56AE6B00CD
@@ -195,7 +195,8 @@ Also try
 
 	./client tls13.1d.pw
 	
-Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption)
+Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption). This site also requires that
+short records are not padded (that is PAD\_SHORT\_RECORDS is not defined in *tls1_3.h*).
 
 A resumption ticket can be deleted by
 

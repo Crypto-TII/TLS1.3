@@ -16,7 +16,7 @@ realpython.com                  Yes			No		  Yes		B		OK
 www.padok.fr                    Yes			No		  Yes		B		OK
 
 www.fitbit.com			No			Yes		  No		A		OK
-www.st.com			No			Yes		  Yes		A		OK
+st.com				No			Yes		  Yes		A		OK
 www.academia.edu		Terrible Cert Chain! X+X+W+Y+Z-> ca ? Yes No		A+		No
 www.rsaconference.com		Yes			No		  Yes		B		OK
 blog.knowbe4.com		Yes			No		  Yes		B		OK

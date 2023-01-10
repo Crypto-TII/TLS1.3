@@ -107,7 +107,7 @@ pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes
 //pub const MAX_RECORD:usize = 4096;               // default Maximum Record size
 
 pub const MAX_OUTPUT_RECORD_SIZE:usize = 4096;   // Max output record size
-pub const MAX_OBUFF_SIZE:usize = MAX_OUTPUT_RECORD_SIZE+MAX_TAG_SIZE+1; // Max output buffer size
+pub const MAX_OBUFF_SIZE:usize = MAX_OUTPUT_RECORD_SIZE+MAX_TAG_SIZE+6; // Max output buffer size
 
 // Both of these are bumped up by PQ IBE and Hybrid
 pub const MAX_TICKET_SIZE:usize = 4196; //4000+161 PQ+IBE
@@ -297,3 +297,4 @@ pub const APPLICATION_PROTOCOL:&str="http/1.1";  // ALPN extension
 pub const CERTIFICATE_REQUEST: bool=false;  // Does server require client authentication?
 pub const TICKET_LIFETIME: u32 = 86400;     // 86400 seconds in a day
 pub const MAX_EARLY_DATA: usize = 1024;     // maximum amount of early data a client can send 
+pub const PAD_SHORT_RECORDS:bool=false;    // pad short output records

@@ -308,24 +308,35 @@ impl SESSION {
                 } else {
                     let mut tag:[u8;MAX_TAG_SIZE]=[0;MAX_TAG_SIZE];
                     let taglen=self.k_send.taglen;
-                    reclen=MAX_OUTPUT_RECORD_SIZE+1+taglen;    // pad record to max size, so all encrypted records are of same size
+                    self.obuff[self.optr]=rectype;
+                    let ctlen:usize;
+                    if PAD_SHORT_RECORDS {
+                        ctlen=MAX_OUTPUT_RECORD_SIZE+1; // pad ciphertext to full length
+                    } else {
+                        ctlen=self.optr+1; 
+                    }
+                    reclen=ctlen+taglen;
                     rh[0]=APPLICATION;
                     rh[1]=(TLS1_2/256) as u8;
                     rh[2]=(TLS1_2%256) as u8;
                     rh[3]=(reclen/256) as u8;
                     rh[4]=(reclen%256) as u8;
-                    self.obuff[self.optr]=rectype;
-                    let ctlen=MAX_OUTPUT_RECORD_SIZE+1; // pad to full length
+                    
                     sal::aead_encrypt(&self.k_send,&rh,&mut self.obuff[0..ctlen],&mut tag[0..taglen]);
                     self.k_send.increment_crypto_context(); //increment iv
                     for j in 0..taglen { // append tag
                         self.obuff[ctlen+j]=tag[j];
                     }
                 }
-                socket::send_bytes(&mut self.sockptr,&rh);
-                socket::send_bytes(&mut self.sockptr,&self.obuff[0..reclen]);
+                for j in (0..reclen).rev() {
+                    self.obuff[j+5]=self.obuff[j];
+                }
+                for j in 0..5 {
+                    self.obuff[j]=rh[j];
+                }
+                socket::send_bytes(&mut self.sockptr,&self.obuff[0..reclen+5]);
                 self.optr=0;
-                for j in 0..reclen {
+                for j in 0..reclen+5 {
                     self.obuff[j]=0; // padding by zeros ensured, kill evidence
                 }
             }
