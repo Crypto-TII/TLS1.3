@@ -4,7 +4,6 @@
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::x509;
-use crate::tls13::logger::log;
 
 // ECC-SS keys 256 bit. Certificate expires May 2023
 

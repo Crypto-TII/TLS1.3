@@ -86,10 +86,10 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 		addSigAlgsExt(EXT,nsa,sigAlgs);
 		addSigAlgsCertExt(EXT,nsac,sigAlgsCert);
 #ifdef PREFER_RAW_SERVER_PUBLIC_KEY
-		addSupportedServerCertType(EXT,RAW_PUBLIC_KEY);
+		addServerRawPublicKey(EXT);
 #endif
 #ifdef PREFER_RAW_CLIENT_PUBLIC_KEY
-		addSupportedClientCertType(EXT,RAW_PUBLIC_KEY);
+		addClientRawPublicKey(EXT);
 #endif
 	} 
 }

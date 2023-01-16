@@ -38,22 +38,24 @@ void addSupportedGroupsExt(octad *EXT,int nsg,int *supportedGroups)
         OCT_append_int(EXT,supportedGroups[i],2);
 }
 
-// Build client cert type extension - allow only one type
-void addSupportedClientCertType(octad *EXT,int certType)
+// Build client cert type extension for raw public key
+void addClientRawPublicKey(octad *EXT)
 {
 	OCT_append_int(EXT,CLIENT_CERT_TYPE,2);
-	OCT_append_int(EXT,2,2);
-	OCT_append_int(EXT,1,1);
-	OCT_append_int(EXT,certType,1);
+	OCT_append_int(EXT,3,2);
+	OCT_append_int(EXT,2,1);
+	OCT_append_int(EXT,RAW_PUBLIC_KEY,1);
+	OCT_append_int(EXT,X509_CERT,1);
 }
 
-// Build server cert type extension - allow only one type
-void addSupportedServerCertType(octad *EXT,int certType)
+// Build server cert type extension for raw public key
+void addServerRawPublicKey(octad *EXT)
 {
 	OCT_append_int(EXT,SERVER_CERT_TYPE,2);
-	OCT_append_int(EXT,2,2);
-	OCT_append_int(EXT,1,1);
-	OCT_append_int(EXT,certType,1);
+	OCT_append_int(EXT,3,2);
+	OCT_append_int(EXT,2,1);
+	OCT_append_int(EXT,RAW_PUBLIC_KEY,1);
+	OCT_append_int(EXT,X509_CERT,1);
 }
 
 // Build Signature algorithms Extension

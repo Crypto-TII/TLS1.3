@@ -577,10 +577,10 @@ impl SESSION {
             extlen=extensions::add_supported_sigs(ext,extlen,nsa,&sig_algs);
             extlen=extensions::add_supported_sigcerts(ext,extlen,nsac,&sig_alg_certs);        
             if PREFER_RAW_SERVER_PUBLIC_KEY {
-                extlen=extensions::add_supported_server_cert_type(ext,extlen,RAW_PUBLIC_KEY);
+                extlen=extensions::add_server_raw_public_key(ext,extlen);
             }
             if PREFER_RAW_CLIENT_PUBLIC_KEY {
-                extlen=extensions::add_supported_client_cert_type(ext,extlen,RAW_PUBLIC_KEY);
+                extlen=extensions::add_client_raw_public_key(ext,extlen);
             }
         }
         return extlen;

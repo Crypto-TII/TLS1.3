@@ -1431,7 +1431,7 @@ impl SESSION {
         }
 
 // if client asked for raw keys, and we are willing, then inform client that that we are sending them. Otherwise, forget it.
-        if self.client_cert_type==RAW_PUBLIC_KEY && ALLOW_RAW_CLIENT_PUBLIC_KEY {
+        if self.client_cert_type==RAW_PUBLIC_KEY && ALLOW_RAW_CLIENT_PUBLIC_KEY && CERTIFICATE_REQUEST {
             extlen=extensions::add_supported_client_cert_type(encext,extlen,RAW_PUBLIC_KEY);
         } else {
             self.client_cert_type=X509_CERT;

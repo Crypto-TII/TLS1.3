@@ -189,7 +189,7 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 // Read in client private key from .pem file
 // NOTE: key type can be determined from either the public key or the private key. They should be the same.
 // Here we get the type from the X.509 private key 
-// What if its a raw public key, and the private key is in hardware?
+// What if its a raw public key, and the private key is in hardware? The type is stored along with the cert..
 int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
@@ -220,6 +220,9 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
             b[i]=0;
         }
         OCT_from_base64(&SC,b);
+
+// MAYBE SEND RAW KEY instead?
+
 
 // add to Certificate Chain
         OCT_append_int(CERTCHAIN,SC.len,3);
@@ -355,6 +358,9 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
     r=parseInt(CERTCHAIN,3,ptr); len=r.val; if (r.err) return r.err; // get length of first (server) certificate
     if (len==0)
         return EMPTY_CERT_CHAIN;
+
+
+// PARSE OUT RAW KEY HERE
 
     r=parseoctadptr(&SERVER_CERT,len,CERTCHAIN,ptr); if (r.err) return r.err;
     r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return r.err;

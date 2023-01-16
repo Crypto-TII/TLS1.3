@@ -39,26 +39,30 @@ pub fn add_supported_groups(ext: &mut [u8],ptr: usize, nsg: usize, groups: &[u16
     return nptr;
 }
 
-/// Build client cert type extension - allow only one type
+/// Build client cert type extension to ask for raw public key
+// X.509 cert assumed always possible
 #[allow(dead_code)]
-pub fn add_supported_client_cert_type(ext: &mut [u8],ptr: usize,cert_type: u8) -> usize {
+pub fn add_client_raw_public_key(ext: &mut [u8],ptr: usize) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,CLIENT_CERT_TYPE,2);
-    nptr=utils::append_int(ext,nptr,2,2); // extension length
-    nptr=utils::append_byte(ext,nptr,1,1);
-    nptr=utils::append_byte(ext,nptr,cert_type,1);
+    nptr=utils::append_int(ext,nptr,3,2); // extension length
+    nptr=utils::append_byte(ext,nptr,2,1);
+    nptr=utils::append_byte(ext,nptr,RAW_PUBLIC_KEY,1);
+    nptr=utils::append_byte(ext,nptr,X509_CERT,1);
     return nptr;
 
 }
 
-/// Build server cert type extension - allow only one type
+/// Build server cert type extension to ask for raw public key
+// X.509 cert assumed always possible
 #[allow(dead_code)]
-pub fn add_supported_server_cert_type(ext: &mut [u8],ptr: usize,cert_type: u8) -> usize {
+pub fn add_server_raw_public_key(ext: &mut [u8],ptr: usize) -> usize {
     let mut nptr=ptr;
     nptr=utils::append_int(ext,nptr,SERVER_CERT_TYPE,2);
-    nptr=utils::append_int(ext,nptr,2,2); // extension length
-    nptr=utils::append_byte(ext,nptr,1,1);
-    nptr=utils::append_byte(ext,nptr,cert_type,1);
+    nptr=utils::append_int(ext,nptr,3,2); // extension length
+    nptr=utils::append_byte(ext,nptr,2,1);
+    nptr=utils::append_byte(ext,nptr,RAW_PUBLIC_KEY,1);
+    nptr=utils::append_byte(ext,nptr,X509_CERT,1);
     return nptr;
 
 }
