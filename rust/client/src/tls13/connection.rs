@@ -33,6 +33,8 @@ pub struct SESSION {
     favourite_group: u16,   // favourite key exchange group 
     k_send: keys::CRYPTO,   // Sending Key 
     k_recv: keys::CRYPTO,   // Receiving Key 
+    server_cert_type: u8,   // expected server cert type
+    client_cert_type: u8,   // expected client cert type
     hs: [u8;MAX_HASH],      // Handshake secret
     rms: [u8;MAX_HASH],     // Resumption Master Secret         
     sts: [u8;MAX_HASH],     // Server Traffic secret             
@@ -103,6 +105,8 @@ impl SESSION {
             favourite_group: 0,
             k_send: keys::CRYPTO::new(), 
             k_recv: keys::CRYPTO::new(),
+            server_cert_type: X509_CERT,
+            client_cert_type: X509_CERT,
             hs: [0;MAX_HASH],
             rms: [0;MAX_HASH],
             sts: [0;MAX_HASH],
@@ -571,7 +575,13 @@ impl SESSION {
 
         if mode==0 { // need some signature related extensions only for full handshake
             extlen=extensions::add_supported_sigs(ext,extlen,nsa,&sig_algs);
-            extlen=extensions::add_supported_sigcerts(ext,extlen,nsac,&sig_alg_certs);            
+            extlen=extensions::add_supported_sigcerts(ext,extlen,nsac,&sig_alg_certs);        
+            if PREFER_RAW_SERVER_PUBLIC_KEY {
+                extlen=extensions::add_supported_server_cert_type(ext,extlen,RAW_PUBLIC_KEY);
+            }
+            if PREFER_RAW_CLIENT_PUBLIC_KEY {
+                extlen=extensions::add_supported_client_cert_type(ext,extlen,RAW_PUBLIC_KEY);
+            }
         }
         return extlen;
     }
@@ -1085,6 +1095,30 @@ impl SESSION {
                         r.err=NOT_EXPECTED;
                     }
                 },
+                CLIENT_CERT_TYPE => {
+                    r=self.parse_int_pull(1); let cct=r.val as u8; if r.err!=0 {return r;}
+                    if tlen!=1 { 
+                        r.err=UNRECOGNIZED_EXT;
+                        return r;
+                    }
+                    if cct!=RAW_PUBLIC_KEY || !PREFER_RAW_CLIENT_PUBLIC_KEY { 
+                        self.client_cert_type=X509_CERT;
+                    } else { 
+                        self.client_cert_type=RAW_PUBLIC_KEY;
+                    }
+                },
+                SERVER_CERT_TYPE => {
+                    r=self.parse_int_pull(1); let sct=r.val as u8; if r.err!=0 {return r;}
+                    if tlen!=1 { 
+                        r.err=UNRECOGNIZED_EXT;
+                        return r;
+                    }    
+                    if sct!=RAW_PUBLIC_KEY || !PREFER_RAW_SERVER_PUBLIC_KEY { 
+                        self.server_cert_type=X509_CERT;
+                    } else {
+                        self.server_cert_type=RAW_PUBLIC_KEY;
+                    }
+                },
                 RECORD_SIZE_LIMIT => {
                     r=self.parse_int_pull(2); let mfl=r.val; if r.err!=0 {return r;}
                     if tlen!=2 || mfl<64 {
@@ -1174,13 +1208,19 @@ impl SESSION {
 		    return r;
 	    }
         let start=self.ptr;
-        r=self.parse_pull(tlen); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
+        r=self.parse_pull(tlen); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.ibuff
 // Update Transcript hash
 
         let mut identity:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];    // extracting cert identity - but not sure what to do with it!
         let mut idlen=0;
 
-        r.err=certchain::check_certchain(&self.ibuff[start..start+tlen],Some(&self.hostname[0..self.hlen]),spk,spklen,&mut identity,&mut idlen);
+        r.err=certchain::check_certchain(&self.ibuff[start..start+tlen],Some(&self.hostname[0..self.hlen]),self.server_cert_type,spk,spklen,&mut identity,&mut idlen);
+
+        if self.server_cert_type == RAW_PUBLIC_KEY {
+            log(IO_DEBUG,"WARNING - server is authenticating with raw public key\n",-1,None);
+        } 
+        log(IO_DEBUG,"Server Public Key= ",0,Some(&spk[0..*spklen]));
+
         if NO_CERT_CHECKS {
             r.err=0;
         }
@@ -1393,7 +1433,6 @@ impl SESSION {
             self.clean();
             return TLS_FAILURE;
         }
-        log(IO_DEBUG,"serverHello= ",0,Some(&self.ibuff[0..self.iblen])); 
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
         let nonzero=sal::generate_shared_secret(kex,csk_s,pk_s,ss_s); 
@@ -1696,7 +1735,7 @@ impl SESSION {
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
 
         let mut spklen=0;
-        let mut rtn=self.get_check_server_certificatechain(&mut server_pk,&mut spklen);
+        let mut rtn=self.get_check_server_certificatechain(&mut server_pk,&mut spklen); // public key type is inferred from sig type
 //
 //
 //  <---------------------------------------------------------- {Certificate}
@@ -1767,12 +1806,11 @@ impl SESSION {
         let hlen=sal::hash_len(hash_type);
 // extract slice.. Depends on cipher suite
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
-
+        log(IO_PROTOCOL,"Client is authenticating\n",-1,None);
         let mut cclen=0;
         let mut cklen=0;
-        let kind=certchain::get_client_credentials(&mut client_key,&mut cklen,&mut client_certchain,&mut cclen);
+        let kind=clientcert::get_client_credentials(&mut client_key,&mut cklen,self.client_cert_type,&mut client_certchain,&mut cclen);
         if kind!=0 { // Yes, I can do that signature
-            log(IO_PROTOCOL,"Client is authenticating\n",-1,None);
             let cc_s=&client_certchain[0..cclen];
             let ck_s=&client_key[0..cklen];
             self.send_client_certificate(Some(cc_s));

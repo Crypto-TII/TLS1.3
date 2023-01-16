@@ -30,7 +30,9 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 	state.OBUFF={0,TLS_MAX_OBUFF_SIZE,state.obuff};
 #endif
     state.ptr=0;
-    state.favourite_group=0;							    // default key exchage group
+    state.favourite_group=0;							    // default key exchange group
+	state.server_cert_type=X509_CERT;					// Server Cert type (could be raw public key)
+	state.client_cert_type=X509_CERT;					// Client Cert type (could be raw public key)
     initTicketContext(&state.T);                            // Resumption ticket - may be added to session state
     return state;
 }
@@ -83,6 +85,12 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 	{ // need signature related extensions for full handshake
 		addSigAlgsExt(EXT,nsa,sigAlgs);
 		addSigAlgsCertExt(EXT,nsac,sigAlgsCert);
+#ifdef PREFER_RAW_SERVER_PUBLIC_KEY
+		addSupportedServerCertType(EXT,RAW_PUBLIC_KEY);
+#endif
+#ifdef PREFER_RAW_CLIENT_PUBLIC_KEY
+		addSupportedClientCertType(EXT,RAW_PUBLIC_KEY);
+#endif
 	} 
 }
 

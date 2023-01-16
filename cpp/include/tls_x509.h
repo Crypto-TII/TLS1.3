@@ -95,6 +95,24 @@ extern pktype X509_extract_cert_sig(octad *c, octad *s);
 	@return 0 on failure
 */
 extern int X509_extract_cert(octad *sc, octad *c);
+
+/** @brief
+ *
+	@param c an X.509 certificate
+	@param ptr pointer to ASN.1 raw public key
+	@return length of raw public key
+*/
+extern int X509_find_public_key(octad *c,int *ptr);
+
+/** @brief
+ *
+	@param c an ASN.1 encoded public key
+	@param key the extracted public key
+	@return indicator of public key type (ECC or RSA)
+*/
+extern pktype X509_get_public_key(octad *c,octad *key);
+
+
 /** @brief
  *
 	@param c an X.509 certificate

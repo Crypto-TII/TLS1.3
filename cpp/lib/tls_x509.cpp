@@ -795,11 +795,60 @@ int X509_extract_cert(octad *sc, octad *cert)
     return 1;
 }
 
-// Extract Public Key from inside Certificate
-// if key==NULL just return type
-pktype X509_extract_public_key(octad *c, octad *key)
+
+
+
+// find index to start of ASN.1 raw public key, and return its length
+int X509_find_public_key(octad *c,int *ptr)
 {
-    int i, j, fin, len, sj;
+    int i, j, k, fin, len, sj;
+
+    j = 0;
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) 0;
+    j += skip(len);
+
+    if (len + j != c->len) return 0;
+
+    len = getalen(ANY, c->val, j);
+    if (len < 0) return 0;
+    j += skip(len) + len; //jump over version clause
+
+    len = getalen(INT, c->val, j);
+
+    if (len > 0) j += skip(len) + len; // jump over serial number clause (if there is one)
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return 0;
+    j += skip(len) + len; // jump over signature algorithm
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return 0;
+    j += skip(len) + len; // skip issuer
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return 0;
+    j += skip(len) + len; // skip validity
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return 0;
+    j += skip(len) + len; // skip subject
+
+    k=j;
+    len = getalen(SEQ, c->val, j); // look ahead to determine length
+    if (len < 0) return 0;
+    j += skip(len); //
+
+    fin=j+len;
+    *ptr=k;
+    return fin-k;
+}
+
+// get Public Key details from ASN.1 description
+pktype X509_get_public_key(octad *c,octad *key) 
+{
+    int i, j, fin, len, sj, ptr;
     char koid[12];     /*****/
     octad KOID = {0, sizeof(koid), koid};
     pktype ret;
@@ -807,37 +856,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
     ret.type = ret.hash = 0;
     ret.curve = -1;
 
-    j = 0;
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len);
-
-    if (len + j != c->len) return ret;
-
-    len = getalen(ANY, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len;				// jump over version clause
-
-    len = getalen(INT, c->val, j);
-
-    if (len > 0) j += skip(len) + len; // jump over serial number clause (if there is one)
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len;				// jump over signature algorithm
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len; // skip issuer
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len; // skip validity
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len; // skip subject
+    j=0;
 
     len = getalen(SEQ, c->val, j);
     if (len < 0) return ret;
@@ -958,6 +977,192 @@ pktype X509_extract_public_key(octad *c, octad *key)
     return ret;
 }
 
+// Extract Public Key from inside Certificate
+pktype X509_extract_public_key(octad *c, octad *key)
+{
+    int ptr=0;
+    int pklen=X509_find_public_key(c,&ptr);
+    octad CC={pklen,pklen,&c->val[ptr]};
+    return X509_get_public_key(&CC,key);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Extract Public Key from inside Certificate
+// if key==NULL just return type
+/*
+pktype X509_extract_public_key(octad *c, octad *key)
+{
+    int i, j, fin, len, sj;
+    char koid[12];     
+    octad KOID = {0, sizeof(koid), koid};
+    pktype ret;
+
+    ret.type = ret.hash = 0;
+    ret.curve = -1;
+
+    j = 0;
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return ret;
+    j += skip(len);
+
+    if (len + j != c->len) return ret;
+
+    len = getalen(ANY, c->val, j);
+    if (len < 0) return ret;
+    j += skip(len) + len;				// jump over version clause
+
+    len = getalen(INT, c->val, j);
+
+    if (len > 0) j += skip(len) + len; // jump over serial number clause (if there is one)
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return ret;
+    j += skip(len) + len;				// jump over signature algorithm
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return ret;
+    j += skip(len) + len; // skip issuer
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return ret;
+    j += skip(len) + len; // skip validity
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return ret;
+    j += skip(len) + len; // skip subject
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return ret;
+    j += skip(len); //
+
+    len = getalen(SEQ, c->val, j);
+    if (len < 0) return ret;
+    j += skip(len);
+
+// ** Maybe dive in and check Public Key OIDs here?
+// ecpublicKey & prime256v1, secp384r1 or secp521r1 for ECC
+// rsapublicKey for RSA
+
+    sj = j + len;
+
+    len = getalen(OID, c->val, j);
+    if (len < 0) return ret;
+    j += skip(len);
+
+    fin = j + len;
+    KOID.len = len;
+    for (i = 0; j < fin; j++)
+        KOID.val[i++] = c->val[j];
+
+    ret.type = 0;
+    if (OCT_compare(&ECPK, &KOID)) ret.type = X509_ECC;
+    if (OCT_compare(&EDPK, &KOID)) ret.type = X509_ECD;
+    if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
+    if (OCT_compare(&DILITHIUM3, &KOID)) ret.type = X509_PQ;
+    if (OCT_compare(&HYBRID, &KOID)) ret.type = X509_HY;
+
+    if (ret.type == 0) return ret;
+
+    if (ret.type == X509_ECC)
+    {
+        // which elliptic curve?
+        len = getalen(OID, c->val, j);
+        if (len < 0)
+        {
+            ret.type = 0;
+            return ret;
+        }
+        j += skip(len);
+
+        fin = j + len;
+        KOID.len = len;
+        for (i = 0; j < fin; j++)
+            KOID.val[i++] = c->val[j];
+
+        if (OCT_compare(&PRIME25519, &KOID)) ret.curve = USE_C25519; 
+        if (OCT_compare(&PRIME256V1, &KOID)) ret.curve = USE_NIST256;
+        if (OCT_compare(&SECP384R1, &KOID)) ret.curve = USE_NIST384;
+        if (OCT_compare(&SECP521R1, &KOID)) ret.curve = USE_NIST521;
+    }
+
+    j = sj; // skip to actual Public Key
+
+    len = getalen(BIT, c->val, j);
+    if (len < 0)
+    {
+        ret.type = 0;
+        return ret;
+    }
+    j += skip(len); //
+    j++;
+    len--; // skip bit shift (hopefully 0!)
+
+// extract key
+    if (key==NULL)
+        return ret;
+    if (ret.type == X509_ECC || ret.type == X509_ECD || ret.type == X509_PQ || ret.type == X509_HY)
+    {
+        if (ret.type==X509_HY)
+        {
+            j+=4;
+            len-=4;
+        }
+        key->len = len;
+        fin = j + len;
+        for (i = 0; j < fin; j++)
+            key->val[i++] = c->val[j];
+
+    }
+    if (ret.type == X509_PQ  || ret.type == X509_HY) 
+        ret.curve=8*len;
+
+    if (ret.type == X509_RSA)
+    {
+        // Key is (modulus,exponent) - assume exponent is 65537
+        len = getalen(SEQ, c->val, j);
+        if (len < 0)
+        {
+            ret.type = 0;
+            return ret;
+        }
+        j += skip(len); //
+
+        len = getalen(INT, c->val, j); // get modulus
+        if (len < 0)
+        {
+            ret.type = 0;
+            return ret;
+        }
+        j += skip(len); //
+        if (c->val[j] == 0)
+        {
+            j++;
+            len--; // remove leading zero
+        }
+
+        key->len = len;
+        fin = j + len;
+        for (i = 0; j < fin; j++)
+            key->val[i++] = c->val[j];
+
+        ret.curve = 8 * len;
+    }
+    return ret;
+}
+*/
 // Find pointer to main sections of cert, before extracting individual field
 // Find index to issuer in cert
 int X509_find_issuer(octad *c)

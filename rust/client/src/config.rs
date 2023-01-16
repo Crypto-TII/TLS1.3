@@ -164,6 +164,8 @@ pub const MAX_FRAG_LENGTH:usize = 0x0001;         // max fragmentation length ex
 pub const PADDING:usize = 0x0015;                 // Padding extension 
 pub const APP_PROTOCOL:usize = 0x0010;            // Application Layer Protocol Negotiation (ALPN) 
 pub const RECORD_SIZE_LIMIT:usize = 0x001c;       // Record Size Limit 
+pub const CLIENT_CERT_TYPE:usize = 0x0013;        // Client Certificate type
+pub const SERVER_CERT_TYPE:usize = 0x0014;        // Server Certificate type
 
 // pre-shared Key (PSK) modes 
 //pub const PSKOK:usize = 0x00;                   // Preshared Key only mode 
@@ -289,6 +291,9 @@ pub const PSK_NOT:usize = 0;        // no PSK
 pub const PSK_KEY:usize = 1;        // Using PSK from database 
 pub const PSK_IBE:usize = 2;        // Using IBE based PSK
 
+pub const X509_CERT:u8 = 0;
+pub const RAW_PUBLIC_KEY:u8 = 2;
+
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true;    // allow self-signed server certs
@@ -301,3 +306,5 @@ pub const APPLICATION_PROTOCOL:&str="http/1.1";
 pub const TRY_EARLY_DATA:bool=true;        // Try sending early data on resumption
 pub const NO_CERT_CHECKS:bool=false;       // don't check server certs
 pub const PAD_SHORT_RECORDS:bool=false;    // pad short output records
+pub const PREFER_RAW_SERVER_PUBLIC_KEY:bool=false;  // Would be happy with raw public key from server
+pub const PREFER_RAW_CLIENT_PUBLIC_KEY:bool=false;  // Would prefer server to accept raw public key from client

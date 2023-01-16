@@ -17,56 +17,65 @@ pub const PQSK: [i16; 1024] = [17427,5481,11717,2709,18990,-6238,-17547,2027,406
 // Uses RSA 2048 bit SHA256
 
 pub const SS_PRIVATE: &str = 
-"MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC+NUME/wA+EiE6\
-MpXqNuyhHaspFvLDL/zpAUJENhIw6J6og5yIgqOQpyDY3T8FMcM2OOSfnbRloXwL\
-WC7FI/2QGU66bhStN52rNz8AggLYsU6FtPmYVfkQ1WgwDAb7GichbgpJbrbIpkC5\
-CEBT5/HzJbwCIzPH3k/+126FBvjsvhMjyVYC5Oqh2rD1FquqvFxIatoMJmylm1Pj\
-wL6nL7Tf0utamgIMHUwNkvGaEvz5/EoA7M271hsV8CloD1NTSAzkMHgurFkdUCN8\
-VbDWYGTIEiHY623GLogRImvRpCqj0ckvKm9Hpy+bA67F6j3MArXwwnpQk1Vr0xUi\
-KSOv9ms5AgMBAAECggEAPOqX7Tix3i82PwpGYv12KV90GrPDyelLiWAi1e+vQcSu\
-U2/bKQkV01UDOxEYhtRaHbp41fnO9aGTNZrnV7HgGk9QnHp22sbuExCdd88rlDSs\
-3juImFYob1C5jnG7pp3InHc+iigQGBDOt7PBzl2BaorSPKkDg2ZanlZmieoivMbR\
-CuPEdAWEbC12BO2Di8spOEuu1G/d4vBjc4IJqNiZcoySbP+8fir7IUHI6TABW16Q\
-JKHPG/9eRoC+706r7otzHknN90g25UHiy0ol7iUCS47RwlhgPg6+8IfUPc2TsLME\
-59qU8NUVHG3ny3ciLzdrjfo+MLChN+XOJV7jwWWqpQKBgQD0cEXClO3HGxHIG0gx\
-dXOZB29xN7PN2OFYO1AAnhAK+TGpc+1FhHtoTe2IHhGd4QskGhRNtPu5qgpk9OGD\
-/yQP3GFLsqSnFIcj1bSylhI2AU5NuMg32CLaxagvgzA+mtx9MBU39Mr9/Tw8FAVJ\
-MXlZw+hn7BwtGYOtTjQK3+ZsPwKBgQDHNFoNt8f684VyQYWuQrdv2Jo8TDNEDrIs\
-Gu0pFsTRXj6Mar2Mx77agz+Q8QwouB/OmB2S+IpRJwWFzmE0XWfRvB3Q6MysMs5X\
-GaugS5BYaNwiEt2e0U9YXVxkgwYFsZ63VJOzOgCs4kCJKDFP57YA3VfLiqsRiAZe\
-xpbWiA8qhwKBgGtQLxAyGgHjnHbho1wzWEDCxuZJsiKZKLV3tLPQsPJgXLEsN+rh\
-Mtyj+bhcmxdZCW8cE/XZkvn78PxJlghBJy/fbMey8h54IKxW0jHlOLGE+T+d9Ciw\
-Nv0c8a2KRs/1ZP+A8I/UZJoFZ0Bo+bkcg04peArH2cbjALBBOQ/dJGg5AoGAAdw3\
-SxGASJOll1+NRAdTdzPqnM2JXQVWHJtTw6J2zA25P85vXrUuzxOSsGPP3UF66o75\
-F7pCcGeQ4aL/vWFx6r9698x0vNbsnlubArAx9OFlzNuoPiduOkEE79tZXww9kzCz\
-AGV2RCcIuz8o1rovNOrcOwZceplulcv89JvoqFkCgYAOaQo7Q8IhyrMRIFe3zZak\
-thWTES+ZfLZJsgvWXtnJpMeEa9dNwacRCYTuurQG74uJkNo6KmDeiaP6NkdYjWTe\
-/1WyGOj/o4tJUyS4lrPRxXEnBkAbyXFbvkj1ED2quouj0EY0OGeEsKjs6Dm4po5i\
-qEcrZCFCV73w0tdmmmqEaw==";
-
+"MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCghTOzZaVdVS53\
+FEMye6QZ1jgQniPuwydFIrVmRRAJf3zuMEXH77go4o59wgAmqzV1WM8VMDBl89ji\
+zxFh5L7B11U/2HxnTxgsidkJfZIVcUt8jYDLIMQkaTrVV4c8GjPcxuy2+XMmNvDX\
+yPlZtRrMiFeaxmLZdxGxte6Jl6qJwCnfZW7hZ1fiv16e1XSJng+F+Yrabdm83wIo\
+mf2+PF9dv1JfTNSu6TI2Na8++fdFx8fsnK4Q03FwqrAd5/ivJZaVrx87GRtd+2VT\
+mumbknzWWVAQ74CQbwoyQ9o2UiWNyVHxw/WKTk4CZGvqfs52SX+fx3FzachjzC4b\
+XgZ5trNxAgMBAAECggEAFIcURoPgMuBa0dWghkszgC5Z+x4OIFGKqxe2NP7t/xjz\
+pA4+TkREu83FRSXTGR7Z9kjGKsJ/3fniKZcrdOZo0qcz+rc3qYp+3+s8+y64yM81\
+RRdfehqVmsZuRKwt2izLpxc1XGzoIeHyyNWltagoZjGlamCmcYL9m0lV2PixUW4y\
+wkXaeScvLXZmAesLr8jSWusVrt+VZHdXTMRcXI3Id+wAl1ECxecJjhIn77d02Y2p\
+IswKK78YFdzO0yEFq+YhzcsovQoApIWEuAS+zpJiJrwiy98hWOwH5RLfwrvX88OB\
+WQYpyEfVIOF9lAA+1qOf4HybmkrNvX/MdY/9PEHVpQKBgQDVVhPgBHGJPI/SgX/r\
+tkEDHudcc00RP2KZplChdrTxUaTNA187TV2dKmkMduu9vpw66avMw+NkBXlCDOjU\
+Trcy1JK1XI4/4hiMzxgoBx1ci34zbp4hl2O4jvBW2Juz2WUGKKPocImdXDKIppLJ\
+QhtiUzxZmKzYz3ySxD7pt8/YkwKBgQDAnyuZGHkM2aMOItx3DbB+b6QMEjwNTqM9\
+CimPFC2QojBQiVxx+vMOPxf9qFZqnS18E07Oy+/X/xDopYMyCGfcr3T6hpR1UxKc\
+etBQ44C95wZwewnzDgRr17frqN28J8707eLYJvHyFgCS2umkiBLp06ktc/imoMHJ\
+TMiVby7aawKBgGINoDD0meKD7W7JiqwiJptyltBNRnzI717DrIep8dyAtAhuplSx\
+aHeWSJYsCoo5k8EYKZiB6H/ObD9Jg7IhQ96fCZdGJTODjdkaTnYHXx1sF+M30oKJ\
+/JGVUS35fQcawm4kO8HYB8hF2gwo04qhUcjNjQ15OOil5RHoFSqDC4r1AoGBAK++\
+ylWV2aRa0gWs0wAg0l6Z19BXtsjhbdjcc8yiuWwUPwbMPTeVorvl3yrFs4r0u7JQ\
+H4BY3A10IGZT1R8KQlE9GPsXXU6qq/lvqK+U0zrxFZP8/rfvmyMWIC341c69d3tL\
+rMRQzEF3x7A14iUHLlJ/lwTsofrOA+F5mC2X0uTfAoGASbWWiWLBy5B1VZ+wV6R+\
+jCrscAl1+E3qpL7k7vBTntrUGEL2SFrBJdHAiq0nfSAxAZdemA1/rBFLnkSU5wt0\
+OPqbNHLhyl66leqZnkoP/EfZLtSSjMBBLNna/xDNyzalRy0BUyBN6yrz3yF+Om+s\
+khdgfM1AyAMEGynDE2zRXlU=";
+/*
+pub const SS_RAW_PUBLIC: &str = 
+"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoIUzs2WlXVUudxRDMnuk\
+GdY4EJ4j7sMnRSK1ZkUQCX987jBFx++4KOKOfcIAJqs1dVjPFTAwZfPY4s8RYeS+\
+wddVP9h8Z08YLInZCX2SFXFLfI2AyyDEJGk61VeHPBoz3MbstvlzJjbw18j5WbUa\
+zIhXmsZi2XcRsbXuiZeqicAp32Vu4WdX4r9entV0iZ4PhfmK2m3ZvN8CKJn9vjxf\
+Xb9SX0zUrukyNjWvPvn3RcfH7JyuENNxcKqwHef4ryWWla8fOxkbXftlU5rpm5J8\
+1llQEO+AkG8KMkPaNlIljclR8cP1ik5OAmRr6n7Odkl/n8dxc2nIY8wuG14Gebaz\
+cQIDAQAB";
+*/
 pub const SS_CERTCHAIN: [&str;1] = [
-"MIIEFTCCAv2gAwIBAgIUUM7lWsgRYImkDg5pWtIE/OJiU+EwDQYJKoZIhvcNAQEL\
-BQAwgZkxCzAJBgNVBAYTAkFFMRIwEAYDVQQIDAlBYnUgRGhhYmkxFDASBgNVBAcM\
-C01hc2RhciBDaXR5MQwwCgYDVQQKDANUSUkxFTATBgNVBAsMDENyeXB0b2dyYXBo\
-eTEWMBQGA1UEAwwNTWljaGFlbCBTY290dDEjMCEGCSqGSIb3DQEJARYUbWljaGFl\
-bC5zY290dEB0aWkuYWUwHhcNMjMwMTAzMDYyOTM2WhcNMjUwOTI5MDYyOTM2WjCB\
-mTELMAkGA1UEBhMCQUUxEjAQBgNVBAgMCUFidSBEaGFiaTEUMBIGA1UEBwwLTWFz\
-ZGFyIENpdHkxDDAKBgNVBAoMA1RJSTEVMBMGA1UECwwMQ3J5cHRvZ3JhcGh5MRYw\
-FAYDVQQDDA1NaWNoYWVsIFNjb3R0MSMwIQYJKoZIhvcNAQkBFhRtaWNoYWVsLnNj\
-b3R0QHRpaS5hZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL41QwT/\
-AD4SIToyleo27KEdqykW8sMv/OkBQkQ2EjDonqiDnIiCo5CnINjdPwUxwzY45J+d\
-tGWhfAtYLsUj/ZAZTrpuFK03nas3PwCCAtixToW0+ZhV+RDVaDAMBvsaJyFuCklu\
-tsimQLkIQFPn8fMlvAIjM8feT/7XboUG+Oy+EyPJVgLk6qHasPUWq6q8XEhq2gwm\
-bKWbU+PAvqcvtN/S61qaAgwdTA2S8ZoS/Pn8SgDszbvWGxXwKWgPU1NIDOQweC6s\
-WR1QI3xVsNZgZMgSIdjrbcYuiBEia9GkKqPRyS8qb0enL5sDrsXqPcwCtfDCelCT\
-VWvTFSIpI6/2azkCAwEAAaNTMFEwHQYDVR0OBBYEFJe1H8GbB3gch8bkfQbkYgSu\
-nGl/MB8GA1UdIwQYMBaAFJe1H8GbB3gch8bkfQbkYgSunGl/MA8GA1UdEwEB/wQF\
-MAMBAf8wDQYJKoZIhvcNAQELBQADggEBAH5DnRvzBAP6Lz3WTp0yapzZlV3/wEs8\
-BwXIvoV26OvSF1EDze6nL41obkMUCuYtX/A48m22hqqszSDOjGsrnIK5/0ZD8fMw\
-85RGmqZsScDBC0mYtKd4PWg8DXmyo3Gp2/EvH14q9zdTHUYGqclbnPydr/bUMujd\
-hgdnxnPagrNMvo9faye6UsE2viHmGUnSSep9bBT7RBNT3lgTUdeXC+/j8f9gZgdP\
-YMiPQrnIKl0kds9HuNLwa9teZTxzB+ON/yKg0AZKqN4erAbN6HoqQQoB6cF/WSOV\
-F8zNWhQBZuAIyXcK7pl+yCshTyk2vwWQRA+5S9HALN6vji9z3cQ2dWw="];
+"MIIECzCCAvOgAwIBAgIUP6cEg1C+VgCtMqQ547y7GpKFrpswDQYJKoZIhvcNAQEL\
+BQAwgZQxCzAJBgNVBAYTAkFFMRQwEgYDVQQIDAtNYXNkYXIgQ2l0eTESMBAGA1UE\
+BwwJQWJ1IERoYWJpMQwwCgYDVQQKDANUSUkxDDAKBgNVBAsMA0NSQzEaMBgGA1UE\
+AwwRVGlpZ2VyIFRMUyBzZXJ2ZXIxIzAhBgkqhkiG9w0BCQEWFG1pY2hhZWwuc2Nv\
+dHRAdGlpLmFlMB4XDTIzMDExMjA2NDc0OFoXDTI1MTAwODA2NDc0OFowgZQxCzAJ\
+BgNVBAYTAkFFMRQwEgYDVQQIDAtNYXNkYXIgQ2l0eTESMBAGA1UEBwwJQWJ1IERo\
+YWJpMQwwCgYDVQQKDANUSUkxDDAKBgNVBAsMA0NSQzEaMBgGA1UEAwwRVGlpZ2Vy\
+IFRMUyBzZXJ2ZXIxIzAhBgkqhkiG9w0BCQEWFG1pY2hhZWwuc2NvdHRAdGlpLmFl\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoIUzs2WlXVUudxRDMnuk\
+GdY4EJ4j7sMnRSK1ZkUQCX987jBFx++4KOKOfcIAJqs1dVjPFTAwZfPY4s8RYeS+\
+wddVP9h8Z08YLInZCX2SFXFLfI2AyyDEJGk61VeHPBoz3MbstvlzJjbw18j5WbUa\
+zIhXmsZi2XcRsbXuiZeqicAp32Vu4WdX4r9entV0iZ4PhfmK2m3ZvN8CKJn9vjxf\
+Xb9SX0zUrukyNjWvPvn3RcfH7JyuENNxcKqwHef4ryWWla8fOxkbXftlU5rpm5J8\
+1llQEO+AkG8KMkPaNlIljclR8cP1ik5OAmRr6n7Odkl/n8dxc2nIY8wuG14Gebaz\
+cQIDAQABo1MwUTAdBgNVHQ4EFgQUnjQ+MoNeySl9R/t0OnLU9DCAVwswHwYDVR0j\
+BBgwFoAUnjQ+MoNeySl9R/t0OnLU9DCAVwswDwYDVR0TAQH/BAUwAwEB/zANBgkq\
+hkiG9w0BAQsFAAOCAQEALS4hxQht4PRCuk0ToJCbrUhKzjS3tpAFM9pnllhEOhV1\
+owFbbb2JHRWsxEp+Ein/Xs+sfad7dDYh/IvjC1JaNMwV1MSnZXsXvQHTAR8ZbFmZ\
+oSRvJ+oPHi98MDgcg/aObzjGIAe/B5mjNyp7Ab9vYY502ggoUwr3sd6Q9hh6wJrK\
+z7CB0xzRaG8Sh0nr+4LJJWG4PLPQxKwAhqLnqcr2sU/fD8ftwFzBsMh4rDOrRYAl\
++bsdQBgZpSUdXEJBl7tvuEAhVxML45Y/bevBoer5uSsAzKagmHNTughJRtVRZIOA\
+/utRvajbcCqkgdOtAY7CyKwwntrnHSs0+CGsDbOl4Q=="];
 
 // This is a Server + Intermediate CA chain based on the secp256r1 elliptic curve. Expires June 2023.
 
@@ -731,54 +740,54 @@ pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
     return ns;
 }
 
-/// Get server credentials (cert+signing key) from servercert.rs
-pub fn get_server_credentials(privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
-    let mut sc:[u8;MAX_SERVER_CHAIN_SIZE]=[0;MAX_SERVER_CHAIN_SIZE];
-// first get certificate chain
-// Should check against hostname to pick right certificate - we could have more than one
-
+// parse out certificate chain from stored base64 version. If a raw public key is being used, just extract the public key from the first certificate in the chain.
+// sc is workspace
+fn extract_chain(stored_chain: &[&str],cert_type: u8,sc: &mut [u8],certchain: &mut [u8]) -> usize {
+    let chlen=stored_chain.len();
     let mut ptr=0;
-    let mut key:&str="";
-
-    if CRYPTO_SETTING==TYPICAL {
-        key=SS_PRIVATE;
-        for i in 0..SS_CERTCHAIN.len() {
-            let b=SS_CERTCHAIN[i].as_bytes();
-            let sclen=utils::decode_b64(&b,&mut sc);
+    if cert_type==RAW_PUBLIC_KEY { // RAW public key only is asked for
+        let b=stored_chain[0].as_bytes();
+        utils::decode_b64(&b,sc);
+        let mut start=0;
+        let mut len=x509::find_cert(sc,&mut start); // find start and length of first signed certificate
+        let cert=&sc[start..start+len]; // extract certificate
+        len=x509::find_public_key(cert,&mut start);
+        let pk=&cert[start..start+len]; // extract public key
+        ptr=utils::append_int(certchain,ptr,len,3);
+        ptr=utils::append_bytes(certchain,ptr,&pk[0..len]);
+    } else {
+        for i in 0..chlen {
+            let b=stored_chain[i].as_bytes();
+            let sclen=utils::decode_b64(&b,sc);
             ptr=utils::append_int(certchain,ptr,sclen,3);
             ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
             ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
         }
+    }
+    return ptr;
+}
+
+/// Get server credentials (cert+signing key) from above
+pub fn get_server_credentials(privkey: &mut [u8],sklen: &mut usize,cert_type: u8,certchain: &mut [u8],cclen: &mut usize) -> u16 {
+    let mut sc:[u8;MAX_SERVER_CHAIN_SIZE]=[0;MAX_SERVER_CHAIN_SIZE]; // workspace
+// Should check against hostname to pick right certificate - we could have more than one
+    let mut ptr=0;
+    let mut key:&str="";
+    if CRYPTO_SETTING==TYPICAL {
+        key=SS_PRIVATE;
+        ptr=extract_chain(&SS_CERTCHAIN,cert_type,&mut sc,certchain);
     }
     if CRYPTO_SETTING==TINY_ECC {
         key=TE_PRIVATE;
-        for i in 0..TE_CERTCHAIN.len() {
-            let b=TE_CERTCHAIN[i].as_bytes();
-            let sclen=utils::decode_b64(&b,&mut sc);
-            ptr=utils::append_int(certchain,ptr,sclen,3);
-            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
-        }
+        ptr=extract_chain(&TE_CERTCHAIN,cert_type,&mut sc,certchain);
     }
     if CRYPTO_SETTING==POST_QUANTUM {
         key=PQ_PRIVATE;
-        for i in 0..PQ_CERTCHAIN.len() {
-            let b=PQ_CERTCHAIN[i].as_bytes();
-            let sclen=utils::decode_b64(&b,&mut sc);
-            ptr=utils::append_int(certchain,ptr,sclen,3);
-            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
-        }
+        ptr=extract_chain(&PQ_CERTCHAIN,cert_type,&mut sc,certchain);
     }
     if CRYPTO_SETTING==HYBRID {
         key=HY_PRIVATE;
-        for i in 0..HY_CERTCHAIN.len() {
-            let b=HY_CERTCHAIN[i].as_bytes();
-            let sclen=utils::decode_b64(&b,&mut sc);
-            ptr=utils::append_int(certchain,ptr,sclen,3);
-            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
-        }
+        ptr=extract_chain(&HY_CERTCHAIN,cert_type,&mut sc,certchain);
     }
     *cclen=ptr;
 // next get secret key

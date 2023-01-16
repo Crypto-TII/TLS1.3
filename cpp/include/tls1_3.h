@@ -69,10 +69,15 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // comment out if no max record size. In practise TLS1.3 doesn't seem to support this record_size_limit extension, so use with caution
 // #define MAX_RECORD 1024     /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IBUFF_SIZE below */
 // Note that if this is not used, max_fragment_size extension is tried instead, see TLS_MAX_FRAG below
-// *****************************************************************************
 
 // define this so that all encrypted records are padded with 0s to full length
 // #define PAD_SHORT_RECORDS		/**< Pad short output records */ 
+
+//#define PREFER_RAW_SERVER_PUBLIC_KEY   // Would be happy with raw public key from server
+//#define PREFER_RAW_CLIENT_PUBLIC_KEY   // Would prefer server to accept raw public key from client
+
+// *****************************************************************************
+
 
 // Standard Hash Types
 
@@ -253,6 +258,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define PADDING 0x0015                  /**< Padding extension */
 #define APP_PROTOCOL 0x0010             /**< Application Layer Protocol Negotiation (ALPN) */
 #define RECORD_SIZE_LIMIT 0x001c        /**< Record Size Limit */
+#define CLIENT_CERT_TYPE 0x0013         /**< Client Certificate type */
+#define SERVER_CERT_TYPE 0x0014         /**< Server Certificate type */
+
 
 // record types 
 #define HSHAKE 0x16                     /**< Handshake record */
@@ -336,6 +344,10 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define PSK_KEY 1           /**< Using PSK from database */
 #define PSK_IBE 2           /**< Using IBE based PSK */
 
+// Certificate types
+#define X509_CERT 0
+#define RAW_PUBLIC_KEY 2
+
 /**
  * @brief function return structure */
 typedef struct 
@@ -407,6 +419,8 @@ typedef struct
     char hostname[TLS_MAX_SERVER_NAME];     /**< Server name for connection */
     int cipher_suite;       /**< agreed cipher suite */
     int favourite_group;    /**< favourite key exchange group - may be changed on handshake retry */
+	int server_cert_type;   /**< server certificate type */
+	int client_cert_type;   /**< client certificate type */
     crypto K_send;          /**< Sending Key */
     crypto K_recv;          /**< Receiving Key */
     octad HS;               /**< Handshake secret */

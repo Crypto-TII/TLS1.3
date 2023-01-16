@@ -9,7 +9,6 @@ use crate::sal_m::sal;
 use crate::tls13::logger;
 use crate::tls13::logger::log;
 use crate::tls13::cacerts;
-use crate::tls13::clientcert;
 
 /// Certificate components
 pub struct CERT {
@@ -67,55 +66,15 @@ fn check_cert_not_expired(cert:&[u8]) -> bool {
     return true;
 }
 
-/// base64 decoding
-fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in place
-    let mut j=0;
-    let mut k=0;
-    let len=b.len();
-    let mut ch:[u8;4]=[0;4];
-    let mut ptr:[u8;3]=[0;3];
-    while j<len {
-        let mut pads=0;
-        for i in 0..4 {
-            let mut c=80+b[j]; j+=1;
-            if c<=112 {continue;}
-            if c>144 && c<171 {
-                c-=145;
-            }
-            if c>176 && c<203 { 
-                c-=151;
-            }
-            if c>127 && c<138 {
-                c-=76;
-            }
-            if c==123 {c=62;}
-            if c==127 {c=63;}
-            if c==141 {
-                pads+=1;
-                continue;
-            }
-            ch[i]=c;
-        }
-        ptr[0] = (ch[0] << 2) | (ch[1] >> 4);
-        ptr[1] = (ch[1] << 4) | (ch[2] >> 2);
-        ptr[2] = (ch[2] << 6) | ch[3];
-        for i in 0..3 - pads {
-            /* don't put in leading zeros */
-            w[k] = ptr[i]; k+=1;
-        }
-    }
-    return k;
-}
-
 /// Find root CA (if it exists) from database
 fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bool {
     let mut owner:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
     let mut sc:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE];
     for i in 0..cacerts::CERT_STORE_SIZE {
         let b=cacerts::CACERTS[i].as_bytes();
-        let sclen=decode_b64(&b,&mut sc);
+        let sclen=utils::decode_b64(&b,&mut sc);
         let mut start=0;
-        let len=x509::extract_cert_ptr(&sc[0..sclen],&mut start);
+        let len=x509::find_cert(&sc[0..sclen],&mut start);
         let cert=&sc[start..start+len];
         let ic=x509::find_issuer(&cert);
         let wlen=create_full_name(&mut owner,cert,ic);
@@ -165,52 +124,12 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return false;
 }
 
-/// Get client credentials (cert+signing key) from clientcert.rs
-pub fn get_client_credentials(privkey: &mut [u8],sklen: &mut usize,certchain: &mut [u8],cclen: &mut usize) -> u16 {
-    let mut sc:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
-// first get certificate chain
-    let mut ptr=0;                      // *** which cert chain?
-    for i in 0..clientcert::CHAINLEN {
-        let b=clientcert::MYCERTCHAIN[i].as_bytes();
-        let sclen=decode_b64(&b,&mut sc);
-        ptr=utils::append_int(certchain,ptr,sclen,3);
-        ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-        ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
-    }
-    *cclen=ptr;
-// next get secret key
-    let b=clientcert::MYPRIVATE.as_bytes();
-    let sclen=decode_b64(&b,&mut sc);
-    let pk=x509::extract_private_key(&sc[0..sclen],privkey);
-    *sklen=pk.len;
-    let mut kind:u16=0;
-    if pk.kind==x509::ECC {
-        if pk.curve==x509::USE_NIST256 {
-            kind=ECDSA_SECP256R1_SHA256;  // as long as this is a client capability
-        }
-        if pk.curve==x509::USE_NIST384 {
-            kind=ECDSA_SECP384R1_SHA384;  // as long as this is a client capability
-        }
-    }
-    if pk.kind==x509::RSA {
-        kind=RSA_PSS_RSAE_SHA256;
-    }
-
-    if pk.kind==x509::PQ {
-        kind=DILITHIUM3;
-    }
-    if pk.kind==x509::HY {
-        kind=DILITHIUM2_P256;   
-    }
-    return kind;
-}
-
 /// Parse out certificate details, check that previous issuer is subject of this cert, update previous issuer
 fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u8],pislen: &mut usize) -> CERT {
     let mut ct=CERT::new();
     ct.sgt=x509::extract_cert_sig(scert,&mut ct.sig);
     *start=0;
-    *len=x509::extract_cert_ptr(scert,start); // find start and length of certificate
+    *len=x509::find_cert(scert,start); // find start and length of certificate
     let cert=&scert[*start..*start+*len];     // slice it out
 
     let mut ic=x509::find_issuer(cert);
@@ -260,7 +179,7 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
 /// Extract public key, and check validity of certificate chain. Ensure that the hostname is valid and is same as that in Cert.
 /// Assumes simple chain Cert->Intermediate Cert->CA cert.
 /// CA cert not read from chain (if its even there), instead search for issuer of Intermediate Cert in cert store 
-pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pklen: &mut usize,identity: &mut[u8],idlen: &mut usize) -> isize {
+pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey:&mut [u8],pklen: &mut usize,identity: &mut[u8],idlen: &mut usize) -> isize {
     let mut ptr=0;
     let mut capk:[u8;MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];
     let mut issuer:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
@@ -273,6 +192,12 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
     }
     if ptr+len>chain.len() {
         return BAD_CERT_CHAIN;
+    }
+
+    if cert_type==RAW_PUBLIC_KEY { // its actually not a certificate chain, its a raw public key
+        let pkt=x509::get_public_key(&chain[ptr..],pubkey);
+        *pklen=pkt.len;
+        return 0;
     }
 
 // slice signed cert from chain

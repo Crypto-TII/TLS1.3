@@ -346,7 +346,7 @@ ret seeWhatsNext(TLS_session *session)
 ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee_status *enc_ext_resp)
 {
     ret r;
-    int nb,left,ext,len,tlen,xlen,mfl;//,ptr=0;
+    int nb,left,ext,len,tlen,xlen,mfl,cct,sct;//,ptr=0;
     int unexp=0;
 
     r=parseIntorPull(session,1);
@@ -413,6 +413,38 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
             }
             break;
 
+		case CLIENT_CERT_TYPE :
+			r=parseIntorPull(session,1); cct=r.val; if (r.err) return r;
+		    if (tlen!=1) {
+				r.err=UNRECOGNIZED_EXT;
+                return r;
+		    }
+#ifdef PREFER_RAW_CLIENT_PUBLIC_KEY
+			if (cct!=RAW_PUBLIC_KEY) {
+				session->client_cert_type=X509_CERT;
+			} else {
+				session->client_cert_type=RAW_PUBLIC_KEY;
+			}
+#else
+			session->client_cert_type=X509_CERT;
+#endif
+		    break;
+		case SERVER_CERT_TYPE :
+			r=parseIntorPull(session,1); sct=r.val; if (r.err) return r;
+		    if (tlen!=1) {
+				r.err=UNRECOGNIZED_EXT;
+                return r;
+		    }
+#ifdef PREFER_RAW_SERVER_PUBLIC_KEY
+			if (sct!=RAW_PUBLIC_KEY) {
+				session->server_cert_type=X509_CERT;
+			} else {
+				session->server_cert_type=RAW_PUBLIC_KEY;
+			}
+#else
+			 session->server_cert_type=X509_CERT;
+#endif
+		     break;
 		case RECORD_SIZE_LIMIT:
 			r=parseIntorPull(session,2); mfl=r.val; if (r.err) return r;
 			

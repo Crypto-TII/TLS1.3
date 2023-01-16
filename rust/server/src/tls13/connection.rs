@@ -45,6 +45,8 @@ pub struct SESSION {
     pub favourite_group: u16,   // favourite key exchange group 
     pub k_send: keys::CRYPTO,   // Sending Key 
     pub k_recv: keys::CRYPTO,   // Receiving Key 
+    pub server_cert_type: u8,   // expected server cert type
+    pub client_cert_type: u8,   // expected client cert type
     pub hs: [u8;MAX_HASH],      // Handshake secret Secret  
     pub rms: [u8;MAX_HASH],     // Resumption Master Secret         
     pub sts: [u8;MAX_HASH],     // Server Traffic secret             
@@ -148,6 +150,8 @@ impl SESSION {
             favourite_group: 0,
             k_send: keys::CRYPTO::new(), 
             k_recv: keys::CRYPTO::new(),
+            server_cert_type: X509_CERT,
+            client_cert_type: X509_CERT,
             hs: [0;MAX_HASH],
             rms: [0;MAX_HASH],
             sts: [0;MAX_HASH],
@@ -703,7 +707,12 @@ impl SESSION {
         let start=self.ptr;
         r=self.parse_pull(tlen); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
 // Update Transcript hash
-        r.err=certchain::check_certchain(&self.ibuff[start..start+tlen],None,cpk,cpklen,&mut self.clientid,&mut self.cidlen); 
+        r.err=certchain::check_certchain(&self.ibuff[start..start+tlen],None,self.client_cert_type,cpk,cpklen,&mut self.clientid,&mut self.cidlen); 
+        if self.client_cert_type == RAW_PUBLIC_KEY {
+            log(IO_PROTOCOL,"WARNING - client is authenticating with raw public key\n",-1,None);
+        } 
+        log(IO_DEBUG,"Client Public Key= ",0,Some(&cpk[0..*cpklen]));
+        
         self.running_hash_io();
         r.val=CERTIFICATE as usize;
         return r;
@@ -1165,6 +1174,45 @@ impl SESSION {
                     }
                     *early_indication=true;
                 },
+
+
+                CLIENT_CERT_TYPE => {
+                    r=self.parse_int_pull(1); if r.err!=0 {return r;}
+                    if r.val==0 || r.val>255 { 
+                        r.err=UNRECOGNIZED_EXT;
+                        return r;
+                    }
+                    let nval=r.val;
+// if first preference is for a raw public key
+                    r=self.parse_int_pull(1); let cct=r.val as u8; if r.err!=0 {return r;}
+                    if cct!=RAW_PUBLIC_KEY  || !ALLOW_RAW_CLIENT_PUBLIC_KEY {
+                        self.client_cert_type=X509_CERT;
+                    } else {
+                        self.client_cert_type=RAW_PUBLIC_KEY;
+                    }
+                    for _ in 1..nval { // ignore the rest
+                        r=self.parse_int_pull(1); if r.err!=0 {return r;}
+                    }
+                },
+                SERVER_CERT_TYPE => {
+                    r=self.parse_int_pull(1);  if r.err!=0 {return r;}  
+                    if r.val==0 || r.val>255 {
+                        r.err=UNRECOGNIZED_EXT;
+                        return r;
+                    }   
+                    let nval=r.val;
+                    r=self.parse_int_pull(1); let sct=r.val as u8; if r.err!=0 {return r;}
+                    if sct!=RAW_PUBLIC_KEY || !ALLOW_RAW_SERVER_PUBLIC_KEY {
+                        self.server_cert_type=X509_CERT;
+                    } else {
+                        self.server_cert_type=RAW_PUBLIC_KEY;
+                    }
+                    for _ in 1..nval { // ignore the rest
+                        r=self.parse_int_pull(1); if r.err!=0 {return r;}
+                    }
+                },
+
+
                 POST_HANDSHAKE_AUTH => {
                     if extlen!=0 {
                         r.err=UNRECOGNIZED_EXT;
@@ -1381,7 +1429,20 @@ impl SESSION {
         if *early_indication {
             extlen=extensions::add_early_data(encext,extlen);
         }
+
+// if client asked for raw keys, and we are willing, then inform client that that we are sending them. Otherwise, forget it.
+        if self.client_cert_type==RAW_PUBLIC_KEY && ALLOW_RAW_CLIENT_PUBLIC_KEY {
+            extlen=extensions::add_supported_client_cert_type(encext,extlen,RAW_PUBLIC_KEY);
+        } else {
+            self.client_cert_type=X509_CERT;
+        }
+        if self.server_cert_type==RAW_PUBLIC_KEY && ALLOW_RAW_SERVER_PUBLIC_KEY{
+            extlen=extensions::add_supported_server_cert_type(encext,extlen,RAW_PUBLIC_KEY);
+        } else {
+            self.server_cert_type=X509_CERT;
+        }
         *enclen=extlen;
+
 
         if retry { // try again..
             r.val=HANDSHAKE_RETRY;
@@ -1794,7 +1855,7 @@ impl SESSION {
             let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
             let mut sclen=0;
             let mut sklen=0;
-            let kind=servercert::get_server_credentials(&mut server_key,&mut sklen,&mut server_certchain,&mut sclen);
+            let kind=servercert::get_server_credentials(&mut server_key,&mut sklen,self.server_cert_type,&mut server_certchain,&mut sclen);
             if kind==0 { // No, Client cannot verify this signature
                 self.send_alert(BAD_CERTIFICATE);
                 log(IO_PROTOCOL,"Handshake failed - client would be unable to verify signature\n",-1,None);
@@ -1831,7 +1892,6 @@ impl SESSION {
             log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT+SF) YYY = ",0,Some(hh_s));   
     //
     //
-    //  {Server Finished} ---------------------------------------------------->
     //
     //
             log(IO_DEBUG,"Server Verify Data= ",0,Some(shf_s)); 
@@ -1861,7 +1921,7 @@ impl SESSION {
                         }
                     }
                 
-                    log(IO_DEBUG,"Received Client Certificate\n",-1,None); 
+                    log(IO_PROTOCOL,"Client is authenticating\n",-1,None); 
                     let cpk_s=&cpk[0..cpklen];
                     self.transcript_hash(fh_s);                                            //TH
                     log(IO_DEBUG,"Certificate Chain is valid\n",-1,None);

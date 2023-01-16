@@ -33,6 +33,28 @@ pub fn add_version(ext: &mut [u8],ptr: usize,version: usize) -> usize {
     return nptr;
 }
 
+/// Build client cert type extension - select type
+#[allow(dead_code)]
+pub fn add_supported_client_cert_type(ext: &mut [u8],ptr: usize,cert_type: u8) -> usize {
+    let mut nptr=ptr;
+    nptr=utils::append_int(ext,nptr,CLIENT_CERT_TYPE,2);
+    nptr=utils::append_int(ext,nptr,1,2); // extension length
+    nptr=utils::append_byte(ext,nptr,cert_type,1);
+    return nptr;
+
+}
+
+/// Build server cert type extension - select type
+#[allow(dead_code)]
+pub fn add_supported_server_cert_type(ext: &mut [u8],ptr: usize,cert_type: u8) -> usize {
+    let mut nptr=ptr;
+    nptr=utils::append_int(ext,nptr,SERVER_CERT_TYPE,2);
+    nptr=utils::append_int(ext,nptr,1,2); // extension length
+    nptr=utils::append_byte(ext,nptr,cert_type,1);
+    return nptr;
+
+}
+
 /// Add Pre-Shared Key extension (accepting a key)
 pub fn add_presharedkey(ext: &mut [u8],ptr: usize,index: usize,) -> usize {
     let mut nptr=ptr;

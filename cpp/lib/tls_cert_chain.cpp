@@ -187,12 +187,14 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 
 // Read in raw certificate chain from file, and serialize it for transmission
 // Read in client private key from .pem file
+// NOTE: key type can be determined from either the public key or the private key. They should be the same.
+// Here we get the type from the X.509 private key 
+// What if its a raw public key, and the private key is in hardware?
 int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
     bool first=true;
     pktype pk;
-
 #ifdef SHALLOW_STACK
     char *b=(char *)malloc(TLS_MAX_CERT_B64);
     octad SC={0,TLS_MAX_CERT_B64,b};       // optimization - share memory - can convert from base64 to binary in place
@@ -223,12 +225,6 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
         OCT_append_int(CERTCHAIN,SC.len,3);
         OCT_append_octad(CERTCHAIN,&SC);
         OCT_append_int(CERTCHAIN,0,2);  // add no certificate extensions
-        if (first)
-        { // get public key type
-            X509_extract_cert(&SC, &SC);
-            pk=X509_extract_public_key(&SC,NULL);
-            first=false;
-        }
     }
 
     if (myprivate!=NULL)
@@ -244,12 +240,19 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
             b[i]=0;
         }
         OCT_from_base64(&SC,b);
-        X509_extract_private_key(&SC, PRIVKEY); // returns signature type
+        pk=X509_extract_private_key(&SC, PRIVKEY); // returns signature type
     }
 
 #ifdef SHALLOW_STACK
     free(b);
 #endif
+
+	if (myprivate==NULL)
+	{ // its in hardware. Get what type it is
+		int clientCertReqs[TLS_MAX_SUPPORTED_SIGS];
+		getSigRequirements(clientCertReqs);
+		return clientCertReqs[0];
+	}
 
 // figure out kind of signature client can apply - will be tested against client capabilities
 // Note that no hash type is specified - its just a private key, no algorithm specified

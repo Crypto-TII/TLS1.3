@@ -39,6 +39,30 @@ pub fn add_supported_groups(ext: &mut [u8],ptr: usize, nsg: usize, groups: &[u16
     return nptr;
 }
 
+/// Build client cert type extension - allow only one type
+#[allow(dead_code)]
+pub fn add_supported_client_cert_type(ext: &mut [u8],ptr: usize,cert_type: u8) -> usize {
+    let mut nptr=ptr;
+    nptr=utils::append_int(ext,nptr,CLIENT_CERT_TYPE,2);
+    nptr=utils::append_int(ext,nptr,2,2); // extension length
+    nptr=utils::append_byte(ext,nptr,1,1);
+    nptr=utils::append_byte(ext,nptr,cert_type,1);
+    return nptr;
+
+}
+
+/// Build server cert type extension - allow only one type
+#[allow(dead_code)]
+pub fn add_supported_server_cert_type(ext: &mut [u8],ptr: usize,cert_type: u8) -> usize {
+    let mut nptr=ptr;
+    nptr=utils::append_int(ext,nptr,SERVER_CERT_TYPE,2);
+    nptr=utils::append_int(ext,nptr,2,2); // extension length
+    nptr=utils::append_byte(ext,nptr,1,1);
+    nptr=utils::append_byte(ext,nptr,cert_type,1);
+    return nptr;
+
+}
+
 /// Build Signature algorithms Extension
 pub fn add_supported_sigs(ext: &mut [u8],ptr: usize, nsa: usize, sig_algs: &[u16]) -> usize {
     let mut nptr=ptr;

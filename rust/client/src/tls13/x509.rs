@@ -854,8 +854,266 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
     return ret;
 }
 
+
+
+
+// Extract pointer to cert inside signed cert, and return its length;
+// let cert=&sc[ptr..ptr+len]
+pub fn find_cert(sc: &[u8],ptr: &mut usize) -> usize {
+    let mut j:usize=0;
+
+    let mut len=getalen(SEQ,sc,j);
+    if len==0 {
+        return 0;
+    }
+    j+=skip(len);
+
+    let k=j;
+    len=getalen(SEQ,sc,j);
+    if len==0 {
+        return 0;
+    }
+    j+=skip(len);
+    let fin=j+len;
+    *ptr=k;
+    return fin-k;
+}
+
+// Extract certificate from signed cert
+/*
+pub fn extract_cert(sc: &[u8],cert: &mut [u8]) -> usize {
+    let mut ptr=0;
+    let n=find_cert(sc,&mut ptr);
+    let k=ptr;
+    let fin=n+k;
+    for i in k..fin {
+        cert[i-k]=sc[i];
+    }
+    return n;
+}
+*/
+
+// extract pointer to ASN.1 raw public Key inside certificate, and return its length;
+// let public_key=&c[ptr..ptr+len]
+pub fn find_public_key(c: &[u8],ptr: &mut usize) -> usize {
+    let mut j:usize=0;
+    let mut len=getalen(SEQ,c,j);
+    if len==0 {
+        return 0;
+    }
+    j+=skip(len);
+
+    if len+j != c.len() {
+        return 0;
+    }
+
+    len=getalen(ANY,c,j);
+    if len==0 {
+        return 0;
+    }
+    j+=skip(len)+len; //jump over version clause
+
+    len=getalen(INT,c,j);
+    if len>0 {
+        j+=skip(len)+len; // jump over serial number clause (if there is one)
+    }
+
+    len=getalen(SEQ,c,j);
+    if len==0 {
+        return 0;
+    }
+    j+=skip(len)+len; // jump over signature algorithm
+
+    len=getalen(SEQ,c,j);
+    if len==0 {
+        return 0;
+    }
+    j += skip(len) + len; // skip issuer
+
+    len=getalen(SEQ,c,j);
+    if len==0 {
+        return 0;
+    }
+    j += skip(len) + len; // skip validity
+
+    len=getalen(SEQ,c,j);
+    if len==0 {
+        return 0;
+    }
+    j += skip(len) + len; // skip subject
+
+    let k=j;
+    len=getalen(SEQ,c,j);
+    if len==0 {
+        return 0;
+    }
+    j += skip(len); // 
+
+    let fin=j+len;
+    *ptr=k;
+    return fin-k;
+}
+
+// get Public details from ASN.1 description
+pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
+    let mut koid:[u8;12]=[0;12];
+    let mut ret=PKTYPE::new();
+    let mut j=0;
+
+    let mut len=getalen(SEQ,c,j);
+    if len==0 {
+        return ret;
+    }
+    j += skip(len); // 
+
+    len=getalen(SEQ,c,j);
+    if len==0 {
+        return ret;
+    }
+    j += skip(len); //
+
+// ** Maybe dive in and check Public Key OIDs here?
+// ecpublicKey & prime256v1, secp384r1 or secp521r1 for ECC
+// rsapublicKey for RSA
+
+    let sj=j+len;
+
+    len=getalen(OID,c,j);
+    if len==0 {
+        return ret;
+    }
+    j += skip(len); 
+
+    let mut fin=j+len;
+    let mut slen=0;
+    while j<fin {
+        koid[slen]=c[j];
+        slen+=1;
+        j+=1;
+    }
+    ret.kind=0;
+    if ECPK == koid[0..slen] {
+        ret.kind=ECC;
+    }
+    if EDPK == koid[0..slen] {
+        ret.kind=ECD;
+    }
+    if RSAPK == koid[0..slen] {
+        ret.kind=RSA;
+    }
+    if DILITHIUM3 == koid[0..slen] {
+        ret.kind=PQ;
+    }
+    if HYBRID == koid[0..slen] {
+        ret.kind=HY;
+    }
+    if ret.kind==0 {
+        return ret;
+    }
+    if ret.kind==ECC {
+        len=getalen(OID,c,j);
+        if len==0 {
+            ret.kind=0;
+            return ret;
+        }
+        j+=skip(len);
+
+        fin=j+len;
+        slen=0;
+        while j<fin {
+            koid[slen]=c[j];
+            slen+=1;
+            j+=1;
+        }
+        if PRIME25519==koid[0..slen] {
+            ret.curve=USE_C25519;
+        }
+        if PRIME256V1==koid[0..slen] {
+            ret.curve=USE_NIST256;
+        }
+        if SECP384R1==koid[0..slen] {
+            ret.curve=USE_NIST384;
+        }
+        if SECP521R1==koid[0..slen] {
+            ret.curve=USE_NIST521;
+        }
+    }
+    j=sj;
+
+    len=getalen(BIT,c,j);
+    if len==0 {
+        ret.kind=0;
+        return ret;
+    }
+    j+=skip(len);
+    j+=1;
+    len-=1; // skip bit shift (hopefully 0!)
+
+    if ret.kind==ECC || ret.kind==ECD || ret.kind==PQ  || ret.kind==HY {
+        if ret.kind==HY {
+            j+=4; // jump over redundant length field
+            len-=4;
+        }
+        ret.len=len;
+        fin=j+len;
+        slen=0;
+        while j<fin {
+            key[slen]=c[j];
+            slen+=1;
+            j+=1;
+        }
+    }
+    if ret.kind==PQ  || ret.kind==HY {
+        ret.curve=8*len;
+    }
+    if ret.kind==RSA { // Key is (modulus,exponent) - assume exponent is 65537
+        len=getalen(SEQ,c,j);
+        if len==0 {
+            ret.kind=0;
+            return ret;
+        }
+        j+=skip(len);
+
+        len=getalen(INT,c,j);
+        if len==0 {
+            ret.kind=0;
+            return ret;
+        }
+        j+=skip(len);
+        if c[j]==0 {
+            j+=1;
+            len-=1;
+        }
+
+        ret.len=len;
+        fin=j+len;
+        slen=0;
+        while j<fin {
+            key[slen]=c[j];
+            slen+=1;
+            j+=1;
+        }
+        ret.curve=8*len;
+    }
+    return ret; 
+}
+
+// Extract Public Key from inside Certificate
+pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
+    let mut ptr=0;
+    let pklen = find_public_key(c,&mut ptr); // ptr is pointer into certificate, at start of ASN.1 raw public key
+    let cc=&c[ptr..ptr+pklen];
+    return get_public_key(&cc,key);
+}
+
+
+
+
+
+
 /// Extract pointer to cert inside signed cert, and return its length
 // let c=&sc[ptr..ptr+len]
+/*
 pub fn extract_cert_ptr(sc: &[u8],ptr: &mut usize) -> usize {
     let mut j:usize=0;
 
@@ -900,11 +1158,155 @@ pub fn extract_cert(sc: &[u8],cert: &mut [u8]) -> usize {
     }
     return fin-k;
 }
+/// Extract Public key from ASN.1 encoded RAW public key
+pub fn extract_raw_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
+    let mut koid:[u8;12]=[0;12];
+    let mut ret=PKTYPE::new();
+    let mut j=0;
+
+    let mut len=getalen(SEQ,c,j);
+    if len==0 {
+        return ret;
+    }
+    j += skip(len); // 
+
+
+    len=getalen(SEQ,c,j);
+    if len==0 {
+        return ret;
+    }
+
+    j += skip(len); //
+
+// ** Maybe dive in and check Public Key OIDs here?
+// ecpublicKey & prime256v1, secp384r1 or secp521r1 for ECC
+// rsapublicKey for RSA
+
+    let sj=j+len;
+    len=getalen(OID,c,j);
+    if len==0 {
+        return ret;
+    }
+    j += skip(len); 
+
+    let mut fin=j+len;
+    let mut slen=0;
+    while j<fin {
+        koid[slen]=c[j];
+        slen+=1;
+        j+=1;
+    }
+    ret.kind=0;
+    if ECPK == koid[0..slen] {
+        ret.kind=ECC;
+    }
+    if EDPK == koid[0..slen] {
+        ret.kind=ECD;
+    }
+    if RSAPK == koid[0..slen] {
+        ret.kind=RSA;
+    }
+    if DILITHIUM3 == koid[0..slen] {
+        ret.kind=PQ;
+    }
+    if HYBRID == koid[0..slen] {
+        ret.kind=HY;
+    }
+    if ret.kind==0 {
+        return ret;
+    }
+    if ret.kind==ECC {
+        len=getalen(OID,c,j);
+        if len==0 {
+            ret.kind=0;
+            return ret;
+        }
+        j+=skip(len);
+
+        fin=j+len;
+        slen=0;
+        while j<fin {
+            koid[slen]=c[j];
+            slen+=1;
+            j+=1;
+        }
+        if PRIME25519==koid[0..slen] {
+            ret.curve=USE_C25519;
+        }
+        if PRIME256V1==koid[0..slen] {
+            ret.curve=USE_NIST256;
+        }
+        if SECP384R1==koid[0..slen] {
+            ret.curve=USE_NIST384;
+        }
+        if SECP521R1==koid[0..slen] {
+            ret.curve=USE_NIST521;
+        }
+    }
+    j=sj;
+
+    len=getalen(BIT,c,j);
+    if len==0 {
+        ret.kind=0;
+        return ret;
+    }
+    j+=skip(len);
+    j+=1;
+    len-=1; // skip bit shift (hopefully 0!)
+
+    if ret.kind==ECC || ret.kind==ECD || ret.kind==PQ || ret.kind==HY {
+        if ret.kind==HY {
+            j+=4;
+            len-=4;
+        }
+        ret.len=len;
+        fin=j+len;
+        slen=0;
+        while j<fin {
+            key[slen]=c[j];
+            slen+=1;
+            j+=1;
+        }
+    }
+    if ret.kind==PQ || ret.kind==HY {
+        ret.curve=8*len;
+    }
+    if ret.kind==RSA { // // Key is (modulus,exponent) - assume exponent is 65537
+        len=getalen(SEQ,c,j);
+        if len==0 {
+            ret.kind=0;
+            return ret;
+        }
+        j+=skip(len);
+
+        len=getalen(INT,c,j);
+        if len==0 {
+            ret.kind=0;
+            return ret;
+        }
+        j+=skip(len);
+        if c[j]==0 {
+            j+=1;
+            len-=1;
+        }
+
+        ret.len=len;
+        fin=j+len;
+        slen=0;
+        while j<fin {
+            key[slen]=c[j];
+            slen+=1;
+            j+=1;
+        }
+        ret.curve=8*len;
+    }
+    return ret; 
+}
 
 /// Extract Public Key from inside Certificate
 pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
-    let mut koid:[u8;12]=[0;12];
-    let mut ret=PKTYPE::new();
+//    let mut koid:[u8;12]=[0;12];
+    let ret=PKTYPE::new();
 
     let mut j:usize=0;
     let mut len=getalen(SEQ,c,j);
@@ -957,6 +1359,10 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
         return ret;
     }
     j += skip(len); // 
+
+// start of certificate?
+
+    return extract_raw_public_key(&c[j..],key);
 
     len=getalen(SEQ,c,j);
     if len==0 {
@@ -1089,7 +1495,7 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     }
     return ret; 
 }
-
+*/
 /// Find certificate issuer
 pub fn find_issuer(c: &[u8]) -> usize {
     let mut j:usize=0;

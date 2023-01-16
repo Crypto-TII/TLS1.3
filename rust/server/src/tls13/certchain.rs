@@ -73,7 +73,7 @@ fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bo
         let b=cacerts::CACERTS[i].as_bytes();
         let sclen=utils::decode_b64(&b,&mut sc);
         let mut start=0;
-        let len=x509::extract_cert_ptr(&sc[0..sclen],&mut start);
+        let len=x509::find_cert(&sc[0..sclen],&mut start);
         let cert=&sc[start..start+len];
         let ic=x509::find_issuer(&cert);
         let wlen=create_full_name(&mut owner,cert,ic);
@@ -131,7 +131,7 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     let mut ct=CERT::new();
     ct.sgt=x509::extract_cert_sig(scert,&mut ct.sig);
     *start=0;
-    *len=x509::extract_cert_ptr(scert,start); // find start and length of certificate
+    *len=x509::find_cert(scert,start); // find start and length of certificate
     let cert=&scert[*start..*start+*len];     // slice it out
 
     let mut ic=x509::find_issuer(cert);
@@ -181,7 +181,7 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
 /// Extract public key, and check validity of certificate chain. Ensure that the hostname is same as that in Cert.
 /// Assumes simple chain Cert->Intermediate Cert->CA cert.
 /// CA cert not read from chain (if its even there) instead search for issuer of Intermediate Cert in cert store 
-pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pklen: &mut usize,identity: &mut[u8],idlen: &mut usize) -> isize {
+pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey:&mut [u8],pklen: &mut usize,identity: &mut[u8],idlen: &mut usize) -> isize {
     let mut ptr=0;
     let mut capk:[u8;MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];
     let mut issuer:[u8;MAX_X509_FIELD]=[0;MAX_X509_FIELD];
@@ -194,6 +194,12 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,pubkey:&mut [u8],pkl
     }
     if ptr+len>chain.len() {
         return BAD_CERT_CHAIN;
+    }
+
+    if cert_type==RAW_PUBLIC_KEY { // its actually not a certificate chain, its a raw public key
+        let pkt=x509::get_public_key(&chain[ptr..],pubkey);
+        *pklen=pkt.len;
+        return 0;
     }
 
 // slice signed cert from chain
