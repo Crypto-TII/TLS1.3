@@ -345,8 +345,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define PSK_IBE 2           /**< Using IBE based PSK */
 
 // Certificate types
-#define X509_CERT 0
-#define RAW_PUBLIC_KEY 2
+#define X509_CERT 0			/**< X509 Certificate-based authentication */
+#define RAW_PUBLIC_KEY 2	/**< Raw Public Key based authentication */
 
 /**
  * @brief function return structure */
