@@ -45,18 +45,16 @@ extern void addServerNameExt(octad *EXT,char *servername);
  */    
 extern void addSupportedGroupsExt(octad *EXT,int nsg,int *supportedGroups);
 
-/**	@brief Add Supported Server Certificate Type extension to under-construction Extensions Octet
+/**	@brief indicate acceptance of raw server public key
  *
 	@param EXT the extensions octad which is being built
-    @param certType the certificate type (could be X.509 or Raw Public Key)
  */ 
-extern void addSupportedServerCertType(octad *EXT,int certType);
-/**	@brief Add Supported Client Certificate Type extension to under-construction Extensions Octet
+extern void addServerRawPublicKey(octad *EXT);
+/**	@brief indicate acceptance of raw client public key
  *
 	@param EXT the extensions octad which is being built
-    @param certType the certificate type (could be X.509 or Raw Public Key)
  */ 
-extern void addSupportedClientCertType(octad *EXT,int certType);
+extern void addClientRawPublicKey(octad *EXT);
 
 
 /**	@brief Add Supported TLS1.3 Signature algorithms to under-construction Extensions Octet

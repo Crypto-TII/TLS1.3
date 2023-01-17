@@ -370,6 +370,9 @@ static int TLS13_server_trust(TLS_session *session)
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
 // on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
     rtn=getCheckServerCertificateChain(session,&SERVER_PK,&SCVSIG);  // note SCVSIG is used here as workspace
+	if (session->server_cert_type==RAW_PUBLIC_KEY) {
+		log(IO_PROTOCOL,(char *)"WARNING - server is authenticating with raw public key\n",NULL,0,NULL);
+	}
 //
 //
 //  <---------------------------------------------------------- {Certificate}
@@ -460,7 +463,7 @@ static void TLS13_client_trust(TLS_session *session)
     char th[TLS_MAX_HASH];
     octad TH={0,sizeof(th),th};  // Transcript hash
 
-    int kind=getClientPrivateKeyandCertChain(&CLIENT_KEY,&CLIENT_CERTCHAIN);
+    int kind=getClientPrivateKeyandCertChain(&CLIENT_KEY,session->client_cert_type,&CLIENT_CERTCHAIN);
     if (kind!=0)
     { // Yes, I can do that kind of signature
         log(IO_PROTOCOL,(char *)"Client is authenticating\n",NULL,0,NULL);

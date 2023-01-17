@@ -691,7 +691,7 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG
 
 // Update Transcript hash and rewind IO buffer
     runningHashIO(session);     // Got to do this here, as checkServerCertChain may modify IO buffer contents
-    r.err=checkServerCertChain(&CERTCHAIN,session->hostname,PUBKEY,SIG);
+    r.err=checkServerCertChain(&CERTCHAIN,session->hostname,session->server_cert_type,PUBKEY,SIG);
 
 #ifdef NO_CERT_CHECKS
 	r.err=0;

@@ -190,7 +190,7 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 // NOTE: key type can be determined from either the public key or the private key. They should be the same.
 // Here we get the type from the X.509 private key 
 // What if its a raw public key, and the private key is in hardware? The type is stored along with the cert..
-int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
+int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
     bool first=true;
@@ -222,7 +222,15 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,octad *CERTCHAIN)
         OCT_from_base64(&SC,b);
 
 // MAYBE SEND RAW KEY instead?
-
+		if (cert_type==RAW_PUBLIC_KEY)
+		{
+			X509_extract_cert(&SC,&SC);
+			len=X509_find_public_key(&SC,&ptr);
+			octad PK={len,len,&SC.val[ptr]};
+			OCT_append_int(CERTCHAIN,len,3);
+			OCT_append_octad(CERTCHAIN,&PK);
+			break;
+		}
 
 // add to Certificate Chain
         OCT_append_int(CERTCHAIN,SC.len,3);
@@ -339,7 +347,7 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
 // Assumes simple chain Server Cert->Intermediate Cert->CA cert
 // CA cert not read from chain (if its even there). 
 // Search for issuer of Intermediate Cert in cert store 
-int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SERVER_SIG)
+int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PUBKEY,octad *SERVER_SIG)
 {
     ret r;
     int rtn,len,c,ptr=0;
@@ -359,10 +367,13 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,octad *PUBKEY,octad *SE
     if (len==0)
         return EMPTY_CERT_CHAIN;
 
-
-// PARSE OUT RAW KEY HERE
-
     r=parseoctadptr(&SERVER_CERT,len,CERTCHAIN,ptr); if (r.err) return r.err;
+
+	if (cert_type==RAW_PUBLIC_KEY) { // its not a certificate, its a raw public key. We agreed that this was OK.
+		X509_get_public_key(&SERVER_CERT,PUBKEY);
+		return 0;
+	}
+
     r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return r.err;
     ptr+=len;   // skip certificate extensions
 
