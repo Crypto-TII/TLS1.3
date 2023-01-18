@@ -506,24 +506,19 @@ impl SESSION {
         let nb=self.ctxlen;
         let len=13+nb+2*nsca;
 
-// Send SIG_ALGS extension, which is confusingly actually the Certificate signature algorithms
-// listing signature algorithms allowed in client certificate chain
+// Certificate Request Message
         let mut ptr=0;
         ptr=utils::append_byte(&mut pt,ptr,CERT_REQUEST,1); // indicates handshake message "certificate request"
         ptr=utils::append_int(&mut pt,ptr,len-4,3); // .. and its length
-
         ptr=utils::append_int(&mut pt,ptr,nb,1);   // .. Request Context
         if nb>0 {
             ptr=utils::append_bytes(&mut pt,ptr,&self.ctx[0..nb]);
         } 
         ptr=utils::append_int(&mut pt,ptr,len-7-nb,2);
-        ptr=utils::append_int(&mut pt,ptr,SIG_ALGS,2); // extension
 
-        ptr=utils::append_int(&mut pt,ptr,2+2*(nsca),2);  // bundle them all together
-        ptr=utils::append_int(&mut pt,ptr,2*(nsca),2);
-        for i in 0..nsca {
-            ptr=utils::append_int(&mut pt,ptr,cert_sig_algs[i] as usize,2);
-        }
+// Send SIG_ALGS extension, which is confusingly actually the Certificate signature algorithms
+// Listing signature algorithms allowed in client certificate chain
+        ptr=extensions::add_supported_sigs(&mut pt,ptr,nsca,&cert_sig_algs);
 
 // could send seperate SIG_ALGS_CERT as well??
 

@@ -52,7 +52,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define THIS_YEAR 2023            /**< Set to this year - crudely used to deprecate old certificates */
 
 #define POST_HS_AUTH              /**< Willing to do post handshake authentication */
-#define CLIENT_CERT ECC_SS        /**< Indicate capability of authenticating with a cert plus signing key */
+#define CLIENT_CERT RSA_SS        /**< Indicate capability of authenticating with a cert plus signing key */
 
 #define CRYPTO_SETTING TYPICAL   /**< Determine Cryptography settings */
 // Supported protocols    

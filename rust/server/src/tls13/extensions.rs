@@ -114,4 +114,14 @@ pub fn add_early_data(ext: &mut [u8],ptr: usize) -> usize {
     return nptr;
 }
 
-
+/// Build Signature algorithms Extension
+pub fn add_supported_sigs(ext: &mut [u8],ptr: usize, nsa: usize, sig_algs: &[u16]) -> usize {
+    let mut nptr=ptr;
+    nptr=utils::append_int(ext,nptr,SIG_ALGS,2); // This extension is SUPPORTED GROUPS(0x0a)
+    nptr=utils::append_int(ext,nptr,2*nsa+2,2);        // Total length
+    nptr=utils::append_int(ext,nptr,2*nsa,2);          // Number of entries
+    for i in 0..nsa {
+        nptr=utils::append_int(ext,nptr,sig_algs[i] as usize,2);
+    }
+    return nptr;
+}
