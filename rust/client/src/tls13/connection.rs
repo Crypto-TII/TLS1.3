@@ -1106,6 +1106,7 @@ impl SESSION {
                     } else { 
                         self.client_cert_type=RAW_PUBLIC_KEY;
                     }
+//println!("CLIENT_RAW_KEY_ACCEPTED {}",self.client_cert_type);
                 },
                 SERVER_CERT_TYPE => {
                     r=self.parse_int_pull(1); let sct=r.val as u8; if r.err!=0 {return r;}
@@ -1118,6 +1119,7 @@ impl SESSION {
                     } else {
                         self.server_cert_type=RAW_PUBLIC_KEY;
                     }
+//println!("SERVER_RAW_KEY_ACCEPTED {}",self.server_cert_type);
                 },
                 RECORD_SIZE_LIMIT => {
                     r=self.parse_int_pull(2); let mfl=r.val; if r.err!=0 {return r;}
@@ -1217,7 +1219,7 @@ impl SESSION {
         r.err=certchain::check_certchain(&self.ibuff[start..start+tlen],Some(&self.hostname[0..self.hlen]),self.server_cert_type,spk,spklen,&mut identity,&mut idlen);
 
         if self.server_cert_type == RAW_PUBLIC_KEY {
-            log(IO_DEBUG,"WARNING - server is authenticating with raw public key\n",-1,None);
+            log(IO_PROTOCOL,"WARNING - server is authenticating with raw public key\n",-1,None);
         } 
         log(IO_DEBUG,"Server Public Key= ",0,Some(&spk[0..*spklen]));
 

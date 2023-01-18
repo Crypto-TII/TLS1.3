@@ -499,38 +499,33 @@ impl SESSION {
 
 /// Send Server Certificate Request 
     pub fn send_certificate_request(&mut self,flush: bool) { 
-        let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; 
         let mut cert_sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS]; 
-        let mut pt:[u8;17+4*MAX_SUPPORTED_SIGS]=[0;17+4*MAX_SUPPORTED_SIGS];
+        let mut pt:[u8;50+4*MAX_SUPPORTED_SIGS]=[0;50+4*MAX_SUPPORTED_SIGS];
+        let nsca=sal::sig_certs(&mut cert_sig_algs);  // get supported certifictate sigs
 
-        let nsa=sal::sigs(&mut sig_algs);  // get supported sigs
-        let nsca=sal::sigs(&mut cert_sig_algs);  // get supported sigs
-        let len=17+2*nsa+2*nsca;
+        let nb=self.ctxlen;
+        let len=13+nb+2*nsca;
 
+// Send SIG_ALGS extension, which is confusingly actually the Certificate signature algorithms
+// listing signature algorithms allowed in client certificate chain
         let mut ptr=0;
         ptr=utils::append_byte(&mut pt,ptr,CERT_REQUEST,1); // indicates handshake message "certificate request"
         ptr=utils::append_int(&mut pt,ptr,len-4,3); // .. and its length
-       
-        let nb=self.ctxlen;
+
         ptr=utils::append_int(&mut pt,ptr,nb,1);   // .. Request Context
         if nb>0 {
             ptr=utils::append_bytes(&mut pt,ptr,&self.ctx[0..nb]);
         } 
-        ptr=utils::append_int(&mut pt,ptr,len-7,2);
+        ptr=utils::append_int(&mut pt,ptr,len-7-nb,2);
         ptr=utils::append_int(&mut pt,ptr,SIG_ALGS,2); // extension
 
-        ptr=utils::append_int(&mut pt,ptr,2+2*nsa,2);
-        ptr=utils::append_int(&mut pt,ptr,2*nsa,2);
-        for i in 0..nsa {
-            ptr=utils::append_int(&mut pt,ptr,sig_algs[i] as usize,2);
-        }
-        ptr=utils::append_int(&mut pt,ptr,2+2*nsca,2);
-        ptr=utils::append_int(&mut pt,ptr,2*nsca,2);
+        ptr=utils::append_int(&mut pt,ptr,2+2*(nsca),2);  // bundle them all together
+        ptr=utils::append_int(&mut pt,ptr,2*(nsca),2);
         for i in 0..nsca {
             ptr=utils::append_int(&mut pt,ptr,cert_sig_algs[i] as usize,2);
         }
 
-// should send sig_algs_certs as well
+// could send seperate SIG_ALGS_CERT as well??
 
         self.running_hash(&pt[0..ptr]);
         self.send_message(HSHAKE,TLS1_2,&pt[0..ptr],None,flush);
@@ -1184,6 +1179,9 @@ impl SESSION {
                     }
                     let nval=r.val;
 // if first preference is for a raw public key
+
+//println!("CLIENT RAW KEY ASKED FOR");
+
                     r=self.parse_int_pull(1); let cct=r.val as u8; if r.err!=0 {return r;}
                     if cct!=RAW_PUBLIC_KEY  || !ALLOW_RAW_CLIENT_PUBLIC_KEY {
                         self.client_cert_type=X509_CERT;
@@ -1201,6 +1199,9 @@ impl SESSION {
                         return r;
                     }   
                     let nval=r.val;
+
+//println!("SERVER RAW KEY ASKED FOR");
+
                     r=self.parse_int_pull(1); let sct=r.val as u8; if r.err!=0 {return r;}
                     if sct!=RAW_PUBLIC_KEY || !ALLOW_RAW_SERVER_PUBLIC_KEY {
                         self.server_cert_type=X509_CERT;

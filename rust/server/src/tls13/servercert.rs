@@ -720,9 +720,9 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUMDxYaIQ=="];
 pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
     let mut ns=0;
     if CRYPTO_SETTING==TYPICAL {
-        sig_reqs[0]=RSA_PSS_RSAE_SHA256;
-        sig_reqs[1]=RSA_PKCS1_SHA256;
-        ns+=2;
+        //sig_reqs[0]=RSA_PSS_RSAE_SHA256;
+        sig_reqs[0]=RSA_PKCS1_SHA256;
+        ns+=1;
     }
     if CRYPTO_SETTING==TINY_ECC {
         sig_reqs[0]=ECDSA_SECP256R1_SHA256;

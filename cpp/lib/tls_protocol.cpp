@@ -825,7 +825,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 #endif
         return TLS_FAILURE;
     }
-    log(IO_DEBUG,(char *)"serverHello= ",NULL,0,&session->IBUFF); 
+    //log(IO_DEBUG,(char *)"serverHello= ",NULL,0,&session->IBUFF); 
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
     bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);

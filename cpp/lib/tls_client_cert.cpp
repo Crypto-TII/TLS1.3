@@ -163,9 +163,9 @@ const char *mycert=(char *)
 
 // Report signature requirements for our certificate chain
 int getSigRequirements(int *sigReqs) {
-    sigReqs[0]=RSA_PSS_RSAE_SHA256;
-    sigReqs[1]=RSA_PKCS1_SHA256;
-    return 2;
+    //sigReqs[0]=RSA_PSS_RSAE_SHA256;
+    sigReqs[0]=RSA_PKCS1_SHA256;
+    return 1;
 }
 
 #endif

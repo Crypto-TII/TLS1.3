@@ -371,7 +371,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PU
 
 	if (cert_type==RAW_PUBLIC_KEY) { // its not a certificate, its a raw public key. We agreed that this was OK.
 		X509_get_public_key(&SERVER_CERT,PUBKEY);
-		return 0;
+		return 0;  // NOTE no confirmation of identity
 	}
 
     r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return r.err;
@@ -389,11 +389,11 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PU
 			return rtn;
 		}
 	}
-
+// Confirm Identity - public key is associated with this hostname
     if (!checkHostnameInCert(&SERVER_CERT,hostname) && strcmp(hostname,"localhost")!=0)
     { // Check that certificate covers the server URL
         log(IO_PROTOCOL,(char *)"Hostname NOT found in certificate\n",NULL,0,NULL);
-        // return BAD_CERT_CHAIN;
+        return BAD_CERT_CHAIN;
     }
 
 	if (rtn==SELF_SIGNED_CERT) 

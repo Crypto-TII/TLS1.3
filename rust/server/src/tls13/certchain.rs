@@ -178,6 +178,7 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     return ct;
 }
 
+
 /// Extract public key, and check validity of certificate chain. Ensure that the hostname is same as that in Cert.
 /// Assumes simple chain Cert->Intermediate Cert->CA cert.
 /// CA cert not read from chain (if its even there) instead search for issuer of Intermediate Cert in cert store 
@@ -198,7 +199,12 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
 
     if cert_type==RAW_PUBLIC_KEY { // its actually not a certificate chain, its a raw public key
         let pkt=x509::get_public_key(&chain[ptr..],pubkey);
+        let id="Assumed to be known".as_bytes();
+        for i in 0..id.len() {
+            identity[i]=id[i];
+        }
         *pklen=pkt.len;
+        *idlen=id.len();
         return 0;
     }
 

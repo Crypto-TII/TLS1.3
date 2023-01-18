@@ -517,6 +517,7 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 static bool overlap(int *serverSigAlgs,int nssa,int *serverCertSigAlgs,int nscsa) {
     int clientCertReqs[TLS_MAX_SUPPORTED_SIGS];
     int nsreq=getSigRequirements(clientCertReqs);
+
     for (int i=0;i<nsreq;i++) {
         bool itsthere=false;
         int sig=clientCertReqs[i];
