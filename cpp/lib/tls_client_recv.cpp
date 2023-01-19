@@ -564,6 +564,7 @@ ret getCertificateRequest(TLS_session *session,bool context)
             return r;
         }   
 		r=parseoctadorPull(session,&session->CTX,nb); if (r.err) return r;
+		left-=nb;
     } else {
         if (nb!=0x00) {
             r.err= MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
@@ -571,7 +572,6 @@ ret getCertificateRequest(TLS_session *session,bool context)
         }         
     }
     r=parseIntorPull(session,2); len=r.val; if (r.err) return r; // length of extensions
-
     if (left!=len+3) {
         r.err=BAD_MESSAGE;
         return r;
@@ -633,7 +633,6 @@ ret getCertificateRequest(TLS_session *session,bool context)
         r.err=MISSING_EXTENSIONS;
         return r;
     } 
-
     if (!overlap(sigalgs,nssa,certsigalgs,nscsa)) {
         log(IO_DEBUG,(char *)"Server cannot verify client certificate\n",NULL,0,NULL);
         r.err=BAD_HANDSHAKE;

@@ -229,6 +229,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
     let c=x509::find_extension(cert,&x509::AN,ic);
     if  let Some(host) = hostname {
         let found=x509::find_alt_name(cert,c.index,host);
+//println!("Host= {:?}",host);
         if !found && host!="localhost".as_bytes() {
             log(IO_PROTOCOL,"Hostname NOT found in certificate\n",-1,None);
             return BAD_CERT_CHAIN;

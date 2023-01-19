@@ -92,6 +92,12 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 		addClientRawPublicKey(EXT);
 #endif
 	} 
+	if (mode==2)
+	{ // // PSK, but client authentication may still be sought
+#ifdef PREFER_RAW_CLIENT_PUBLIC_KEY
+		addClientRawPublicKey(EXT);
+#endif
+	}
 }
 
 // Phase 1 - Exchange Client/Server "Hellos"

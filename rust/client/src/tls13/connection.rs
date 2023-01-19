@@ -583,6 +583,11 @@ impl SESSION {
                 extlen=extensions::add_client_raw_public_key(ext,extlen);
             }
         }
+        if mode==2 { // PSK, but client authentication may still be sought
+            if PREFER_RAW_CLIENT_PUBLIC_KEY {
+                extlen=extensions::add_client_raw_public_key(ext,extlen);
+            }
+        }
         return extlen;
     }
 
@@ -645,11 +650,12 @@ impl SESSION {
             return r;
         }
 
-        r=self.parse_int_pull(3); let left=r.val; if r.err!=0 {return r;}
+        r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;}
         r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {return r;}
         if context { // expecting a context
             let start=self.ptr;
             r=self.parse_pull(nb); if r.err!=0 {return r;}
+            left-=nb;
             if nb==0 {
                 r.err=MISSING_REQUEST_CONTEXT;// expecting a Request context
                 return r;
@@ -658,20 +664,18 @@ impl SESSION {
                 self.ctx[i]=self.ibuff[start+i];
             }
             self.ctxlen=nb;
+
         } else {
             if nb!=0 {
                 r.err=MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
                 return r;
             }
         }
-
         r=self.parse_int_pull(2); let mut len=r.val; if r.err!=0 {return r;} // length of extensions
- 
         if left!=len+3 {
             r.err=BAD_MESSAGE;
             return r;
-        }
-       
+        }      
         let mut nssa=0;
         let mut nscsa=0;
         while len>0 {
