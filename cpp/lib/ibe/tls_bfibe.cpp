@@ -103,8 +103,6 @@ static void h4(octet *I,octet *O)
 static void bfibe_get_id_secret(BIG s, char *id, octet *SK)
 {
     ECP2 Q;
-    char server_id[100],hid[256];
-    octet HID = {0, sizeof(hid), hid};
     h1(id,&Q); // Hash to curve
     PAIR_G2mul(&Q, s);
     ECP2_toOctet(SK, &Q, false); // change to TRUE for point compression 
@@ -197,7 +195,6 @@ bool BFIBE_CCA_DECRYPT(octet *SK,octet *CT,octet *M)
     octet Z = {0, sizeof(z), z};
     octet SIGMA={0,sizeof(sigma),sigma};
    
-    int res=0;
     OCT_copy(&U,CT);
     OCT_chop(&U,&V,2*PFS_BLS12381+1);
     OCT_chop(&V,&W,32);

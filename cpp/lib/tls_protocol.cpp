@@ -106,7 +106,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     ret rtn;
     int i,pskid;
     int kex,hashtype;
-	int nsa,nsc,nsg,nsac;
+	int nsc,nsg;
     bool resumption_required=false;
 
 	int ciphers[TLS_MAX_CIPHER_SUITES];
@@ -349,9 +349,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
 static int TLS13_server_trust(TLS_session *session)
 {
     ret rtn;
-    int kex,hashtype;
-	int nsa,nsc,nsg,nsac;
-    bool ccs_sent=false;
+    int hashtype;
 
 #ifdef SHALLOW_STACK
     octad SERVER_PK = {0,TLS_MAX_SIG_PUB_KEY_SIZE,(char *)malloc(TLS_MAX_SIG_PUB_KEY_SIZE)};  // Server's cert sig public key
@@ -499,8 +497,7 @@ static void TLS13_client_trust(TLS_session *session)
 static int TLS13_full(TLS_session *session)
 {
     ret rtn;
-    int kex,hashtype;
-	int nsa,nsc,nsg,nsac;
+    int hashtype;
     bool resumption_required=false;
     bool gotacertrequest=false;
 
@@ -614,7 +611,7 @@ static int TLS13_full(TLS_session *session)
 // EARLY - First message from Client to Server (should ideally be sent as early data!)
 static int TLS13_resume(TLS_session *session,octad *EARLY)
 {
-    int hashtype,kex,pskid,nsc,nsa,nsg,nsac;
+    int hashtype,kex,pskid;
     ret rtn;
 
 #ifdef SHALLOW_STACK
@@ -663,7 +660,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad CRN = {0, sizeof(crn), crn};
 
     unsign32 time_ticket_received,time_ticket_used;
-    int origin,lifetime=0;
+    int origin;
     unsign32 age,age_obfuscator=0;
     unsign32 max_early_data=0;
 #ifdef TRY_EARLY_DATA
@@ -676,7 +673,6 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     ee_status enc_ext_expt={false,false,false,false};  // encrypted extensions expectations
 
 // Extract Ticket parameters
-    lifetime=session->T.lifetime;
     age_obfuscator=session->T.age_obfuscator;
     max_early_data=session->T.max_early_data;
     OCT_copy(&PSK,&session->T.PSK);
@@ -983,9 +979,8 @@ void TLS13_send(TLS_session *state,octad *GET)
 int TLS13_recv(TLS_session *session,octad *REC)
 {
     ret r;
-    int nce,nb,len,te,type,nticks,kur,rtn;//,ptr=0;
+    int nb,len,type,nticks,kur,rtn;//,ptr=0;
     bool fin=false;
-    unsign32 time_ticket_received;
     octad TICK;		// Ticket raw data
     TICK.len=0;
     session->ptr=0;
@@ -1083,6 +1078,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
 					PENDING_AUTHENTICATION=true;
                     if (session->ptr==session->IBUFF.len) fin=true; // record finished
                     if (fin) break;
+                    continue;
 #endif				
 
                 default:

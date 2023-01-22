@@ -52,7 +52,6 @@ static bool checkHostnameInCert(octad *CERT,char *hostname)
 // Crude check for certificate validity
 static bool checkCertNotExpired(octad *CERT)
 {
-    int len;
     int ic = X509_find_validity(CERT);
     int c = X509_find_expiry_date(CERT, ic);
     int year=2000+(CERT->val[c]-'0')*10 +CERT->val[c+1]-'0';
@@ -90,7 +89,7 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
             b[i]=0;
         }
         OCT_from_base64(&SC,b);
-        int c = X509_extract_cert(&SC, &SC);  // extract Cert from Signed Cert
+        X509_extract_cert(&SC, &SC);  // extract Cert from Signed Cert
 
         int ic = X509_find_issuer(&SC);
         createFullName(&OWNER,&SC,ic);
@@ -124,7 +123,7 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
 // strip signature off certificate. Return signature type
 static pktype stripDownCert(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJECT)
 {
-    int c,ic,len;
+    int ic;
 
     pktype sg=X509_extract_cert_sig(CERT,SIG);
     X509_extract_cert(CERT,CERT);  // modifies CERT which is in the IO buffer!
@@ -193,7 +192,6 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
-    bool first=true;
     pktype pk;
 #ifdef SHALLOW_STACK
     char *b=(char *)malloc(TLS_MAX_CERT_B64);
@@ -350,7 +348,7 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
 int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PUBKEY,octad *SERVER_SIG)
 {
     ret r;
-    int rtn,len,c,ptr=0;
+    int rtn,len,ptr=0;
     pktype sst,ist,spt,ipt;
 
 // Clever re-use of memory - use pointers into cert chain rather than extracting certs

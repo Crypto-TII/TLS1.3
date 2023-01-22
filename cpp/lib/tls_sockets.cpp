@@ -11,7 +11,7 @@
 // open socket
 int setclientsock(int port,char *ip,int toms)
 {
-    int sock = 0, valread; 
+    int sock = 0; 
     struct sockaddr_in serv_addr; 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
         return -1; 

@@ -96,7 +96,7 @@ ret parseInt(octad *M,int len,int &ptr)
 // returns record type, ALERT, APPLICATION or HSHAKE (or pseudo type TIMED_OUT)
 int getServerRecord(TLS_session *session)
 {
-    int i,rtn,left,pos,rlen,taglen;
+    int rtn,left,pos,rlen,taglen;
     char rh[5];
     octad RH={0,sizeof(rh),rh};
 
@@ -783,7 +783,7 @@ static const char *hrrh= (const char *)"CF21AD74E59A6111BE1D8C021E65B891C2A21116
 ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 {
     ret r;
-    int i,tls,svr,left,rtn,silen,cmp,extLen,ext,tmplen,pklen,cipher;
+    int tls,left,silen,cmp,extLen,ext,tmplen,pklen,cipher;
     bool retry=false;
     char sid[32];
     char srn[32];
@@ -813,7 +813,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
     }
 
     r=parseIntorPull(session,3); left=r.val; if (r.err) return r;   // If not enough, pull in another fragment
-    r=parseIntorPull(session,2); svr=r.val; if (r.err) return r;
+    r=parseIntorPull(session,2); if (r.err) return r;
 
 	if (left<72)
 	{
@@ -822,7 +822,6 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 	}
     left-=2;                // whats left in message
 
-	int legacy_version=svr;
     r= parseoctadorPull(session,&SRN,32); if (r.err) return r;
     left-=32;
     if (OCT_compare(&SRN,&HRR))

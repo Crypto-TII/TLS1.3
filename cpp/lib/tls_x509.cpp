@@ -273,7 +273,7 @@ int ecdsa_sig_decode(octad *c) {
 // For ECC octad = k
 pktype X509_extract_private_key(octad *c,octad *pk)
 {
-    int i, j, k, fin, len, rlen, flen, tlen, sj, ex, tot, end;
+    int i, j, k, fin, len, rlen, flen, tlen, tot, end;
     char soid[12];
     octad SOID = {0, sizeof(soid), soid};
     pktype ret;
@@ -801,12 +801,12 @@ int X509_extract_cert(octad *sc, octad *cert)
 // find index to start of ASN.1 raw public key, and return its length
 int X509_find_public_key(octad *c,int *ptr)
 {
-    int i, j, k, fin, len, sj;
+    int j, k, fin, len;
 
     j = 0;
 
     len = getalen(SEQ, c->val, j);
-    if (len < 0) 0;
+    if (len < 0) return 0;
     j += skip(len);
 
     if (len + j != c->len) return 0;
@@ -848,7 +848,7 @@ int X509_find_public_key(octad *c,int *ptr)
 // get Public Key details from ASN.1 description
 pktype X509_get_public_key(octad *c,octad *key) 
 {
-    int i, j, fin, len, sj, ptr;
+    int i, j, fin, len, sj;
     char koid[12];     /*****/
     octad KOID = {0, sizeof(koid), koid};
     pktype ret;

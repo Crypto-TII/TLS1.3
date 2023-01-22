@@ -185,6 +185,7 @@ pub fn log_server_response(r: &RET) {
             BAD_MESSAGE => log(IO_DEBUG,"Malformed Message received\n",-1,None),
             EMPTY_CERT_CHAIN => log(IO_DEBUG,"Client Certificate required\n",-1,None),
             BAD_PROTOCOL => log(IO_DEBUG,"Wrong ALPN protocol\n",-1,None),
+            MISSING_EXTENSIONS => log(IO_DEBUG,"Some extension(s) are missing\n",-1,None),
             _ => log(IO_DEBUG,"Unknown Error\n",-1,None),
         }
     } else {

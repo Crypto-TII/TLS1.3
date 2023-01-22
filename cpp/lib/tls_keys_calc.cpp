@@ -413,16 +413,8 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
 bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
 {
 // Server Certificate Verify
-    ret rt;
-    int lzero,sha;
     char scv[100+TLS_MAX_HASH];
     octad SCV={0,sizeof(scv),scv};
-    char r[TLS_MAX_ECC_FIELD];
-    octad R={0,sizeof(r),r};
-    char s[TLS_MAX_ECC_FIELD];
-    octad S={0,sizeof(s),s};
-    char sig[2*TLS_MAX_ECC_FIELD];
-    octad SIG={0,sizeof(sig),sig};
 
 // TLS1.3 message that was signed
     OCT_append_byte(&SCV,32,64); // 64 spaces

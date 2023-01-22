@@ -95,7 +95,17 @@ fn cipher_support(alg: u16) -> bool {
 fn overlap(client_sig_algs: &[u16],client_cert_sig_algs: &[u16]) -> bool {
     let mut server_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
     let nsreq=servercert::get_sig_requirements(&mut server_cert_reqs); 
-
+/*
+println!("No of requirements = {}",nsreq);
+for i in 0..nsreq {
+    println!("{}",server_cert_reqs[i]);
+}
+println!("No of client sig algs = {}",client_sig_algs.len());
+for i in 0..client_sig_algs.len() {
+    println!("{}",client_sig_algs[i]);
+}
+println!("No of client cert sig algs = {}",client_cert_sig_algs.len());
+*/
     for i in 0..nsreq {
         let mut itsthere=false;
         let sig=server_cert_reqs[i];
@@ -713,18 +723,21 @@ impl SESSION {
         //let mut ptr=0;
         let mut r=self.parse_int_pull(1); // get message type
         let nb=r.val as u8;
+//println!("0. Finished {}",nb);
         if nb != FINISHED {
             r.err=WRONG_MESSAGE;
         }
+//println!("1. Finished");
         if r.err!=0 {return r;}
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
-
+//println!("2. Finished");
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}
         if len!=hlen {
             r.err=BAD_MESSAGE;
             return r;
         }
+//println!("3. Finished len= {}",len);
         r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
         *hflen=len;
         self.running_hash_io();
@@ -902,15 +915,15 @@ impl SESSION {
         self.iblen=0;
 
         let mut r=self.parse_int_pull(1); if r.err!=0 {return r;}
-
+//println!("Into client hello processing 1");
         if r.val!=CLIENT_HELLO as usize { // should be Client Hello
             r.err=BAD_HELLO;
             return r;
         }
-
+//println!("Into client hello processing 2");
         r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;} // If not enough, pull in another fragment
         r=self.parse_int_pull(2); let svr=r.val; if r.err!=0 {return r;}
-
+//println!("Into client hello processing 3");
         if left<34 {
             r.err=BAD_MESSAGE;
             return r;
@@ -961,12 +974,10 @@ impl SESSION {
         for i in 0..nccs {
             r=self.parse_int_pull(2); ccs[i]=r.val as u16; if r.err!=0 {return r;}
         }
-
         if left<6+2*nccs {
             r.err=BAD_HELLO;
             return r;
         }
-
         left-=2+2*nccs;
         r=self.parse_int_pull(2); if r.err!=0 {return r;}
         left-=2;
@@ -974,14 +985,12 @@ impl SESSION {
             r.err=BAD_HELLO;
             return r;
         }
-
         r=self.parse_int_pull(2); let extlen=r.val; if r.err!=0 {return r;}
         left-=2;  
         if left!=extlen { // Check space left is size of extensions
             r.err=BAD_HELLO;
             return r;
         }
-
 // Problem is this might time-out rather than send an alert
         let mut resume=false;
         let mut agreed=false;
@@ -995,7 +1004,7 @@ impl SESSION {
         let mut got_sig_algs_ext=false;
         let mut got_supported_groups_ext=false;
         let mut got_key_share_ext=false;
-
+//println!("Got here OK 1");
         *early_indication=false;
         while left>0 {
             if resume {
@@ -1012,7 +1021,7 @@ impl SESSION {
                 return r;
             }
             left-=4+extlen;
-
+//println!("Got here OK 1 ext= {}",ext);
             match ext {
                 SERVER_NAME => {
                     r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
@@ -1051,6 +1060,7 @@ impl SESSION {
                         r.err=BAD_MESSAGE;
                         return r;
                     }
+//println!("LEN= {}",len);
                     let mut remain=len;
                     while remain>0 {
                         r=self.parse_int_pull(2); alg=r.val as u16; if r.err!=0 {return r;}     // only accept TLS1.3 groups!
@@ -1059,11 +1069,13 @@ impl SESSION {
                             r.err=BAD_MESSAGE;
                             return r;
                         }
+//println!("CPKLEN= {}",cpklen);
                         r=self.parse_bytes_pull(&mut cpk[0..cpklen]); if r.err!=0 {return r;}
                         remain-=4+cpklen;
+//println!("ALG= {}",alg);
                         if group_support(alg) { // check here that cpklen is correct length for this algorithm
                             if cpklen!=sal::client_public_key_size(alg) {
-                                r.err=BAD_MESSAGE;
+                                r.err=BAD_PARAMETER; 
                                 return r;
                             }
                             self.favourite_group=alg;
@@ -1105,11 +1117,14 @@ impl SESSION {
                     r.err=BAD_MESSAGE;
                     if r.val+1!=extlen {return r;}
                     for _ in 0..len {
-                        r=self.parse_int_pull(1); pskmode=r.val; if r.err!=0 {return r;}
-                        if pskmode==PSKWECDHE {
+                        r=self.parse_int_pull(1); let mode=r.val; if r.err!=0 {return r;}
+//println!("pskmode= {}",mode);
+                        if mode==PSKWECDHE { // if PSKOK is only option offered, exit
+                            pskmode=mode;
                             r.err=0;
                         }
                     }
+                   
                 },
                 TLS_VER => {
                     r=self.parse_int_pull(1); let len=r.val/2; if r.err!=0 {return r;}
@@ -1258,36 +1273,39 @@ impl SESSION {
             }
             if r.err!=0 {return r;}
         }
+//println!("PSK 3");
 // check for missing extensions
         if !got_psk_ext { // not an attempted resumption
             if !got_sig_algs_ext || !got_supported_groups_ext {
-                log(IO_DEBUG,"Missing extensions for FULL handshake",-1,None);
+                log(IO_DEBUG,"Missing extensions for FULL handshake\n",-1,None);
                 r.err=MISSING_EXTENSIONS;
                 return r;
             }
             if !overlap(&client_sig_algs[0..ncsa],&client_cert_sig_algs[0..nccsa]) { // check for overlap between TML requirements and client capabilities
-                log(IO_DEBUG,"No overlap in signature capabilities",-1,None);
+                log(IO_DEBUG,"No overlap in signature capabilities\n",-1,None);
                 r.err=BAD_HANDSHAKE;
                 return r;
             }
         }
-        if got_supported_groups_ext!=got_key_share_ext {
+        if got_supported_groups_ext!=got_key_share_ext {  // check this - what if got supported groups, but no key share?
+//println!("MISSING {} {}",got_supported_groups_ext,got_key_share_ext);
                 r.err=MISSING_EXTENSIONS;
                 return r;
         }
-
+//println!("PSK 4 - {}",pskmode);
         if got_psk_ext && pskmode==0 { // If clients offer pre_shared_key without a psk_key_exchange_modes extension, servers MUST abort the handshake. 
-            log(IO_DEBUG,"Missing PSK modes extension",-1,None);
+            log(IO_DEBUG,"Missing PSK modes extension\n",-1,None);
             r.err=BAD_HANDSHAKE;
             return r;
         }
-
+//println!("PSK 5");
         let mut retry=false;
         if !resume { // check for agreement on cipher suite and group - might need to ask for a handshake retry
             let mut scs:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES]; // choose a cipher suite
             let nscs=sal::ciphers(&mut scs);
             let mut chosen=false;
             let mut cipher_suite=0;
+//println!("PSK 5a");
             for i in 0..nccs { // start with their favourite
                 for j in 0..nscs {
                     if ccs[i]==scs[j] {
@@ -1329,6 +1347,7 @@ impl SESSION {
             }
 
         } else {
+//println!("PSK 5b");
             for i in 0..nccs { // check clients list of favourite suites
                 if cipher_support(ccs[i]) { // find the first one I support - this should be the one I issued ticket for
                     self.cipher_suite=ccs[i];
@@ -1340,14 +1359,15 @@ impl SESSION {
                 r.err=BAD_MESSAGE;
                 return r;
             }
-            //self.cipher_suite=ccs[0];
+       // Here should attempt HRR if no agreed group! ******
             if pskmode==PSKWECDHE && !agreed { // In this mode, the client and server MUST supply key_share values
+//println!("No agreed group, should really do HRR");
                 r.err=BAD_HELLO;
                 return r;
             }
 
         }
-
+//println!("PSK 6");
         if !retry { // we are not doing a retry
             let mut supported=false;
             for i in 0..ncg { // better check that the key share from client is also one of clients supported groups, as well as being OK with me
@@ -1393,6 +1413,7 @@ impl SESSION {
             }
             self.running_hash_io();
         }
+//println!("Going for HRR");
 // now construct server hello (or HRR) + extensions
         let mut ptr=0;
         ptr=utils::append_byte(sh,ptr,SERVER_HELLO,1);
@@ -1536,7 +1557,7 @@ impl SESSION {
         }
         log(IO_DEBUG,"Resumption state received= ",0,Some(&state));
 
-// Now need to decrypt ticket to find psk 
+
 // First check the ticket age
         let mut ptr=0;
         r=utils::parse_int(&state,4,&mut ptr); let birth=r.val; if r.err!=0 {return r;}
@@ -1684,15 +1705,17 @@ impl SESSION {
             if self.bad_response(&r) {
                 return TLS_FAILURE;
             }
+//println!("Ticket processed");
             let mut external_psk=false;
             if r.val==EXTERNAL_PSK {
                 external_psk=true;
             }
+//println!("Checking binders");
             r=self.process_binders(external_psk,&psk[0..psklen],es_s);
             if self.bad_response(&r) {
                 return TLS_FAILURE;
             }
-
+//println!("Got a good looking ticket");
 // Early application data is probably waiting for me in TCP/IP input queue
 // It needs to be decrypted using current recv key. So must not update recv key
 // until after taking in early data from client
@@ -2072,6 +2095,7 @@ impl SESSION {
                             let htype=sal::hash_type(self.cipher_suite);
                             let hlen=sal::hash_len(htype);
                             r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {break;}
+//println!("kur= {}",kur);
                             if kur==UPDATE_NOT_REQUESTED {  // reset record number
                                 self.k_recv.update(&mut self.sts[0..hlen]);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",-1,None);

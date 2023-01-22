@@ -199,6 +199,7 @@ pub const BAD_REQUEST_UPDATE:isize= -27;		  // Bad Request Update value
 pub const CLOSURE_ALERT_RECEIVED:isize=-28;       // alert received
 pub const FINISH_FAIL:isize= -29;                 // Certificate Verification failure */
 pub const MISSING_EXTENSIONS:isize= -30;          // Missing one or more extesions
+pub const BAD_PARAMETER:isize= -31;               // Bad crypto parameter
 
 // record types 
 pub const HSHAKE:u8= 0x16;                        // Handshake record 
@@ -251,7 +252,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         NOT_TLS1_3 => return ILLEGAL_PARAMETER,
         ID_MISMATCH => return ILLEGAL_PARAMETER,
         UNRECOGNIZED_EXT => return ILLEGAL_PARAMETER,
-        BAD_HELLO => return ILLEGAL_PARAMETER,        
+        BAD_HELLO => return DECODE_ERROR,        
         WRONG_MESSAGE => return UNEXPECTED_MESSAGE,
         BAD_CERT_CHAIN => return BAD_CERTIFICATE,
         MISSING_REQUEST_CONTEXT => return ILLEGAL_PARAMETER,
@@ -269,6 +270,7 @@ pub fn alert_from_cause(rtn: isize) -> u8
         ERROR_ALERT_RECEIVED => return CLOSE_NOTIFY,
         CLOSURE_ALERT_RECEIVED => return CLOSE_NOTIFY,
         BAD_MESSAGE => return DECODE_ERROR,
+        BAD_PARAMETER => return ILLEGAL_PARAMETER,
         BAD_PROTOCOL => return NO_APPLICATION_PROTOCOL,
         BAD_HANDSHAKE => return HANDSHAKE_FAILURE,
         CERT_VERIFY_FAIL => return DECRYPT_ERROR,

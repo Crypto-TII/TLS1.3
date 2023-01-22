@@ -64,7 +64,7 @@ static int32_t modmul(uint32_t a,uint32_t b)
 static void ntt(int32_t *b)
 {
 	int m,i,j,k,t=DEGREE/2;
-	int32_t S,U,V,W,q=PRIME;
+	int32_t S,U,V,q=PRIME;
 
 	for (j=0;j<DEGREE;j++)
 		b[j]=nres(b[j]);
@@ -239,7 +239,7 @@ static void poly_shorten(int32_t *p)
 	int i;
 	for (i=0;i<DEGREE;i++) {
 		p[i]/=(1<<(UBITS-VBITS-1));
-        if (p[i]&1 == 1) {
+        if ((p[i]&1) == 1) {
             p[i]>>=1;
             p[i]+=1;
         } else {
@@ -391,8 +391,8 @@ static int pack_ct(byte ct[],int32_t *u,int32_t *v)
     ptr=bts=0;
     for (i=0;i<ULEN;i++)
         ct[n++]=nextbyte32(UBITS,u,ptr,bts);
-	ptr=bts=0;
-	for (i=0;i<VLEN;i++)
+    ptr=bts=0;
+    for (i=0;i<VLEN;i++)
         ct[n++]=nextbyte32(VBITS,v,ptr,bts);
     return n;
 }
@@ -422,14 +422,14 @@ static void unpack_ct(int32_t *u,int32_t *v,byte pk[])
     ptr=bts=0;
     for (i=0;i<DEGREE;i++ )
         u[i]=nextword(UBITS,pk,ptr,bts);
-	for (i=0;i<DEGREE;i++ )
+    for (i=0;i<DEGREE;i++ )
         v[i]=nextword(VBITS,pk,ptr,bts);
 }
 
 // ID is identity, ikey is input session key, ud/vt is ciphertext
 static void cpa_base_encrypt(char *ID,byte *ikey,int32_t *ud,int32_t *vd)
 {
-	int i,j,k,m;
+	int i,j;
 	int32_t rd[DEGREE],e[DEGREE];
 	byte sigma[32];
 	byte buff[256];
@@ -572,12 +572,12 @@ void PQIBE_CCA_DECRYPT(char *ID,const int16_t *csk,octet *CT,octet *KEY) {
     for (i=0;i<DEGREE/8;i++)
         ikey[i]^=(ikey[i]^rkey[i])&mask;    // if not substitute some nonsense
 
-	SHA3_init(&sh,SHA3_HASH256);
-	for (i=0;i<CT->len;i++)
-		SHA3_process(&sh,(unsigned char)CT->val[i]); 
-	for (i=0;i<DEGREE/8;i++)
-		SHA3_process(&sh,ikey[i]); 
-	SHA3_hash(&sh,KEY->val);
+    SHA3_init(&sh,SHA3_HASH256);
+    for (i=0;i<CT->len;i++)
+        SHA3_process(&sh,(unsigned char)CT->val[i]); 
+    for (i=0;i<DEGREE/8;i++)
+        SHA3_process(&sh,ikey[i]); 
+    SHA3_hash(&sh,KEY->val);
     KEY->len=32;
 }
 /*
