@@ -181,7 +181,7 @@ pub fn cca_decrypt(csk: &[u8],ct: &[u8],key: &mut[u8]) -> bool {
         return false;
     } 
 
-    let mut g=pair::ate(&SK,&rP);
+    let mut g=pair::ate(&SK,&rP);   // optimal ate pairing
     g = pair::fexp(&g);
     g.tobytes(&mut z);
     h4(&z,&mut sigma);

@@ -1,5 +1,5 @@
 //
-// TLS1.3 Certificate Processing Code
+// TLS1.3 X509 Certificate Processing Code
 //
 
 #include "tls_cert_chain.h"
@@ -219,7 +219,7 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAI
         }
         OCT_from_base64(&SC,b);
 
-// MAYBE SEND RAW KEY instead?
+// Maybe send raw key instead?
 		if (cert_type==RAW_PUBLIC_KEY)
 		{
 			X509_extract_cert(&SC,&SC);

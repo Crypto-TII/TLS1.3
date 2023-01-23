@@ -41,7 +41,7 @@ pub const DILITHIUM2: u16 = 0x0902;
 pub const ECDSA_SECP256R1_SHA384: u16 = 0x0413; 
 /// Dilithium2 Hybrid Signature algorithm 
 pub const DILITHIUM2_P256: u16 = 0x09F2; // this type can be negotiated, but always implemented seperately by SAL
-//pub const ED25519: usize = 0x0807;                  // Ed25519 EdDSA Signature algorithm 
+//pub const ED25519: usize = 0x0807;     // Ed25519 EdDSA Signature algorithm 
 
 // Maximum sizes for stack arrays
 /// Max ECC field size in bytes

@@ -85,7 +85,7 @@ fn malformed(rval: usize,maxm: usize) -> bool {
     return false;
 }
 
-// IO buffer
+// IBUFF input buffer
 // xxxxxxxxxxxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyy
 // -------------ptr---------->----------iblen----------->
 //
@@ -127,7 +127,9 @@ impl SESSION {
         return this;
     }
 
-/// Get an integer of length len bytes from io stream
+// These functions "pull" data from the input stream. That may require reading in a new record and decrypting it.
+
+/// Get an integer of length len bytes from ibuff stream
     fn parse_int_pull(&mut self,len:usize) -> RET {
         let mut r=utils::parse_int(&self.ibuff[0..self.iblen],len,&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
@@ -147,7 +149,7 @@ impl SESSION {
         return r;
     }  
     
-/// Pull bytes from io into array
+/// Pull bytes from ibuff into array
     fn parse_bytes_pull(&mut self,e: &mut[u8]) -> RET {
         let mut r=utils::parse_bytes(e,&self.ibuff[0..self.iblen],&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
@@ -168,7 +170,7 @@ impl SESSION {
     }
 
 /// Pull bytes into input buffer, process them there, in place
-    fn parse_pull(&mut self,n: usize) -> RET { // get n bytes into self.io
+    fn parse_pull(&mut self,n: usize) -> RET { // get n bytes into self.ibuff
         let mut r=RET{val:0,err:0};
         while self.ptr+n>self.iblen {
             let rtn=self.get_record();
@@ -193,7 +195,7 @@ impl SESSION {
         self.ptr=0;        
     }
 
-/// Add I/O buffer self.io to transcript hash 
+/// Add I/O buffer self.ibuff to transcript hash 
     fn running_hash_io(&mut self) {
         sal::hash_process_array(&mut self.tlshash,&self.ibuff[0..self.ptr]);
         self.rewind();
@@ -332,9 +334,6 @@ impl SESSION {
                         self.obuff[ctlen+j+5]=tag[j];
                     }
                 }
-                //for j in (0..reclen).rev() {
-                //    self.obuff[j+5]=self.obuff[j];
-                //}
                 for j in 0..5 {
                     self.obuff[j]=rh[j];
                 }
@@ -378,7 +377,6 @@ impl SESSION {
             nsc=1;
             ciphers[0]=self.cipher_suite;
         }
-        //sal::random_bytes(32,&mut rn);
         total+=32;
         if !resume {
             sal::random_bytes(32,&mut self.session_id);
@@ -425,9 +423,6 @@ impl SESSION {
             return true;
         }
         if r.err == ALERT as isize {
-            //if r.val==CLOSE_NOTIFY as usize {
-		    //    self.send_alert(CLOSE_NOTIFY);  // I'm closing down, and so are you
-            //}
             logger::log_alert(r.val as u8);
             self.clean();
             return true;
@@ -454,7 +449,6 @@ impl SESSION {
 /// Send Change Cipher Suite - helps get past middleboxes (?)
     pub fn send_cccs(&mut self) {
         let cccs:[u8;6]=[0x14,0x03,0x03,0x00,0x01,0x01];
-        //self.sockptr.write(&cccs).unwrap();
         socket::send_bytes(&mut self.sockptr,&cccs);
     }
 
@@ -621,15 +615,12 @@ impl SESSION {
 
         r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
         r=self.parse_bytes_pull(&mut scvsig[0..len]); if r.err!=0 {return r;}
-        //left-=4+len;
         if left!=4+len {
             r.err=BAD_MESSAGE;
             return r;
         }
         *siglen=len;
         self.running_hash_io();
-        //sal::hash_process_array(&mut self.tlshash,&self.ibuff[0..ptr]);
-        //self.iblen=utils::shift_left(&mut self.ibuff[0..self.iblen],ptr);
         r.val=CERT_VERIFY as usize;
         return r;
     }
@@ -637,7 +628,6 @@ impl SESSION {
 /// Receive Certificate Request - the Server wants the client to supply a certificate chain
 // context is true if expecting a context
     fn get_certificate_request(&mut self,context: bool) -> RET {
-        //let mut ptr=0;
         let mut unexp=0;
         let mut sigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut certsigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
@@ -740,8 +730,6 @@ impl SESSION {
 
 /// Get handshake finish verifier data in hfin
     fn get_server_finished(&mut self,hfin: &mut [u8],hflen: &mut usize) -> RET {
-        //let mut ptr=0;
-
         let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
         let nb=r.val as u8;
@@ -896,7 +884,6 @@ impl SESSION {
         let mut sid: [u8;32]=[0;32];
         let mut hrr: [u8; HRR.len()/2]=[0;HRR.len()/2];
         utils::decode_hex(&mut hrr,&HRR);
-        //let mut ptr=0;
 
         self.ptr=0;  
         self.iblen=0;
@@ -969,6 +956,7 @@ impl SESSION {
                 return r;
             }
             left-=4+extlen;
+            log(IO_DEBUG,"Server Hello Extension = ",ext as isize,None);
             match ext {
                 KEY_SHARE => {
                     let mut glen=2;
@@ -1951,7 +1939,6 @@ impl SESSION {
         self.t.clear(); // clear out any ticket
     
         if rtn==0 {  // failed to connect
-            //self.status=DISCONNECTED;
             return false;
         }
         if !early_went {

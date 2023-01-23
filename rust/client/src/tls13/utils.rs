@@ -48,7 +48,6 @@ pub fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in plac
     return k;
 }
 
-
 /// Expectation/Response structre
 pub struct EESTATUS {
     pub early_data : bool,

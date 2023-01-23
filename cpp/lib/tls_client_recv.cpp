@@ -90,9 +90,9 @@ ret parseInt(octad *M,int len,int &ptr)
 // Most records must be decrypted before being appended to the message buffer.
 
 // get another fragment of server response, in the form of a record. Record type encoded in its header
-// output message body to IO
+// output message body to IBUFF
 // If record is encrypted, decrypt and authenticate it
-// append its contents to the end of IO
+// append its contents to the end of IBUFF
 // returns record type, ALERT, APPLICATION or HSHAKE (or pseudo type TIMED_OUT)
 int getServerRecord(TLS_session *session)
 {
@@ -229,12 +229,12 @@ ret parseIntorPull(TLS_session *session,int len)
     return r;
 }
 
-// Get an octad O of length len from the IO buffer. Create a copy.
+// Get an octad O of length len from the IBUFF buffer. Create a copy.
 ret parseoctadorPull(TLS_session *session,octad *O,int len)
 {
     ret r=parseoctad(O,len,&session->IBUFF,session->ptr);
     while (r.err)
-    { // not enough bytes in IO - pull in another fragment
+    { // not enough bytes in IBUFF - pull in another fragment
         int rtn=getServerRecord(session);
         if (rtn!=HSHAKE) {
             r.err=rtn;
@@ -247,7 +247,7 @@ ret parseoctadorPull(TLS_session *session,octad *O,int len)
     return r;
 }
 
-// Get byte array o of length len from the IO buffer. Create a copy.
+// Get byte array o of length len from the IBUFF buffer. Create a copy.
 ret parsebytesorPull(TLS_session *session,char *o,int len)
 {
     ret r=parsebytes(o,len,&session->IBUFF,session->ptr);
@@ -265,7 +265,7 @@ ret parsebytesorPull(TLS_session *session,char *o,int len)
     return r;
 }
 
-// Get an octad O of length len from the IO buffer, but this time the output octad is a pointer into the IO buffer
+// Get an octad O of length len from the IBUFF buffer, but this time the output octad is a pointer into the IBUFF buffer
 ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
 {
     ret r=parseoctadptr(O,len,&session->IBUFF,session->ptr);
@@ -320,13 +320,13 @@ bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r
 
 // Functions to process server responses
 // Deals with any kind of fragmentation
-// Build up server handshake response in IO, decrypting each fragment in-place
+// Build up server handshake response in IBUFF, decrypting each fragment in-place
 // extract Encrypted Extensions, Certificate Chain, Server Certificate Signature and Server Verifier Data
 // update transcript hash
 // Bad actor Server could be throwing anything at us - so be careful
 ret seeWhatsNext(TLS_session *session)
 {
-    int nb;//,ptr=0;
+    int nb;
     ret r;
 
     //session->ptr=0;
@@ -886,6 +886,7 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 			return r;
 		}
 		extLen-=(4+tmplen);
+		log(IO_DEBUG,(char *)"Server Hello Extension= ",(char *)"%x",ext,NULL);
         switch (ext)
         {
         case KEY_SHARE :

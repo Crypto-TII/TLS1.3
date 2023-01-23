@@ -1,5 +1,5 @@
 
-//! Security Abstraction Layer. This version uses mainly MIRACL core functions, with post-quantum support from OQS
+//! Security Abstraction Layer. This version uses MIRACL core functions
 
 #![allow(dead_code)]
 
@@ -559,42 +559,6 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         res=ecdh::ecpsvdp_dh(&csk,&rpk[0..32],&mut ss[startss..startss+32],0);
         ss[startss..startss+32].reverse();
         csk.zeroize();
-/*
-        let startct=server_public_key_size(config::KYBER768);
-        let startpk=client_public_key_size(config::KYBER768);
-        let startss=shared_secret_size(config::KYBER768);
-
-
-        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
-        let pk=kem.public_key_from_bytes(&cpk[0..startpk]).unwrap().to_owned();
-        let (ct, share) = kem.encapsulate(&pk).unwrap();
-        let myss=share.as_ref();
-        for i in 0..myss.len() {
-            ss[i]=myss[i];
-        }
-        let myct=ct.as_ref();
-        for i in 0..myct.len() {
-            spk[i]=myct[i];
-        }     
-        
-        use mcore::c25519::ecdh; // append an X25519
-
-        let mut csk:[u8;32]=[0;32];
-        random_bytes(32,&mut csk);
-        csk[31] &= 248;
-        csk[0] &=127;
-        csk[0] |=64;
-        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[startct..startct+32]);
-        spk[startct..startct+32].reverse();
-        let mut rpk:[u8;32]=[0;32];
-        for i in 0..32 {
-            rpk[i]=cpk[startpk+i]
-        }
-        rpk[0..32].reverse();
-        ecdh::ecpsvdp_dh(&csk,&rpk[0..32],&mut ss[startss..startss+32],0);
-        ss[startss..startss+32].reverse();
-        csk.zeroize(); */
-
     }
 // all zeros is suspect...
     let mut ors=ss[0];
@@ -688,7 +652,6 @@ pub fn dilithium2_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     dilithium::signature_2(&key[0..dilithium::SK_SIZE_2],mess,sig);
     return dilithium::SIG_SIZE_2;
 }
-
 
 /// RSA 2048-bit PKCS1.5 signature verification
 fn rsa_2048_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {

@@ -5,7 +5,7 @@ use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::x509;
 
-// ECC-SS keys 256 bit. Certificate expires May 2023
+// ECC-SS self-signed keys 256 bit. Certificate expires May 2023
 
 pub const MY_PRIVATE: &str = 
 "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgkYO7LpVcia9BoJSQ\

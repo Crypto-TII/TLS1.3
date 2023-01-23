@@ -1,4 +1,4 @@
-//! TLS1.3 server example program
+//! TLS1.3 simple server example program
 
 mod tls13;
 mod sal_m;

@@ -79,7 +79,7 @@ fn group_support(alg: u16) -> bool {
     return false;
 }
 
-/// Do I support this cipher-suite ?
+/// Do I support this cipher-suite ? Check with SAL..
 fn cipher_support(alg: u16) -> bool {
     let mut cps:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES];
     let ncps=sal::ciphers(&mut cps);
@@ -184,7 +184,9 @@ impl SESSION {
         return this;
     }
  
- /// Get an integer of length len bytes from io stream
+// These functions "pull" data from the input stream. That may require reading in a new record and decrypting it.
+
+/// Get an integer of length len bytes from ibuff stream
     fn parse_int_pull(&mut self,len:usize) -> RET {
         let mut r=utils::parse_int(&self.ibuff[0..self.iblen],len,&mut self.ptr);
         while r.err !=0 { // not enough bytes in IO - pull in another record
@@ -201,10 +203,10 @@ impl SESSION {
         return r;
     }  
     
-/// pull bytes from io into array
+/// pull bytes from ibuff into array
     fn parse_bytes_pull(&mut self,e: &mut[u8]) -> RET {
         let mut r=utils::parse_bytes(e,&self.ibuff[0..self.iblen],&mut self.ptr);
-        while r.err !=0 { // not enough bytes in IO - pull in another record
+        while r.err !=0 { // not enough bytes in IBUFF - pull in another record
             let rtn=self.get_record();  // gets more stuff and increments iblen
             if rtn!=HSHAKE as isize  {
                 r.err=rtn;
@@ -219,7 +221,7 @@ impl SESSION {
     }
 
 /// Pull bytes into input buffer, process them there, in place
-    fn parse_pull(&mut self,n: usize) -> RET { // get n bytes into self.io
+    fn parse_pull(&mut self,n: usize) -> RET { // get n bytes into self.ibuff
         let mut r=RET{val:0,err:0};
         while self.ptr+n>self.iblen {
             let rtn=self.get_record();
@@ -251,13 +253,13 @@ impl SESSION {
         sal::hash_output(&self.tlshash,o); 
     }
 
-/// Rewind iobuffer
+/// Rewind ibuff
     fn rewind(&mut self) {
         self.iblen=utils::shift_left(&mut self.ibuff[0..self.iblen],self.ptr); // rewind
         self.ptr=0;        
     }
 
-/// Add I/O buffer self.io to transcript hash 
+/// Add input buffer self.ibuff to transcript hash 
     fn running_hash_io(&mut self) {
         sal::hash_process_array(&mut self.tlshash,&self.ibuff[0..self.ptr]);
         self.rewind();
@@ -341,9 +343,10 @@ impl SESSION {
         keys::hkdf_expand_label(htype,&mut self.rms[0..hlen],&ms[0..hlen],rh.as_bytes(),Some(cfh));
     }
 
+/// Create a certificate request context. So that each certificate request is unique (and cant be replayed)
     pub fn create_request_context(&mut self) {
         self.ctxlen=32;
-        for i in 0..32 { // create a context
+        for i in 0..32 { // create a random context
             self.ctx[i]=sal::random_byte();
         }
     }
@@ -387,9 +390,6 @@ impl SESSION {
                         self.obuff[ctlen+j+5]=tag[j];
                     }
                 }
-                //for j in (0..reclen).rev() {
-                //    self.obuff[j+5]=self.obuff[j];
-                //}
                 for j in 0..5 {
                     self.obuff[j]=rh[j];
                 }
@@ -430,9 +430,6 @@ impl SESSION {
             return true;
         }
         if r.err == ALERT as isize {
-            //if r.val==CLOSE_NOTIFY as usize{
-		    //    self.send_alert(CLOSE_NOTIFY);  // I'm closing down, and so are you
-            //}
             logger::log_alert(r.val as u8);
             self.clean();
             return true;
@@ -459,7 +456,6 @@ impl SESSION {
 /// Send Change Cipher Suite - helps get past middleboxes (?)
     pub fn send_cccs(&mut self) {
         let cccs:[u8;6]=[0x14,0x03,0x03,0x00,0x01,0x01];
-        //self.sockptr.write(&cccs).unwrap();
         socket::send_bytes(&mut self.sockptr,&cccs);
     }
 
@@ -498,8 +494,8 @@ impl SESSION {
     fn send_server_cert_verify(&mut self, sigalg: u16,scvsig: &[u8]) { 
         let mut pt:[u8;8]=[0;8];
         let mut ptr=0;
-        ptr=utils::append_byte(&mut pt,ptr,CERT_VERIFY,1); // indicates handshake message "certificate verify"
-        ptr=utils::append_int(&mut pt,ptr,4+scvsig.len(),3); // .. and its length
+        ptr=utils::append_byte(&mut pt,ptr,CERT_VERIFY,1);      // indicates handshake message "certificate verify"
+        ptr=utils::append_int(&mut pt,ptr,4+scvsig.len(),3);    // .. and its length
         ptr=utils::append_int(&mut pt,ptr,sigalg as usize,2);
         ptr=utils::append_int(&mut pt,ptr,scvsig.len(),2);
         self.running_hash(&pt[0..ptr]);
@@ -551,8 +547,8 @@ impl SESSION {
     pub fn send_key_update(&mut self,kur: usize) {
         let mut up:[u8;5]=[0;5];
         let mut ptr=0;
-        ptr=utils::append_byte(&mut up,ptr,KEY_UPDATE,1);  // message type
-        ptr=utils::append_int(&mut up,ptr,1,3);      // message length
+        ptr=utils::append_byte(&mut up,ptr,KEY_UPDATE,1);   // message type
+        ptr=utils::append_int(&mut up,ptr,1,3);             // message length
         ptr=utils::append_int(&mut up,ptr,kur,1);
         self.clean_io();
         self.send_message(HSHAKE,TLS1_2,&up[0..ptr],None,true);
@@ -638,9 +634,7 @@ impl SESSION {
         }
 
         let mut r=self.parse_int_pull(3); let left=r.val; if r.err!=0 {return r;}
-
         r=self.parse_int_pull(2); *sigalg=r.val as u16; if r.err!=0 {return r;}
-
         let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let nsa=sal::sigs(&mut sig_algs);
         let mut offered=false;
@@ -705,7 +699,7 @@ impl SESSION {
 		    return r;
 	    }
         let start=self.ptr;
-        r=self.parse_pull(tlen); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.io
+        r=self.parse_pull(tlen); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.ibuff
 // Update Transcript hash
         r.err=certchain::check_certchain(&self.ibuff[start..start+tlen],None,self.client_cert_type,cpk,cpklen,&mut self.clientid,&mut self.cidlen); 
         if self.client_cert_type == RAW_PUBLIC_KEY {
@@ -723,21 +717,17 @@ impl SESSION {
         //let mut ptr=0;
         let mut r=self.parse_int_pull(1); // get message type
         let nb=r.val as u8;
-//println!("0. Finished {}",nb);
         if nb != FINISHED {
             r.err=WRONG_MESSAGE;
         }
-//println!("1. Finished");
         if r.err!=0 {return r;}
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
-//println!("2. Finished");
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}
         if len!=hlen {
             r.err=BAD_MESSAGE;
             return r;
         }
-//println!("3. Finished len= {}",len);
         r=self.parse_bytes_pull(&mut hfin[0..len]); if r.err!=0 {return r;}
         *hflen=len;
         self.running_hash_io();
@@ -870,7 +860,6 @@ impl SESSION {
         }
 
 // if no non-zero found, lb=0
-
         if (lb == HSHAKE || lb == ALERT) && rlen==0 {
             return WRONG_MESSAGE; // Implementations MUST NOT send zero-length fragments of Handshake types
         }
@@ -915,15 +904,12 @@ impl SESSION {
         self.iblen=0;
 
         let mut r=self.parse_int_pull(1); if r.err!=0 {return r;}
-//println!("Into client hello processing 1");
         if r.val!=CLIENT_HELLO as usize { // should be Client Hello
             r.err=BAD_HELLO;
             return r;
         }
-//println!("Into client hello processing 2");
         r=self.parse_int_pull(3); let mut left=r.val; if r.err!=0 {return r;} // If not enough, pull in another fragment
         r=self.parse_int_pull(2); let svr=r.val; if r.err!=0 {return r;}
-//println!("Into client hello processing 3");
         if left<34 {
             r.err=BAD_MESSAGE;
             return r;
@@ -937,7 +923,6 @@ impl SESSION {
 
         r= self.parse_bytes_pull(&mut rn); if r.err!=0 {return r;}   // 32 random bytes
         left-=32;
-
 
         log(IO_PROTOCOL,"Fingerprint= ",0,Some(&rn[0..6]));
 
@@ -1021,7 +1006,7 @@ impl SESSION {
                 return r;
             }
             left-=4+extlen;
-//println!("Got here OK 1 ext= {}",ext);
+            log(IO_DEBUG,"Client Hello Extension = ",ext as isize,None);
             match ext {
                 SERVER_NAME => {
                     r=self.parse_int_pull(2); let len=r.val; if r.err!=0 {return r;}
@@ -1124,7 +1109,6 @@ impl SESSION {
                             r.err=0;
                         }
                     }
-                   
                 },
                 TLS_VER => {
                     r=self.parse_int_pull(1); let len=r.val/2; if r.err!=0 {return r;}
@@ -1180,7 +1164,6 @@ impl SESSION {
                     *early_indication=true;
                 },
 
-
                 CLIENT_CERT_TYPE => {
                     r=self.parse_int_pull(1); if r.err!=0 {return r;}
                     if r.val==0 || r.val>255 { 
@@ -1189,7 +1172,6 @@ impl SESSION {
                     }
                     let nval=r.val;
 // if first preference is for a raw public key
-
 //println!("CLIENT RAW KEY ASKED FOR");
 
                     r=self.parse_int_pull(1); let cct=r.val as u8; if r.err!=0 {return r;}
@@ -1223,7 +1205,6 @@ impl SESSION {
                     }
                 },
 
-
                 POST_HANDSHAKE_AUTH => {
                     if extlen!=0 {
                         r.err=UNRECOGNIZED_EXT;
@@ -1231,7 +1212,7 @@ impl SESSION {
                     }
                     self.post_hs_auth=true;
                 },
-                PRESHARED_KEY => {  // extlen=tlen1+tlen2+4
+                PRESHARED_KEY => {  
                     r=self.parse_int_pull(2); let tlen1=r.val; if r.err!=0 {return r;}
                     if extlen <= tlen1+2 {  // no room for binders!
                         r.err=BAD_HELLO;
@@ -1413,7 +1394,7 @@ impl SESSION {
             }
             self.running_hash_io();
         }
-//println!("Going for HRR");
+// println!("Going for HRR");
 // now construct server hello (or HRR) + extensions
         let mut ptr=0;
         ptr=utils::append_byte(sh,ptr,SERVER_HELLO,1);
@@ -1460,7 +1441,6 @@ impl SESSION {
         }
         *enclen=extlen;
 
-
         if retry { // try again..
             r.val=HANDSHAKE_RETRY;
             return r;
@@ -1476,7 +1456,6 @@ impl SESSION {
         }
         return r; 
     }
-
 
 /// Process resumption ticket and recover pre-shared key
 // But is it a resumption ticket or a PSK label?
@@ -1504,7 +1483,8 @@ impl SESSION {
             return r;
         }
 
-        if self.ticket_obf_age==0 { // assume its an IBE connection
+// This is experimental
+        if self.ticket_obf_age==0 { // assume its an IBE connection. Slightly dodgy way of identifying an IBE PSK
             log(IO_PROTOCOL,"Its an IBE connection\n",-1,None);
             let ticklen=self.tklen;
             let tick=&self.ticket[0..ticklen];
@@ -1523,7 +1503,6 @@ impl SESSION {
                     *psklen=pqibe::KYLEN;
                 },
                 HYBRID => {
-
                     pqibe::cca_decrypt(&servercert::ID,&servercert::PQSK,&tick[0..pqibe::CTLEN],&mut psk[0..32]);
                     const HAFLEN:usize=servercert::BFSK.len()/2;
                     let mut bfsk: [u8; HAFLEN]=[0;HAFLEN];
@@ -1557,7 +1536,6 @@ impl SESSION {
         }
         log(IO_DEBUG,"Resumption state received= ",0,Some(&state));
 
-
 // First check the ticket age
         let mut ptr=0;
         r=utils::parse_int(&state,4,&mut ptr); let birth=r.val; if r.err!=0 {return r;}
@@ -1584,7 +1562,6 @@ impl SESSION {
             return r;
         }
         r=utils::parse_int(&state,1,&mut ptr); *psklen=r.val; if r.err!=0 {return r;}
-        //let mut psk:[u8;MAX_HASH]=[0;MAX_HASH];
         r=utils::parse_bytes(&mut psk[0..*psklen],&state,&mut ptr); if r.err!=0 {return r;}
         log(IO_DEBUG,"PSK= ",0,Some(&psk[0..*psklen]));
         r=utils::parse_int(&state,2,&mut ptr); self.cidlen=r.val; if r.err!=0 {return r;}
@@ -1599,7 +1576,6 @@ impl SESSION {
         let hash_type=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(hash_type);
         let mut hh: [u8;MAX_HASH]=[0;MAX_HASH]; let hh_s=&mut hh[0..hlen];
-        //self.running_hash_io(); 
         self.transcript_hash(hh_s);
         log(IO_DEBUG,"Hash of Truncated client Hello",0,Some(hh_s));
 
@@ -1670,7 +1646,6 @@ impl SESSION {
     pub fn connect(&mut self,early: &mut [u8],edlen: &mut usize) -> usize {
         let mut sh:[u8;MAX_HELLO]=[0;MAX_HELLO];
         let mut ext:[u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
-        //let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut ss:[u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
         let mut ccs_sent=false;
         let mut early_indication=false;
@@ -1728,8 +1703,8 @@ impl SESSION {
 //
 //   server Hello sent ----------------------------------------------------------> 
 //
-            self.running_hash(&sh[0..shlen]);         // Hashing Server Hello
-            self.transcript_hash(hh_s);     // HH = hash of clientHello+serverHello
+            self.running_hash(&sh[0..shlen]);       // Hashing Server Hello
+            self.transcript_hash(hh_s);             // HH = hash of clientHello+serverHello
 
             let sslen=sal::shared_secret_size(self.favourite_group);
             let ss_s=&ss[0..sslen];
@@ -1800,14 +1775,10 @@ impl SESSION {
             self.transcript_hash(th_s);
             self.create_recv_crypto_context();  // now update handshake keys
         } else {
-
             log(IO_PROTOCOL,"Attempting Full Handshake on port ",self.port as isize,None);
-
             if rtn.val==HANDSHAKE_RETRY { // try one more time
-                //self.running_synthetic_hash_io();            // contains synthetic hash of client Hello plus extensions
                 self.running_hash(&sh[0..shlen]);
                 self.transcript_hash(hh_s);                                            //  *********CH+SH********  
-
                 self.send_message(HSHAKE,TLS1_2,&sh[0..shlen],None,true);
                 log(IO_DEBUG,"Hello Retry Request sent\n",-1,None);
                 self.send_cccs();
@@ -1942,9 +1913,9 @@ impl SESSION {
                 
                     log(IO_PROTOCOL,"Client is authenticating\n",-1,None); 
                     let cpk_s=&cpk[0..cpklen];
-                    self.transcript_hash(fh_s);                                            //TH
+                    self.transcript_hash(fh_s);         
                     log(IO_DEBUG,"Certificate Chain is valid\n",-1,None);
-                    log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(fh_s));         //TH
+                    log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(fh_s));
 
                     let mut siglen=0;
                     let mut sigalg:u16=0;
@@ -1975,7 +1946,7 @@ impl SESSION {
                         log(IO_DEBUG,"Client Cert Verification failed\n",-1,None);
                         log(IO_PROTOCOL,"Full Handshake will fail\n",-1,None);
                     }
-                    log(IO_DEBUG,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));                      // **** output client full name        
+                    log(IO_DEBUG,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));   // **** output client full name        
                 }
             } else {
                 for i in 0..hlen {
@@ -2054,7 +2025,8 @@ impl SESSION {
 
 /// Process Client records received post-handshake.
 /// Should be mostly application data, but could be more handshake data disguised as application data
-// Also sending key K_send might be updated.
+// Also keys might be updated.
+// Could be post-handshake authentication from client
 // returns +ve length of message, or negative error, or 0 for a handshake
     pub fn recv(&mut self,mess: Option<&mut [u8]>) -> isize {
         let mut fin=false;

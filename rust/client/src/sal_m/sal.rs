@@ -229,21 +229,7 @@ pub fn hash_type(cipher_suite: u16) -> usize {
     if cipher_suite==config::CHACHA20_POLY1305_SHA256 {htype=config::SHA256_T;}
     return htype;
 }
-/*
-// return hashtype from signature algorithm - needed for ECC only
-pub fn hash_type_sig(sigalg: u16) -> usize {
-    let mut htype=0;  
-    if sigalg==config::ECDSA_SECP256R1_SHA256 {htype=config::SHA256_T;}
-    if sigalg==config::ECDSA_SECP384R1_SHA384 {htype=config::SHA384_T;}
-    if sigalg==config::RSA_PSS_RSAE_SHA256 {htype=config::SHA256_T;}
-    if sigalg==config::RSA_PSS_RSAE_SHA384 {htype=config::SHA384_T;}
-    if sigalg==config::RSA_PSS_RSAE_SHA512 {htype=config::SHA512_T;}
-    if sigalg==config::RSA_PKCS1_SHA256 {htype=config::SHA256_T;}
-    if sigalg==config::RSA_PKCS1_SHA384 {htype=config::SHA384_T;}
-    if sigalg==config::RSA_PKCS1_SHA512 {htype=config::SHA512_T;}
-    return htype;
-}
-*/
+
 /// Return hash length from hash type
 pub fn hash_len(hash_type: usize) -> usize {
     let mut hlen=0;
@@ -444,17 +430,6 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
         let mut r64: [u8;64]=[0;64];
         random_bytes(64,&mut r64);
         kyber::keypair_768(&r64,&mut csk[0..kyber::SECRET_CCA_SIZE_768],&mut pk[0..kyber::PUBLIC_SIZE_768]);
-/*
-        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
-        let (cpk, sk) = kem.keypair().unwrap();
-        let pkbytes=&cpk.as_ref();
-        let skbytes=&sk.as_ref();
-        for i in 0..pkbytes.len() {
-            pk[i]=pkbytes[i];
-        }
-        for i in 0..skbytes.len() {
-            csk[i]=skbytes[i];
-        } */
     }
     if group==config::HYBRID_KX {
         use mcore::kyber;          // first kyber
@@ -519,19 +494,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         let mut r32: [u8;32]=[0;32];
         random_bytes(32,&mut r32);
         kyber::encrypt_768(&r32,&cpk[0..kyber::PUBLIC_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768],&mut spk[0..kyber::CIPHERTEXT_SIZE_768]);
-        r32.zeroize();
-/*
-        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
-        let pk=kem.public_key_from_bytes(&cpk).unwrap().to_owned();
-        let (ct, share) = kem.encapsulate(&pk).unwrap();
-        let myss=share.as_ref();
-        for i in 0..myss.len() {
-            ss[i]=myss[i];
-        }
-        let myct=ct.as_ref();
-        for i in 0..myct.len() {
-            spk[i]=myct[i];
-        }  */      
+        r32.zeroize(); 
     }
 
     if group==config::HYBRID_KX {
@@ -540,7 +503,6 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         random_bytes(32,&mut r32);
         kyber::encrypt_768(&r32,&cpk[0..kyber::PUBLIC_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768],&mut spk[0..kyber::CIPHERTEXT_SIZE_768]);
         r32.zeroize();
-
 
         use mcore::c25519::ecdh; // append an X25519
         let startct=server_public_key_size(config::KYBER768);
@@ -601,15 +563,6 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
     if group==config::KYBER768 {
         use mcore::kyber;
         kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
-/*
-        let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
-        let ct=kem.ciphertext_from_bytes(&pk).unwrap().to_owned();
-        let sk=kem.secret_key_from_bytes(&sk).unwrap().to_owned();
-        let share = kem.decapsulate(&sk, &ct).unwrap();
-        let myss=share.as_ref();
-        for i in 0..myss.len() {
-            ss[i]=myss[i];
-        } */
     }
     if group==config::HYBRID_KX {
         use mcore::kyber;

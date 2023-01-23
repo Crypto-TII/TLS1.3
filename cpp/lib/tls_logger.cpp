@@ -409,9 +409,6 @@ void logServerResponse(ret r)
         case NOT_TLS1_3:
             log(IO_DEBUG,(char *)"Not TLS1.3\n",NULL,0,NULL);
             break;
-        case BAD_CERT_CHAIN:
-            log(IO_DEBUG,(char *)"Bad Certificate Chain\n",NULL,0,NULL);
-            break;
         case ID_MISMATCH:
             log(IO_DEBUG,(char *)"Identity Mismatch\n",NULL,0,NULL);
             break;
@@ -424,6 +421,9 @@ void logServerResponse(ret r)
         case WRONG_MESSAGE:
             log(IO_DEBUG,(char *)"Message received out-of-order\n",NULL,0,NULL);
             break;
+        case BAD_CERT_CHAIN:
+            log(IO_DEBUG,(char *)"Bad Certificate Chain\n",NULL,0,NULL);
+            break;
         case MISSING_REQUEST_CONTEXT:
             log(IO_DEBUG,(char *)"Missing Request Context\n",NULL,0,NULL);
             break;
@@ -435,6 +435,42 @@ void logServerResponse(ret r)
             break;
         case BAD_TICKET:
             log(IO_DEBUG,(char *)"Malformed Ticket received\n",NULL,0,NULL);
+            break;
+        case NOT_EXPECTED:
+            log(IO_DEBUG,(char *)"Unexpected message/extension\n",NULL,0,NULL);
+            break;
+        case CA_NOT_FOUND:
+            log(IO_DEBUG,(char *)"Certificate Authority not found\n",NULL,0,NULL);
+            break;
+        case CERT_OUTOFDATE:
+            log(IO_DEBUG,(char *)"Certificate is out of date\n",NULL,0,NULL);
+            break;
+        case MEM_OVERFLOW:
+            log(IO_DEBUG,(char *)"Memory overflow\n",NULL,0,NULL);
+            break;
+        case FORBIDDEN_EXTENSION:
+            log(IO_DEBUG,(char *)"Forbidden extension found\n",NULL,0,NULL);
+            break;
+        case MAX_EXCEEDED:
+            log(IO_DEBUG,(char *)"Maximum record size exceeded\n",NULL,0,NULL);
+            break;
+        case CERT_VERIFY_FAIL:
+            log(IO_DEBUG,(char *)"Certificate verification failure\n",NULL,0,NULL);
+            break;
+        case BAD_HANDSHAKE:
+            log(IO_DEBUG,(char *)"Handshake protocol failure\n",NULL,0,NULL);
+            break;
+        case BAD_REQUEST_UPDATE:
+            log(IO_DEBUG,(char *)"Bad Key update request\n",NULL,0,NULL);
+            break;
+        case MISSING_EXTENSIONS:
+            log(IO_DEBUG,(char *)"Some extension(s) are missing\n",NULL,0,NULL);
+            break;
+        case BAD_MESSAGE:
+            log(IO_DEBUG,(char *)"Malformed Message received\n",NULL,0,NULL);
+            break;
+        case EMPTY_CERT_CHAIN:
+            log(IO_DEBUG,(char *)"Client Certificate required\n",NULL,0,NULL);
             break;
         default:
             log(IO_DEBUG,(char *)"Unknown Error\n",NULL,0,NULL);

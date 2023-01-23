@@ -404,7 +404,6 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     {
         ecdsa_sig_encode(CCVSIG);
     }
-
     return;
 }
 

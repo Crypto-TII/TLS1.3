@@ -198,8 +198,6 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
     return CS->len;
 }
 
-
-
 // send one or more records, maybe encrypted.
 static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush) {
 	char rh[5];
@@ -251,8 +249,6 @@ static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,
 			for (int j=0;j<5;j++)
 				session->OBUFF.val[j]=rh[j];
 
-//log(IO_PROTOCOL,(char *)"RECORD SENT ",NULL,0,&session->OBUFF);
-
 			sendOctad(session->sockptr,&session->OBUFF); // transmit it
 			OCT_kill(&session->OBUFF); // empty it
             alen=0;
@@ -263,57 +259,9 @@ static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,
 } 
 
 
-/* send one or more records, maybe encrypted.
-static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush) {
-	char rh[5];
-    for (int i=0;i<DATA->len;i++) {
-		OCT_append_byte(&session->OBUFF,DATA->val[i],1); 
-        if (session->OBUFF.len==TLS_MAX_OUTPUT_RECORD_SIZE || (i==DATA->len-1 && flush))
-        {
-			int reclen,ctlen;
-            if (!session->K_send.active) { // no encryption
-                reclen=session->OBUFF.len;
-                rh[0]=rectype;
-				rh[1]=(version/256);
-                rh[2]=(version%256);
-                rh[3]=(reclen/256);
-                rh[4]=(reclen%256);
-            } else {
-				char tag[TLS_MAX_TAG_SIZE];
-				octad TAG={0,sizeof(tag),tag};
-				int taglen=session->K_send.taglen;
-				OCT_append_byte(&session->OBUFF,rectype,1);
-#ifdef PAD_SHORT_RECORDS
-				ctlen=TLS_MAX_OUTPUT_RECORD_SIZE+1; // pad to full length - should be padded with 0s
-				session->OBUFF.len=ctlen;
-#else
-                ctlen=session->OBUFF.len; 
-#endif
-				reclen=ctlen+taglen;
-                rh[0]=APPLICATION;
-                rh[1]=(TLS1_2/256);
-                rh[2]=(TLS1_2%256);
-                rh[3]=(reclen/256);
-                rh[4]=(reclen%256);
-
-				SAL_aeadEncrypt(&session->K_send,5,rh,ctlen,&session->OBUFF.val[0],&TAG);
-				incrementCryptoContext(&session->K_send);  // increment IV
-				OCT_append_octad(&session->OBUFF,&TAG);
-            }
-			for (int j=reclen-1;j>=0;j--)
-				session->OBUFF.val[j+5]=session->OBUFF.val[j];
-			session->OBUFF.len+=5;
-			for (int j=0;j<5;j++)
-				session->OBUFF.val[j]=rh[j];
-//log(IO_PROTOCOL,(char *)"RECORD SENT ",NULL,0,&session->OBUFF);
-			sendOctad(session->sockptr,&session->OBUFF);     // transmit it
-			OCT_kill(&session->OBUFF); // empty it
-        }
-    }
-} */
-
 // ALL Client to Server output goes via this function 
 // Send a client message CM|EXT (as a single record). 
+// Only transmit (flush) on a key change, or end of pass
 void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT,bool flush)
 {
     if (session->status==TLS13_DISCONNECTED) {

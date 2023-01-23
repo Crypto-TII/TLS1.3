@@ -235,15 +235,30 @@ pub fn log_server_response(r: &RET) {
     if rtn<0 {
         match rtn {
             NOT_TLS1_3 => log(IO_DEBUG,"Not TLS1.3\n",-1,None),
-            BAD_CERT_CHAIN => log(IO_DEBUG,"Bad Certificate Chain\n",-1,None),
             ID_MISMATCH => log(IO_DEBUG,"Identity Mismatch\n",-1,None),
             UNRECOGNIZED_EXT => log(IO_DEBUG,"Unrecognized Extension\n",-1,None),
             BAD_HELLO => log(IO_DEBUG,"Malformed Hello\n",-1,None),
             WRONG_MESSAGE => log(IO_DEBUG,"Message received out-of-order\n",-1,None),
+            BAD_CERT_CHAIN => log(IO_DEBUG,"Bad Certificate Chain\n",-1,None),
             MISSING_REQUEST_CONTEXT => log(IO_DEBUG,"Missing Request Context\n",-1,None),
             AUTHENTICATION_FAILURE => log(IO_DEBUG,"Authentication Failure\n",-1,None),
             BAD_RECORD => log(IO_DEBUG,"Malformed Record received (max size exceeded?)\n",-1,None),
             BAD_TICKET => log(IO_DEBUG,"Malformed Ticket received\n",-1,None),
+            NOT_EXPECTED => log(IO_DEBUG,"Unexpected message/extension\n",-1,None),
+            CA_NOT_FOUND => log(IO_DEBUG,"Certificate Authority not found\n",-1,None),
+            CERT_OUTOFDATE => log(IO_DEBUG,"Certificate is out of date\n",-1,None),
+            MEM_OVERFLOW => log(IO_DEBUG,"Memory overflow\n",-1,None),
+	        FORBIDDEN_EXTENSION => log(IO_DEBUG,"Forbidden extension found\n",-1,None),
+	        MAX_EXCEEDED => log(IO_DEBUG,"Maximum record size exceeded\n",-1,None),
+	        EMPTY_CERT_CHAIN => log(IO_DEBUG,"Client Certificate required\n",-1,None),
+            TIME_OUT => log(IO_DEBUG,"Waited too long for response\n",-1,None),
+            ERROR_ALERT_RECEIVED => log(IO_DEBUG,"Received a fatal alert\n",-1,None),
+            CLOSURE_ALERT_RECEIVED => log(IO_DEBUG,"Received a normal closure alert\n",-1,None),
+            BAD_MESSAGE => log(IO_DEBUG,"Malformed Message received\n",-1,None),
+            BAD_HANDSHAKE => log(IO_DEBUG,"Handshake protocol failure\n",-1,None),
+            CERT_VERIFY_FAIL => log(IO_DEBUG,"Certificate verification failure\n",-1,None),
+            BAD_REQUEST_UPDATE => log(IO_DEBUG,"Bad Key update request\n",-1,None),
+            MISSING_EXTENSIONS => log(IO_DEBUG,"Some extension(s) are missing\n",-1,None),
             _ => log(IO_DEBUG,"Unknown Error\n",-1,None)
         }
     } else {

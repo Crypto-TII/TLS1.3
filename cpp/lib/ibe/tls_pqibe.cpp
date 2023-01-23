@@ -2,7 +2,7 @@
 // Lattice-based B&F IBE 128-bit API Functions 
 // Ducas et al. Method
 // Implementation by M.Scott
-//
+// For code to set up TA and issue secret keys, contact me - michael.scott@tii.ae
 
 #include <iostream>
 #include <stdlib.h>

@@ -1,4 +1,5 @@
 //! Ducas et al. lattice-based IBE
+// For code to set up TA and issue secret keys, contact me - michael.scott@tii.ae
 
 extern crate mcore;
 

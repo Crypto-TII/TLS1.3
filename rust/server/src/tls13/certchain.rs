@@ -131,8 +131,8 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     let mut ct=CERT::new();
     ct.sgt=x509::extract_cert_sig(scert,&mut ct.sig);
     *start=0;
-    *len=x509::find_cert(scert,start); // find start and length of certificate
-    let cert=&scert[*start..*start+*len];     // slice it out
+    *len=x509::find_cert(scert,start);      // find start and length of certificate
+    let cert=&scert[*start..*start+*len];   // slice it out
 
     let mut ic=x509::find_issuer(cert);
     ct.islen=create_full_name(&mut ct.issuer,cert,ic);
