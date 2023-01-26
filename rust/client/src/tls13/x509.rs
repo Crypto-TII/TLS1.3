@@ -1106,11 +1106,6 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     return get_public_key(&cc,key);
 }
 
-
-
-
-
-
 /// Extract pointer to cert inside signed cert, and return its length
 // let c=&sc[ptr..ptr+len]
 /*

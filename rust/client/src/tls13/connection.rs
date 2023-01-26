@@ -353,12 +353,15 @@ impl SESSION {
         if self.status==DISCONNECTED {
             return;
         }
-
+        let mut choice=flush;
+        if !MERGE_MESSAGES {
+            choice=true;
+        }
         if let Some(sext) = ext {
             self.send_record(rectype,version,cm,false);
-            self.send_record(rectype,version,sext,flush);
+            self.send_record(rectype,version,sext,choice);
         } else {
-            self.send_record(rectype,version,cm,flush);
+            self.send_record(rectype,version,cm,choice);
         }
 
     }   

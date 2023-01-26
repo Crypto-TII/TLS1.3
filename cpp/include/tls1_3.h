@@ -73,8 +73,11 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 // define this so that all encrypted records are padded with 0s to full length
 // #define PAD_SHORT_RECORDS		/**< Pad short output records */ 
 
-//#define PREFER_RAW_SERVER_PUBLIC_KEY   // Would be happy with raw public key from server
-//#define PREFER_RAW_CLIENT_PUBLIC_KEY   // Would prefer server to accept raw public key from client
+//#define PREFER_RAW_SERVER_PUBLIC_KEY   /**< Would be happy with raw public key from server */
+//#define PREFER_RAW_CLIENT_PUBLIC_KEY   /**< Would prefer server to accept raw public key from client */
+
+// may need to undefine this for fuzzing 
+#define MERGE_MESSAGES                  /**< allow merging of messages into single record */
 
 // *****************************************************************************
 

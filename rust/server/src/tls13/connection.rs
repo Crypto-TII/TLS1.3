@@ -410,11 +410,15 @@ impl SESSION {
             return;
         }
 
+        let mut choice=flush;
+        if !MERGE_MESSAGES {
+            choice=true;
+        }
         if let Some(sext) = ext {
             self.send_record(rectype,version,cm,false);
-            self.send_record(rectype,version,sext,flush);
+            self.send_record(rectype,version,sext,choice);
         } else {
-            self.send_record(rectype,version,cm,flush);
+            self.send_record(rectype,version,cm,choice);
         }
     }   
 
@@ -1123,7 +1127,10 @@ impl SESSION {
                     }
                 },
                 MAX_FRAG_LENGTH => {
-                    r=self.parse_int_pull(1); mfl_mode=r.val; self.max_output_record_size=1<<(8+mfl_mode); if r.err!=0 {return r;}
+                    r=self.parse_int_pull(1); mfl_mode=r.val; if r.err!=0 {return r;}
+                    if RESPECT_MAX_FRAQ_REQUEST {
+                        self.max_output_record_size=1<<(8+mfl_mode);
+                    }    
                 },
                 RECORD_SIZE_LIMIT => {
                     r=self.parse_int_pull(2); self.max_output_record_size=r.val; if r.err!=0 {return r;}
@@ -1484,7 +1491,7 @@ impl SESSION {
         }
 
 // This is experimental
-        if self.ticket_obf_age==0 { // assume its an IBE connection. Slightly dodgy way of identifying an IBE PSK
+        if self.ticket_obf_age==0 && ALLOW_IBE_PSKS { // assume its an IBE connection. Slightly dodgy way of identifying an IBE PSK
             log(IO_PROTOCOL,"Its an IBE connection\n",-1,None);
             let ticklen=self.tklen;
             let tick=&self.ticket[0..ticklen];
@@ -1831,7 +1838,6 @@ impl SESSION {
     // now send encrypted extensions
 
             self.send_encrypted_extensions(&ext[0..enclen]);
-
             if CERTIFICATE_REQUEST {  // request a client certificate?
                 log(IO_DEBUG,"Server is sending certificate request\n",-1,None);
                 self.send_certificate_request(false);  // but don't flush - there is more to come

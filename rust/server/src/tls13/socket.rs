@@ -49,6 +49,26 @@ pub fn send_bytes(stream:&mut TcpStream,buf: &[u8]) {
 //    unsafe {
 //        BYTES_WRITTEN+=buf.len();
 //    }
+/*
+let mlen=(buf[3] as usize)*256+(buf[4] as usize);
+let rlen=mlen+5;
+print!("rec= ({}) ",mlen);
+let mut plen=rlen;
+if plen>128 {
+    plen=128;
+}
+for i in 0..plen-1 {
+    print!("{},",buf[i]);
+}
+if plen<rlen {
+    print!("....");
+}
+println!("{}",buf[rlen-1]);
+
+if buf.len()!=rlen {
+    println!("OOPS!");
+}
+*/
     stream.write(buf).unwrap();
 //    unsafe {
 //        println!("BYTE_READ= {} BYTES_WRITTEN= {}",BYTES_READ,BYTES_WRITTEN);

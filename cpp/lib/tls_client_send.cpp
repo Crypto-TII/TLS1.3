@@ -268,12 +268,16 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
         return;
     }
 
+    bool choice=flush;
+#ifndef MERGE_MESSAGES
+    choice=true;
+#endif
 	if (EXT!=NULL)
 	{
 		sendRecord(session,rectype,version,CM,false);
-		sendRecord(session,rectype,version,EXT,flush);
+		sendRecord(session,rectype,version,EXT,choice);
 	} else {
-		sendRecord(session,rectype,version,CM,flush);
+		sendRecord(session,rectype,version,CM,choice);
 	} 
 }
 
