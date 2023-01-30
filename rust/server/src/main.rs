@@ -98,32 +98,36 @@ fn handle_client(stream: TcpStream,port: u16) {
         //session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
 
 // got to recv here, or we miss key update!
-
+        let mut transmit=false;
         if mslen>0 {
             log(IO_APPLICATION,"Received client message as early data\n",-1,Some(&mess[0..mslen as usize]));
+            transmit=true;
         } else { // wait for a message from client
             mslen=session.recv(Some(&mut mess));
             if mslen>=0 {
                 if mslen>0 {
                     log(IO_APPLICATION,"Received client message\n",-1,Some(&mess[0..mslen as usize]));
+                    transmit=true;
                 }
             } else { // got alert from client - just exit
                 return;
             }
         }
 
-        log(IO_APPLICATION,"Sending Application Response (truncated HTML) = ",0,Some(&post[0..40]));
-        session.send(&post[0..ptlen]);
-        session.stop();
+        if transmit {
+            log(IO_APPLICATION,"Sending Application Response (truncated HTML) = ",0,Some(&post[0..40]));
+            session.send(&post[0..ptlen]);
+        }
+        session.stop(); // send close notify - no more to come from me
 
-// ... but still open to receiving stuff .. but what if I need to send an alert in response to bad input?
-// if I receive an error alert, just end it. 
-// if its a close notify, keep listening until I get a close notify from the other side 
+// ... but still open to receiving stuff .
+
+// keep listening until I get a close notify from the other side 
 // Each party MUST send a close notify before it stops sending
 
         loop { // but wait for close-notify response from client - ignore messages
             mslen=session.recv(Some(&mut mess));
-            if mslen<0 { // hopefully close notify alert
+            if mslen<=0 { // hopefully close notify alert, or time-out
                 break;
             }
         }

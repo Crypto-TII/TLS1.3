@@ -2029,15 +2029,37 @@ impl SESSION {
         self.send_message(APPLICATION,TLS1_2,mess,None,true);       
     }
 
+// The recv() function processes records, and then returns control to the calling program only after an application record is received, or an error, or a time-out. 
+// Handshake messages are all processed internally, and the function does not return
+// Calling program can send closure alert any time it likes. We should wait for a closure response.
+// Return value of 0 means we have timed out and received nothing. Calling program should send closure alert.
+// If its an application record, return the message via a parameter, and its positive length as the return value. Calling program may then send closure alert.
+// If its an error alert record, return error. Calling program should exit.
+// If its a closure alert, respond with a closure alert and return error. Calling program should exit.
+// If its a handshake record.... Need to loop on it until all included messages processed.
+// Read in one full record at a time. Each handshake message pulls in more records until it gets to the end of its message. When I get to end of input buffer loop back for 
+// whatever is next. For CERTIFICATE keep pulling in until FINISH message received.
+// Keep reading until get to end of buffer.
+// If its a KEY_UPDATE message,
+// check for errors, if any return error code. Calling program exits.
+// if its telling me that he has updated his keys, update mine, and loop to expect more input unless end of record reached.
+// If its telling me that he has updated his keys, and I am to update mine, send him update request, update my keys, and loop to expect more input unless end of record reached.
+// If its a CERTIFICATE message
+// check for errors, if any return error code. Loop to expect CERT_VERIFY
+// If its a CERT_VERIFY message
+// check for errors, if any return error code. Loop to expect FINISH
+// If its a FINISH message
+// check for errors, if any return error code. Loop to expect more input unless end of record reached.
+// Exit handshake loop when we get to end of current record.
+// If an error is detected, send alert, return error code. Calling program should exit.
 /// Process Client records received post-handshake.
 /// Should be mostly application data, but could be more handshake data disguised as application data
-// Also keys might be updated.
+// Keys might be updated.
 // Could be post-handshake authentication from client
-// returns +ve length of message, or negative error, or 0 for a handshake
+// returns +ve length of message, or negative error, or 0 for a time-out
     pub fn recv(&mut self,mess: Option<&mut [u8]>) -> isize {
         let mut fin=false;
         let mut kind:isize;
-        let mut pending_update=false;
         let mut mslen:isize=0;
         let hash_type=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(hash_type);
@@ -2054,11 +2076,11 @@ impl SESSION {
             }
             if kind==TIMED_OUT as isize {
                 log(IO_PROTOCOL,"TIME_OUT\n",-1,None);
-                return TIME_OUT;
+                return 0;
             }
             if kind==HSHAKE as isize { // should check here for key update or certificate request
                 let mut r:RET;
-                loop {
+                loop { // get all expected handshake messages - they could all be bundled together
                     r=self.parse_int_pull(1); let nb=r.val; if r.err!=0 {break;}
                     self.ptr -= 1; // peek ahead - put it back
                     match nb as u8 {
@@ -2080,8 +2102,9 @@ impl SESSION {
                             }
                             if kur==UPDATE_REQUESTED {
                                 self.k_recv.update(&mut self.sts[0..hlen]);
-                                pending_update=true;
-                                log(IO_PROTOCOL,"Key update notified - server should do the same\n",-1,None);
+                                self.send_key_update(UPDATE_NOT_REQUESTED);  // tell client to update their receiving keys
+                                log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
+                                log(IO_PROTOCOL,"Key update notified - client should do the same\n",-1,None);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",-1,None);
                             }
                             if kur!=UPDATE_NOT_REQUESTED && kur!=UPDATE_REQUESTED {
@@ -2175,12 +2198,6 @@ impl SESSION {
                     return r.err;
                 }
             }
-            if pending_update {
-                    self.send_key_update(UPDATE_NOT_REQUESTED);  // tell client to update their receiving keys
-                    log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
-                    pending_update=false;
-                    //return 0;
-            }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iblen; // grab all of it
                 if let Some(mymess) = mess {
@@ -2200,6 +2217,7 @@ impl SESSION {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);
                 logger::log_alert(self.ibuff[1]);
                 if self.ibuff[1]==CLOSE_NOTIFY {
+                    self.stop();
                     return CLOSURE_ALERT_RECEIVED; 
                 } else {
                     return ERROR_ALERT_RECEIVED;
