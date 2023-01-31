@@ -247,3 +247,7 @@ certificate provided by the client if it is asked to authenticate.
 
 The client choice of key exchange algorithms, and their preferred ordering, is set in the sal (*tls_sal.cpp*). The chosen CRYPTO\_SETTING
 impacts on this ordering. With the default setting the X25519 elliptic curve is preferred.
+
+To test our IBE version of TLS, simply run the TiigerTLS rust server, and then
+
+	./client -i localhost
