@@ -975,18 +975,22 @@ void TLS13_send(TLS_session *state,octad *GET)
 // Should be mostly application data, but..
 // could be more handshake data disguised as application data
 // For example could include a ticket. Or key update.
-
+// returns +ve length of message, or negative error, or 0 for a time-out
 int TLS13_recv(TLS_session *session,octad *REC)
 {
     ret r;
     int nb,len,type,nticks,kur,rtn;//,ptr=0;
     bool fin=false;
     octad TICK;		// Ticket raw data
+    char fh[TLS_MAX_HASH];
+    octad FH={0,sizeof(fh),fh};  // Transcript hash
+    char chf[TLS_MAX_HASH];                           
+    octad CHF={0,sizeof(chf),chf};      // client verify
+    int hashtype=SAL_hashType(session->cipher_suite);
     TICK.len=0;
     session->ptr=0;
     nticks=0;		// number of tickets received
-	bool PENDING_KEY_UPDATE=false;
-	bool PENDING_AUTHENTICATION=false;
+    OCT_kill(REC);
     while (1)
     {
         log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
@@ -1000,7 +1004,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
         if (type==TIMED_OUT)
         {
             log(IO_PROTOCOL,(char *)"TIME_OUT\n",NULL,0,NULL);
-            return TIMED_OUT;
+            return 0;
         }
         if (type==HSHAKE)
         {
@@ -1028,12 +1032,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         log(IO_PROTOCOL,(char *)"Got a ticket with lifetime (minutes)= ",(char *)"%d",session->T.lifetime/60,NULL);
                     }
 
-                    if (session->ptr==session->IBUFF.len)
-                    {
-                        fin=true; // record finished
-                        //OCT_shift_left(&session->IBUFF,session->ptr); // rewind IO buffer
-                    }
-                    //gotaticket=true;
+                    if (session->ptr==session->IBUFF.len) fin=true; // record finished
                     if (fin) break;
                     continue;
 
@@ -1056,7 +1055,8 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     if (kur==TLS13_UPDATE_REQUESTED)
                     {
                         deriveUpdatedKeys(&session->K_recv,&session->STS);
-						PENDING_KEY_UPDATE=true;
+					    sendKeyUpdate(session,TLS13_UPDATE_NOT_REQUESTED); // tell server to update their receiving keys
+			            log(IO_PROTOCOL,(char *)"SENDING KEYS UPDATED\n",NULL,0,NULL);
                         log(IO_PROTOCOL,(char *)"Key update notified - client should do the same\n",NULL,0,NULL);
                         log(IO_PROTOCOL,(char *)"RECEIVING KEYS UPDATED\n",NULL,0,NULL);
                     }
@@ -1075,7 +1075,13 @@ int TLS13_recv(TLS_session *session,octad *REC)
 					if (badResponse(session,r)) {
 						return BAD_MESSAGE;
 					}
-					PENDING_AUTHENTICATION=true;
+					// send client credentials
+			        TLS13_client_trust(session);
+
+                    transcriptHash(session,&FH);
+// create client verify data and send it to Server
+                    deriveVeriferData(hashtype,&CHF,&session->CTS,&FH);  
+                    sendClientFinish(session,&CHF);  
                     if (session->ptr==session->IBUFF.len) fin=true; // record finished
                     if (fin) break;
                     continue;
@@ -1097,29 +1103,6 @@ int TLS13_recv(TLS_session *session,octad *REC)
 				return r.err;
 			}
         }
-		if (PENDING_KEY_UPDATE)
-		{
-			sendKeyUpdate(session,TLS13_UPDATE_NOT_REQUESTED); // tell server to update their receiving keys
-			log(IO_PROTOCOL,(char *)"SENDING KEYS UPDATED\n",NULL,0,NULL);
-            PENDING_KEY_UPDATE=false;
-		}
-#ifdef POST_HS_AUTH
-		if (PENDING_AUTHENTICATION)
-		{
-// send client credentials
-			TLS13_client_trust(session);
-            char fh[TLS_MAX_HASH];
-            octad FH={0,sizeof(fh),fh};  // Transcript hash
-            char chf[TLS_MAX_HASH];                           
-            octad CHF={0,sizeof(chf),chf};      // client verify
-            int hashtype=SAL_hashType(session->cipher_suite);
-            transcriptHash(session,&FH);
-// create client verify data and send it to Server
-            deriveVeriferData(hashtype,&CHF,&session->CTS,&FH);  
-            sendClientFinish(session,&CHF);  
-			PENDING_AUTHENTICATION=false;
-		}
-#endif
         if (type==APPLICATION)
         { // application data received - return it
             OCT_copy(REC,&session->IBUFF);
@@ -1129,10 +1112,10 @@ int TLS13_recv(TLS_session *session,octad *REC)
         {
             log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
             logAlert(session->IBUFF.val[1]);
-            if (session->IBUFF.val[1]==CLOSE_NOTIFY)
+            if (session->IBUFF.val[1]==CLOSE_NOTIFY) {
+                TLS13_stop(session);
                 return CLOSURE_ALERT_RECEIVED;
-		    else
-                return ERROR_ALERT_RECEIVED;    // Alert received
+		    } else return ERROR_ALERT_RECEIVED;    // Alert received
         }
     }
 
@@ -1144,7 +1127,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
         log(IO_PROTOCOL,(char *)"No ticket provided \n",NULL,0,NULL);
     }
 
-    return type;
+    return REC->len;
 }
 
 // clean up buffers, kill crypto keys

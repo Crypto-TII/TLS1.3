@@ -57,7 +57,7 @@ extern void TLS13_send(TLS_session *session,octad *DATA);
  *
     @param session an initialised TLS session structure
     @param DATA that has been received
-    @return 0 for failure, otherwise success
+    @return 0 for time-out, negative for error, or length of data successfully received
  */
 extern int TLS13_recv(TLS_session *session,octad *DATA);
 

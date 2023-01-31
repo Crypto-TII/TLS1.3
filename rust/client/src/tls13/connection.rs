@@ -1961,13 +1961,11 @@ impl SESSION {
 
 /// Process Server records received post-handshake. Should be mostly application data, but could be more handshake data disguised as application data
 // For example could include a ticket. Also receiving key K_recv might be updated.
-// returns +ve length of message, or negative error
+// returns +ve length of message, or negative error, or 0 for a time-out
 // Stay inside looping on Handshake messages. Exit on (a) received an application message, or (b) nothing to read 
     pub fn recv(&mut self,mess: Option<&mut [u8]>) -> isize {
         let mut fin=false;
         let mut kind:isize;
-        let mut pending_update=false;
-        let mut pending_authentication=false;
         let mut mslen:isize=0;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
@@ -1979,7 +1977,7 @@ impl SESSION {
             }
             if kind==TIMED_OUT as isize {
                 log(IO_PROTOCOL,"TIME_OUT\n",-1,None);
-                return TIME_OUT;
+                return 0;
             }
             if kind==HSHAKE as isize {
                 let mut r:RET;
@@ -2026,8 +2024,9 @@ impl SESSION {
                             }
                             if kur==UPDATE_REQUESTED {
                                 self.k_recv.update(&mut self.sts[0..hlen]);
-                                pending_update=true;
-                                log(IO_PROTOCOL,"Key update notified - client should do the same  \n",-1,None);
+                                self.send_key_update(UPDATE_NOT_REQUESTED);  
+                                log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
+                                log(IO_PROTOCOL,"Key update notified - server should do the same  \n",-1,None);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",-1,None);
                             }
                             if kur!=UPDATE_NOT_REQUESTED && kur!=UPDATE_REQUESTED {
@@ -2051,7 +2050,17 @@ impl SESSION {
                                 self.send_alert(DECODE_ERROR);
                                 return BAD_MESSAGE;
                             }
-                            pending_authentication=true;
+                            let hash_type=sal::hash_type(self.cipher_suite);
+                            let hlen=sal::hash_len(hash_type);
+                            let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
+                            let mut chf: [u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
+// send client credentials
+                            self.client_trust();
+// get transcript hash following Handshake Context+Certificate
+                            self.transcript_hash(fh_s);  
+// create client verify data and send it to Server
+                            keys::derive_verifier_data(hash_type,chf_s,&self.cts[0..hlen],fh_s);
+                            self.send_client_finish(chf_s);
 
                             if self.ptr==self.iblen { // nothing left
                                 fin=true;
@@ -2074,28 +2083,6 @@ impl SESSION {
                     return r.err;
                 }
             }
-
-            if pending_authentication { // send certificate chain, cert_verify and client finish
-                let hash_type=sal::hash_type(self.cipher_suite);
-                let hlen=sal::hash_len(hash_type);
-                let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
-                let mut chf: [u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
-// send client credentials
-                self.client_trust();
-// get transcript hash following Handshake Context+Certificate
-                self.transcript_hash(fh_s);  
-                // create client verify data and send it to Server
-                keys::derive_verifier_data(hash_type,chf_s,&self.cts[0..hlen],fh_s);
-                self.send_client_finish(chf_s);
-                pending_authentication=false;
-            }
-
-            if pending_update { // tell server to update their receiving keys
-                self.send_key_update(UPDATE_NOT_REQUESTED);  
-                log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
-                pending_update=false;
-                // dont exit yet, wait for some data
-            }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iblen;
                 if let Some(mymess) = mess {
@@ -2115,6 +2102,7 @@ impl SESSION {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);
                 logger::log_alert(self.ibuff[1]);
                 if self.ibuff[1]==CLOSE_NOTIFY {
+                    self.stop();
                     return CLOSURE_ALERT_RECEIVED; 
                 } else {
                     return ERROR_ALERT_RECEIVED;

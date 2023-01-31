@@ -423,25 +423,9 @@ fn main() {
 
             //session.send_key_update(UPDATE_NOT_REQUESTED); // maybe?
             
-            let mut rplen:isize;
-            if !localhost {
-                rplen=session.recv(Some(&mut resp));
-                if rplen>0 {
-                    log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
-                    session.stop();
-                }
-            } else {
-                loop {
-                    rplen=session.recv(Some(&mut resp));
-                    if rplen<0 { // Either problem on my side, or I got an alert
-                        break;
-                    } 
-                    if rplen>0 {
-                        log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
-                    }
-                }
-            }
-            if rplen==CLOSURE_ALERT_RECEIVED { // I am exiting voluntarily, so send close notify
+            let rplen=session.recv(Some(&mut resp));
+            if rplen>0 {
+                log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
                 session.stop();
                 session.sockptr.shutdown(Shutdown::Both).unwrap();
             }

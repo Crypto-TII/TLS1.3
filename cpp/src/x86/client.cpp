@@ -498,32 +498,14 @@ int main(int argc, char const *argv[])
     
 //printf("BYTES_READ= %d BYTES_WRITTEN= %d\n",BYTES_READ,BYTES_WRITTEN);
 
-    int rtn=0;
 // Get server response, may attach resumption ticket to session
-	if (port==443)
-	{ // its a regular website. Wait for some HTML from website, then send an alert to close it
-		rtn=TLS13_recv(session,&RESP);
-		if (rtn==APPLICATION) {
-			log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-            TLS13_stop(session);
-        }
-	}
-	if (port==4433)
-	{ // Wait for Server to end it with a close notify alert
-		for (; ; )
-		{
-			rtn=TLS13_recv(session,&RESP);
-			if (rtn<0 || rtn==TIMED_OUT)
-			{ // Either problem on my side, or I got an alert
-				break;
-			}
-			if (rtn==APPLICATION)
-				log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
-		}
-	}
-    if (rtn==CLOSURE_ALERT_RECEIVED) {
+// Wait for some HTML from website, then send an alert to close it
+    int rtn=TLS13_recv(session,&RESP);
+	if (rtn>0) {
+		log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
         TLS13_stop(session);
     }
+
 // If session collected a Ticket, store it somewhere for next time
     if (session->T.valid && !TICKET_FAILED)
         storeTicket(session);
