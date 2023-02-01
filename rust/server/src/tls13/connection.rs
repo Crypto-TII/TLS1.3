@@ -2217,13 +2217,13 @@ impl SESSION {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);
                 logger::log_alert(self.ibuff[1]);
                 if self.ibuff[1]==CLOSE_NOTIFY {
-                    self.stop();
+                    self.stop();  // send close notify
                     return CLOSURE_ALERT_RECEIVED; 
                 } else {
                     return ERROR_ALERT_RECEIVED;
                 }
             }
-            //if fin {break;}
+            // will continue to wait for some actual application data before exiting
         }
         return mslen; 
     }

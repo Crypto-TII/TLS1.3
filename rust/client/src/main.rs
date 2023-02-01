@@ -9,6 +9,7 @@ use std::fs::File;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
 use std::net::{Shutdown, TcpStream};
+use std::time::Duration;
 use tls13::connection::SESSION;
 use tls13::logger::log;
 use sal_m::sal;
@@ -332,10 +333,11 @@ fn main() {
         fullhost = &args[ip].as_str();
         host=&fullhost[0..hlen];
     }
-
+    let timeout = Duration::from_secs(3);
+ 
     match TcpStream::connect(&fullhost) {
         Ok(stream) => {
-            
+            stream.set_read_timeout(Some(timeout)).unwrap();
             log(IO_PROTOCOL,"Hostname= ",-1,Some(&host.as_bytes()));
             let mut get:[u8;256]=[0;256];
             let mut resp:[u8;40]=[0;40];
@@ -406,6 +408,7 @@ fn main() {
                     session.stop();
                     session.sockptr.shutdown(Shutdown::Both).unwrap();
                     session.sockptr=TcpStream::connect(&fullhost).unwrap();
+                    session.sockptr.set_read_timeout(Some(timeout)).unwrap();
                     if !session.connect(Some(&mut get[0..gtlen])) {
                         log(IO_APPLICATION,"TLS Handshake failed\n",-1,None);
                         session.stop();
@@ -426,9 +429,19 @@ fn main() {
             let rplen=session.recv(&mut resp);
             if rplen>0 {
                 log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
-                session.stop();
-                session.sockptr.shutdown(Shutdown::Both).unwrap();
+                session.stop(); // send close notify
+            } else {
+                return;
             }
+
+// maybe wait for close notify or something
+            //loop {
+            //    let rplen=session.recv(&mut resp);
+            //    if rplen<=0 {
+            //        break;
+            //   }
+            //}
+                    
 
             if session.t.valid && !ticket_failed {
                 store_ticket(&session,"cookie.txt");

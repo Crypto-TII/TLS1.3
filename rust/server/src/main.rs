@@ -6,6 +6,8 @@ mod config;
 
 use std::thread;
 use std::net::{TcpListener, TcpStream};
+use std::time::Duration;
+//use std::net::{Shutdown};
 use std::env;
 
 use crate::tls13::logger::log;
@@ -90,50 +92,38 @@ fn handle_client(stream: TcpStream,port: u16) {
         if session.requires_post_hs_auth() {
             println!("Sending certificate request");
             session.create_request_context();  // create a random context
-            session.send_certificate_request(true); // flush it out and wait for client authentication before issuing ticket
+            session.send_certificate_request(false); // will be bundled with resumption ticket
         }
         println!("Sending Resumption Ticket");  // maybe updated to reflect client authentication
         session.send_ticket();
         //session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
 
-// got to recv here, or we miss key update!
-        let mut transmit=false;
-        if mslen>0 { // will need some response from the client to process h/s messages, so do not exit
+// Server should only exit after it receives error or close-notify from client or times-out
+        if mslen>0 { 
             log(IO_APPLICATION,"Received client message as early data\n",-1,Some(&mess[0..mslen as usize]));
-            transmit=true;
-        } else { // wait for a message from client
+        } else { // wait for a message from client, absorb any post-handshake handshake messages
             mslen=session.recv(&mut mess);
-            if mslen>=0 {
-                if mslen>0 {
-                    log(IO_APPLICATION,"Received client message\n",-1,Some(&mess[0..mslen as usize]));
-                    transmit=true;
-                }
-            } else { // got alert from client - just exit
+            if mslen>0 {
+                log(IO_APPLICATION,"Received client message\n",-1,Some(&mess[0..mslen as usize]));
+            } else { // got alert from client - or timed out. Just exit
                 return;
             }
         }
 
-        if transmit {
-            log(IO_APPLICATION,"Sending Application Response (truncated HTML) = ",0,Some(&post[0..40]));
-            session.send(&post[0..ptlen]);
-        }
-        session.stop(); // send close notify - no more to come from me
+        log(IO_APPLICATION,"Sending Application Response (truncated HTML) = ",0,Some(&post[0..40]));
+        session.send(&post[0..ptlen]);
 
-// ... but still open to receiving stuff .
-
-// keep listening until I get a close notify from the other side 
+// ... still open to receiving stuff
+// keep listening until I get a close notify from the other side, or time out
 // Each party MUST send a close notify before it stops sending
 
-        loop { // but wait for close-notify response from client - ignore messages
+        loop { // ignore messages
             mslen=session.recv(&mut mess);
-            if mslen<=0 { // hopefully close notify alert, or time-out
+            if mslen<=0 { // should be close notify alert, or time-out
                 break;
             }
         }
-    } //else {
-        //session.stop();
-    //}
-
+    } 
 }
 
 /// Main program
@@ -221,9 +211,12 @@ fn main() {
         println!("Looking for Client Authentication");
     }
 
+    let timeout = Duration::from_secs(3);
+
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
+                stream.set_read_timeout(Some(timeout)).unwrap();
                 let port=stream.peer_addr().unwrap().port();
                 println!("\nNew connection: {}", port);
                 thread::spawn(move|| {
