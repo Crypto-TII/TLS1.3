@@ -1105,6 +1105,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
         }
         if (type==APPLICATION)
         { // application data received - return it
+			if (session->IBUFF.len==0) continue; // empty application message
             OCT_copy(REC,&session->IBUFF);
             break;
         }

@@ -295,11 +295,6 @@ pub const LOG_OUTPUT_TRUNCATION: usize= 512; // Hex digits output before truncat
 pub const X509_CERT:u8 = 0;
 pub const RAW_PUBLIC_KEY:u8 = 2;
 
-// may need to set these all to false for fuzzing 
-pub const ALLOW_IBE_PSKS: bool= true;       // allow IBE PSK connections
-pub const MERGE_MESSAGES: bool= true;       // allow merging of messages into single record
-pub const RESPECT_MAX_FRAQ_REQUEST: bool= true; // respect client request for maximum record (fragment) sizes
-
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;     // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true;     // allow self-signed server certs
@@ -312,3 +307,8 @@ pub const MAX_EARLY_DATA: usize = 1024;     // maximum amount of early data a cl
 pub const PAD_SHORT_RECORDS:bool=false;     // pad short output records
 pub const ALLOW_RAW_SERVER_PUBLIC_KEY:bool=true; // Allow raw public key from the server
 pub const ALLOW_RAW_CLIENT_PUBLIC_KEY:bool=true; // Allow client raw public key
+
+// may need to set these all to false for fuzzing 
+pub const ALLOW_IBE_PSKS: bool= true;       // allow IBE PSK connections
+pub const MERGE_MESSAGES: bool= true;       // allow merging of messages into single record
+pub const RESPECT_MAX_FRAQ_REQUEST: bool= true; // respect client request for maximum record (fragment) sizes

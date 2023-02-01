@@ -970,8 +970,8 @@ impl SESSION {
         left-=2+2*nccs;
         r=self.parse_int_pull(2); if r.err!=0 {return r;}
         left-=2;
-        if r.val!=0x0100 {
-            r.err=BAD_HELLO;
+        if r.val!=0x0100 {  // compression
+            r.err=BAD_PARAMETER;
             return r;
         }
         r=self.parse_int_pull(2); let extlen=r.val; if r.err!=0 {return r;}
@@ -998,7 +998,7 @@ impl SESSION {
         while left>0 {
             if resume {
                 log(IO_DEBUG,"Preshared Key must be last extension\n",-1,None);
-                r.err=BAD_HELLO;  
+                r.err=BAD_PARAMETER;  
                 return r;
             }
             if left<4 {r.err=BAD_HELLO; return r;} // no point in pulling on what should not be there
@@ -2057,10 +2057,10 @@ impl SESSION {
 // Keys might be updated.
 // Could be post-handshake authentication from client
 // returns +ve length of message, or negative error, or 0 for a time-out
-    pub fn recv(&mut self,mess: Option<&mut [u8]>) -> isize {
+    pub fn recv(&mut self,mess: &mut [u8]) -> isize {
         let mut fin=false;
         let mut kind:isize;
-        let mut mslen:isize=0;
+        let mut mslen:isize; 
         let hash_type=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(hash_type);
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];  // transcript hash
@@ -2200,18 +2200,18 @@ impl SESSION {
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
                 self.ptr=self.iblen; // grab all of it
-                if let Some(mymess) = mess {
-                    let mut n=mymess.len();
-                    if n>self.ptr {
-                        n=self.ptr;
-                    }
-                    for i in 0..n {
-                        mymess[i]=self.ibuff[i];
-                    }
-                    mslen=n as isize;
+                let mut n=mess.len();
+                if n>self.ptr { // truncate if not enough room for full record
+                    n=self.ptr;
                 }
+                for i in 0..n {
+                    mess[i]=self.ibuff[i];
+                }
+                mslen=n as isize;
                 self.rewind();
-                break;
+                if n>0 {  //zero length application records can happen. Just ignore them.
+                    break;
+                }
             }
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);
@@ -2223,7 +2223,7 @@ impl SESSION {
                     return ERROR_ALERT_RECEIVED;
                 }
             }
-            if fin {break;}
+            //if fin {break;}
         }
         return mslen; 
     }

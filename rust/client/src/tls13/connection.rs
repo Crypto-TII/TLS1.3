@@ -1963,10 +1963,10 @@ impl SESSION {
 // For example could include a ticket. Also receiving key K_recv might be updated.
 // returns +ve length of message, or negative error, or 0 for a time-out
 // Stay inside looping on Handshake messages. Exit on (a) received an application message, or (b) nothing to read 
-    pub fn recv(&mut self,mess: Option<&mut [u8]>) -> isize {
+    pub fn recv(&mut self,mess: &mut [u8]) -> isize {
         let mut fin=false;
         let mut kind:isize;
-        let mut mslen:isize=0;
+        let mut mslen:isize;
         loop {
             log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
             self.clean_io();
@@ -2084,19 +2084,19 @@ impl SESSION {
                 }
             }
             if kind==APPLICATION as isize{ // exit only after we receive some application data
-                self.ptr=self.iblen;
-                if let Some(mymess) = mess {
-                    let mut n=mymess.len();
-                    if n>self.ptr {
-                        n=self.ptr;
-                    }
-                    for i in 0..n {
-                        mymess[i]=self.ibuff[i];
-                    }
-                    mslen=n as isize;
+                self.ptr=self.iblen; // grab all of it
+                let mut n=mess.len();
+                if n>self.ptr { // truncate if not enough room for full record
+                    n=self.ptr;
                 }
+                for i in 0..n {
+                    mess[i]=self.ibuff[i];
+                }
+                mslen=n as isize;
                 self.rewind();
-                break;
+                if n>0 {  // zero length application records can happen. Just ignore them.
+                    break;
+                }
             }
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);

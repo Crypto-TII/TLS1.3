@@ -423,7 +423,7 @@ fn main() {
 
             //session.send_key_update(UPDATE_NOT_REQUESTED); // maybe?
             
-            let rplen=session.recv(Some(&mut resp));
+            let rplen=session.recv(&mut resp);
             if rplen>0 {
                 log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
                 session.stop();

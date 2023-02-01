@@ -294,8 +294,6 @@ pub const PSK_IBE:usize = 2;        // Using IBE based PSK
 pub const X509_CERT:u8 = 0;
 pub const RAW_PUBLIC_KEY:u8 = 2;
 
-// may need to set this to false for fuzzing 
-pub const MERGE_MESSAGES: bool= true;       // allow merging of messages into single record
 // User defined controls
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true;    // allow self-signed server certs
@@ -310,3 +308,5 @@ pub const NO_CERT_CHECKS:bool=false;       // don't check server certs
 pub const PAD_SHORT_RECORDS:bool=false;    // pad short output records
 pub const PREFER_RAW_SERVER_PUBLIC_KEY:bool=false;  // Would be happy with raw public key from server
 pub const PREFER_RAW_CLIENT_PUBLIC_KEY:bool=false;  // Would prefer server to accept raw public key from client
+// may need to set this to false for fuzzing 
+pub const MERGE_MESSAGES: bool= true;       // allow merging of messages into single record

@@ -91,7 +91,6 @@ fn handle_client(stream: TcpStream,port: u16) {
             println!("Sending certificate request");
             session.create_request_context();  // create a random context
             session.send_certificate_request(true); // flush it out and wait for client authentication before issuing ticket
-            session.recv(None);  // wait for a response before continuing
         }
         println!("Sending Resumption Ticket");  // maybe updated to reflect client authentication
         session.send_ticket();
@@ -99,11 +98,11 @@ fn handle_client(stream: TcpStream,port: u16) {
 
 // got to recv here, or we miss key update!
         let mut transmit=false;
-        if mslen>0 {
+        if mslen>0 { // will need some response from the client to process h/s messages, so do not exit
             log(IO_APPLICATION,"Received client message as early data\n",-1,Some(&mess[0..mslen as usize]));
             transmit=true;
         } else { // wait for a message from client
-            mslen=session.recv(Some(&mut mess));
+            mslen=session.recv(&mut mess);
             if mslen>=0 {
                 if mslen>0 {
                     log(IO_APPLICATION,"Received client message\n",-1,Some(&mess[0..mslen as usize]));
@@ -126,7 +125,7 @@ fn handle_client(stream: TcpStream,port: u16) {
 // Each party MUST send a close notify before it stops sending
 
         loop { // but wait for close-notify response from client - ignore messages
-            mslen=session.recv(Some(&mut mess));
+            mslen=session.recv(&mut mess);
             if mslen<=0 { // hopefully close notify alert, or time-out
                 break;
             }
