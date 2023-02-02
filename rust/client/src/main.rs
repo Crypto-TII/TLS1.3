@@ -333,7 +333,7 @@ fn main() {
         fullhost = &args[ip].as_str();
         host=&fullhost[0..hlen];
     }
-    let timeout = Duration::from_secs(3);
+    let timeout = Duration::from_secs(5);
  
     match TcpStream::connect(&fullhost) {
         Ok(stream) => {

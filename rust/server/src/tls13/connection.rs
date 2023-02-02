@@ -394,6 +394,14 @@ impl SESSION {
                     self.obuff[j]=rh[j];
                 }
                 socket::send_bytes(&mut self.sockptr,&self.obuff[0..reclen+5]);
+/*
+                if !self.k_send.active {
+                    let myrlen=(self.obuff[3] as usize)*256 + (self.obuff[4] as usize);
+                    let olen=(self.obuff[7] as usize)*256 + (self.obuff[8] as usize);
+                    if olen+4 != myrlen {
+                        println!("SCREAM SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS");
+                    }
+                } */
                 self.optr=0;
                 for j in 0..reclen+5 {
                     self.obuff[j]=0; // padding by zeros ensured, kill evidence
@@ -928,8 +936,9 @@ impl SESSION {
         r= self.parse_bytes_pull(&mut rn); if r.err!=0 {return r;}   // 32 random bytes
         left-=32;
 
-        log(IO_PROTOCOL,"Fingerprint= ",0,Some(&rn[0..6]));
+        log(IO_DEBUG,"CLient Random= ",0,Some(&rn[0..32]));
 
+        //log(IO_PROTOCOL,"Fingerprint= ",0,Some(&rn[0..6]));
         r=self.parse_int_pull(1); let cilen=r.val; if r.err!=0 {return r;}  // cilen is length of legacy ID
         if cilen>32 { // could be 0?
             r.err=BAD_HELLO;
@@ -1405,9 +1414,12 @@ impl SESSION {
 // now construct server hello (or HRR) + extensions
         let mut ptr=0;
         ptr=utils::append_byte(sh,ptr,SERVER_HELLO,1);
-        ptr=utils::append_int(sh,ptr,72+extlen,3);
+        ptr=utils::append_int(sh,ptr,40+cilen+extlen,3);
         ptr=utils::append_int(sh,ptr,TLS1_2,2);
         ptr=utils::append_bytes(sh,ptr,&rn[0..32]);
+
+        log(IO_DEBUG,"Server Random= ",0,Some(&rn[0..32]));
+
         if self.session_id[0]==0 {
             ptr=utils::append_byte(sh,ptr,0,1);
         } else {
@@ -1416,6 +1428,7 @@ impl SESSION {
         ptr=utils::append_int(sh,ptr,self.cipher_suite as usize,2);
         ptr=utils::append_int(sh,ptr,0,1); // no compression
         ptr=utils::append_int(sh,ptr,extlen,2);
+
         ptr=utils::append_bytes(sh,ptr,&ext[0..extlen]);
         *shlen=ptr;
 
@@ -1885,7 +1898,7 @@ impl SESSION {
             keys::derive_verifier_data(hash_type,shf_s,&self.sts[0..hlen],th_s);
             self.send_server_finish(shf_s);             
             self.transcript_hash(hh_s);
-            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT+SF) YYY = ",0,Some(hh_s));   
+            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT+SF) = ",0,Some(hh_s));   
     //
     //
     //
@@ -1951,8 +1964,9 @@ impl SESSION {
                         }
                         log(IO_DEBUG,"Client Cert Verification failed\n",-1,None);
                         log(IO_PROTOCOL,"Full Handshake will fail\n",-1,None);
+                    } else {
+                        log(IO_DEBUG,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));   // **** output client full name     
                     }
-                    log(IO_DEBUG,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));   // **** output client full name        
                 }
             } else {
                 for i in 0..hlen {

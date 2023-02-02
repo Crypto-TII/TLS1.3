@@ -106,7 +106,7 @@ pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes
 //pub const MAX_FRAG:usize = 4;
 //pub const MAX_RECORD:usize = 4096;               // default Maximum Record size
 
-pub const MAX_OUTPUT_RECORD_SIZE:usize = 4096;   // Max output record size
+pub const MAX_OUTPUT_RECORD_SIZE:usize = 4096;   // Max output record size (fragment size)
 pub const MAX_OBUFF_SIZE:usize = MAX_OUTPUT_RECORD_SIZE+MAX_TAG_SIZE+6; // Max output buffer size
 
 // Both of these are bumped up by PQ IBE and Hybrid

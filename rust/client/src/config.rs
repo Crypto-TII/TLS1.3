@@ -105,7 +105,7 @@ pub const MAX_COOKIE: usize = 128;               // Max Cookie size
 pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes 
 pub const MAX_TAG_SIZE:usize = 16;               // Max HMAC tag length in bytes 
 
-pub const MAX_OUTPUT_RECORD_SIZE:usize = 1024;   // Max output record size
+pub const MAX_OUTPUT_RECORD_SIZE:usize = 1024;   // Max output record size (fragment size)
 pub const MAX_OBUFF_SIZE:usize = MAX_OUTPUT_RECORD_SIZE+MAX_TAG_SIZE+6;
 
 pub const MAX_FRAG:usize = 4;                    // Request max record size - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384

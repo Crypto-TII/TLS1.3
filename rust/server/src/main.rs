@@ -211,7 +211,7 @@ fn main() {
         println!("Looking for Client Authentication");
     }
 
-    let timeout = Duration::from_secs(3);
+    let timeout = Duration::from_secs(5);
 
     for stream in listener.incoming() {
         match stream {
