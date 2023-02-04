@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 //! Main TII TLS 1.3 Configuration File for constants and structures
+// see bottom of file for user definables
 
 pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";  
 pub const DISCONNECTED: usize = 0;   // Not sending data
@@ -66,6 +67,7 @@ pub const MAX_PLAIN_FRAG: usize = 16384;
 /// Max Ciphertext Fragment size
 pub const MAX_CIPHER_FRAG: usize = 16384+256;        
 
+// Supported CRYPTO_SETTINGs
 /// ECC support only
 pub const TINY_ECC: usize = 0;   
 /// ECC + RSA support 
@@ -294,9 +296,9 @@ pub const PSK_IBE:usize = 2;        // Using IBE based PSK
 pub const X509_CERT:u8 = 0;
 pub const RAW_PUBLIC_KEY:u8 = 2;
 
-// User defined controls
+// ******************************* User defined controls ******************************************
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
-pub const ALLOW_SELF_SIGNED:bool= true;    // allow self-signed server certs
+pub const ALLOW_SELF_SIGNED:bool= true;    // allow self-signed certs
 pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting -  determines group used for initial key exchange
 pub const POST_HS_AUTH:bool= true;         // Willing to do post handshake authentication
 pub const HAVE_CLIENT_CERT:bool= true;     // client-side authentication
@@ -304,9 +306,9 @@ pub const THIS_YEAR: usize = 2023;         // Set to this year - crudely used to
 pub const TLS_PROTOCOL: bool=true;         // ALPN extension
 pub const APPLICATION_PROTOCOL:&str="http/1.1";
 pub const TRY_EARLY_DATA:bool=true;        // Try sending early data on resumption
-pub const NO_CERT_CHECKS:bool=false;       // don't check server certs
-pub const PAD_SHORT_RECORDS:bool=false;    // pad short output records
+pub const PAD_SHORT_RECORDS:bool=false;    // pad short output records - slower but safer
 pub const PREFER_RAW_SERVER_PUBLIC_KEY:bool=false;  // Would be happy with raw public key from server
 pub const PREFER_RAW_CLIENT_PUBLIC_KEY:bool=false;  // Would prefer server to accept raw public key from client
 // may need to set this to false for fuzzing 
+pub const NO_CERT_CHECKS:bool=false;       // don't check server certs
 pub const MERGE_MESSAGES: bool= true;       // allow merging of messages into single record

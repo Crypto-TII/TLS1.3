@@ -296,6 +296,35 @@ impl SESSION {
         self.t.psklen=hlen;
     }
 
+/// to bewilder the enemy - send padded zero length application record
+#[allow(dead_code)]
+    pub fn send_zero_record(&mut self) {
+        let mut rh:[u8;5]=[0;5];  // record header
+        let mut tag:[u8;MAX_TAG_SIZE]=[0;MAX_TAG_SIZE];
+        let taglen=self.k_send.taglen;
+        let ctlen=MAX_OUTPUT_RECORD_SIZE+1;
+        let reclen=ctlen+taglen;
+        rh[0]=APPLICATION;
+        rh[1]=(TLS1_2/256) as u8;
+        rh[2]=(TLS1_2%256) as u8;
+        rh[3]=(reclen/256) as u8;
+        rh[4]=(reclen%256) as u8;
+        self.obuff[5]=APPLICATION;
+        sal::aead_encrypt(&self.k_send,&rh,&mut self.obuff[5..ctlen+5],&mut tag[0..taglen]);
+        self.k_send.increment_crypto_context(); //increment iv
+        for j in 0..taglen { // append tag
+            self.obuff[ctlen+j+5]=tag[j];
+        }
+        for j in 0..5 { // prepend record header
+            self.obuff[j]=rh[j];
+        }
+        socket::send_bytes(&mut self.sockptr,&self.obuff[0..reclen+5]);
+        self.optr=0;
+        for j in 0..reclen+5 {
+            self.obuff[j]=0; // padding by zeros ensured, kill evidence
+        }
+    }
+
     /// send one or more records, maybe encrypted.
     fn send_record(&mut self,rectype: u8,version: usize,data: &[u8],flush: bool) {
         let mut rh:[u8;5]=[0;5];  // record header
@@ -1967,8 +1996,9 @@ impl SESSION {
         let mut fin=false;
         let mut kind:isize;
         let mut mslen:isize;
+        log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
         loop {
-            log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
+            //log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
             self.clean_io();
             kind=self.get_record();  // get first fragment to determine type
             if kind<0 {

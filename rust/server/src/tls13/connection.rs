@@ -284,12 +284,12 @@ impl SESSION {
 
 // Note these are flipped from the client side
 /// Create a sending crypto context
-    pub fn create_send_crypto_context(&mut self) {
+    fn create_send_crypto_context(&mut self) {
         self.k_send.init(self.cipher_suite,&self.sts);
     }
 
 /// Create a receiving crypto context
-    pub fn create_recv_crypto_context(&mut self) {
+    fn create_recv_crypto_context(&mut self) {
         self.k_recv.init(self.cipher_suite,&self.cts);
     }
 
@@ -319,7 +319,7 @@ impl SESSION {
     }
 
 /// Extract Client and Server Application Traffic secrets from Transcript Hashes, Handshake secret 
-    pub fn derive_application_secrets(&mut self,sfh: &[u8],cfh: &[u8],ems: Option<&mut [u8]>) {
+    fn derive_application_secrets(&mut self,sfh: &[u8],cfh: &[u8],ems: Option<&mut [u8]>) {
         let dr="derived";
         let ch="c ap traffic";
         let sh="s ap traffic";
@@ -410,10 +410,39 @@ impl SESSION {
         }
     }
 
+/// to bewilder the enemy - send padded zero length application record
+#[allow(dead_code)]
+    pub fn send_zero_record(&mut self) {
+        let mut rh:[u8;5]=[0;5];  // record header
+        let mut tag:[u8;MAX_TAG_SIZE]=[0;MAX_TAG_SIZE];
+        let taglen=self.k_send.taglen;
+        let ctlen=self.max_output_record_size+1;
+        let reclen=ctlen+taglen;
+        rh[0]=APPLICATION;
+        rh[1]=(TLS1_2/256) as u8;
+        rh[2]=(TLS1_2%256) as u8;
+        rh[3]=(reclen/256) as u8;
+        rh[4]=(reclen%256) as u8;
+        self.obuff[5]=APPLICATION;
+        sal::aead_encrypt(&self.k_send,&rh,&mut self.obuff[5..ctlen+5],&mut tag[0..taglen]);
+        self.k_send.increment_crypto_context(); //increment iv
+        for j in 0..taglen { // append tag
+            self.obuff[ctlen+j+5]=tag[j];
+        }
+        for j in 0..5 { // prepend record header
+            self.obuff[j]=rh[j];
+        }
+        socket::send_bytes(&mut self.sockptr,&self.obuff[0..reclen+5]);
+        self.optr=0;
+        for j in 0..reclen+5 {
+            self.obuff[j]=0; // padding by zeros ensured, kill evidence
+        }
+    }
+
 /// Send a message - broken down into multiple records.
 /// Message comes in two halves - cm and (optional) ext.
 /// flush if end of pass, or change of key
-    pub fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>,flush: bool) {
+    fn send_message(&mut self,rectype: u8,version: usize,cm: &[u8],ext: Option<&[u8]>,flush: bool) {
         if self.status==DISCONNECTED {
             return;
         }
@@ -674,7 +703,7 @@ impl SESSION {
     }
 
 /// Get client certificate chain, and check its validity. Need to get client full Identity
-    pub fn get_check_client_certificatechain(&mut self,cpk:&mut [u8],cpklen: &mut usize) -> RET {
+    fn get_check_client_certificatechain(&mut self,cpk:&mut [u8],cpklen: &mut usize) -> RET {
         //let mut ptr=0;
         let mut r=self.parse_int_pull(1); // get message type
         if r.err!=0 {return r;}
@@ -2080,8 +2109,9 @@ impl SESSION {
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];  // transcript hash
         let mut cpk: [u8; MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];       // client public key
         let mut cpklen=0;
+        log(IO_PROTOCOL,"Waiting for Client input\n",-1,None);
         loop {
-            log(IO_PROTOCOL,"Waiting for Client input\n",-1,None);
+            //log(IO_PROTOCOL,"Waiting for Client input\n",-1,None);
             self.clean_io();
             kind=self.get_record();  // get first fragment to determine type
             if kind<0 {

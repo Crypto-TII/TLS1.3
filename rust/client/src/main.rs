@@ -425,7 +425,8 @@ fn main() {
 // Get server response, may attach resumption ticket to session
 
             //session.send_key_update(UPDATE_NOT_REQUESTED); // maybe?
-            
+            //session.send_zero_record();  // to bewilder the enemy
+
             let rplen=session.recv(&mut resp);
             if rplen>0 {
                 log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));

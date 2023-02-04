@@ -97,6 +97,7 @@ fn handle_client(stream: TcpStream,port: u16) {
         println!("Sending Resumption Ticket");  // maybe updated to reflect client authentication
         session.send_ticket();
         //session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
+        //session.send_zero_record();  // to bewilder the enemy
 
 // Server should only exit after it receives error or close-notify from client or times-out
         if mslen>0 { 

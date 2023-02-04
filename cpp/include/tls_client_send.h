@@ -172,6 +172,13 @@ extern int cipherSuites(octad *CS,int ncs,int *ciphers);
  */
 extern void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT,bool flush);
 
+/**	@brief Send zero length application fragment -  to bewilder the enemy
+ *
+	@param session the TLS session structure
+ */
+extern void sendZeroRecord(TLS_session *session);
+
+
 /**	@brief Send a preshared key binder message to the Server
  *
 	@param session the TLS session structure

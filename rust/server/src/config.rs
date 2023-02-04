@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 //! Main TII TLS 1.3 Configuration File for constants and structures
+// see bottom of file for user definables
 
 pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";  
 pub const DISCONNECTED: usize = 0;
@@ -63,6 +64,7 @@ pub const MAX_PLAIN_FRAG: usize = 16384;
 /// Max Ciphertext Fragment size 
 pub const MAX_CIPHER_FRAG: usize = 16384+256;       
 
+// Supported CRYPTO_SETTINGs
 /// ECC only support only
 pub const TINY_ECC: usize = 0;  
 /// ECC + RSA support
@@ -295,19 +297,18 @@ pub const LOG_OUTPUT_TRUNCATION: usize= 512; // Hex digits output before truncat
 pub const X509_CERT:u8 = 0;
 pub const RAW_PUBLIC_KEY:u8 = 2;
 
-// User defined controls
+// ******************************* User defined controls ******************************************
 pub const VERBOSITY:usize= IO_PROTOCOL;     // Set log reporting level
-pub const ALLOW_SELF_SIGNED:bool= true;     // allow self-signed server certs
+pub const ALLOW_SELF_SIGNED:bool= true;     // allow self-signed certs
 pub const CRYPTO_SETTING: usize = TYPICAL;  // Decide on crypto setting - determines certificate chain
 pub const THIS_YEAR: usize = 2023;          // Set to this year - crudely used to deprecate old certificates       
 pub const APPLICATION_PROTOCOL:&str="http/1.1";  // ALPN extension
 pub const CERTIFICATE_REQUEST: bool=false;  // Does server require client authentication?
 pub const TICKET_LIFETIME: u32 = 86400;     // 86400 seconds in a day
 pub const MAX_EARLY_DATA: usize = 1024;     // maximum amount of early data a client can send 
-pub const PAD_SHORT_RECORDS:bool=false;     // pad short output records
+pub const PAD_SHORT_RECORDS:bool=false;     // pad short output records - slower but safer
 pub const ALLOW_RAW_SERVER_PUBLIC_KEY:bool=true; // Allow raw public key from the server
 pub const ALLOW_RAW_CLIENT_PUBLIC_KEY:bool=true; // Allow client raw public key
-
 // may need to set these all to false for fuzzing 
 pub const ALLOW_IBE_PSKS: bool= true;       // allow IBE PSK connections
 pub const MERGE_MESSAGES: bool= true;       // allow merging of messages into single record

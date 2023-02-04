@@ -198,6 +198,34 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
     return CS->len;
 }
 
+void sendZeroRecord(TLS_session *session) {
+    char rh[5];
+    char tag[TLS_MAX_TAG_SIZE];
+	octad TAG={0,sizeof(tag),tag};
+	int taglen=session->K_send.taglen;
+	int ctlen=TLS_MAX_OUTPUT_RECORD_SIZE+1;
+    int reclen=ctlen+taglen;
+    rh[0]=APPLICATION;
+    rh[1]=(TLS1_2/256);
+    rh[2]=(TLS1_2%256);
+    rh[3]=(reclen/256);
+    rh[4]=(reclen%256);
+
+    session->OBUFF.val[5]=APPLICATION;
+    session->OBUFF.len=ctlen+5;
+
+    SAL_aeadEncrypt(&session->K_send,5,rh,ctlen,&session->OBUFF.val[5],&TAG);
+    incrementCryptoContext(&session->K_send);  // increment IV
+	OCT_append_octad(&session->OBUFF,&TAG);
+
+	for (int j=0;j<5;j++)
+		session->OBUFF.val[j]=rh[j];
+
+	sendOctad(session->sockptr,&session->OBUFF); // transmit it
+	OCT_kill(&session->OBUFF); // empty it
+    session->OBUFF.len=5;
+}
+
 // send one or more records, maybe encrypted.
 static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush) {
 	char rh[5];

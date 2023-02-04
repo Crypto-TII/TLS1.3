@@ -27,7 +27,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define IO_DEBUG 3          /**< print lots of debug information + protocol progress + application progress */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application progress + bytes on the wire */
 
-// Cryptographic Environment
+// // Supported CRYPTO_SETTINGs
 #define TINY_ECC 0          /**< ECC keys only */
 #define TYPICAL 1           /**< Mixture of RSA and ECC - for use with most standard web servers */
 #define POST_QUANTUM 2      /**< Post quantum (Dilithium+Kyber?) */   

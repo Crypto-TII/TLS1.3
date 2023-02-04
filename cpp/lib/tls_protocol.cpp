@@ -991,9 +991,10 @@ int TLS13_recv(TLS_session *session,octad *REC)
     session->ptr=0;
     nticks=0;		// number of tickets received
     OCT_kill(REC);
+    log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
     while (1)
     {
-        log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
+        //log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
         OCT_kill(&session->IBUFF); session->ptr=0;
         type=getServerRecord(session);  // get first fragment to determine type
         if (type<0)

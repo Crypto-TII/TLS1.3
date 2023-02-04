@@ -496,10 +496,13 @@ int main(int argc, char const *argv[])
         }
     }
     
-//printf("BYTES_READ= %d BYTES_WRITTEN= %d\n",BYTES_READ,BYTES_WRITTEN);
+// printf("BYTES_READ= %d BYTES_WRITTEN= %d\n",BYTES_READ,BYTES_WRITTEN);
 
 // Get server response, may attach resumption ticket to session
 // Wait for some HTML from website, then send an alert to close it
+
+//    sendZeroRecord(session);  // to bewilder the enemy
+
     int rtn=TLS13_recv(session,&RESP);
 	if (rtn>0) {
 		log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
