@@ -392,7 +392,7 @@ void sendKeyUpdate(TLS_session *session,int type)
 	OCT_append_int(&UP,type,1);
 	OCT_kill(&session->IBUFF); session->ptr=0;
 	sendClientMessage(session,HSHAKE,TLS1_2,&UP,NULL,true); // sent using old keys
-	deriveUpdatedKeys(&session->K_send,&session->STS);		// now update keys
+	deriveUpdatedKeys(&session->K_send,&session->CTS);		// now update keys
     log(IO_PROTOCOL,(char *)"KEY UPDATE REQUESTED\n",NULL,0,NULL);
 }
 

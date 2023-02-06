@@ -57,6 +57,7 @@ int SAL_ciphers(int *ciphers)
     return n;
 }
 
+// IMPORTANT - Favourite group (as used in client Hello) must be placed first in list
 int SAL_groups(int *groups)
 {
     int n=0;
@@ -90,7 +91,6 @@ int SAL_groups(int *groups)
     return n;
 }
 
-// IMPORTANT - Favourite group (as used in client Hello) must be placed first in list
 int SAL_sigs(int *sigAlgs)
 {
     int n=3;

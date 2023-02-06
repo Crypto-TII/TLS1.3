@@ -557,7 +557,7 @@ impl SESSION {
         self.send_message(HSHAKE,TLS1_2,&up[0..ptr],None,true);
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
-        self.k_send.update(&mut self.sts[0..hlen]);
+        self.k_send.update(&mut self.cts[0..hlen]);
         log(IO_PROTOCOL,"KEY UPDATE REQUESTED\n",-1,None);
     }
 

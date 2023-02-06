@@ -1187,6 +1187,10 @@ impl SESSION {
                         r=self.parse_int_pull(2); if r.err!=0 {return r;}
                         client_sig_algs[i]=r.val as u16;
                     }    
+                    if !utils::check_legacy_priorities(&client_sig_algs[0..ncsa]) {
+                        r.err=BAD_PARAMETER;
+                        return r;
+                    }
                     got_sig_algs_ext=true;
                 },
                 SIG_ALGS_CERT => {
@@ -1199,7 +1203,11 @@ impl SESSION {
                     for i in 0..nccsa {
                         r=self.parse_int_pull(2); if r.err!=0 {return r;}
                         client_cert_sig_algs[i]=r.val as u16;
-                    }                     
+                    }  
+                    if !utils::check_legacy_priorities(&client_cert_sig_algs[0..nccsa]) {
+                        r.err=BAD_PARAMETER;
+                        return r;
+                    }                    
                 },
                 EARLY_DATA => {
                     if extlen!=0 {
@@ -2141,11 +2149,11 @@ impl SESSION {
                             r=self.parse_int_pull(1); let kur=r.val; if r.err!=0 {break;}
 //println!("kur= {}",kur);
                             if kur==UPDATE_NOT_REQUESTED {  // reset record number
-                                self.k_recv.update(&mut self.sts[0..hlen]);
+                                self.k_recv.update(&mut self.cts[0..hlen]);
                                 log(IO_PROTOCOL,"RECEIVING KEYS UPDATED\n",-1,None);
                             }
                             if kur==UPDATE_REQUESTED {
-                                self.k_recv.update(&mut self.sts[0..hlen]);
+                                self.k_recv.update(&mut self.cts[0..hlen]);
                                 self.send_key_update(UPDATE_NOT_REQUESTED);  // tell client to update their receiving keys
                                 log(IO_PROTOCOL,"SENDING KEYS UPDATED\n",-1,None);
                                 log(IO_PROTOCOL,"Key update notified - client should do the same\n",-1,None);

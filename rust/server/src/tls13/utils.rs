@@ -48,6 +48,23 @@ pub fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in plac
     return k;
 }
 
+ // "Clients offering these values MUST list them as the lowest priority (listed after all other algorithms in SignatureSchemeList)."
+ /// Ensure legacy algorithms are at lowest priority
+ pub fn check_legacy_priorities(algs: &[u16]) -> bool {
+    let n=algs.len();
+    let mut foundone=false;
+    for i in 0..n {
+        if (algs[i]&0xFF00) == 0x0200 { // legacy signature scheme detected
+            foundone=true;
+        } else {
+            if foundone {
+                return false; // legacy scheme was not last in list
+            }
+        }
+    }
+    return true;
+}
+
 /// Parse out slice from array m into e where ptr is a pointer into m, which increments if successful
 pub fn parse_bytes(e: &mut [u8],m: &[u8],ptr: &mut usize) -> RET {
     let mut r=RET{val:0,err:config::BAD_RECORD};
