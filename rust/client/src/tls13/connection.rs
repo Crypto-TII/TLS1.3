@@ -749,10 +749,13 @@ impl SESSION {
             r.err= MISSING_EXTENSIONS;
             return r;
         }
-        if !overlap(&sigalgs[0..nssa],&certsigalgs[0..nscsa]) {
-            log(IO_DEBUG,"Server cannot verify client certificate\n",-1,None);
-            r.err=BAD_HANDSHAKE;
-            return r;
+
+        if !HAVE_CLIENT_CERT || !overlap(&sigalgs[0..nssa],&certsigalgs[0..nscsa]) {
+// just decline by sending NULL certificate, rather than an alert
+            r.val=0;
+            //log(IO_DEBUG,"Server cannot verify client certificate\n",-1,None);
+            //r.err=BAD_HANDSHAKE;
+            //return r;
         }
         if unexp>0 {
             log(IO_DEBUG,"Unrecognized extensions received\n",-1,None);
@@ -1888,11 +1891,15 @@ impl SESSION {
         }
 
         let mut gotacertrequest=false;
-
+        let mut have_suitable_cert=false;
 // Maybe Server is requesting certificate from Client
+        
         if rtn.val == CERT_REQUEST as usize { 
             gotacertrequest=true;
             rtn=self.get_certificate_request(false);
+            if rtn.val==CERT_REQUEST as usize {
+                have_suitable_cert=true;
+            }
 //
 //
 //  <---------------------------------------------------- {Certificate Request}
@@ -1917,7 +1924,7 @@ impl SESSION {
 // Now its the clients turn to respond
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
         if gotacertrequest { // Server wants a client certificate
-            if HAVE_CLIENT_CERT { // do I have one?
+            if have_suitable_cert { // do I have one?
                 self.client_trust();
             } else {
                 self.send_client_certificate(None);
@@ -2075,17 +2082,25 @@ impl SESSION {
                                 self.send_alert(UNEXPECTED_MESSAGE);
                                 return WRONG_MESSAGE;
                             }
+                            let mut have_suitable_cert=false;
                             r=self.get_certificate_request(true);  // 
                             if self.bad_response(&r) {
                                 self.send_alert(DECODE_ERROR);
                                 return BAD_MESSAGE;
+                            }
+                            if r.val==CERT_REQUEST as usize {
+                                have_suitable_cert=true;
                             }
                             let hash_type=sal::hash_type(self.cipher_suite);
                             let hlen=sal::hash_len(hash_type);
                             let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
                             let mut chf: [u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
 // send client credentials
-                            self.client_trust();
+                            if have_suitable_cert { // do I have one?
+                                self.client_trust();
+                            } else {
+                                self.send_client_certificate(None);
+                            }
 // get transcript hash following Handshake Context+Certificate
                             self.transcript_hash(fh_s);  
 // create client verify data and send it to Server

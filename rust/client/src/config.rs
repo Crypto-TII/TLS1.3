@@ -309,6 +309,7 @@ pub const TRY_EARLY_DATA:bool=true;        // Try sending early data on resumpti
 pub const PAD_SHORT_RECORDS:bool=false;    // pad short output records - slower but safer
 pub const PREFER_RAW_SERVER_PUBLIC_KEY:bool=false;  // Would be happy with raw public key from server
 pub const PREFER_RAW_CLIENT_PUBLIC_KEY:bool=false;  // Would prefer server to accept raw public key from client
-// may need to set this to false for fuzzing 
+// may need to set this to true for fuzzing 
 pub const NO_CERT_CHECKS:bool=false;       // don't check server certs
-pub const MERGE_MESSAGES: bool= true;       // allow merging of messages into single record
+// may need to set this to false for fuzzing 
+pub const MERGE_MESSAGES: bool= true;      // allow merging of messages into single record

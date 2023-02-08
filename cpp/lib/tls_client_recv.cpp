@@ -628,19 +628,26 @@ ret getCertificateRequest(TLS_session *session,bool context)
 
 // Update Transcript hash and rewind IO buffer
     runningHashIOrewind(session);
-
+    r.val=CERT_REQUEST;
     if (nssa==0) { // must specify at least one signature algorithm
         r.err=MISSING_EXTENSIONS;
         return r;
     } 
+
+#if CLIENT_CERT == NOCERT
+    r.val=0;
+#else
+// just decline by sending NULL certificate, rather than an alert
     if (!overlap(sigalgs,nssa,certsigalgs,nscsa)) {
-        log(IO_DEBUG,(char *)"Server cannot verify client certificate\n",NULL,0,NULL);
-        r.err=BAD_HANDSHAKE;
-        return r;
+        r.val=0;
+        //log(IO_DEBUG,(char *)"Server cannot verify client certificate\n",NULL,0,NULL);
+        //r.err=BAD_HANDSHAKE;
+        //return r;
     }
+#endif
     if (unexp>0)    
         log(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);
-    r.val=CERT_REQUEST;
+
     return r;
 }
 

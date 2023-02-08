@@ -189,6 +189,7 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 // NOTE: key type can be determined from either the public key or the private key. They should be the same.
 // Here we get the type from the X.509 private key 
 // What if its a raw public key, and the private key is in hardware? The type is stored along with the cert..
+#if CLIENT_CERT != NOCERT
 int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAIN)
 {
     int i,kind,ptr,len;
@@ -286,6 +287,7 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAI
 
     return kind;
 }
+#endif
 
 // Check certificate has not expired
 // Detach signature from certificate

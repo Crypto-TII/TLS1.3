@@ -450,6 +450,7 @@ static int TLS13_server_trust(TLS_session *session)
 }
 
 // Phase 3 - client supplies trust to server, given servers list of acceptable signature types
+#if CLIENT_CERT != NOCERT
 static void TLS13_client_trust(TLS_session *session)
 {
 #ifdef SHALLOW_STACK
@@ -492,6 +493,7 @@ static void TLS13_client_trust(TLS_session *session)
     free(CLIENT_KEY.val); free(CLIENT_CERTCHAIN.val); free(CCVSIG.val);
 #endif
 }
+#endif
 
 // TLS1.3 full handshake - connect to server
 static int TLS13_full(TLS_session *session)
@@ -500,6 +502,7 @@ static int TLS13_full(TLS_session *session)
     int hashtype;
     bool resumption_required=false;
     bool gotacertrequest=false;
+    bool have_suitable_cert=false;
 
     char hh[TLS_MAX_HASH];               
     octad HH={0,sizeof(hh),hh};          // Transcript hashes  
@@ -542,6 +545,9 @@ static int TLS13_full(TLS_session *session)
             TLS13_clean(session);
             return TLS_FAILURE;
         }
+        if (rtn.val==CERT_REQUEST) {
+            have_suitable_cert=true;
+        }
         log(IO_PROTOCOL,(char *)"Certificate Request received\n",NULL,0,NULL);
     }
 
@@ -563,11 +569,11 @@ static int TLS13_full(TLS_session *session)
 
     if (gotacertrequest)
     {
-#if CLIENT_CERT != NOCERT
-        TLS13_client_trust(session);
-#else
-        sendClientCertificateChain(session,NULL);
-#endif
+        if (have_suitable_cert) {
+            TLS13_client_trust(session);
+        } else {
+            sendClientCertificateChain(session,NULL);
+        }
     } 
     transcriptHash(session,&TH);
 
@@ -981,6 +987,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
     ret r;
     int nb,len,type,nticks,kur,rtn;//,ptr=0;
     bool fin=false;
+    bool have_suitable_cert=false;
     octad TICK;		// Ticket raw data
     char fh[TLS_MAX_HASH];
     octad FH={0,sizeof(fh),fh};  // Transcript hash
@@ -1076,9 +1083,16 @@ int TLS13_recv(TLS_session *session,octad *REC)
 					if (badResponse(session,r)) {
 						return BAD_MESSAGE;
 					}
+                    have_suitable_cert=false;
+                    if (r.val==CERT_REQUEST) {
+                        have_suitable_cert=true;
+                    }
 					// send client credentials
-			        TLS13_client_trust(session);
-
+                    if (have_suitable_cert) {
+                        TLS13_client_trust(session);
+                    } else {
+                        sendClientCertificateChain(session,NULL);
+                    }
                     transcriptHash(session,&FH);
 // create client verify data and send it to Server
                     deriveVeriferData(hashtype,&CHF,&session->CTS,&FH);  
