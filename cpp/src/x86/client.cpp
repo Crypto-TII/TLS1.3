@@ -390,6 +390,8 @@ int main(int argc, char const *argv[])
  		exit(EXIT_FAILURE);
     }
 
+    printf("Local Port= %d\n",client.getport());
+
 // create new session
     TLS_session state=TLS13_start(&client,hostname);
     TLS_session *session=&state;

@@ -337,6 +337,7 @@ fn main() {
  
     match TcpStream::connect(&fullhost) {
         Ok(stream) => {
+            println!("Local Port= {}",stream.local_addr().unwrap());
             stream.set_read_timeout(Some(timeout)).unwrap();
             log(IO_PROTOCOL,"Hostname= ",-1,Some(&host.as_bytes()));
             let mut get:[u8;256]=[0;256];

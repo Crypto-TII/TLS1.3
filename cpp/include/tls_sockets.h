@@ -101,6 +101,13 @@ public:
         }
     }
 
+    int getport() {
+        struct sockaddr_in local_address;
+        socklen_t addr_size = sizeof(local_address);
+        getsockname(sock, (struct sockaddr *)&local_address, &addr_size);    
+        return ntohs(local_address.sin_port);
+    }
+
     static Socket InetSocket() {
         return Socket(false);
     }
