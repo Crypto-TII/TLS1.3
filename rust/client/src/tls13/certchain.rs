@@ -138,7 +138,7 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     ct.sblen=create_full_name(&mut ct.subject,cert,ic);
 
     if !check_cert_not_expired(cert) {
-        log(IO_DEBUG,"Certificate has expired",-1,None);
+        log(IO_DEBUG,"Certificate has expired\n",-1,None);
         ct.status=CERT_OUTOFDATE;
         return ct;
     }
