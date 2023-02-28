@@ -3,6 +3,19 @@
 use crate::tls13::utils;
 use crate::config::*;
 
+/// Build Heartbeat extension
+pub fn add_heartbeat(ext: &mut [u8],ptr: usize) -> usize {
+    let mut nptr=ptr;
+    nptr=utils::append_int(ext,nptr,HEARTBEAT,2);
+    nptr=utils::append_int(ext,nptr,1,2);
+    if PEER_CAN_HEARTBEAT {
+        nptr=utils::append_int(ext,nptr,1,1);
+    } else {
+        nptr=utils::append_int(ext,nptr,2,1);
+    }
+    return nptr; 
+}
+
 /// Add Key Share extension. Offer just one public key
 pub fn add_key_share(ext: &mut [u8],ptr: usize,alg: u16,pk: &[u8]) -> usize {
     let mut nptr=ptr;

@@ -61,6 +61,15 @@ extern void TLS13_send(TLS_session *session,octad *DATA);
  */
 extern int TLS13_recv(TLS_session *session,octad *DATA);
 
+/**	@brief TLS 1.3 receive data and check for liveness of connection
+ *
+    @param session an initialised TLS session structure
+    @param DATA that has been received
+    @return 0 for time-out, negative for error, or length of data successfully received
+ */
+extern int TLS13_recv_and_check(TLS_session *session,octad *DATA);
+
+
 /**	@brief TLS 1.3 end session, delete keys, clean up buffers
  *
     @param session an initialised TLS session structure

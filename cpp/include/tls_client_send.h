@@ -20,6 +20,13 @@
  */
 extern void sendCCCS(TLS_session *session);
 
+
+/** @brief Add Heartbeat extension 
+ *
+	@param EXT the extensions octad which is being built
+*/
+extern void addHeartbeat(octad *EXT);
+
 /**	@brief Add PreShared Key extension to under-construction Extensions Octet (omitting binder)
  *
 	@param EXT the extensions octad which is being built
@@ -161,6 +168,16 @@ extern int clientRandom(octad *RN);
  */
 extern int cipherSuites(octad *CS,int ncs,int *ciphers); 
 
+/**	@brief Send a record to server
+ *
+	@param session the TLS session structure
+    @param rectype the record type
+    @param version TLS version indication
+    @param DATA the record (message fragment) to be trasnsmitted
+    @return flush is true if record is to be sent immediately
+ */
+extern void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush);
+
 /**	@brief Send a generic client message (as a single record) to the Server
  *
 	@param session the TLS session structure
@@ -171,6 +188,12 @@ extern int cipherSuites(octad *CS,int ncs,int *ciphers);
     @param flush transmit immediately if true
  */
 extern void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,octad *EXT,bool flush);
+
+/** @brief Send a Heartbeat request record
+ *
+	@param session the TLS session structure
+ */
+extern void sendHeartbeatRequest(TLS_session *session);
 
 /**	@brief Send zero length application fragment -  to bewilder the enemy
  *

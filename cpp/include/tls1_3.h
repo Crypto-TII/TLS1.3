@@ -61,6 +61,9 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 //#define NO_CERT_CHECKS		 /**< Don't do any checks on server certs - useful for Anvil testing */
 #define TRY_EARLY_DATA           /**< Try to send early data on resumptions */
 
+//#define ENABLE_HEARTBEATS        /**< Enable heartbeats */
+//#define PEER_CAN_HEARTBEAT       /**< Allow peer to heartbeat */
+
 // Note that BUFF, Certificates and crypto keys can be quite large, and therefore maybe better taken from the heap
 // on systems with a shallow stack. Define this to use the heap.
 
@@ -263,6 +266,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define RECORD_SIZE_LIMIT 0x001c        /**< Record Size Limit */
 #define CLIENT_CERT_TYPE 0x0013         /**< Client Certificate type */
 #define SERVER_CERT_TYPE 0x0014         /**< Server Certificate type */
+#define HEARTBEAT 0x000f                /**< Heartbeat */
 
 
 // record types 
@@ -270,6 +274,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define APPLICATION 0x17                /**< Application record */
 #define ALERT 0x15                      /**< Alert record */
 #define CHANGE_CIPHER 0x14              /**< Change Cipher record */
+#define HEART_BEAT 0x18                 /**< Heart Beat Record */
 // pseudo record types
 #define TIMED_OUT 0x01                  /**< Time-out  */
 
@@ -307,6 +312,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define MAX_EXCEEDED -17				/**< Maximum record size exceeded */
 #define EMPTY_CERT_CHAIN -18            /**< Empty Certificate Message */
 #define SELF_SIGNED_CERT -20			/**< Self signed certificate */
+#define TIME_OUT -21                    /**< Time out */
 #define ERROR_ALERT_RECEIVED -22        /**< Alert has been received */
 #define BAD_MESSAGE -23                 /**< Badly formed message */
 #define CERT_VERIFY_FAIL -24            /**< Certificate Verification failure */
@@ -445,6 +451,9 @@ typedef struct
     int ptr;                /**< pointer into IBUFF buffer */
     unihash tlshash;        /**< Transcript hash recorder */
     ticket T;               /**< resumption ticket */
+	bool expect_heartbeats;  /**< Expect to receive heartbeats */
+	bool allowed_to_heartbeat; /**< Am I allowed to heartbeat? */
+	bool heartbeat_req_in_flight; /**< timestamp on outstanding request, otherwise 0 */
 } TLS_session;
 
 // IBUFF buffer

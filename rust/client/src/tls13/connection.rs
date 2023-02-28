@@ -45,7 +45,10 @@ pub struct SESSION {
     obuff: [u8;MAX_OBUFF_SIZE], // output buffer
     optr: usize,            // output buffer pointer
     tlshash: UNIHASH,       // Transcript hash recorder 
-    pub t: TICKET           // resumption ticket    
+    pub t: TICKET,          // resumption ticket    
+    pub expect_heartbeats: bool,    // Am I expecting heartbeats?
+    pub allowed_to_heartbeat: bool, // Am I allowed to heartbeat?
+    pub heartbeat_req_in_flight: bool // Outstanding request
 }
 
 /// check for overlap given server signature capabilities, and my client certificate
@@ -117,7 +120,10 @@ impl SESSION {
             obuff: [0;MAX_OBUFF_SIZE],
             optr: 0,
             tlshash:{UNIHASH{state:[0;MAX_HASH_STATE],htype:0}},
-            t: {TICKET{valid: false,tick: [0;MAX_TICKET_SIZE],nonce: [0;256],psk : [0;MAX_HASH],psklen: 0,tklen: 0,nnlen: 0,age_obfuscator: 0,max_early_data: 0,birth: 0,lifetime: 0,cipher_suite: 0,favourite_group: 0,origin: 0}}
+            t: {TICKET{valid: false,tick: [0;MAX_TICKET_SIZE],nonce: [0;256],psk : [0;MAX_HASH],psklen: 0,tklen: 0,nnlen: 0,age_obfuscator: 0,max_early_data: 0,birth: 0,lifetime: 0,cipher_suite: 0,favourite_group: 0,origin: 0}},
+            expect_heartbeats: false,        
+            allowed_to_heartbeat: false,
+            heartbeat_req_in_flight: false,
         }; 
         let dst=host.as_bytes();
         this.hlen=dst.len();
@@ -328,10 +334,11 @@ impl SESSION {
     /// send one or more records, maybe encrypted.
     fn send_record(&mut self,rectype: u8,version: usize,data: &[u8],flush: bool) {
         let mut rh:[u8;5]=[0;5];  // record header
-        for i in 0..data.len() {
+        let len=data.len();
+        for i in 0..len {
             self.obuff[self.optr+5]=data[i];
             self.optr+=1;
-            if self.optr==MAX_OUTPUT_RECORD_SIZE || (i==data.len()-1 && flush) { // block is full, or its the last one and we want to flush
+            if self.optr==MAX_OUTPUT_RECORD_SIZE || (i==len-1 && flush) { // block is full, or its the last one and we want to flush
                 let reclen:usize;
                 if !self.k_send.active { // no encryption
                     reclen=self.optr;
@@ -441,6 +448,24 @@ impl SESSION {
         self.running_hash(&b[0..ptr]);
         self.send_message(HSHAKE,TLS1_2,&b[0..ptr],None,true);
         return ptr;
+    }
+
+// send a heart-beat request record. Note my payloads are always of length 0
+// should it be encrypted? Yes
+#[allow(dead_code)]
+    pub fn send_heartbeat_request(&mut self) {
+        if self.status==DISCONNECTED || !self.allowed_to_heartbeat {
+            return;
+        }
+        let mut hb:[u8;20]=[0;20];
+        let mut ptr=0;
+        ptr=utils::append_int(&mut hb,ptr,1,1);  // heartbeat request
+        ptr=utils::append_int(&mut hb,ptr,0,2);  // zero payload
+        for _ in 0..16 {
+            ptr=utils::append_byte(&mut hb,ptr,sal::random_byte(),1);
+        }
+	    self.heartbeat_req_in_flight=true;
+        self.send_record(HEART_BEAT,TLS1_2,&hb[0..ptr],true);
     }
 
 /// check for a bad response. If not happy with what received - send alert and close. If alert received from Server, log it and close.
@@ -581,6 +606,9 @@ impl SESSION {
         if mode!=0 { // group already agreed
             nsg=1;
             groups[0]=self.favourite_group;
+        }
+        if ENABLE_HEARTBEATS {
+            extlen=extensions::add_heartbeat(ext,extlen);  // I can heartbeat if you let me
         }
         extlen=extensions::add_server_name(ext,extlen,&self.hostname,self.hlen); expected.server_name=true;
         extlen=extensions::add_supported_groups(ext,extlen,nsg,&groups);
@@ -829,7 +857,7 @@ impl SESSION {
                 return TIMED_OUT as isize;
             }
         }
-        if rh[0]!=HSHAKE && rh[0]!=APPLICATION {
+        if rh[0]!=HSHAKE && rh[0]!=APPLICATION && rh[0]!=HEART_BEAT {
             return WRONG_MESSAGE;
         }
         let left=socket::get_int16(&mut self.sockptr);
@@ -844,7 +872,7 @@ impl SESSION {
 
 // if not encrypted and rh[0] == APPLICATION, thats an error!
 
-            if rh[0]==APPLICATION {
+            if rh[0]==APPLICATION ||  rh[0]==HEART_BEAT {
                 return BAD_RECORD;
             }
 
@@ -905,6 +933,9 @@ impl SESSION {
         }
         if lb == APPLICATION {
             return APPLICATION as isize;
+        }
+        if lb == HEART_BEAT {
+            return HEART_BEAT as isize;
         }
         if lb==ALERT { // Alert record received, delete anything in IO prior to alert, and just return 2-byte alert
             self.iblen=utils::shift_left(&mut self.ibuff[0..self.iblen],pos); // rewind
@@ -1155,6 +1186,21 @@ impl SESSION {
                         return r;
                     }
                     self.max_record=mfl;
+                },
+                HEARTBEAT => {
+                    r=self.parse_int_pull(1); let hbmode=r.val; if r.err!=0 {return r;}
+                    if hbmode==0 || hbmode>2 {
+                        r.err=UNRECOGNIZED_EXT;
+                        return r;
+                    }
+			        self.expect_heartbeats=true;
+//println!("EXPECTING HEARTBEATs");
+			        if hbmode==1 {
+                        self.allowed_to_heartbeat=true;
+//println!("ALLOWED TO HEARTBEAT");
+                    } else {
+                        self.allowed_to_heartbeat=false;
+                    }
                 },
                 APP_PROTOCOL => {
                     let mut name:[u8;256]=[0;256];
@@ -2143,6 +2189,37 @@ impl SESSION {
                     break;
                 }
             }
+            if kind==HEART_BEAT as isize {
+                mslen=0;
+                let len=self.iblen;
+                let mode=self.ibuff[0] as usize;
+                let paylen=256*(self.ibuff[1] as usize)+(self.ibuff[2] as usize);
+                if len>18+paylen && len<256 { // looks OK - ignore if too large
+                    if mode==1 { // request
+                        if self.expect_heartbeats {
+                            let mut resp: [u8;256]=[0;256];
+                            resp[0]=2; // convert it to a response and bounce it back
+                            for i in 1..paylen+3 {
+                                resp[i]=self.ibuff[i];
+                            }
+                            for i in paylen+3..len {
+                                resp[i]=sal::random_byte();
+                            }
+//println!("Received heart-beat request  - sending response");
+                            self.send_record(HEART_BEAT,TLS1_2,&resp[0..len],true);
+                        }
+                    }
+                    if mode==2 { // response
+                        if self.heartbeat_req_in_flight && paylen==0 { // if I asked for one, and the payload length is zero
+                            self.heartbeat_req_in_flight=false; // reset it
+                            self.clean_io();
+//println!("Received heart-beat response");
+                            break; // better exit so link can be tested for liveness
+                        }
+                    }
+                }
+                self.clean_io();
+            }
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);
                 logger::log_alert(self.ibuff[1]);
@@ -2162,6 +2239,22 @@ impl SESSION {
         }
         return mslen; 
     }
+
+/// Send a heart-beat request, and wait for an immediate response
+#[allow(dead_code)]
+    pub fn recv_and_check(&mut self,mess: &mut [u8]) -> isize {
+        self.send_heartbeat_request();
+        let r=self.recv(mess);
+        if r!=0 { // its a regular response - return
+            return r;
+        }
+// it may be heart-beat response that has been received, or we may just have timed out
+        if self.heartbeat_req_in_flight { 
+            return TIME_OUT; // its not been reset, nothing received, line has gone dead
+        }
+        return 0; // its alive, but nothing has been received, go back and try again later
+    }
+
 /// controlled stop
     pub fn stop(&mut self) {
         self.send_alert(CLOSE_NOTIFY);

@@ -483,16 +483,16 @@ int main(int argc, char const *argv[])
             client.connect(hostname,port);
             if (!TLS13_connect(session,&GET)) // try again, this time fall back to a FULL handshake
             {  
-				log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
+                log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
                 TLS13_stop(session);
-				TLS13_end(session);
+                TLS13_end(session);
                 client.stop();
                 return 0;
             }
         } else {
-			log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
+            log(IO_APPLICATION,(char *)"TLS Handshake failed\n",NULL,0,NULL);
             TLS13_stop(session);
-			TLS13_end(session);
+            TLS13_end(session);
             client.stop();
             return 0;
         }
@@ -506,8 +506,8 @@ int main(int argc, char const *argv[])
 //    sendZeroRecord(session);  // to bewilder the enemy
 
     int rtn=TLS13_recv(session,&RESP);
-	if (rtn>0) {
-		log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
+    if (rtn>0) {
+        log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
         TLS13_stop(session);
     }
 

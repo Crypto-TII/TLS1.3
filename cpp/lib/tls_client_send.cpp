@@ -16,6 +16,18 @@ void sendCCCS(TLS_session *session)
 
 // Functions to build clientHello Extensions based on our preferences/capabilities
 
+// Build Heartbeat Extension
+void addHeartbeat(octad *EXT)
+{
+    OCT_append_int(EXT,HEARTBEAT,2);  // This extension is HEARTBEAT
+	OCT_append_int(EXT,1,2);
+#ifdef PEER_CAN_HEARTBEAT
+	OCT_append_int(EXT,1,1);  // peer can heartbeat
+#else
+	OCT_append_int(EXT,2,1);  // peer cannot heartbeat
+#endif
+}
+
 // Build Servername Extension
 void addServerNameExt(octad *EXT,char *servername)
 {
@@ -227,7 +239,7 @@ void sendZeroRecord(TLS_session *session) {
 }
 
 // send one or more records, maybe encrypted.
-static void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush) {
+void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush) {
 	char rh[5];
     int alen;
     if (session->OBUFF.len==0)
@@ -308,6 +320,25 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
 		sendRecord(session,rectype,version,CM,choice);
 	} 
 }
+
+// Send a heartbeat request record. Note my payloads are always of length 0.
+// should it be encrypted? Yes
+void sendHeartbeatRequest(TLS_session *session)
+{
+	char hb[20];
+	octad HB={0,sizeof(hb),hb};
+    if (session->status==TLS13_DISCONNECTED || !session->allowed_to_heartbeat) {
+        return;
+    }
+//printf("Sending HEART_BEAT REQ\n");
+	OCT_append_int(&HB,1,1); // heartbeat request
+	OCT_append_int(&HB,0,2); // zero payload
+	for (int i=0;i<16;i++)
+		OCT_append_int(&HB,SAL_randomByte(),1);
+	session->heartbeat_req_in_flight=true;
+	sendRecord(session,HEART_BEAT,TLS1_2,&HB,true);
+}
+
 
 // build and transmit unencrypted client hello. Append pre-prepared extensions
 void sendClientHello(TLS_session *session,int version,octad *CH,octad *CRN,bool already_agreed,octad *EXTENSIONS,int extra,bool resume,bool flush)

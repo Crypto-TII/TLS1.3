@@ -302,6 +302,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
     j += skip(len);
 
     fin = j + len;
+    if (len>SOID.max) return ret;
     SOID.len = len;
     for (i = 0; j < fin; j++)
         SOID.val[i++] = c->val[j];
@@ -316,6 +317,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         if (len < 0) return ret;
         j += skip(len);
         rlen=32;
+		if (rlen>pk->max) return ret;
         pk->len=rlen;
         for (i=0;i<rlen-len;i++)
             pk->val[i]=0;
@@ -366,16 +368,17 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         if (len < 0) return ret;
         j += skip(len);
 
+		if (len>pk->max) return ret;
         for (i=0;i<len;i++)
             pk->val[i]=c->val[j++];
 
         j=end; // skip ahead to PQ private key
         tlen=tot-j;
-
+		if (tlen+len>pk->max) return ret;
+        pk->len=tlen+len;
         for (i=0;i<tlen;i++)
             pk->val[len+i]=c->val[j++];
 
-        pk->len=tlen;
         ret.type=X509_HY;
         ret.curve=8*tlen;
     }
@@ -387,6 +390,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         j += skip(len);
 
         fin = j + len;
+        if (len>SOID.max) return ret;
         SOID.len = len;
         for (i = 0; j < fin; j++)
             SOID.val[i++] = c->val[j];
@@ -421,7 +425,11 @@ pktype X509_extract_private_key(octad *c,octad *pk)
             rlen=66;
             ret.curve = USE_NIST521;
         }
-
+        if (rlen>pk->max)
+        {
+            ret.curve=0;
+            return ret;
+        }
         pk->len=rlen;
         for (i=0;i<rlen-len;i++)
             pk->val[i]=0;
@@ -470,6 +478,8 @@ pktype X509_extract_private_key(octad *c,octad *pk)
             len--;
         }
         rlen=bround(len);
+        if (5*rlen>pk->max)
+            return ret;
         for (i=0;i<rlen-len;i++)
             pk->val[i]=0;
 
@@ -539,6 +549,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
     j += skip(len);
 
     fin = j + len;
+    if (len>SOID.max) return ret;
     SOID.len = len;
     for (i = 0; j < fin; j++)
         SOID.val[i++] = sc->val[j];
@@ -607,7 +618,11 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
     {
         rlen = bround(len);
         ex = rlen - len;
-
+        if (rlen>sig->max)
+        {
+            ret.type=0;
+            return ret;
+        }
         sig->len = rlen;
         i = 0;
         for (k = 0; k < ex; k++)
@@ -647,6 +662,11 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         rlen = bround(len);
 
         ex = rlen - len;
+        if (2*rlen>sig->max)
+        {
+            ret.type=0;
+            return ret;
+        }
         sig->len = 2 * rlen;
 
         i = 0;
@@ -690,6 +710,12 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         rlen = bround(len);
         ex = rlen - len;
 
+        if (rlen>sig->max)
+        {
+            ret.type=0;
+            return ret;
+        }
+
         sig->len = rlen;
         i = 0;
         for (k = 0; k < ex; k++)
@@ -703,6 +729,11 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
     }
     if (ret.type == X509_PQ)
     {
+        if (len>sig->max)
+        {
+            ret.type=0;
+            return ret;
+        }
         sig->len = len;
         fin = j + len;
         for (i=0; j < fin; j++)
@@ -735,6 +766,11 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         rlen=bround(len);
         ex=rlen-len;
         siglen=2*rlen;
+		if (siglen>sig->max)
+		{
+			ret.type=0;
+			return ret;
+		}
         
         slen=0;
         for (i=0;i<ex;i++)
@@ -763,7 +799,12 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
 
 // now get PQ sig
         siglen+=end-j;
-        sc->len=siglen;
+		if (siglen>sig->max)
+		{
+			ret.type=0;
+			return ret;
+		}
+        sig->len=siglen; /**/
         while (j<end)
             sig->val[slen++]=sc->val[j++];
         ret.curve=USE_NIST256;
@@ -789,6 +830,7 @@ int X509_extract_cert(octad *sc, octad *cert)
     j += skip(len);
 
     fin = j + len;
+    if (fin-k>cert->max) return 0;
     cert->len = fin - k;
     for (i = k; i < fin; i++) cert->val[i - k] = sc->val[i];
 
@@ -877,6 +919,7 @@ pktype X509_get_public_key(octad *c,octad *key)
     j += skip(len);
 
     fin = j + len;
+    if (len>KOID.max) return ret;
     KOID.len = len;
     for (i = 0; j < fin; j++)
         KOID.val[i++] = c->val[j];
@@ -902,6 +945,11 @@ pktype X509_get_public_key(octad *c,octad *key)
         j += skip(len);
 
         fin = j + len;
+        if (len>KOID.max)
+        {
+            ret.type=0;
+            return ret;
+        }
         KOID.len = len;
         for (i = 0; j < fin; j++)
             KOID.val[i++] = c->val[j];
@@ -933,6 +981,11 @@ pktype X509_get_public_key(octad *c,octad *key)
         {
             j+=4;
             len-=4;
+        }
+        if (len>key->max)
+        {
+            ret.type=0;
+            return ret;
         }
         key->len = len;
         fin = j + len;
@@ -966,7 +1019,11 @@ pktype X509_get_public_key(octad *c,octad *key)
             j++;
             len--; // remove leading zero
         }
-
+        if (len>key->max)
+        {
+            ret.type=0;
+            return ret;
+        }
         key->len = len;
         fin = j + len;
         for (i = 0; j < fin; j++)
@@ -1265,6 +1322,7 @@ int X509_find_entity_property(octad *c, octad *SOID, int start, int *flen)
         if (len < 0) return 0;
         j += skip(len);
         fin = j + len; // extract OID
+        if (len>FOID.max) return 0;
         FOID.len = len;
         for (i = 0; j < fin; j++)
             FOID.val[i++] = c->val[j];
@@ -1382,6 +1440,7 @@ int X509_find_extension(octad *c, octad *SOID, int start, int *flen)
         if (len < 0) return 0;
         j += skip(len);
         fin = j + len; // extract OID
+        if (len>FOID.max) return 0;
         FOID.len = len;
         for (i = 0; j < fin; j++)
             FOID.val[i++] = c->val[j];

@@ -133,7 +133,7 @@ int getServerRecord(TLS_session *session)
 			return TIMED_OUT;
     }
 
-    if (RH.val[0]!=HSHAKE && RH.val[0]!=APPLICATION)
+    if (RH.val[0]!=HSHAKE && RH.val[0]!=APPLICATION && RH.val[0]!=HEART_BEAT)
         return WRONG_MESSAGE;
 
     left=getInt16(session->sockptr);
@@ -148,7 +148,7 @@ int getServerRecord(TLS_session *session)
     }
     if (!session->K_recv.active)
     { // not encrypted
-		if (RH.val[0]==APPLICATION){
+		if (RH.val[0]==APPLICATION || RH.val[0]==HEART_BEAT){
 			return BAD_RECORD;
 		}
 		if (left>TLS_MAX_PLAIN_FRAG)
@@ -202,6 +202,8 @@ int getServerRecord(TLS_session *session)
         return HSHAKE;
     if (lb==APPLICATION)
         return APPLICATION;
+	if (lb==HEART_BEAT)
+		return HEART_BEAT;
     if (lb==ALERT)
     { // Disguised Alert record received, delete anything in IO prior to alert, and just return 2-byte alert
         OCT_shift_left(&session->IBUFF,pos);
@@ -346,7 +348,7 @@ ret seeWhatsNext(TLS_session *session)
 ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee_status *enc_ext_resp)
 {
     ret r;
-    int nb,left,ext,len,tlen,xlen,mfl,cct,sct;//,ptr=0;
+    int nb,left,ext,len,tlen,xlen,mfl,cct,sct,hbmode;//,ptr=0;
     int unexp=0;
 
     r=parseIntorPull(session,1);
@@ -453,6 +455,22 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
                 return r;
             } 
 			session->max_record=mfl;
+			break;
+
+		case HEARTBEAT:
+			r=parseIntorPull(session,1); hbmode=r.val; if (r.err) return r;
+			if (hbmode==0 || hbmode>2)
+			{
+                r.err=UNRECOGNIZED_EXT;
+                return r;
+			}
+//printf("EXPECTING HEARTBEATs\n");
+			session->expect_heartbeats=true;
+			if (hbmode==1) {
+//printf("ALLOWED TO HEARTBEAT\n");
+				session->allowed_to_heartbeat=true;
+			}
+			else session->allowed_to_heartbeat=false;
 			break;
 
         case APP_PROTOCOL :

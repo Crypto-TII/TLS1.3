@@ -15,6 +15,19 @@ pub fn cipher_suites(cs: &mut [u8],nsc:usize,ciphers: &[u16]) -> usize {
 
 // Functions to build clientHello Extensions based on our preferences/capabilities
 
+/// Build Heartbeat extension
+pub fn add_heartbeat(ext: &mut [u8],ptr: usize) -> usize {
+    let mut nptr=ptr;
+    nptr=utils::append_int(ext,nptr,HEARTBEAT,2);
+    nptr=utils::append_int(ext,nptr,1,2);
+    if PEER_CAN_HEARTBEAT {
+        nptr=utils::append_int(ext,nptr,1,1);
+    } else {
+        nptr=utils::append_int(ext,nptr,2,1);
+    }
+    return nptr; 
+}
+
 /// Build Servername Extension
 pub fn add_server_name(ext: &mut [u8],ptr: usize,name: &[u8],len: usize) -> usize {
     let mut nptr=ptr;

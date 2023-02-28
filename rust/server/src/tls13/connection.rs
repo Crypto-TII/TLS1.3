@@ -65,6 +65,10 @@ pub struct SESSION {
     ticket: [u8;MAX_TICKET_SIZE], //psk identity (resumption ticket)
     tklen: usize,           // psk identity length
     ticket_obf_age: u32,    // psk obfuscated age
+
+    pub expect_heartbeats: bool,    // Am I expecting heartbeats?
+    pub allowed_to_heartbeat: bool, // Am I allowed to heartbeat?
+    pub heartbeat_req_in_flight: bool // timestamp on outstanding request, otherwise 0
 }
 
 /// Do I support this group? Check with SAL..
@@ -180,6 +184,9 @@ impl SESSION {
             ticket: [0;MAX_TICKET_SIZE],
             tklen: 0,
             ticket_obf_age: 0,
+            expect_heartbeats: false,
+            allowed_to_heartbeat: false,
+            heartbeat_req_in_flight: false,
         }; 
         return this;
     }
@@ -355,10 +362,11 @@ impl SESSION {
 /// respects requests for change in max output record size
     fn send_record(&mut self,rectype: u8,version: usize,data: &[u8],flush: bool) {
         let mut rh:[u8;5]=[0;5];  // record header
-        for i in 0..data.len() {
+        let len=data.len();
+        for i in 0..len {
             self.obuff[self.optr+5]=data[i];
             self.optr+=1;
-            if self.optr==self.max_output_record_size || (i==data.len()-1 && flush) { // block is full, or its the last one and we want to flush
+            if self.optr==self.max_output_record_size || (i==len-1 && flush) { // block is full, or its the last one and we want to flush
                 let reclen:usize;
                 if !self.k_send.active { // no encryption
                     reclen=self.optr;
@@ -458,6 +466,24 @@ impl SESSION {
             self.send_record(rectype,version,cm,choice);
         }
     }   
+
+// send a heart-beat request record. Note my payloads are always of length 0
+// should it be encrypted? Yes
+#[allow(dead_code)]
+    pub fn send_heartbeat_request(&mut self) {
+        if self.status==DISCONNECTED || !self.allowed_to_heartbeat {
+            return;
+        }
+        let mut hb:[u8;20]=[0;20];
+        let mut ptr=0;
+        ptr=utils::append_int(&mut hb,ptr,1,1);  // heartbeat request
+        ptr=utils::append_int(&mut hb,ptr,0,2);  // zero payload
+        for _ in 0..16 {
+            ptr=utils::append_byte(&mut hb,ptr,sal::random_byte(),1);
+        }
+	    self.heartbeat_req_in_flight=true;
+        self.send_record(HEART_BEAT,TLS1_2,&hb[0..ptr],true);
+    }
 
 /// Check for a bad response. If not happy with what received - send alert and close. If alert received from Server, log it and close.
     fn bad_response(&mut self,r: &RET) -> bool {
@@ -834,7 +860,7 @@ impl SESSION {
                 return TIMED_OUT as isize;
             }
         }
-        if rh[0]!=HSHAKE && rh[0]!=APPLICATION { // rh[0]=0x80 means SSLv2 connection attempted - reject it
+        if rh[0]!=HSHAKE && rh[0]!=APPLICATION && rh[0]!=HEART_BEAT { // rh[0]=0x80 means SSLv2 connection attempted - reject it
             return WRONG_MESSAGE;
         }
         let left=socket::get_int16(&mut self.sockptr);
@@ -848,7 +874,7 @@ impl SESSION {
         if !self.k_recv.is_active() { // not encrypted
 
 // if not encrypted and rh[0] == APPLICATION, thats an error!
-            if rh[0]==APPLICATION {
+            if rh[0]==APPLICATION || rh[0]==HEART_BEAT {
                 return BAD_RECORD;
             }
             if left>MAX_PLAIN_FRAG {
@@ -910,6 +936,10 @@ impl SESSION {
         if lb == APPLICATION {
             return APPLICATION as isize;
         }
+        if lb == HEART_BEAT {
+            return HEART_BEAT as isize;
+        }
+
         if lb == ALERT { // Alert record received, delete anything in IO prior to alert, and just leave 2-byte alert
             self.iblen=utils::shift_left(&mut self.ibuff[0..self.iblen],pos); // rewind
             return ALERT as isize;
@@ -1169,6 +1199,21 @@ impl SESSION {
                     if RESPECT_MAX_FRAQ_REQUEST {
                         self.max_output_record_size=1<<(8+mfl_mode);
                     }    
+                },
+                HEARTBEAT => {
+                    r=self.parse_int_pull(1); let hbmode=r.val; if r.err!=0 {return r;}      
+                    if hbmode==0 || hbmode>2 {
+                        r.err=UNRECOGNIZED_EXT;
+                        return r;
+                    }
+			        self.expect_heartbeats=true;
+//println!("EXPECTING HEARTBEATs");
+			        if hbmode==1 {
+//println!("ALLOWED TO HEARTBEAT");
+                        self.allowed_to_heartbeat=true;
+                    } else {
+                        self.allowed_to_heartbeat=false;
+                    }
                 },
                 RECORD_SIZE_LIMIT => {
                     r=self.parse_int_pull(2); self.max_output_record_size=r.val; if r.err!=0 {return r;}
@@ -1472,6 +1517,9 @@ impl SESSION {
 
 // while we are here construct server extensions to be encrypted
         extlen=0;
+        if ENABLE_HEARTBEATS {
+            extlen=extensions::add_heartbeat(encext,extlen);
+        }
         if mfl_mode>0 {
             extlen=extensions::add_mfl(encext,extlen,mfl_mode);
         }
@@ -2083,7 +2131,7 @@ impl SESSION {
 // The recv() function processes records, and then returns control to the calling program only after an application record is received, or an error, or a time-out. 
 // Handshake messages are all processed internally, and the function does not return
 // Calling program can send closure alert any time it likes. We should wait for a closure response.
-// Return value of 0 means we have timed out and received nothing. Calling program should send closure alert.
+// Return value of 0 means we have received nothing and may have timed out. Calling program should send closure alert.
 // If its an application record, return the message via a parameter, and its positive length as the return value. Calling program may then send closure alert.
 // If its an error alert record, return error. Calling program should exit.
 // If its a closure alert, respond with a closure alert and return error. Calling program should exit.
@@ -2250,7 +2298,7 @@ impl SESSION {
                     return r.err;
                 }
             }
-            if kind==APPLICATION as isize{ // exit only after we receive some application data
+            if kind==APPLICATION as isize { // exit only after we receive some application data
                 self.ptr=self.iblen; // grab all of it
                 let mut n=mess.len();
                 if n>self.ptr { // truncate if not enough room for full record
@@ -2265,6 +2313,37 @@ impl SESSION {
                     break;
                 }
             }
+            if kind==HEART_BEAT as isize {
+                mslen=0;
+                let len=self.iblen;
+                let mode=self.ibuff[0] as usize;
+                let paylen=256*(self.ibuff[1] as usize)+(self.ibuff[2] as usize);
+                if len>18+paylen && len<256 { // looks OK - ignore if too large
+                    if mode==1 { // request 
+                        if self.expect_heartbeats {
+                            let mut resp: [u8;256]=[0;256];
+                            resp[0]=2; // convert it to a response and bounce it back
+                            for i in 1..paylen+3 {
+                                resp[i]=self.ibuff[i];
+                            }
+                            for i in paylen+3..len {
+                                resp[i]=sal::random_byte();
+                            }
+//println!("Received heart-beat request  - sending response");
+                            self.send_record(HEART_BEAT,TLS1_2,&resp[0..len],true);
+                        }
+                    }
+                    if mode==2 { // response
+                        if self.heartbeat_req_in_flight && paylen==0 { // if I asked for one, and the payload length is zero
+                            self.heartbeat_req_in_flight=false; // reset it
+                            self.clean_io();
+//println!("Received heart-beat response");
+                            break; // better exit so link can be tested for liveness
+                        }
+                    }
+                }
+                self.clean_io();
+            }
             if kind==ALERT as isize {
                 log(IO_PROTOCOL,"*** Alert received - ",-1,None);
                 logger::log_alert(self.ibuff[1]);
@@ -2278,6 +2357,22 @@ impl SESSION {
             // will continue to wait for some actual application data before exiting
         }
         return mslen; 
+    }
+
+/// Send a heart-beat request, and wait for an immediate response
+// if heartbeats not permitted, same as recv()
+#[allow(dead_code)]
+    pub fn recv_and_check(&mut self,mess: &mut [u8]) -> isize {
+        self.send_heartbeat_request();
+        let r=self.recv(mess);
+        if r!=0 { // its a regular response - line is alive, heartbeat response will come later and be ignored
+            return r;
+        }
+// it may be heart-beat response that has been received, or we may just have timed out
+        if self.heartbeat_req_in_flight { 
+            return TIME_OUT; // its not been reset, nothing received, line has gone dead
+        }
+        return 0; // its alive, but nothing has been received, go back and try again later
     }
 
 /// Clean up buffers, kill crypto keys

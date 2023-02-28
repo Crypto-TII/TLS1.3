@@ -34,6 +34,9 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 	state.server_cert_type=X509_CERT;					// Server Cert type (could be raw public key)
 	state.client_cert_type=X509_CERT;					// Client Cert type (could be raw public key)
     initTicketContext(&state.T);                            // Resumption ticket - may be added to session state
+	state.expect_heartbeats=false;                      // not expecting heartbeats
+	state.allowed_to_heartbeat=false;					// not allowed to heartbeat
+	state.heartbeat_req_in_flight=false;                    // timestamp on outstanding request in flight, else 0
     return state;
 }
 
@@ -63,6 +66,9 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 		groups[0]=session->favourite_group; // Only allow the group already agreed
 	}
 	OCT_kill(EXT);
+#ifdef ENABLE_HEARTBEATS
+	addHeartbeat(EXT); // I can heartbeat if you let me
+#endif
 	addServerNameExt(EXT,session->hostname); expectations->server_name=true;  // Server Name extension - acknowledgement is expected
 	addSupportedGroupsExt(EXT,nsg,groups);
 	addKeyShareExt(EXT,session->favourite_group,PK); // only sending one public key
@@ -1124,6 +1130,40 @@ int TLS13_recv(TLS_session *session,octad *REC)
             OCT_copy(REC,&session->IBUFF);
             break;
         }
+		if (type==HEART_BEAT)
+		{
+			REC->len=0;
+			int len=session->IBUFF.len;
+			int mode=session->IBUFF.val[0];
+			int paylen=256*(int)(unsigned char)session->IBUFF.val[1]+(int)(unsigned char)session->IBUFF.val[2];
+			if (len>18+paylen && len<256) { // looks OK - ignore if too large
+                if (mode==1) { // request
+                    if (session->expect_heartbeats) {
+                        char resp[256];
+						octad RESP={0,sizeof(resp),resp};
+						RESP.len=len;
+                        RESP.val[0]=2; // convert it to a response and bounce it back
+                        for (int i=1;i<paylen+3;i++) {
+                            RESP.val[i]=session->IBUFF.val[i];
+                        }
+                        for (int i=paylen+3;i<len;i++) {
+                            RESP.val[i]=SAL_randomByte();
+                        }
+//printf("Received heart-beat request  - sending response\n");
+                        sendRecord(session,HEART_BEAT,TLS1_2,&RESP,true);
+                    }
+                }
+                if (mode==2) { // response
+                    if (session->heartbeat_req_in_flight && paylen==0) { // if I asked for one, and the payload length is zero
+                        session->heartbeat_req_in_flight=false; // reset it
+                        OCT_kill(&session->IBUFF);
+//printf("Received heart-beat response\n");
+                        break; // better exit so link can be tested for liveness
+                    }
+                }
+			}
+			OCT_kill(&session->IBUFF);
+		}
         if (type==ALERT)
         {
             log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
@@ -1144,6 +1184,22 @@ int TLS13_recv(TLS_session *session,octad *REC)
     }
 
     return REC->len;
+}
+
+// Send a heart-beat request, and wait for an immediate response
+// if heartbeats not permitted, same as recv()
+int TLS13_recv_and_check(TLS_session *session,octad *REC)
+{
+    sendHeartbeatRequest(session);
+    int r=TLS13_recv(session,REC);
+    if (r!=0) { // its a regular response - line is alive, heartbeat response will come later and be ignored
+            return r;
+    }
+// it may be heart-beat response that has been received, or we may just have timed out
+    if (session->heartbeat_req_in_flight) { // its not been reset, nothing received, line has gone dead
+        return TIME_OUT;
+    }
+    return 0; // its alive, but nothing has been received
 }
 
 // clean up buffers, kill crypto keys

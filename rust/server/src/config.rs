@@ -167,6 +167,7 @@ pub const APP_PROTOCOL:usize = 0x0010;            // Application Layer Protocol 
 pub const RECORD_SIZE_LIMIT:usize = 0x001c;       // Record Size Limit 
 pub const CLIENT_CERT_TYPE:usize = 0x0013;        // Client Certificate type
 pub const SERVER_CERT_TYPE:usize = 0x0014;        // Server Certificate type
+pub const HEARTBEAT:usize = 0x000f;                // Heartbeat
 
 // pre-shared Key (PSK) modes 
 //pub const PSKOK:usize = 0x00;                   // Preshared Key only mode 
@@ -208,6 +209,7 @@ pub const HSHAKE:u8= 0x16;                        // Handshake record
 pub const APPLICATION:u8=  0x17;                  // Application record 
 pub const ALERT:u8=  0x15;                        // Alert record 
 pub const CHANGE_CIPHER:u8=  0x14;                // Change Cipher record 
+pub const HEART_BEAT:u8= 0x18;                    // Heart Beat
 // pseudo record types
 pub const TIMED_OUT:u8=  0x01;                    // Time-out  
 
@@ -313,3 +315,5 @@ pub const ALLOW_RAW_CLIENT_PUBLIC_KEY:bool=true; // Allow client raw public key
 pub const ALLOW_IBE_PSKS: bool= true;       // allow IBE PSK connections
 pub const MERGE_MESSAGES: bool= true;       // allow merging of messages into single record
 pub const RESPECT_MAX_FRAQ_REQUEST: bool= true; // respect client request for maximum record (fragment) sizes
+pub const ENABLE_HEARTBEATS: bool= false; // Enable heart-beats
+pub const PEER_CAN_HEARTBEAT: bool=true;   // allow peer to heartbeat
