@@ -1197,9 +1197,10 @@ int TLS13_recv_and_check(TLS_session *session,octad *REC)
     }
 // it may be heart-beat response that has been received, or we may just have timed out
     if (session->heartbeat_req_in_flight) { // its not been reset, nothing received, line has gone dead
+        session->status=TLS13_DISCONNECTED;
         return TIME_OUT;
     }
-    return 0; // its alive, but nothing has been received
+    return 0; // its alive, but nothing has been received. This parrot is not dead, its just resting.
 }
 
 // clean up buffers, kill crypto keys

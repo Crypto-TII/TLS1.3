@@ -327,7 +327,7 @@ void sendHeartbeatRequest(TLS_session *session)
 {
 	char hb[20];
 	octad HB={0,sizeof(hb),hb};
-    if (session->status==TLS13_DISCONNECTED || !session->allowed_to_heartbeat) {
+    if (session->status==TLS13_DISCONNECTED || !session->allowed_to_heartbeat || session->heartbeat_req_in_flight) {
         return;
     }
 //printf("Sending HEART_BEAT REQ\n");

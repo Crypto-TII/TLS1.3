@@ -454,7 +454,7 @@ impl SESSION {
 // should it be encrypted? Yes
 #[allow(dead_code)]
     pub fn send_heartbeat_request(&mut self) {
-        if self.status==DISCONNECTED || !self.allowed_to_heartbeat {
+        if self.status==DISCONNECTED || !self.allowed_to_heartbeat  || self.heartbeat_req_in_flight {
             return;
         }
         let mut hb:[u8;20]=[0;20];
@@ -2250,9 +2250,10 @@ impl SESSION {
         }
 // it may be heart-beat response that has been received, or we may just have timed out
         if self.heartbeat_req_in_flight { 
+            self.status=DISCONNECTED;
             return TIME_OUT; // its not been reset, nothing received, line has gone dead
         }
-        return 0; // its alive, but nothing has been received, go back and try again later
+        return 0; // its alive, but nothing has been received, go back and try again later. This parrot is not dead, its just resting.
     }
 
 /// controlled stop
