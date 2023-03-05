@@ -75,7 +75,7 @@ const DILITHIUM3:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 
 const HYBRID:[u8;6]=[0x2B, 0xCE, 0x0F, 0x02, 0x07, 0x01];
 // Cert details
 
-//pub const CN:[u8;3]=[0x55, 0x04, 0x06]; // countryName
+pub const CN:[u8;3]=[0x55, 0x04, 0x06]; // countryName
 //pub const SN:[u8;3]=[0x55, 0x04, 0x08]; // stateName
 //pub const LN:[u8;3]=[0x55, 0x04, 0x07]; // localName
 pub const ON:[u8;3]=[0x55, 0x04, 0x0A]; // orgName
@@ -1416,21 +1416,22 @@ pub fn extract_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
 }
 */
 /// Find certificate issuer
-pub fn find_issuer(c: &[u8]) -> usize {
+pub fn find_issuer(c: &[u8]) -> FDTYPE {
     let mut j:usize=0;
+    let mut ret=FDTYPE::new();
     let mut len=getalen(SEQ,c,j);
     if len==0 {
-        return 0;
+        return ret;
     }
     j += skip(len); 
 
     if len+j!=c.len() {
-        return 0;
+        return ret;
     }
 
     len=getalen(ANY,c,j);
     if len==0 {
-        return 0;
+        return ret;
     }
     j += skip(len)+len; // jump over version clause
     
@@ -1441,51 +1442,65 @@ pub fn find_issuer(c: &[u8]) -> usize {
 
     len=getalen(SEQ,c,j);
     if len==0 {
-        return 0;
+        return ret;
     }
     j += skip(len) + len; // jump over signature algorithm
 
-    return j;
+    len=getalen(SEQ,c,j);
+    ret.index=j;
+    ret.length=len+skip(len);
+
+    return ret;
 }
 
 /// Find certificate validity
 pub fn find_validity(c: &[u8]) -> usize {
-    let mut j=find_issuer(c);
-    let len=getalen(SEQ,c,j);
-    if len==0 {
-        return 0;
-    }
-    j+=skip(len)+len; // skip issuer
+    let pos=find_issuer(c); 
+    let j=pos.index+pos.length; // skip issuer
+    //let len=getalen(SEQ,c,j);
+    //if len==0 {
+    //    return 0;
+    //}
+    //j+=skip(len)+len; // skip issuer
     return j;
 }
 
 /// Find certificate subject
-pub fn find_subject(c: &[u8]) -> usize {
+pub fn find_subject(c: &[u8]) -> FDTYPE {
     let mut j=find_validity(c);
-    let len=getalen(SEQ,c,j);
+    let mut ret=FDTYPE::new();
+    let mut len=getalen(SEQ,c,j);
     if len==0 {
-        return 0;
+        return ret;
     }
     j+=skip(len)+len; // skip validity
-    return j;
+
+    len=getalen(SEQ,c,j);
+    ret.index=j;
+    ret.length=len+skip(len);
+
+    return ret;
 }
 
 /// Check for self-signed certificate
 #[allow(dead_code)]
 pub fn self_signed(c: &[u8]) -> bool {
-    let mut ksub=find_subject(c);
-    let mut kiss=find_issuer(c);
+    let ksub=find_subject(c);
+    let kiss=find_issuer(c);
 
-    let sublen=getalen(SEQ,c,ksub);
-    let isslen=getalen(SEQ,c,kiss);
-    if sublen != isslen {
+    if ksub.length!=kiss.length {
         return false;
     }
-    ksub+=skip(sublen);
-    kiss+=skip(isslen);
+    //let sublen=getalen(SEQ,c,ksub);
+    //let isslen=getalen(SEQ,c,kiss);
+    //if sublen != isslen {
+    //    return false;
+    //}
+    //ksub+=skip(sublen);
+    //kiss+=skip(isslen);
     let mut m:u8=0;
-    for i in 0..sublen {
-        m |= c[i+ksub]-c[i+kiss];
+    for i in 0..ksub.length {
+        m |= c[i+ksub.index]-c[i+kiss.index];
     }
     if m!=0 {
         return false;
@@ -1608,15 +1623,15 @@ pub fn find_expiry_date(c: &[u8],start: usize) -> usize {
 
 /// Find certificate extensions
 pub fn find_extensions(c: &[u8]) -> usize {
-    let mut j=find_subject(c);
+    let pos=find_subject(c);
+    let mut j=pos.index+pos.length; // skip subject
+//    let mut len=getalen(SEQ,c,j);
+//    if len==0 {
+//        return 0;
+//    }
+//    j+=skip(len)+len; // skip subject
 
-    let mut len=getalen(SEQ,c,j);
-    if len==0 {
-        return 0;
-    }
-    j+=skip(len)+len; // skip subject
-
-    len=getalen(SEQ,c,j);
+    let len=getalen(SEQ,c,j);
     if len==0 {
         return 0;
     }

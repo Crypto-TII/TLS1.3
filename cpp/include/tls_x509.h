@@ -123,9 +123,10 @@ extern pktype X509_extract_public_key(octad *c, octad *k);
 /** @brief
  *
 	@param c an X.509 certificate
+    @param len length of issuer field
 	@return 0 on failure, or pointer to issuer field in cert
 */
-extern int X509_find_issuer(octad *c);
+extern int X509_find_issuer(octad *c,int *len);
 /** @brief
  *
 	@param c an X.509 certificate
@@ -135,9 +136,10 @@ extern int X509_find_validity(octad *c);
 /** @brief
  *
 	@param c an X.509 certificate
+    @param len length of suject field
 	@return 0 on failure, or pointer to subject field in cert
 */
-extern int X509_find_subject(octad *c);
+extern int X509_find_subject(octad *c,int *len);
 
 /** @brief
  *

@@ -111,12 +111,12 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
  #define TLS_MAX_CERT_B64 2800        /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 1024           /**< Max client hello size (less extensions) KEX public key is largest component */
 
- #define TLS_MAX_SIG_PUB_KEY_SIZE 512        /**< Max signature public key size in bytes		RSA */
- #define TLS_MAX_SIG_SECRET_KEY_SIZE 512     /**< Max signature private key size in bytes       RSA */
- #define TLS_MAX_SIGNATURE_SIZE 512          /**< Max digital signature size in bytes           RSA */
- #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes		ECC */
- #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        ECC */
- #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    ECC */
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 512        /**< Max signature public key size in bytes		4096-bit RSA */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE 1280    /**< Max signature private key size in bytes       4096-bit RSA */
+ #define TLS_MAX_SIGNATURE_SIZE 512          /**< Max digital signature size in bytes           4096-bit RSA */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes		384-bit ECC */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        384-bit ECC */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    384-bit ECC */
 #endif
 
 #if CRYPTO_SETTING == POST_QUANTUM

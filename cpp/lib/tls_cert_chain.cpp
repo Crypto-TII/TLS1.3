@@ -4,9 +4,13 @@
 
 #include "tls_cert_chain.h"
 
-// combine Common Name, Organisation Name and Unit Name to make unique determination
-static void createFullName(octad *FN,octad *CERT,int ic)
+// extract Distinguished Name
+static void createFullName(octad *FN,octad *CERT,int ic,int len)
 {
+    OCT_kill(FN);
+    OCT_append_bytes(FN,&CERT->val[ic],len);
+
+/*
     int c,len;
     OCT_kill(FN);
     c=X509_find_entity_property(CERT,&X509_MN,ic,&len);
@@ -16,7 +20,7 @@ static void createFullName(octad *FN,octad *CERT,int ic)
     OCT_append_bytes(FN,&CERT->val[c],len);
     OCT_append_byte(FN,'/',1);
     c=X509_find_entity_property(CERT,&X509_UN,ic,&len);
-    OCT_append_bytes(FN,&CERT->val[c],len);
+    OCT_append_bytes(FN,&CERT->val[c],len); */
 }
 
 // read a line of base64
@@ -91,8 +95,8 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
         OCT_from_base64(&SC,b);
         X509_extract_cert(&SC, &SC);  // extract Cert from Signed Cert
 
-        int ic = X509_find_issuer(&SC);
-        createFullName(&OWNER,&SC,ic);
+        int ic = X509_find_issuer(&SC,&len);
+        createFullName(&OWNER,&SC,ic,len);
 
         if (!checkCertNotExpired(&SC))
         { // Its expired!
@@ -123,16 +127,16 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
 // strip signature off certificate. Return signature type
 static pktype stripDownCert(octad *CERT,octad *SIG,octad *ISSUER,octad *SUBJECT)
 {
-    int ic;
+    int ic,len;
 
     pktype sg=X509_extract_cert_sig(CERT,SIG);
     X509_extract_cert(CERT,CERT);  // modifies CERT which is in the IO buffer!
 
-    ic = X509_find_issuer(CERT);
-    createFullName(ISSUER,CERT,ic);
+    ic = X509_find_issuer(CERT,&len);
+    createFullName(ISSUER,CERT,ic,len);
 
-    ic = X509_find_subject(CERT);
-    createFullName(SUBJECT,CERT,ic);
+    ic = X509_find_subject(CERT,&len);
+    createFullName(SUBJECT,CERT,ic,len);
 
     return sg;
 }
@@ -263,6 +267,7 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAI
 		getSigRequirements(clientCertReqs);
 		return clientCertReqs[0];
 	}
+
 
 // figure out kind of signature client can apply - will be tested against client capabilities
 // Note that no hash type is specified - its just a private key, no algorithm specified

@@ -2091,7 +2091,9 @@ impl SESSION {
             log(IO_PROTOCOL,"Client Data is NOT verified\n",-1,None);
         } else {
             if self.cidlen>0 { // got an identity
-                log(IO_PROTOCOL,"Client Authenticated Identity - ",-1,Some(&self.clientid[0..self.cidlen]));
+                let mut dn:[u8;256]=[0;256];
+                let n=utils::make_dn(&mut dn,&self.clientid[0..self.cidlen]);
+                log(IO_PROTOCOL,"Client Authenticated Identity - ",-1,Some(&dn[0..n]));
                 self.client_authenticated=true;
             }
         }
@@ -2273,7 +2275,9 @@ impl SESSION {
                             }
 
                             if self.cidlen>0 {
-                                log(IO_PROTOCOL,"Client Authenticated Identity - ",-1,Some(&self.clientid[0..self.cidlen])); 
+                                let mut dn:[u8;256]=[0;256];
+                                let n=utils::make_dn(&mut dn,&self.clientid[0..self.cidlen]);
+                                log(IO_PROTOCOL,"Client Authenticated Identity - ",-1,Some(&dn[0..n])); 
                                 self.client_authenticated=true;
                             }
 

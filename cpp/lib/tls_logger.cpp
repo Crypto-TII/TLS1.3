@@ -260,6 +260,37 @@ void logCert(octad *CERT)
     log(IO_DEBUG,(char *)"-----END CERTIFICATE----- \n",NULL,0,NULL);
 }
 
+// Construct Distinguished Name from DER encoding
+static int make_dn(octad *DN,octad *DER) {
+    int i,c,len,n=0;
+    DN->val[n++]='{';
+    c=X509_find_entity_property(DER,&X509_MN,0,&len);
+    for (i=0;i<len;i++) {
+        DN->val[n++]=DER->val[c+i];
+    }
+
+    DN->val[n++]=',';
+    c=X509_find_entity_property(DER,&X509_UN,0,&len);
+    for (i=0;i<len;i++) {
+        DN->val[n++]=DER->val[c+i];
+    }
+
+    DN->val[n++]=',';
+    c=X509_find_entity_property(DER,&X509_ON,0,&len);
+    for (i=0;i<len;i++) {
+        DN->val[n++]=DER->val[c+i];
+    }
+
+    DN->val[n++]=',';
+    c=X509_find_entity_property(DER,&X509_CN,0,&len);
+    for (i=0;i<len;i++) {
+        DN->val[n++]=DER->val[c+i];
+    }
+    DN->val[n++]='}';
+    DN->val[n++]=0;
+    DN->len=n;
+    return n;
+}
 
 // log certificate details
 void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT)
@@ -297,8 +328,15 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
     if (pk.type==X509_RSA)
         log(IO_DEBUG,(char *)"Certificate public key is RSA of length ",(char *)"%d",pk.curve,NULL);
     
-    log(IO_DEBUG,(char *)"Issuer is  ",(char *)ISSUER->val,0,NULL);
-    log(IO_DEBUG,(char *)"Subject is ",(char *)SUBJECT->val,0,NULL);
+    char dn[256];
+    octad DN={0,sizeof(dn),dn};
+    make_dn(&DN,ISSUER);
+
+    log(IO_DEBUG,(char *)"Issuer is  ",(char *)DN.val,0,NULL);
+    make_dn(&DN,SUBJECT);
+    log(IO_DEBUG,(char *)"Subject is ",(char *)DN.val,0,NULL);
+    //log(IO_DEBUG,(char *)"Issuer is  ",(char *)ISSUER->val,0,NULL);
+    //log(IO_DEBUG,(char *)"Subject is ",(char *)SUBJECT->val,0,NULL);
 #endif
 }
 

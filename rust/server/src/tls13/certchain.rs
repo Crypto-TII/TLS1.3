@@ -40,7 +40,10 @@ impl CERT {
 }
 
 /// Combine Common Name, Organisation Name and Unit Name to make unique determination
-fn create_full_name(fullname: &mut [u8],cert: &[u8],ic: usize) -> usize {
+fn create_full_name(fullname: &mut [u8],cert: &[u8],ic: usize,len: usize) -> usize {
+    let mut ptr=0;
+    ptr=utils::append_bytes(fullname,ptr,&cert[ic..ic+len]);
+/*
     let mut ptr=0;
     let mut ep=x509::find_entity_property(cert,&x509::MN,ic);
     ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]);
@@ -49,7 +52,7 @@ fn create_full_name(fullname: &mut [u8],cert: &[u8],ic: usize) -> usize {
     ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]);
     ptr=utils::append_byte(fullname,ptr,'/' as u8,1);
     ep=x509::find_entity_property(cert,&x509::UN,ic);
-    ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]);
+    ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]); */
     return ptr;
 }
 
@@ -75,8 +78,9 @@ fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bo
         let mut start=0;
         let len=x509::find_cert(&sc[0..sclen],&mut start);
         let cert=&sc[start..start+len];
-        let ic=x509::find_issuer(&cert);
-        let wlen=create_full_name(&mut owner,cert,ic);
+        let ret=x509::find_issuer(&cert);
+        //let ic=ret.index;
+        let wlen=create_full_name(&mut owner,cert,ret.index,ret.length);
         if !check_cert_not_expired(&cert) {
             continue;
         }
@@ -134,10 +138,13 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     *len=x509::find_cert(scert,start);      // find start and length of certificate
     let cert=&scert[*start..*start+*len];   // slice it out
 
-    let mut ic=x509::find_issuer(cert);
-    ct.islen=create_full_name(&mut ct.issuer,cert,ic);
-    ic=x509::find_subject(cert);
-    ct.sblen=create_full_name(&mut ct.subject,cert,ic);
+    let mut ret=x509::find_issuer(cert);
+    //let mut ic=ret.index;
+    ct.islen=create_full_name(&mut ct.issuer,cert,ret.index,ret.length);
+
+    ret=x509::find_subject(cert);
+    //ic=ret.index;
+    ct.sblen=create_full_name(&mut ct.subject,cert,ret.index,ret.length);
 
     if !check_cert_not_expired(cert) {
         log(IO_DEBUG,"Certificate has expired\n",-1,None);

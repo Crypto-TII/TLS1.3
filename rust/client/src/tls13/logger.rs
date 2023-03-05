@@ -147,6 +147,8 @@ pub fn log_enc_ext(expected: &EESTATUS,response: &EESTATUS) {
     }
 }
 
+
+
 /// Log certificate details
 pub fn log_cert_details(d: &CERT)
 {
@@ -187,8 +189,19 @@ pub fn log_cert_details(d: &CERT)
     if d.pkt.kind==x509::RSA {
         log(IO_DEBUG,"Certificate public key is RSA of length ",d.pkt.curve as isize,None);
     }
-    log(IO_DEBUG,"Issuer is  ",-1,Some(&d.issuer[0..d.islen]));
-    log(IO_DEBUG,"Subject is ",-1,Some(&d.subject[0..d.sblen]));
+
+    let mut dn:[u8;256]=[0;256];
+
+    let mut n=utils::make_dn(&mut dn,&d.issuer);
+    log(IO_DEBUG,"Issuer is   ",-1,Some(&dn[0..n]));
+
+    n=utils::make_dn(&mut dn,&d.subject);
+    log(IO_DEBUG,"Subject is  ",-1,Some(&dn[0..n]));
+
+//    let ep=x509::find_entity_property(&d.subject,&x509::MN,0);
+//    log(IO_DEBUG,"Subject is  ",-1,Some(&d.subject[ep.index..ep.index+ep.length]));
+//    log(IO_DEBUG,"Issuer is  ",-1,Some(&d.issuer[0..d.islen]));
+//    log(IO_DEBUG,"Subject is ",-1,Some(&d.subject[0..d.sblen]));
 }
 
 /// Log a received alert

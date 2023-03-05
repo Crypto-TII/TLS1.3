@@ -475,6 +475,7 @@ static void TLS13_client_trust(TLS_session *session)
     octad TH={0,sizeof(th),th};  // Transcript hash
 
     int kind=getClientPrivateKeyandCertChain(&CLIENT_KEY,session->client_cert_type,&CLIENT_CERTCHAIN);
+
     if (kind!=0)
     { // Yes, I can do that kind of signature
         log(IO_PROTOCOL,(char *)"Client is authenticating\n",NULL,0,NULL);

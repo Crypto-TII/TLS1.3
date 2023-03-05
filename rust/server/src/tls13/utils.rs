@@ -1,6 +1,7 @@
 //! Utility functions
 
 use crate::config;
+use crate::tls13::x509;
 
 /// Function return structure
 pub struct RET {
@@ -46,6 +47,37 @@ pub fn decode_b64(b: &[u8],w:&mut [u8]) -> usize { // decode from base64 in plac
         }
     }
     return k;
+}
+
+/// create Distinguished name from DER encoding
+pub fn make_dn(dn: &mut [u8],der: &[u8]) -> usize{
+    let mut n=0;
+    dn[n]=b'{'; n+=1;
+    let mut ep=x509::find_entity_property(der,&x509::MN,0);
+    for i in 0..ep.length {
+        dn[n]=der[ep.index+i];
+        n+=1;
+    }
+    dn[n]=b','; n+=1;
+    ep=x509::find_entity_property(der,&x509::UN,0);
+    for i in 0..ep.length {
+        dn[n]=der[ep.index+i];
+        n+=1;
+    }
+    dn[n]=b','; n+=1;
+    ep=x509::find_entity_property(der,&x509::ON,0);
+    for i in 0..ep.length {
+        dn[n]=der[ep.index+i];
+        n+=1;
+    }
+    dn[n]=b','; n+=1;
+    ep=x509::find_entity_property(der,&x509::CN,0);
+    for i in 0..ep.length {
+        dn[n]=der[ep.index+i];
+        n+=1;
+    }
+    dn[n]=b'}'; n+=1;
+    return n;
 }
 
  // "Clients offering these values MUST list them as the lowest priority (listed after all other algorithms in SignatureSchemeList)."
