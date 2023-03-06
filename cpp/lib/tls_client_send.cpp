@@ -4,6 +4,7 @@
 
 #include "tls_client_send.h"
 #include "tls_logger.h"
+#include "tls_certs.h"
 
 // send Change Cipher Suite - helps get past middleboxes (WTF?)
 void sendCCCS(TLS_session *session)
@@ -28,6 +29,19 @@ void addHeartbeat(octad *EXT)
 #endif
 }
 
+// Build Certificate Authorities Extension
+/*
+void addCertAuthorities(octad *EXT)
+{
+    char dn[256];
+    octad DN={0,sizeof(dn),dn};
+    OCT_from_base64(&DN,(char *)mysupportedca);
+    OCT_append_int(EXT,CERT_AUTHORITIES,2); 	
+    OCT_append_int(EXT,DN.len+2,2);   // only one CA allowed (for now)
+    OCT_append_int(EXT,DN.len,2);
+    OCT_append_octad(EXT,&DN);
+}
+*/
 // Build Servername Extension
 void addServerNameExt(octad *EXT,char *servername)
 {

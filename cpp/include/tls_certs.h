@@ -10,6 +10,7 @@
 
 #include "tls1_3.h"
 
+//extern const char *mysupportedca;  /**< Supported root CA */
 extern const char *myprivate; /**< Client private key */
 extern const char *mycert;    /**< Client certificate */
 extern const char *cacerts;   /**< The Root Certificate store */

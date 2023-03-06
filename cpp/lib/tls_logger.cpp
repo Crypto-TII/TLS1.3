@@ -35,7 +35,7 @@ void log(int logit,char *preamble,char *string,unsign32 info,octad *O)
     {
         char buff[LOG_OUTPUT_TRUNCATION+8];
         bool res=OCT_output_hex(O,LOG_OUTPUT_TRUNCATION,buff);
-        sprintf(w," (%d) ",O->len);
+        sprintf(w,"(%d) ",O->len);
         myprintf(w);
         myprintf(buff);
         if (!res) myprintf((char *)" (truncated)");
@@ -88,6 +88,7 @@ void logCipherSuite(int cipher_suite)
 
 static void nameKeyExchange(int kex)
 {
+#if VERBOSITY >= IO_PROTOCOL
     switch (kex)
     {
     case X25519:
@@ -109,6 +110,7 @@ static void nameKeyExchange(int kex)
         myprintf((char *)"Non-standard\n");   
         break;
     }
+#endif
 }
 
 void logKeyExchange(int kex)
@@ -119,6 +121,7 @@ void logKeyExchange(int kex)
 
 static void nameSigAlg(int sigAlg)
 {
+#if VERBOSITY >= IO_PROTOCOL
     switch (sigAlg)
     {
     case ECDSA_SECP256R1_SHA256:
@@ -161,6 +164,7 @@ static void nameSigAlg(int sigAlg)
         myprintf((char *)"Non-standard\n");   
         break;
     }
+#endif
 }
 
 void logSigAlg(int sigAlg)

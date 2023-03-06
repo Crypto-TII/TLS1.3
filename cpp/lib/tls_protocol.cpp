@@ -69,6 +69,9 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 #ifdef ENABLE_HEARTBEATS
 	addHeartbeat(EXT); // I can heartbeat if you let me
 #endif
+
+// addCertAuthorities(EXT);
+
 	addServerNameExt(EXT,session->hostname); expectations->server_name=true;  // Server Name extension - acknowledgement is expected
 	addSupportedGroupsExt(EXT,nsg,groups);
 	addKeyShareExt(EXT,session->favourite_group,PK); // only sending one public key
@@ -429,7 +432,7 @@ static int TLS13_server_trust(TLS_session *session)
 #endif
         return TLS_FAILURE;
     }
-    log(IO_DEBUG,(char *)"Server Cert Verification OK\n",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Server Cert Verification OK - ",session->hostname,0,NULL);
 #ifdef SHALLOW_STACK
     free(SERVER_PK.val); free (SCVSIG.val);
 #endif

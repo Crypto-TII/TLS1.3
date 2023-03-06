@@ -2050,7 +2050,9 @@ impl SESSION {
                         log(IO_DEBUG,"Client Cert Verification failed\n",-1,None);
                         log(IO_PROTOCOL,"Full Handshake will fail\n",-1,None);
                     } else {
-                        log(IO_DEBUG,"Client Cert Verification OK - ",-1,Some(&self.clientid[0..self.cidlen]));   // **** output client full name     
+                        let mut dn:[u8;256]=[0;256];
+                        let n=utils::make_dn(&mut dn,&self.clientid[0..self.cidlen]);
+                        log(IO_DEBUG,"Client Cert Verification OK - ",-1,Some(&dn[0..n]));   // **** output client full distinguished name     
                     }
                 }
             } else {

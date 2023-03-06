@@ -27,6 +27,13 @@ extern void sendCCCS(TLS_session *session);
 */
 extern void addHeartbeat(octad *EXT);
 
+/** @brief Add Certificate Authorities extension 
+ *
+	@param EXT the extensions octad which is being built
+*/
+extern void addCertAuthorities(octad *EXT);
+
+
 /**	@brief Add PreShared Key extension to under-construction Extensions Octet (omitting binder)
  *
 	@param EXT the extensions octad which is being built

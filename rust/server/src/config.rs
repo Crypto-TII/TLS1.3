@@ -168,6 +168,7 @@ pub const RECORD_SIZE_LIMIT:usize = 0x001c;       // Record Size Limit
 pub const CLIENT_CERT_TYPE:usize = 0x0013;        // Client Certificate type
 pub const SERVER_CERT_TYPE:usize = 0x0014;        // Server Certificate type
 pub const HEARTBEAT:usize = 0x000f;                // Heartbeat
+pub const CERT_AUTHORITIES:usize = 0x002f;              // Certificate Authorities
 
 // pre-shared Key (PSK) modes 
 //pub const PSKOK:usize = 0x00;                   // Preshared Key only mode 

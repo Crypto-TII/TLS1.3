@@ -141,7 +141,6 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     let mut ret=x509::find_issuer(cert);
     //let mut ic=ret.index;
     ct.islen=create_full_name(&mut ct.issuer,cert,ret.index,ret.length);
-
     ret=x509::find_subject(cert);
     //ic=ret.index;
     ct.sblen=create_full_name(&mut ct.subject,cert,ret.index,ret.length);

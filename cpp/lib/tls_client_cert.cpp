@@ -5,6 +5,12 @@
 
 #include "tls_certs.h"
 
+
+// a preferred root CA
+// actually root CA of www.bbc.co.uk
+// const char *mysupportedca[1]={(char *)"MEwxIDAeBgNVBAsTF0dsb2JhbFNpZ24gUm9vdCBDQSAtIFIzMRMwEQYDVQQKEwpHbG9iYWxTaWduMRMwEQYDVQQDEwpHbG9iYWxTaWdu"};
+
+
 #if CLIENT_CERT == ECC_SS
 
 // My personal ECC private key - Certificate expires May 2023

@@ -267,7 +267,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define CLIENT_CERT_TYPE 0x0013         /**< Client Certificate type */
 #define SERVER_CERT_TYPE 0x0014         /**< Server Certificate type */
 #define HEARTBEAT 0x000f                /**< Heartbeat */
-
+#define CERT_AUTHORITIES 0x002f         /**< Certificate Authorities */
 
 // record types 
 #define HSHAKE 0x16                     /**< Handshake record */

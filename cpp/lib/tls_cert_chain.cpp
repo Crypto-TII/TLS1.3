@@ -113,6 +113,10 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
 #ifdef SHALLOW_STACK
                     free(b);
 #endif
+//		char buff[256];
+//		OCT_output_base64(&OWNER,256,buff);
+//		printf("BASE64 DN = %s\n",buff);
+
                     return true;
                 }
             }
@@ -330,7 +334,7 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
 
     if (OCT_compare(&ISSUER,&SUBJECT))
     { //self-signed certificate
-        log(IO_PROTOCOL,(char *)"Self signed Cert\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Self signed Cert\n",NULL,0,NULL);
 		return SELF_SIGNED_CERT;   // not necessarily fatal
 	}
 
@@ -404,6 +408,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PU
 	if (rtn==SELF_SIGNED_CERT) 
     {
 #ifdef ALLOW_SELF_SIGNED
+        log(IO_PROTOCOL,(char *)"Self-signed Certificate allowed\n",NULL,0,NULL);
 		return 0;  // If self-signed, thats the end of the chain. And for development its acceptable
 #else
 		return rtn;
