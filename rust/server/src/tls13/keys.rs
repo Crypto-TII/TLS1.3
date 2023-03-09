@@ -99,6 +99,7 @@ impl CRYPTO {
     }
 
 /// Initialise for ticket encryption
+// using AES-128-GCM and TEK key
     pub fn special_init(&mut self,iv: &[u8]) {
         self.active=true;
         self.suite=AES_128_GCM_SHA256;
@@ -108,7 +109,7 @@ impl CRYPTO {
             self.iv[i]=iv[i];
         }
         for  i in 0..16 {
-            self.k[i]=servercert::TEK[i];
+            self.k[i]=servercert::STEK[i];
         }
     }
 /// Initialise cipher suite

@@ -662,7 +662,7 @@ impl SESSION {
         } else {
             sptr=utils::append_int(&mut state,sptr,0,2);
         }
-// encrypt state
+// encrypt state with AES-128-GCM - using random IV and STEK key (see servercert.rs)
         let mut context=keys::CRYPTO::new();
         context.special_init(&iv);
         sal::aead_encrypt(&context,&iv,&mut state[12..sptr],&mut tag);  // iv | state | tag
