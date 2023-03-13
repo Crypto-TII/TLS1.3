@@ -316,5 +316,5 @@ pub const ALLOW_RAW_CLIENT_PUBLIC_KEY:bool=true; // Allow client raw public key
 pub const ALLOW_IBE_PSKS: bool= true;       // allow IBE PSK connections
 pub const MERGE_MESSAGES: bool= true;       // allow merging of messages into single record
 pub const RESPECT_MAX_FRAQ_REQUEST: bool= true; // respect client request for maximum record (fragment) sizes
-pub const ENABLE_HEARTBEATS: bool= false; // Enable heart-beats
-pub const PEER_CAN_HEARTBEAT: bool=true;   // allow peer to heartbeat
+pub const ENABLE_HEARTBEATS: bool= false;   // Enable heart-beats
+pub const PEER_CAN_HEARTBEAT: bool=true;    // allow peer to heartbeat

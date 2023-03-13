@@ -8,7 +8,6 @@
 
 // check for malformed input
 bool malformed(int rval,int maxm) {
-
     if ((rval&1) == 1) { // if its odd -> error
         return true;
     }
@@ -71,13 +70,13 @@ ret parseoctadptr(octad *E,int len,octad *M,int &ptr)
 // parse out an integer of length len
 ret parseInt(octad *M,int len,int &ptr)
 {
-	ret r={0,BAD_RECORD};
-	if (ptr+len>M->len) return r;
-	r.val=0;
-	for (int i=0;i<len;i++)
-		r.val=256*r.val+(unsigned int)(unsigned char)M->val[ptr++];
-	r.err=0;
-	return r;
+    ret r={0,BAD_RECORD};
+    if (ptr+len>M->len) return r;
+    r.val=0;
+    for (int i=0;i<len;i++)
+        r.val=256*r.val+(unsigned int)(unsigned char)M->val[ptr++];
+    r.err=0;
+    return r;
 }
 
 // ALL Server to Client records arrive via this function
@@ -112,7 +111,7 @@ int getServerRecord(TLS_session *session)
     if (RH.val[0]==ALERT)
     {  // plaintext alert
         left=getInt16(session->sockptr);
-		if (left!=2) return BAD_RECORD;                     // ** RM
+        if (left!=2) return BAD_RECORD;                     // ** RM
         rtn=getOctad(session->sockptr,&session->IBUFF,left);
         if (rtn<0)
             return TIMED_OUT;
@@ -122,53 +121,53 @@ int getServerRecord(TLS_session *session)
     { // read it, and ignore it
         char sccs[10];
         left=getInt16(session->sockptr);
-		if (left!=1) return BAD_RECORD;					// ** RM
+        if (left!=1) return BAD_RECORD;                    // ** RM
         rtn=getBytes(session->sockptr,sccs,left);
         if (rtn<0)
             return TIMED_OUT;
-		if (session->status!=TLS13_HANDSHAKING)
-			return WRONG_MESSAGE;
+        if (session->status!=TLS13_HANDSHAKING)
+            return WRONG_MESSAGE;
         rtn=getOctad(session->sockptr,&RH,3); // get the next record and carry on
-		if (rtn<0)
-			return TIMED_OUT;
+        if (rtn<0)
+            return TIMED_OUT;
     }
 
     if (RH.val[0]!=HSHAKE && RH.val[0]!=APPLICATION && RH.val[0]!=HEART_BEAT)
         return WRONG_MESSAGE;
 
     left=getInt16(session->sockptr);
-	if (left>TLS_MAX_CIPHER_FRAG)
-		return MAX_EXCEEDED;
+    if (left>TLS_MAX_CIPHER_FRAG)
+        return MAX_EXCEEDED;
 
     OCT_append_int(&RH,left,2);
     if (left+pos>session->IBUFF.max)
     { // this commonly happens with big records of application data from server
-		log(IO_DEBUG,(char *)"Record received of length= ",(char *)"%d",left+pos,NULL);
+        log(IO_DEBUG,(char *)"Record received of length= ",(char *)"%d",left+pos,NULL);
         return MEM_OVERFLOW;   // record is too big - memory overflow
     }
     if (!session->K_recv.active)
     { // not encrypted
-		if (RH.val[0]==APPLICATION || RH.val[0]==HEART_BEAT){
-			return BAD_RECORD;
-		}
-		if (left>TLS_MAX_PLAIN_FRAG)
-			return MAX_EXCEEDED;
-		if (left==0)
-			return WRONG_MESSAGE;
+        if (RH.val[0]==APPLICATION || RH.val[0]==HEART_BEAT){
+            return BAD_RECORD;
+        }
+        if (left>TLS_MAX_PLAIN_FRAG)
+            return MAX_EXCEEDED;
+        if (left==0)
+            return WRONG_MESSAGE;
         rtn=getBytes(session->sockptr,&session->IBUFF.val[pos],left);  // read in record body
         if (rtn<0)
             return TIMED_OUT;
         session->IBUFF.len+=left;
         return HSHAKE;
     }
-	if (RH.val[0]==HSHAKE) {
-		return BAD_RECORD;
-	}
-	taglen=session->K_recv.taglen;
-	if (left < taglen) 
-		return BAD_RECORD;
+    if (RH.val[0]==HSHAKE) {
+        return BAD_RECORD;
+    }
+    taglen=session->K_recv.taglen;
+    if (left < taglen) 
+        return BAD_RECORD;
   
-	rlen=left-taglen; // plaintext record length
+    rlen=left-taglen; // plaintext record length
 
     rtn=getBytes(session->sockptr,&session->IBUFF.val[pos],rlen);  // read in record body
     if (rtn<0)
@@ -193,17 +192,17 @@ int getServerRecord(TLS_session *session)
         session->IBUFF.len--; rlen--;// remove it
     }
 
-	if (rlen>TLS_MAX_PLAIN_FRAG) return MAX_EXCEEDED;
+    if (rlen>TLS_MAX_PLAIN_FRAG) return MAX_EXCEEDED;
 
-	// rlen is Inner Plaintext length?
-	if ((lb==HSHAKE || lb==ALERT) && rlen==0)
-		return WRONG_MESSAGE;  // Implementations MUST NOT send zero-length fragments of Handshake types
+    // rlen is Inner Plaintext length?
+    if ((lb==HSHAKE || lb==ALERT) && rlen==0)
+        return WRONG_MESSAGE;  // Implementations MUST NOT send zero-length fragments of Handshake types
     if (lb==HSHAKE)
         return HSHAKE;
     if (lb==APPLICATION)
         return APPLICATION;
-	if (lb==HEART_BEAT)
-		return HEART_BEAT;
+    if (lb==HEART_BEAT)
+        return HEART_BEAT;
     if (lb==ALERT)
     { // Disguised Alert record received, delete anything in IO prior to alert, and just return 2-byte alert
         OCT_shift_left(&session->IBUFF,pos);
@@ -223,7 +222,7 @@ ret parseIntorPull(TLS_session *session,int len)
         if (rtn!=HSHAKE) {  // Bad input from server (Authentication failure? Wrong record type?)
             r.err=rtn;  // probably negative error
             if (rtn==ALERT) r.val=session->IBUFF.val[1];
-			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
+            if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
         r=parseInt(&session->IBUFF,len,session->ptr);
@@ -241,7 +240,7 @@ ret parseoctadorPull(TLS_session *session,octad *O,int len)
         if (rtn!=HSHAKE) {
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IBUFF.val[1];
-			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
+            if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
         r=parseoctad(O,len,&session->IBUFF,session->ptr);
@@ -259,7 +258,7 @@ ret parsebytesorPull(TLS_session *session,char *o,int len)
         if (rtn!=HSHAKE) {
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IBUFF.val[1];
-			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
+            if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
         r=parsebytes(o,len,&session->IBUFF,session->ptr);
@@ -277,7 +276,7 @@ ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
         if (rtn!=HSHAKE) {
             r.err=rtn;
             if (rtn==ALERT) r.val=session->IBUFF.val[1];
-			if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
+            if (rtn==APPLICATION) r.err=WRONG_MESSAGE;
             break;
         }
         r=parseoctadptr(O,len,&session->IBUFF,session->ptr);
@@ -292,10 +291,10 @@ ret parseoctadorPullptrX(TLS_session *session,octad *O,int len)
 bool badResponse(TLS_session *session,ret r) //Socket *client,crypto *send,ret r)
 {
     logServerResponse(r);
-	if (r.err != 0)
-	{
+    if (r.err != 0)
+    {
        log(IO_PROTOCOL,(char *)"Handshake failed\n",NULL,0,NULL);
-	}
+    }
     if (r.err<0)
     { // send an alert to the Server, and abort
         sendAlert(session,alert_from_cause(r.err));
@@ -336,11 +335,11 @@ ret seeWhatsNext(TLS_session *session)
     if (r.err) return r; 
     session->ptr-=1;
 
-	nb=r.val;
-	if (nb==END_OF_EARLY_DATA || nb==KEY_UPDATE) { // Servers MUST NOT send this.... KEY_UPDATE should not happen at this stage
-		r.err=WRONG_MESSAGE;
-		return r;
-	}
+    nb=r.val;
+    if (nb==END_OF_EARLY_DATA || nb==KEY_UPDATE) { // Servers MUST NOT send this.... KEY_UPDATE should not happen at this stage
+        r.err=WRONG_MESSAGE;
+        return r;
+    }
     return r;      
 }
 
@@ -382,11 +381,11 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
     {
         r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
         r=parseIntorPull(session,2); tlen=r.val; if (r.err) return r;
-		if (len<tlen+4) {
+        if (len<tlen+4) {
             r.err=BAD_MESSAGE;
             return r;
         }
-		len-=(tlen+4);
+        len-=(tlen+4);
         switch (ext)
         {
         case EARLY_DATA :
@@ -415,72 +414,72 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
             }
             break;
 
-		case CLIENT_CERT_TYPE :
-			r=parseIntorPull(session,1); cct=r.val; if (r.err) return r;
-		    if (tlen!=1) {
-				r.err=UNRECOGNIZED_EXT;
+        case CLIENT_CERT_TYPE :
+            r=parseIntorPull(session,1); cct=r.val; if (r.err) return r;
+            if (tlen!=1) {
+                r.err=UNRECOGNIZED_EXT;
                 return r;
-		    }
+            }
 #ifdef PREFER_RAW_CLIENT_PUBLIC_KEY
-			if (cct!=RAW_PUBLIC_KEY) {
-				session->client_cert_type=X509_CERT;
-			} else {
-				session->client_cert_type=RAW_PUBLIC_KEY;
-			}
+            if (cct!=RAW_PUBLIC_KEY) {
+                session->client_cert_type=X509_CERT;
+            } else {
+                session->client_cert_type=RAW_PUBLIC_KEY;
+            }
 #else
-			session->client_cert_type=X509_CERT;
+            session->client_cert_type=X509_CERT;
 #endif
-		    break;
-		case SERVER_CERT_TYPE :
-			r=parseIntorPull(session,1); sct=r.val; if (r.err) return r;
-		    if (tlen!=1) {
-				r.err=UNRECOGNIZED_EXT;
+            break;
+        case SERVER_CERT_TYPE :
+            r=parseIntorPull(session,1); sct=r.val; if (r.err) return r;
+            if (tlen!=1) {
+                r.err=UNRECOGNIZED_EXT;
                 return r;
-		    }
+            }
 #ifdef PREFER_RAW_SERVER_PUBLIC_KEY
-			if (sct!=RAW_PUBLIC_KEY) {
-				session->server_cert_type=X509_CERT;
-			} else {
-				session->server_cert_type=RAW_PUBLIC_KEY;
-			}
+            if (sct!=RAW_PUBLIC_KEY) {
+                session->server_cert_type=X509_CERT;
+            } else {
+                session->server_cert_type=RAW_PUBLIC_KEY;
+            }
 #else
-			 session->server_cert_type=X509_CERT;
+             session->server_cert_type=X509_CERT;
 #endif
-		     break;
-		case RECORD_SIZE_LIMIT:
-			r=parseIntorPull(session,2); mfl=r.val; if (r.err) return r;
-			
+             break;
+        case RECORD_SIZE_LIMIT:
+            r=parseIntorPull(session,2); mfl=r.val; if (r.err) return r;
+            
             if (tlen!=2 || mfl<64) {
                 r.err=UNRECOGNIZED_EXT;
                 return r;
             } 
-			session->max_record=mfl;
-			break;
+            session->max_record=mfl;
+            break;
 
-		case HEARTBEAT:
-			r=parseIntorPull(session,1); hbmode=r.val; if (r.err) return r;
-			if (hbmode==0 || hbmode>2)
-			{
+        case HEARTBEAT:
+            r=parseIntorPull(session,1); hbmode=r.val; if (r.err) return r;
+            if (hbmode==0 || hbmode>2)
+            {
                 r.err=UNRECOGNIZED_EXT;
                 return r;
-			}
+            }
 //printf("EXPECTING HEARTBEATs\n");
-			session->expect_heartbeats=true;
-			if (hbmode==1) {
+            session->expect_heartbeats=true;
+            if (hbmode==1) {
 //printf("ALLOWED TO HEARTBEAT\n");
-				session->allowed_to_heartbeat=true;
-			}
-			else session->allowed_to_heartbeat=false;
-			break;
+                session->allowed_to_heartbeat=true;
+            }
+            else session->allowed_to_heartbeat=false;
+            break;
 
         case APP_PROTOCOL :
             r=parseIntorPull(session,2); xlen=r.val; if (r.err) return r;
             r=parseIntorPull(session,1); mfl=r.val; if (r.err) return r;
-			if (tlen!=xlen+2 || xlen!=mfl+1)										// ** RM
-			{
+            if (tlen!=xlen+2 || xlen!=mfl+1)                                        // ** RM
+            {
                 r.err=UNRECOGNIZED_EXT;
                 return r;
-			}
+            }
             r=parseoctadorPull(session,NULL,mfl);  if (r.err) return r; // ALPN code - send to NULL -- assume its the one I asked for
             
             enc_ext_resp->alpn=true;
@@ -500,14 +499,14 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
                 return r;
             }
             break;
-		case SIG_ALGS:
-		case SIG_ALGS_CERT:
-		case KEY_SHARE:
-		case PSK_MODE:
-		case PRESHARED_KEY:
-		case TLS_VER:
-		case COOKIE:
-		case PADDING:
+        case SIG_ALGS:
+        case SIG_ALGS_CERT:
+        case KEY_SHARE:
+        case PSK_MODE:
+        case PRESHARED_KEY:
+        case TLS_VER:
+        case COOKIE:
+        case PADDING:
             session->ptr+=tlen; // skip over it
             r.err=FORBIDDEN_EXTENSION;
             return r;
@@ -581,8 +580,8 @@ ret getCertificateRequest(TLS_session *session,bool context)
             r.err= MISSING_REQUEST_CONTEXT;// expecting Request context
             return r;
         }   
-		r=parseoctadorPull(session,&session->CTX,nb); if (r.err) return r;
-		left-=nb;
+        r=parseoctadorPull(session,&session->CTX,nb); if (r.err) return r;
+        left-=nb;
     } else {
         if (nb!=0x00) {
             r.err= MISSING_REQUEST_CONTEXT;// expecting 0x00 Request context
@@ -601,7 +600,7 @@ ret getCertificateRequest(TLS_session *session,bool context)
     {
         r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
         r=parseIntorPull(session,2); tlen=r.val; if (r.err) return r; 
-		if (len<tlen+4) {
+        if (len<tlen+4) {
             r.err=BAD_MESSAGE;
             return r;
         }
@@ -701,16 +700,16 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG
     }
     r=parseIntorPull(session,3); tlen=r.val; if (r.err) return r;    // get length of certificate chain list
 
-	if (tlen==0)
-	{
-		r.err=EMPTY_CERT_CHAIN;
-		return r;
-	}
-	if (tlen+4!=len)
-	{
-		r.err=BAD_CERT_CHAIN;
-		return r;
-	}
+    if (tlen==0)
+    {
+        r.err=EMPTY_CERT_CHAIN;
+        return r;
+    }
+    if (tlen+4!=len)
+    {
+        r.err=BAD_CERT_CHAIN;
+        return r;
+    }
 
     r=parseoctadorPullptrX(session,&CERTCHAIN,tlen); if (r.err) return r; // get pointer to certificate chain
 
@@ -719,7 +718,7 @@ ret getCheckServerCertificateChain(TLS_session *session,octad *PUBKEY,octad *SIG
     r.err=checkServerCertChain(&CERTCHAIN,session->hostname,session->server_cert_type,PUBKEY,SIG);
 
 #ifdef NO_CERT_CHECKS
-	r.err=0;
+    r.err=0;
 #endif
 
     rewindIO(session); // now save to rewind
@@ -733,8 +732,8 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
 {
     ret r;
     int nb,left,len;//,ptr=0;
-	int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
-	int nsa=SAL_sigs(sigAlgs);
+    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
+    int nsa=SAL_sigs(sigAlgs);
     r=parseIntorPull(session,1); // get message type
     if (r.err!=0) {return r;}
     nb=r.val;
@@ -747,14 +746,14 @@ ret getServerCertVerify(TLS_session *session,octad *SCVSIG,int &sigalg)
     OCT_kill(SCVSIG);
     r=parseIntorPull(session,2); sigalg=r.val; if (r.err) return r; // may for example be 0804 - RSA-PSS-RSAE-SHA256
 
-	bool offered=false;
-	for (int i=0;i<nsa;i++)
-		if (sigalg==sigAlgs[i]) offered=true;
-	if (!offered)
-	{
-		r.err=CERT_VERIFY_FAIL;
-		return r;
-	}
+    bool offered=false;
+    for (int i=0;i<nsa;i++)
+        if (sigalg==sigAlgs[i]) offered=true;
+    if (!offered)
+    {
+        r.err=CERT_VERIFY_FAIL;
+        return r;
+    }
 
     r=parseIntorPull(session,2); len=r.val; if (r.err) return r;    // sig data follows
     r=parseoctadorPull(session,SCVSIG,len); if (r.err) return r;
@@ -840,11 +839,11 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
     r=parseIntorPull(session,3); left=r.val; if (r.err) return r;   // If not enough, pull in another fragment
     r=parseIntorPull(session,2); if (r.err) return r;
 
-	if (left<72)
-	{
-		r.err=BAD_HELLO;
-		return r;
-	}
+    if (left<72)
+    {
+        r.err=BAD_HELLO;
+        return r;
+    }
     left-=2;                // whats left in message
 
     r= parseoctadorPull(session,&SRN,32); if (r.err) return r;
@@ -862,12 +861,12 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
 // Unfortunately it is not made clear if the same session ID should be use on a handshake resumption.
 // We note that some servers echo the original id, not a new id associated with a new Client Hello
 // Solution here is to use same id on resumption(?)
-	bool mismatch=false;
-	for (int i=0;i<32;i++)
-	{
-		if (session->id[i]!=sid[i])
-			mismatch=true;
-	}
+    bool mismatch=false;
+    for (int i=0;i<32;i++)
+    {
+        if (session->id[i]!=sid[i])
+            mismatch=true;
+    }
     if (mismatch) { 
         r.err=ID_MISMATCH;  // check identities match
         return r;
@@ -875,15 +874,15 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
     r=parseIntorPull(session,2); cipher=r.val; if (r.err) return r;
     left-=2;
 
-	if (session->cipher_suite!=0)
-	{ // don't allow a change after initial assignment
-		if (cipher!=session->cipher_suite)
-		{
-			r.err=BAD_HELLO;
-			return r;
-		}
-	}
-	session->cipher_suite=cipher;
+    if (session->cipher_suite!=0)
+    { // don't allow a change after initial assignment
+        if (cipher!=session->cipher_suite)
+        {
+            r.err=BAD_HELLO;
+            return r;
+        }
+    }
+    session->cipher_suite=cipher;
 
     r=parseIntorPull(session,1); cmp=r.val; if (r.err) return r;
     left-=1; // Compression not used in TLS1.3
@@ -899,45 +898,45 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
         return r;
     }
 
-	int supported_version=0;
+    int supported_version=0;
 // process extensions
     while (extLen>0)
     {
         r=parseIntorPull(session,2); ext=r.val; if (r.err) return r;
         r=parseIntorPull(session,2); tmplen=r.val; if (r.err) break;
-		if (extLen<4+tmplen)
-		{
-			r.err=BAD_HELLO;
-			return r;
-		}
-		extLen-=(4+tmplen);
-		log(IO_DEBUG,(char *)"Server Hello Extension= ",(char *)"%x",ext,NULL);
+        if (extLen<4+tmplen)
+        {
+            r.err=BAD_HELLO;
+            return r;
+        }
+        extLen-=(4+tmplen);
+        log(IO_DEBUG,(char *)"Server Hello Extension= ",(char *)"%x",ext,NULL);
         switch (ext)
         {
         case KEY_SHARE :
             { // actually mandatory
-				int glen=2;
+                int glen=2;
                 r=parseIntorPull(session,2); kex=r.val; if (r.err) break;
                 if (!retry)
                 { // its not a retry request
                     r=parseIntorPull(session,2); pklen=r.val; if (r.err) break;   // FIX this first for HRR
                     r=parseoctadorPull(session,PK,pklen); 
-					glen+=(2+pklen);
+                    glen+=(2+pklen);
                 }
-				if (tmplen!=glen)	
-				{
-					r.err=BAD_HELLO;
-					return r;
-				}
+                if (tmplen!=glen)    
+                {
+                    r.err=BAD_HELLO;
+                    return r;
+                }
                 break;
             }
         case PRESHARED_KEY :
             { // Indicate acceptance of pre-shared key
-				if (tmplen!=2)	
-				{
-					r.err=BAD_HELLO;
-					return r;
-				}
+                if (tmplen!=2)    
+                {
+                    r.err=BAD_HELLO;
+                    return r;
+                }
                 r=parseIntorPull(session,2); pskid=r.val;
                 break;
             }
@@ -948,13 +947,13 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
             }
         case TLS_VER :
             { // report TLS version
-				if (tmplen!=2)		
-				{
-					r.err=BAD_HELLO;
-					return r;
-				}
+                if (tmplen!=2)        
+                {
+                    r.err=BAD_HELLO;
+                    return r;
+                }
                 r=parseIntorPull(session,2); tls=r.val; if (r.err) break; // get TLS version
-				supported_version=tls;
+                supported_version=tls;
                 break;
             }
        default :
@@ -964,8 +963,8 @@ ret getServerHello(TLS_session *session,int &kex,octad *CK,octad *PK,int &pskid)
         if (r.err) return r;
     }
     
-	if (supported_version==0 || supported_version!=TLS1_3)
-		r.err=NOT_TLS1_3;
+    if (supported_version==0 || supported_version!=TLS1_3)
+        r.err=NOT_TLS1_3;
 
     if (retry)
         r.val=HANDSHAKE_RETRY;

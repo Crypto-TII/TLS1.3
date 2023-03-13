@@ -16,29 +16,29 @@
 #include "tls_tickets.h"
 #include "tls_logger.h"
 
-/**	@brief initialise a TLS 1.3 session structure
+/** @brief initialise a TLS 1.3 session structure
  *
-	@param client the socket connection to the Server
+    @param client the socket connection to the Server
     @param hostname the host name (URL) of the server
     @return an initialised TLS1.3 session structure
  */
 extern TLS_session TLS13_start(Socket *client,char *hostname);
 
-/**	@brief terminate a session structure
+/** @brief terminate a session structure
  *
     @param session the session structure
  */
 extern void TLS13_end(TLS_session *session);
 
 
-/**	@brief stop sending - send CLOSE_NOTIFY and DISCONNECT
+/** @brief stop sending - send CLOSE_NOTIFY and DISCONNECT
  *
     @param session the session structure
  */
 extern void TLS13_stop(TLS_session *session);
 
 
-/**	@brief TLS 1.3 forge connection
+/** @brief TLS 1.3 forge connection
  *
     @param session an initialised TLS session structure
     @param EARLY some early data to be transmitted
@@ -46,14 +46,14 @@ extern void TLS13_stop(TLS_session *session);
  */
 extern bool TLS13_connect(TLS_session *session,octad *EARLY);
 
-/**	@brief TLS 1.3 send data
+/**    @brief TLS 1.3 send data
  *
     @param session an initialised TLS session structure
     @param DATA some data to be transmitted
  */
 extern void TLS13_send(TLS_session *session,octad *DATA);
 
-/**	@brief TLS 1.3 receive data
+/** @brief TLS 1.3 receive data
  *
     @param session an initialised TLS session structure
     @param DATA that has been received
@@ -61,7 +61,7 @@ extern void TLS13_send(TLS_session *session,octad *DATA);
  */
 extern int TLS13_recv(TLS_session *session,octad *DATA);
 
-/**	@brief TLS 1.3 receive data and check for liveness of connection
+/** @brief TLS 1.3 receive data and check for liveness of connection
  *
     @param session an initialised TLS session structure
     @param DATA that has been received
@@ -70,7 +70,7 @@ extern int TLS13_recv(TLS_session *session,octad *DATA);
 extern int TLS13_recv_and_check(TLS_session *session,octad *DATA);
 
 
-/**	@brief TLS 1.3 end session, delete keys, clean up buffers
+/** @brief TLS 1.3 end session, delete keys, clean up buffers
  *
     @param session an initialised TLS session structure
  */

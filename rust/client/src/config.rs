@@ -316,5 +316,5 @@ pub const PREFER_RAW_CLIENT_PUBLIC_KEY:bool=false;  // Would prefer server to ac
 pub const NO_CERT_CHECKS:bool=false;       // don't check server certs
 // may need to set this to false for fuzzing 
 pub const MERGE_MESSAGES: bool= true;      // allow merging of messages into single record
-pub const ENABLE_HEARTBEATS: bool= false; // Enable heart-beats
+pub const ENABLE_HEARTBEATS: bool= false;  // Enable heart-beats
 pub const PEER_CAN_HEARTBEAT: bool=true;   // allow peer to heartbeat

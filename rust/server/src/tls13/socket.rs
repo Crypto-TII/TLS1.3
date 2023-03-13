@@ -19,26 +19,7 @@ pub fn get_bytes(stream:&mut TcpStream,buf: &mut [u8]) -> bool {
         }
     }
 }
-/*
-pub fn get_drain(stream:&mut TcpStream,len: usize) -> bool { // drain len bytes from TCP stream
-    let mut b:[u8;256]=[0;256];
-    let mut n=len;
-    while n>256 {
-        let res=get_bytes(stream,&mut b[0..256]);
-        n-=256;
-        if !res {
-            return false;
-        }
-    }
-    if n>0 {
-        let res=get_bytes(stream,&mut b[0..n]);
-        if !res {
-            return false;
-        }
-    }
-    return true;
-}
-*/
+
 pub fn get_int16(stream:&mut TcpStream) -> usize {
     let mut b:[u8;2]=[0;2];
     get_bytes(stream,&mut b[0..2]);

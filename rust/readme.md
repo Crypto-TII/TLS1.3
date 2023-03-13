@@ -9,22 +9,27 @@ Here find a TLS1.3 client and a TLS1.3 server. Both are written in Rust.
 
 Private keys, server/client certificate chains, and CA root stores are all fixed in the code.
 
-Ideally keys, chains and key stores should be kept in external files, but in an IoT setting there may not be a file system. 
-In this code the root certificate store is in the source code file *cacerts.rs*. For the client the private key and certificate are stored in the source code file *clientcert.rs*. 
-For the server the private key and certificate are stored in the source code file *servercert.rs*. 
+Typically keys chains and key stores would be kept in external files, but in an IoT setting there may not be a file system. 
+In this code the root certificate store is in the source code file *cacerts.rs*. 
+
+For the client the private key and certificate are stored in the source code file *clientcert.rs*. 
+However in an IoT setting the private key may be stored in secure hardware.
+
+For the server the private key and certificate are stored in the source code file *servercert.rs*. In the same file can be found the STEK (Session Ticket Encryption Key), which should
+be random and unique for each server instance.
 
 Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL. First clone the repository and move to 
 the *TLS13/rust* directory (where this README is)
 
-Currently the Rust implementation only supports a MIRACL-based SAL. To install from this directory (TLS1.3/rust) proceed as follows. In the unlikely event that yours is a 32-bit environment 
-specify *config32* instead.
+Currently the Rust implementation only supports a MIRACL-based SAL. To install MIRACL from this directory (TLS1.3/rust) proceed as follows. In the unlikely event that yours is a 
+32-bit environment specify *config32* instead.
 
 	git clone https://github.com/miracl/core.git
 	cd core/rust
 	python3 config64.py test
 	cd ../..
 
-To build the client program move to the *client* directory and 
+To build the client program move to the *client* directory. Check that the *Cargo.toml* file has the correct path to the MIRACL library. Then 
 
 	cargo build
 
@@ -32,7 +37,7 @@ To build in release mode (much faster code)
 
 	cargo build --release
 
-To build and run the server program move to the *server* directory in a new window and 
+To build and run the server program move to the *server* directory in a new window. Again check that the *Cargo.toml* file has the correct path to the MIRACL library. Then 
 
 	cargo run
 	

@@ -12,31 +12,31 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
     strcpy(state.hostname,hostname);                        // server to connection with
 
     state.status=TLS13_DISCONNECTED;
-	state.max_record=0;
-    state.cipher_suite=0;//TLS_AES_128_GCM_SHA256;              // cipher suite
+    state.max_record=0;
+    state.cipher_suite=0;//TLS_AES_128_GCM_SHA256;          // cipher suite
     initCryptoContext(&state.K_send);                       // Transmission key
     initCryptoContext(&state.K_recv);                       // Reception key
 
     state.HS={0,TLS_MAX_HASH,state.rms};                    // handshake secret
-	state.RMS={0,TLS_MAX_HASH,state.rms};					// Resumption Master secret
-	state.STS={0,TLS_MAX_HASH,state.sts};					// Server traffic secret
-	state.CTS={0,TLS_MAX_HASH,state.cts};					// Client traffic secret
-	state.CTX={0,TLS_MAX_HASH,state.ctx};					// Client traffic secret
+    state.RMS={0,TLS_MAX_HASH,state.rms};                   // Resumption Master secret
+    state.STS={0,TLS_MAX_HASH,state.sts};                   // Server traffic secret
+    state.CTS={0,TLS_MAX_HASH,state.cts};                   // Client traffic secret
+    state.CTX={0,TLS_MAX_HASH,state.ctx};                   // Client traffic secret
 #ifdef SHALLOW_STACK
     state.IBUFF= {0,TLS_MAX_IBUFF_SIZE,(char *)malloc(TLS_MAX_IBUFF_SIZE)};  // main input buffer
-	state.OBUFF={0,TLS_MAX_OBUFF_SIZE,(char *)malloc(TLS_MAX_OBUFF_SIZE)};  // main input buffer
+    state.OBUFF={0,TLS_MAX_OBUFF_SIZE,(char *)malloc(TLS_MAX_OBUFF_SIZE)};  // main input buffer
 #else
-	state.IBUFF={0,TLS_MAX_IBUFF_SIZE,state.ibuff};
-	state.OBUFF={0,TLS_MAX_OBUFF_SIZE,state.obuff};
+    state.IBUFF={0,TLS_MAX_IBUFF_SIZE,state.ibuff};
+    state.OBUFF={0,TLS_MAX_OBUFF_SIZE,state.obuff};
 #endif
     state.ptr=0;
-    state.favourite_group=0;							    // default key exchange group
-	state.server_cert_type=X509_CERT;					// Server Cert type (could be raw public key)
-	state.client_cert_type=X509_CERT;					// Client Cert type (could be raw public key)
+    state.favourite_group=0;                                // default key exchange group
+    state.server_cert_type=X509_CERT;                       // Server Cert type (could be raw public key)
+    state.client_cert_type=X509_CERT;                       // Client Cert type (could be raw public key)
     initTicketContext(&state.T);                            // Resumption ticket - may be added to session state
-	state.expect_heartbeats=false;                      // not expecting heartbeats
-	state.allowed_to_heartbeat=false;					// not allowed to heartbeat
-	state.heartbeat_req_in_flight=false;                    // timestamp on outstanding request in flight, else 0
+    state.expect_heartbeats=false;                          // not expecting heartbeats
+    state.allowed_to_heartbeat=false;                       // not allowed to heartbeat
+    state.heartbeat_req_in_flight=false;                    // timestamp on outstanding request in flight, else 0
     return state;
 }
 
@@ -47,12 +47,12 @@ TLS_session TLS13_start(Socket *sockptr,char *hostname)
 // mode=2 = External PSK handshake
 static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status *expectations,int mode)
 {
-	int groups[TLS_MAX_SUPPORTED_GROUPS];
-	int nsg=SAL_groups(groups);
-	int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
-	int nsa=SAL_sigs(sigAlgs);
-	int sigAlgsCert[TLS_MAX_SUPPORTED_SIGS];
-	int nsac=SAL_sigCerts(sigAlgsCert);
+    int groups[TLS_MAX_SUPPORTED_GROUPS];
+    int nsg=SAL_groups(groups);
+    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
+    int nsa=SAL_sigs(sigAlgs);
+    int sigAlgsCert[TLS_MAX_SUPPORTED_SIGS];
+    int nsac=SAL_sigCerts(sigAlgsCert);
     char alpn[20];
     octad ALPN={0,sizeof(alpn),alpn};         // ALPN
     int tlsVersion=TLS1_3;
@@ -60,53 +60,53 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
 #ifdef TLS_APPLICATION_PROTOCOL
     OCT_append_string(&ALPN,(char *)TLS_APPLICATION_PROTOCOL);
 #endif
-	if (mode!=0)
-	{  // resumption
-		nsg=1;
-		groups[0]=session->favourite_group; // Only allow the group already agreed
-	}
-	OCT_kill(EXT);
+    if (mode!=0)
+    {  // resumption
+        nsg=1;
+        groups[0]=session->favourite_group; // Only allow the group already agreed
+    }
+    OCT_kill(EXT);
 #ifdef ENABLE_HEARTBEATS
-	addHeartbeat(EXT); // I can heartbeat if you let me
+    addHeartbeat(EXT); // I can heartbeat if you let me
 #endif
 
 // addCertAuthorities(EXT);
 
-	addServerNameExt(EXT,session->hostname); expectations->server_name=true;  // Server Name extension - acknowledgement is expected
-	addSupportedGroupsExt(EXT,nsg,groups);
-	addKeyShareExt(EXT,session->favourite_group,PK); // only sending one public key
+    addServerNameExt(EXT,session->hostname); expectations->server_name=true;  // Server Name extension - acknowledgement is expected
+    addSupportedGroupsExt(EXT,nsg,groups);
+    addKeyShareExt(EXT,session->favourite_group,PK); // only sending one public key
 #ifdef TLS_APPLICATION_PROTOCOL
-	addALPNExt(EXT,&ALPN); expectations->alpn=true; // only supporting one application protocol
+    addALPNExt(EXT,&ALPN); expectations->alpn=true; // only supporting one application protocol
 #endif
-	addPSKModesExt(EXT,pskMode);
-	addVersionExt(EXT,tlsVersion);
+    addPSKModesExt(EXT,pskMode);
+    addVersionExt(EXT,tlsVersion);
 #ifdef MAX_RECORD
-	addRSLExt(EXT,MAX_RECORD);               // demand a fragment size limit
+    addRSLExt(EXT,MAX_RECORD);               // demand a fragment size limit
 #else
-	if (mode!=2)
-	{
-		addMFLExt(EXT,TLS_MAX_FRAG);  expectations->max_frag_length=true; // ask for max fragment length - server may not agree - but no harm in asking
-	}
+    if (mode!=2)
+    {
+        addMFLExt(EXT,TLS_MAX_FRAG);  expectations->max_frag_length=true; // ask for max fragment length - server may not agree - but no harm in asking
+    }
 #endif
-	addPadding(EXT,SAL_randomByte()%16);  // add some random padding (because I can)
+    addPadding(EXT,SAL_randomByte()%16);  // add some random padding (because I can)
 
-	if (mode==0) // full handshake
-	{ // need signature related extensions for full handshake
-		addSigAlgsExt(EXT,nsa,sigAlgs);
-		addSigAlgsCertExt(EXT,nsac,sigAlgsCert);
+    if (mode==0) // full handshake
+    { // need signature related extensions for full handshake
+        addSigAlgsExt(EXT,nsa,sigAlgs);
+        addSigAlgsCertExt(EXT,nsac,sigAlgsCert);
 #ifdef PREFER_RAW_SERVER_PUBLIC_KEY
-		addServerRawPublicKey(EXT);
+        addServerRawPublicKey(EXT);
 #endif
 #ifdef PREFER_RAW_CLIENT_PUBLIC_KEY
-		addClientRawPublicKey(EXT);
+        addClientRawPublicKey(EXT);
 #endif
-	} 
-	if (mode==2)
-	{ // // PSK, but client authentication may still be sought
+    } 
+    if (mode==2)
+    { // // PSK, but client authentication may still be sought
 #ifdef PREFER_RAW_CLIENT_PUBLIC_KEY
-		addClientRawPublicKey(EXT);
+        addClientRawPublicKey(EXT);
 #endif
-	}
+    }
 }
 
 // Phase 1 - Exchange Client/Server "Hellos"
@@ -115,13 +115,13 @@ static int TLS13_exchange_hellos(TLS_session *session)
     ret rtn;
     int i,pskid;
     int kex,hashtype;
-	int nsc,nsg;
+    int nsc,nsg;
     bool resumption_required=false;
 
-	int ciphers[TLS_MAX_CIPHER_SUITES];
-	nsc=SAL_ciphers(ciphers);  
-	int groups[TLS_MAX_SUPPORTED_GROUPS];
-	nsg=SAL_groups(groups);
+    int ciphers[TLS_MAX_CIPHER_SUITES];
+    nsc=SAL_ciphers(ciphers);  
+    int groups[TLS_MAX_SUPPORTED_GROUPS];
+    nsg=SAL_groups(groups);
 
 #ifdef SHALLOW_STACK
     octad CSK = {0, TLS_MAX_KEX_SECRET_KEY_SIZE, (char *)malloc(TLS_MAX_KEX_SECRET_KEY_SIZE)};
@@ -136,7 +136,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     char spk[TLS_MAX_KEX_CIPHERTEXT_SIZE];
     octad SPK = {0, sizeof(spk), spk};       // Server's key exchange Public Key/Ciphertext
     char ext[TLS_MAX_EXTENSIONS];
-    octad EXT={0,sizeof(ext),ext};       // Extensions   
+    octad EXT={0,sizeof(ext),ext};           // Extensions   
 #endif
     char ss[TLS_MAX_SHARED_SECRET_SIZE];     // key exchange Shared Secret 
     octad SS = {0, sizeof(ss), ss};    
@@ -168,7 +168,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
     SAL_randomOctad(32,&CRN);
 
 // First build our preferred mix of client Hello extensions, based on our capabililities
-	buildExtensions(session,&EXT,&CPK,&enc_ext_expt,0);
+    buildExtensions(session,&EXT,&CPK,&enc_ext_expt,0);
 
 // create and send Client Hello octad
     sendClientHello(session,TLS1_0,&CH,&CRN,false,&EXT,0,false,true);  
@@ -234,7 +234,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
             log(IO_DEBUG,(char *)"Group not supported, or no change as result of HRR\n",NULL,0,NULL);   
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-			free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
+            free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -245,7 +245,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
 // generate new key pair in new server selected group 
         session->favourite_group=kex;  // OK, lets try the alternate
         SAL_generateKeyPair(session->favourite_group,&CSK,&CPK); 
-		buildExtensions(session,&EXT,&CPK,&enc_ext_expt,0);
+        buildExtensions(session,&EXT,&CPK,&enc_ext_expt,0);
 
         if (COOK.len!=0)
             addCookieExt(&EXT,&COOK);   // there was a cookie in the HRR ... so send it back in an extension
@@ -266,7 +266,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
         if (badResponse(session,rtn)) 
         {
 #ifdef SHALLOW_STACK
-			free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
+            free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -277,7 +277,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
             sendAlert(session,UNEXPECTED_MESSAGE);
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-			free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
+            free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -288,7 +288,7 @@ static int TLS13_exchange_hellos(TLS_session *session)
             sendAlert(session,ILLEGAL_PARAMETER);
             log(IO_PROTOCOL,(char *)"Full Handshake failed\n",NULL,0,NULL);
 #ifdef SHALLOW_STACK
-			free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
+            free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
             return TLS_FAILURE;
         }
@@ -310,15 +310,15 @@ static int TLS13_exchange_hellos(TLS_session *session)
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
     bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
-	if (!nonzero)
-	{ // all zero shared secret??
+    if (!nonzero)
+    { // all zero shared secret??
         sendAlert(session,ILLEGAL_PARAMETER);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
         return TLS_FAILURE;
-	}
+    }
     log(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
 
 // Extract Handshake secret, Client and Server Handshake Traffic secrets, Client and Server Handshake keys and IVs from Transcript Hash and Shared secret
@@ -383,9 +383,9 @@ static int TLS13_server_trust(TLS_session *session)
 // (maybe its self-signed), extract public key from cert, and use this public key to check server's signature 
 // on the "verifier". Note Certificate signature might use old methods, but server will use PSS padding for its signature (or ECC).
     rtn=getCheckServerCertificateChain(session,&SERVER_PK,&SCVSIG);  // note SCVSIG is used here as workspace
-	if (session->server_cert_type==RAW_PUBLIC_KEY) {
-		log(IO_PROTOCOL,(char *)"WARNING - server is authenticating with raw public key\n",NULL,0,NULL);
-	}
+    if (session->server_cert_type==RAW_PUBLIC_KEY) {
+        log(IO_PROTOCOL,(char *)"WARNING - server is authenticating with raw public key\n",NULL,0,NULL);
+    }
 //
 //
 //  <---------------------------------------------------------- {Certificate}
@@ -649,7 +649,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     octad ES = {0,sizeof(es),es};
     char ss[TLS_MAX_SHARED_SECRET_SIZE];
     octad SS = {0, sizeof(ss), ss};      // Shared Secret
-    char ch[TLS_MAX_HELLO];				 // Client Hello
+    char ch[TLS_MAX_HELLO];                 // Client Hello
     octad CH = {0, sizeof(ch), ch};
 
     char hh[TLS_MAX_HASH];               
@@ -729,11 +729,11 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
     SAL_randomOctad(32,&CRN);
 // First build standard client Hello extensions
 
-	int resmode=1;
-	if (origin==TLS_EXTERNAL_PSK)
-		resmode=2;
-	buildExtensions(session,&EXT,&CPK,&enc_ext_expt,resmode);	
-	
+    int resmode=1;
+    if (origin==TLS_EXTERNAL_PSK)
+        resmode=2;
+    buildExtensions(session,&EXT,&CPK,&enc_ext_expt,resmode);    
+    
     if (have_early_data) {
         addEarlyDataExt(&EXT); enc_ext_expt.early_data=true;   // try sending client message as early data if allowed
     }
@@ -818,8 +818,8 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         return TLS_FAILURE; 
     }
 
-	if (pskid>0)
-	{ // pskid out-of-range (only one allowed)
+    if (pskid>0)
+    { // pskid out-of-range (only one allowed)
         sendAlert(session,ILLEGAL_PARAMETER);
         log(IO_PROTOCOL,(char *)"Resumption Handshake failed\n",NULL,0,NULL);
         TLS13_clean(session);
@@ -827,7 +827,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
         return TLS_FAILURE;
-	}
+    }
 
     logServerHello(session->cipher_suite,pskid,&SPK,&COOK);
     logKeyExchange(kex);
@@ -847,15 +847,15 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 
 // Generate Shared secret SS from Client Secret Key and Server's Public Key
     bool nonzero=SAL_generateSharedSecret(kex,&CSK,&SPK,&SS);
-	if (!nonzero)
-	{ // all zero shared secret??
+    if (!nonzero)
+    { // all zero shared secret??
         sendAlert(session,ILLEGAL_PARAMETER);
         TLS13_clean(session);
 #ifdef SHALLOW_STACK
         free(CSK.val); free(CPK.val); free(SPK.val);  free(EXT.val);
 #endif
         return TLS_FAILURE;
-	}
+    }
     log(IO_DEBUG,(char *)"Shared Secret= ",NULL,0,&SS);
 
     deriveHandshakeSecrets(session,&SS,&ES,&HH); 
@@ -957,7 +957,7 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
 {
     int rtn=0;
     bool early_went=false;
-	session->status=TLS13_HANDSHAKING;
+    session->status=TLS13_HANDSHAKING;
     if (ticket_still_good(&session->T))
     { // have a good ticket? Try it.
         rtn=TLS13_resume(session,EARLY);
@@ -969,10 +969,10 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
     initTicketContext(&session->T); // clear out any ticket
     
     if (rtn==0)  // failed to connect
-	{
-		//session->status=TLS13_DISCONNECTED;
+    {
+        //session->status=TLS13_DISCONNECTED;
         return false;
-	}
+    }
     
     if (!early_went && EARLY!=NULL)
         TLS13_send(session,EARLY);  // didn't go early, so send it now
@@ -998,7 +998,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
     int nb,len,type,nticks,kur,rtn;//,ptr=0;
     bool fin=false;
     bool have_suitable_cert=false;
-    octad TICK;		// Ticket raw data
+    octad TICK;        // Ticket raw data
     char fh[TLS_MAX_HASH];
     octad FH={0,sizeof(fh),fh};  // Transcript hash
     char chf[TLS_MAX_HASH];                           
@@ -1006,7 +1006,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
     int hashtype=SAL_hashType(session->cipher_suite);
     TICK.len=0;
     session->ptr=0;
-    nticks=0;		// number of tickets received
+    nticks=0;        // number of tickets received
     OCT_kill(REC);
     log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
     while (1)
@@ -1015,10 +1015,10 @@ int TLS13_recv(TLS_session *session,octad *REC)
         OCT_kill(&session->IBUFF); session->ptr=0;
         type=getServerRecord(session);  // get first fragment to determine type
         if (type<0)
-		{
-			sendAlert(session,alert_from_cause(type));
+        {
+            sendAlert(session,alert_from_cause(type));
             return type;   // its an error
-		}
+        }
         if (type==TIMED_OUT)
         {
             log(IO_PROTOCOL,(char *)"TIME_OUT\n",NULL,0,NULL);
@@ -1029,14 +1029,14 @@ int TLS13_recv(TLS_session *session,octad *REC)
             while (1)
             {
 
-				r=parseIntorPull(session,1); nb=r.val; if (r.err) break; 
-				session->ptr-=1; // peek ahead
+                r=parseIntorPull(session,1); nb=r.val; if (r.err) break; 
+                session->ptr-=1; // peek ahead
 
                 switch (nb)
                 {
                 case TICKET :   // keep last ticket
-					r=parseIntorPull(session,1); if (r.err) break;
-					r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
+                    r=parseIntorPull(session,1); if (r.err) break;
+                    r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
                     r=parseoctadorPullptrX(session,&TICK,len);    // just copy out pointer to this
                     nticks++;
                     rtn=parseTicket(&TICK,(unsign32)millis(),&session->T);       // extract into ticket structure T, and keep for later use  
@@ -1055,13 +1055,13 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     continue;
 
                case KEY_UPDATE :
-					r=parseIntorPull(session,1); if (r.err) break;
-					r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
+                    r=parseIntorPull(session,1); if (r.err) break;
+                    r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
 
                     if (len!=1)
                     {
                         log(IO_PROTOCOL,(char *)"Something wrong\n",NULL,0,NULL);
-						sendAlert(session,DECODE_ERROR);
+                        sendAlert(session,DECODE_ERROR);
                         return BAD_RECORD;
                     }
                     r=parseIntorPull(session,1); kur=r.val; if (r.err) break;
@@ -1073,31 +1073,31 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     if (kur==TLS13_UPDATE_REQUESTED)
                     {
                         deriveUpdatedKeys(&session->K_recv,&session->STS);
-					    sendKeyUpdate(session,TLS13_UPDATE_NOT_REQUESTED); // tell server to update their receiving keys
-			            log(IO_PROTOCOL,(char *)"SENDING KEYS UPDATED\n",NULL,0,NULL);
+                        sendKeyUpdate(session,TLS13_UPDATE_NOT_REQUESTED); // tell server to update their receiving keys
+                        log(IO_PROTOCOL,(char *)"SENDING KEYS UPDATED\n",NULL,0,NULL);
                         log(IO_PROTOCOL,(char *)"Key update notified - client should do the same\n",NULL,0,NULL);
                         log(IO_PROTOCOL,(char *)"RECEIVING KEYS UPDATED\n",NULL,0,NULL);
                     }
-					if (kur!=TLS13_UPDATE_NOT_REQUESTED && kur!=TLS13_UPDATE_REQUESTED)
-					{
+                    if (kur!=TLS13_UPDATE_NOT_REQUESTED && kur!=TLS13_UPDATE_REQUESTED)
+                    {
                         log(IO_PROTOCOL,(char *)"Bad Request Update value\n",NULL,0,NULL);
                         sendAlert(session,ILLEGAL_PARAMETER);
                         return BAD_REQUEST_UPDATE;
-					}
+                    }
                     if (session->ptr==session->IBUFF.len) fin=true; // record finished
                     if (fin) break;
                     continue;
 #ifdef POST_HS_AUTH
-				case CERT_REQUEST:
-					r=getCertificateRequest(session,true);
-					if (badResponse(session,r)) {
-						return BAD_MESSAGE;
-					}
+                case CERT_REQUEST:
+                    r=getCertificateRequest(session,true);
+                    if (badResponse(session,r)) {
+                        return BAD_MESSAGE;
+                    }
                     have_suitable_cert=false;
                     if (r.val==CERT_REQUEST) {
                         have_suitable_cert=true;
                     }
-					// send client credentials
+                    // send client credentials
                     if (have_suitable_cert) {
                         TLS13_client_trust(session);
                     } else {
@@ -1110,42 +1110,42 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     if (session->ptr==session->IBUFF.len) fin=true; // record finished
                     if (fin) break;
                     continue;
-#endif				
+#endif                
 
                 default:
-					r=parseIntorPull(session,1); if (r.err) break;
-					r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
+                    r=parseIntorPull(session,1); if (r.err) break;
+                    r=parseIntorPull(session,3); len=r.val; if (r.err) break;   // message length
                     log(IO_PROTOCOL,(char *)"Unsupported Handshake message type ",(char *)"%x",nb,NULL);
-					sendAlert(session,UNEXPECTED_MESSAGE);
-					return WRONG_MESSAGE;
+                    sendAlert(session,UNEXPECTED_MESSAGE);
+                    return WRONG_MESSAGE;
                     //fin=true;
                     //break;            
                 }
                 if (r.err || fin) break;
             }
-			if (r.err) {
-				sendAlert(session,alert_from_cause(r.err));
-				return r.err;
-			}
+            if (r.err) {
+                sendAlert(session,alert_from_cause(r.err));
+                return r.err;
+            }
         }
         if (type==APPLICATION)
         { // application data received - return it
-			if (session->IBUFF.len==0) continue; // empty application message
+            if (session->IBUFF.len==0) continue; // empty application message
             OCT_copy(REC,&session->IBUFF);
             break;
         }
-		if (type==HEART_BEAT)
-		{
-			REC->len=0;
-			int len=session->IBUFF.len;
-			int mode=session->IBUFF.val[0];
-			int paylen=256*(int)(unsigned char)session->IBUFF.val[1]+(int)(unsigned char)session->IBUFF.val[2];
-			if (len>18+paylen && len<256) { // looks OK - ignore if too large
+        if (type==HEART_BEAT)
+        {
+            REC->len=0;
+            int len=session->IBUFF.len;
+            int mode=session->IBUFF.val[0];
+            int paylen=256*(int)(unsigned char)session->IBUFF.val[1]+(int)(unsigned char)session->IBUFF.val[2];
+            if (len>18+paylen && len<256) { // looks OK - ignore if too large
                 if (mode==1) { // request
                     if (session->expect_heartbeats) {
                         char resp[256];
-						octad RESP={0,sizeof(resp),resp};
-						RESP.len=len;
+                        octad RESP={0,sizeof(resp),resp};
+                        RESP.len=len;
                         RESP.val[0]=2; // convert it to a response and bounce it back
                         for (int i=1;i<paylen+3;i++) {
                             RESP.val[i]=session->IBUFF.val[i];
@@ -1165,9 +1165,9 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         break; // better exit so link can be tested for liveness
                     }
                 }
-			}
-			OCT_kill(&session->IBUFF);
-		}
+            }
+            OCT_kill(&session->IBUFF);
+        }
         if (type==ALERT)
         {
             log(IO_PROTOCOL,(char *)"*** Alert received - ",NULL,0,NULL);
@@ -1175,7 +1175,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
             if (session->IBUFF.val[1]==CLOSE_NOTIFY) {
                 TLS13_stop(session);
                 return CLOSURE_ALERT_RECEIVED;
-		    } else return ERROR_ALERT_RECEIVED;    // Alert received
+            } else return ERROR_ALERT_RECEIVED;    // Alert received
         }
     }
 
@@ -1211,7 +1211,7 @@ int TLS13_recv_and_check(TLS_session *session,octad *REC)
 void TLS13_clean(TLS_session *session)
 {
     OCT_kill(&session->IBUFF);
-	OCT_kill(&session->OBUFF);
+    OCT_kill(&session->OBUFF);
     OCT_kill(&session->CTS);
     OCT_kill(&session->STS);
     OCT_kill(&session->RMS);
@@ -1227,11 +1227,11 @@ void TLS13_stop(TLS_session *session)
 }
 
 void TLS13_end(TLS_session *session)
-{	
+{    
     TLS13_clean(session);
     endTicketContext(&session->T);
 #ifdef SHALLOW_STACK
     free(session->IBUFF.val);
-	free(session->OBUFF.val);
+    free(session->OBUFF.val);
 #endif
 }

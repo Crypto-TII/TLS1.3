@@ -21,11 +21,11 @@ void sendCCCS(TLS_session *session)
 void addHeartbeat(octad *EXT)
 {
     OCT_append_int(EXT,HEARTBEAT,2);  // This extension is HEARTBEAT
-	OCT_append_int(EXT,1,2);
+    OCT_append_int(EXT,1,2);
 #ifdef PEER_CAN_HEARTBEAT
-	OCT_append_int(EXT,1,1);  // peer can heartbeat
+    OCT_append_int(EXT,1,1);  // peer can heartbeat
 #else
-	OCT_append_int(EXT,2,1);  // peer cannot heartbeat
+    OCT_append_int(EXT,2,1);  // peer cannot heartbeat
 #endif
 }
 
@@ -36,7 +36,7 @@ void addCertAuthorities(octad *EXT)
     char dn[256];
     octad DN={0,sizeof(dn),dn};
     OCT_from_base64(&DN,(char *)mysupportedca);
-    OCT_append_int(EXT,CERT_AUTHORITIES,2); 	
+    OCT_append_int(EXT,CERT_AUTHORITIES,2);     
     OCT_append_int(EXT,DN.len+2,2);   // only one CA allowed (for now)
     OCT_append_int(EXT,DN.len,2);
     OCT_append_octad(EXT,&DN);
@@ -47,11 +47,11 @@ void addServerNameExt(octad *EXT,char *servername)
 {
     int len=strlen(servername);
     OCT_append_int(EXT,SERVER_NAME,2);  // This extension is SERVER_NAME(0)
-    OCT_append_int(EXT,5+len,2);		// In theory its a list..
-    OCT_append_int(EXT,3+len,2);		// but only one entry
-    OCT_append_int(EXT,0,1);			// Server is of type DNS Hostname (only one type supported, and only one of each type)
-    OCT_append_int(EXT,len,2);			// serverName length
-    OCT_append_string(EXT,servername);	// servername
+    OCT_append_int(EXT,5+len,2);        // In theory its a list..
+    OCT_append_int(EXT,3+len,2);        // but only one entry
+    OCT_append_int(EXT,0,1);            // Server is of type DNS Hostname (only one type supported, and only one of each type)
+    OCT_append_int(EXT,len,2);            // serverName length
+    OCT_append_string(EXT,servername);    // servername
 }
     
 // Build Supported Groups Extension
@@ -60,47 +60,47 @@ void addSupportedGroupsExt(octad *EXT,int nsg,int *supportedGroups)
     OCT_append_int(EXT,SUPPORTED_GROUPS,2); // This extension is SUPPORTED GROUPS(0x0a)
     OCT_append_int(EXT,2*nsg+2,2);          // Total length
     OCT_append_int(EXT,2*nsg,2);            // Number of entries
-    for (int i=0;i<nsg;i++)					// One entry per supported group 
+    for (int i=0;i<nsg;i++)                    // One entry per supported group 
         OCT_append_int(EXT,supportedGroups[i],2);
 }
 
 // Build client cert type extension for raw public key
 void addClientRawPublicKey(octad *EXT)
 {
-	OCT_append_int(EXT,CLIENT_CERT_TYPE,2);
-	OCT_append_int(EXT,3,2);
-	OCT_append_int(EXT,2,1);
-	OCT_append_int(EXT,RAW_PUBLIC_KEY,1);
-	OCT_append_int(EXT,X509_CERT,1);
+    OCT_append_int(EXT,CLIENT_CERT_TYPE,2);
+    OCT_append_int(EXT,3,2);
+    OCT_append_int(EXT,2,1);
+    OCT_append_int(EXT,RAW_PUBLIC_KEY,1);
+    OCT_append_int(EXT,X509_CERT,1);
 }
 
 // Build server cert type extension for raw public key
 void addServerRawPublicKey(octad *EXT)
 {
-	OCT_append_int(EXT,SERVER_CERT_TYPE,2);
-	OCT_append_int(EXT,3,2);
-	OCT_append_int(EXT,2,1);
-	OCT_append_int(EXT,RAW_PUBLIC_KEY,1);
-	OCT_append_int(EXT,X509_CERT,1);
+    OCT_append_int(EXT,SERVER_CERT_TYPE,2);
+    OCT_append_int(EXT,3,2);
+    OCT_append_int(EXT,2,1);
+    OCT_append_int(EXT,RAW_PUBLIC_KEY,1);
+    OCT_append_int(EXT,X509_CERT,1);
 }
 
 // Build Signature algorithms Extension
 void addSigAlgsExt(octad *EXT,int nsa,int *sigAlgs)
 {
-    OCT_append_int(EXT,SIG_ALGS,2);		// This extension is SIGNATURE_ALGORITHMS(0x0d)
-    OCT_append_int(EXT,2*nsa+2,2);		// Total length
-    OCT_append_int(EXT,2*nsa,2);		// Number of entries
-    for (int i=0;i<nsa;i++)				// One entry per supported signature algorithm
+    OCT_append_int(EXT,SIG_ALGS,2);        // This extension is SIGNATURE_ALGORITHMS(0x0d)
+    OCT_append_int(EXT,2*nsa+2,2);        // Total length
+    OCT_append_int(EXT,2*nsa,2);        // Number of entries
+    for (int i=0;i<nsa;i++)                // One entry per supported signature algorithm
         OCT_append_int(EXT,sigAlgs[i],2);
 }
 
 // Build Signature algorithms Cert Extension
 void addSigAlgsCertExt(octad *EXT,int nsac,int *sigAlgsCert)
 {
-    OCT_append_int(EXT,SIG_ALGS_CERT,2);	// This extension is SIGNATURE_ALGORITHMS_CERT (0x32)
-    OCT_append_int(EXT,2*nsac+2,2);			// Total length
-    OCT_append_int(EXT,2*nsac,2);			// Number of entries
-    for (int i=0;i<nsac;i++)				// One entry per supported signature algorithm
+    OCT_append_int(EXT,SIG_ALGS_CERT,2);    // This extension is SIGNATURE_ALGORITHMS_CERT (0x32)
+    OCT_append_int(EXT,2*nsac+2,2);            // Total length
+    OCT_append_int(EXT,2*nsac,2);            // Number of entries
+    for (int i=0;i<nsac;i++)                // One entry per supported signature algorithm
         OCT_append_int(EXT,sigAlgsCert[i],2);
 }
 
@@ -159,12 +159,12 @@ void addPSKModesExt(octad *EXT,int mode)
 // indicate preferred maximum fragment length
 void addMFLExt(octad *EXT,int mode)
 {
-	if (mode>0)
-	{
-		OCT_append_int(EXT,MAX_FRAG_LENGTH,2);
-		OCT_append_int(EXT,1,2);
-		OCT_append_int(EXT,mode,1);
-	}
+    if (mode>0)
+    {
+        OCT_append_int(EXT,MAX_FRAG_LENGTH,2);
+        OCT_append_int(EXT,1,2);
+        OCT_append_int(EXT,mode,1);
+    }
 }
 
 // indicate preferred maximum record size
@@ -227,9 +227,9 @@ int cipherSuites(octad *CS,int ncs,int *ciphers)
 void sendZeroRecord(TLS_session *session) {
     char rh[5];
     char tag[TLS_MAX_TAG_SIZE];
-	octad TAG={0,sizeof(tag),tag};
-	int taglen=session->K_send.taglen;
-	int ctlen=TLS_MAX_OUTPUT_RECORD_SIZE+1;
+    octad TAG={0,sizeof(tag),tag};
+    int taglen=session->K_send.taglen;
+    int ctlen=TLS_MAX_OUTPUT_RECORD_SIZE+1;
     int reclen=ctlen+taglen;
     rh[0]=APPLICATION;
     rh[1]=(TLS1_2/256);
@@ -242,19 +242,19 @@ void sendZeroRecord(TLS_session *session) {
 
     SAL_aeadEncrypt(&session->K_send,5,rh,ctlen,&session->OBUFF.val[5],&TAG);
     incrementCryptoContext(&session->K_send);  // increment IV
-	OCT_append_octad(&session->OBUFF,&TAG);
+    OCT_append_octad(&session->OBUFF,&TAG);
 
-	for (int j=0;j<5;j++)
-		session->OBUFF.val[j]=rh[j];
+    for (int j=0;j<5;j++)
+        session->OBUFF.val[j]=rh[j];
 
-	sendOctad(session->sockptr,&session->OBUFF); // transmit it
-	OCT_kill(&session->OBUFF); // empty it
+    sendOctad(session->sockptr,&session->OBUFF); // transmit it
+    OCT_kill(&session->OBUFF); // empty it
     session->OBUFF.len=5;
 }
 
 // send one or more records, maybe encrypted.
 void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush) {
-	char rh[5];
+    char rh[5];
     int alen;
     if (session->OBUFF.len==0)
     { // first time - reserve 5 spaces for header
@@ -265,46 +265,46 @@ void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool fl
     }
 
     for (int i=0;i<DATA->len;i++) {
-		OCT_append_byte(&session->OBUFF,DATA->val[i],1); alen++;
+        OCT_append_byte(&session->OBUFF,DATA->val[i],1); alen++;
         bool flushing=false;
         if (i==DATA->len-1 && flush) flushing=true;;
         if (alen==TLS_MAX_OUTPUT_RECORD_SIZE || flushing)
         {
-			int reclen,ctlen;
+            int reclen,ctlen;
             if (!session->K_send.active) { // no encryption
                 reclen=alen;
                 rh[0]=rectype;
-				rh[1]=(version/256);
+                rh[1]=(version/256);
                 rh[2]=(version%256);
                 rh[3]=(reclen/256);
                 rh[4]=(reclen%256);
             } else {
-				char tag[TLS_MAX_TAG_SIZE];
-				octad TAG={0,sizeof(tag),tag};
-				int taglen=session->K_send.taglen;
-				OCT_append_byte(&session->OBUFF,rectype,1); 
+                char tag[TLS_MAX_TAG_SIZE];
+                octad TAG={0,sizeof(tag),tag};
+                int taglen=session->K_send.taglen;
+                OCT_append_byte(&session->OBUFF,rectype,1); 
 #ifdef PAD_SHORT_RECORDS
-				ctlen=TLS_MAX_OUTPUT_RECORD_SIZE+1; // pad to full length - should be padded with 0s
-				session->OBUFF.len=ctlen+5;
+                ctlen=TLS_MAX_OUTPUT_RECORD_SIZE+1; // pad to full length - should be padded with 0s
+                session->OBUFF.len=ctlen+5;
 #else
                 ctlen=alen+1; 
 #endif
-				reclen=ctlen+taglen;
+                reclen=ctlen+taglen;
                 rh[0]=APPLICATION;
                 rh[1]=(TLS1_2/256);
                 rh[2]=(TLS1_2%256);
                 rh[3]=(reclen/256);
                 rh[4]=(reclen%256);
 
-				SAL_aeadEncrypt(&session->K_send,5,rh,ctlen,&session->OBUFF.val[5],&TAG);
-				incrementCryptoContext(&session->K_send);  // increment IV
-				OCT_append_octad(&session->OBUFF,&TAG);
+                SAL_aeadEncrypt(&session->K_send,5,rh,ctlen,&session->OBUFF.val[5],&TAG);
+                incrementCryptoContext(&session->K_send);  // increment IV
+                OCT_append_octad(&session->OBUFF,&TAG);
             }
-			for (int j=0;j<5;j++)
-				session->OBUFF.val[j]=rh[j];
+            for (int j=0;j<5;j++)
+                session->OBUFF.val[j]=rh[j];
 
-			sendOctad(session->sockptr,&session->OBUFF); // transmit it
-			OCT_kill(&session->OBUFF); // empty it
+            sendOctad(session->sockptr,&session->OBUFF); // transmit it
+            OCT_kill(&session->OBUFF); // empty it
             alen=0;
             session->OBUFF.len=5;
         }
@@ -326,31 +326,31 @@ void sendClientMessage(TLS_session *session,int rectype,int version,octad *CM,oc
 #ifndef MERGE_MESSAGES
     choice=true;
 #endif
-	if (EXT!=NULL)
-	{
-		sendRecord(session,rectype,version,CM,false);
-		sendRecord(session,rectype,version,EXT,choice);
-	} else {
-		sendRecord(session,rectype,version,CM,choice);
-	} 
+    if (EXT!=NULL)
+    {
+        sendRecord(session,rectype,version,CM,false);
+        sendRecord(session,rectype,version,EXT,choice);
+    } else {
+        sendRecord(session,rectype,version,CM,choice);
+    } 
 }
 
 // Send a heartbeat request record. Note my payloads are always of length 0.
 // should it be encrypted? Yes
 void sendHeartbeatRequest(TLS_session *session)
 {
-	char hb[20];
-	octad HB={0,sizeof(hb),hb};
+    char hb[20];
+    octad HB={0,sizeof(hb),hb};
     if (session->status==TLS13_DISCONNECTED || !session->allowed_to_heartbeat || session->heartbeat_req_in_flight) {
         return;
     }
 //printf("Sending HEART_BEAT REQ\n");
-	OCT_append_int(&HB,1,1); // heartbeat request
-	OCT_append_int(&HB,0,2); // zero payload
-	for (int i=0;i<16;i++)
-		OCT_append_int(&HB,SAL_randomByte(),1);
-	session->heartbeat_req_in_flight=true;
-	sendRecord(session,HEART_BEAT,TLS1_2,&HB,true);
+    OCT_append_int(&HB,1,1); // heartbeat request
+    OCT_append_int(&HB,0,2); // zero payload
+    for (int i=0;i<16;i++)
+        OCT_append_int(&HB,SAL_randomByte(),1);
+    session->heartbeat_req_in_flight=true;
+    sendRecord(session,HEART_BEAT,TLS1_2,&HB,true);
 }
 
 
@@ -359,37 +359,37 @@ void sendClientHello(TLS_session *session,int version,octad *CH,octad *CRN,bool 
 {
     char cs[2+TLS_MAX_CIPHER_SUITES*2];
     octad CS = {0, sizeof(cs), cs};
-	int nsc;
-	int ciphers[TLS_MAX_CIPHER_SUITES];
+    int nsc;
+    int ciphers[TLS_MAX_CIPHER_SUITES];
     int compressionMethods=0x0100;
     int total=8;
     int extlen=EXTENSIONS->len+extra;
 
-	nsc=SAL_ciphers(ciphers);  
-	if (already_agreed)
-	{ // cipher suite already agreed
-		nsc=1;
-		ciphers[0]=session->cipher_suite;
-	}
+    nsc=SAL_ciphers(ciphers);  
+    if (already_agreed)
+    { // cipher suite already agreed
+        nsc=1;
+        ciphers[0]=session->cipher_suite;
+    }
 
     total+=32; // Random bytes clientRandom(&RN);
-	total+=33;
+    total+=33;
     if (!resume) { // if its a handshake resumption, re-use the old id?? Since its the same session?
         for (int i=0;i<32;i++)
-			session->id[i]=SAL_randomByte();
-	}
+            session->id[i]=SAL_randomByte();
+    }
  
     total+=cipherSuites(&CS,nsc,ciphers);
 
     OCT_kill(CH);
-    OCT_append_byte(CH,CLIENT_HELLO,1);		// clientHello handshake message  // 1
-    OCT_append_int(CH,total+extlen-2,3);	// 3
+    OCT_append_byte(CH,CLIENT_HELLO,1);        // clientHello handshake message  // 1
+    OCT_append_int(CH,total+extlen-2,3);    // 3
 
-    OCT_append_int(CH,TLS1_2,2);			// 2
-    OCT_append_octad(CH,CRN);				// 32
-    OCT_append_byte(CH,32,1);				// 1   
+    OCT_append_int(CH,TLS1_2,2);            // 2
+    OCT_append_octad(CH,CRN);                // 32
+    OCT_append_byte(CH,32,1);                // 1   
     OCT_append_bytes(CH,session->id,32);    // 32
-    OCT_append_octad(CH,&CS);				// 2+TLS_MAX_CIPHER_SUITES*2
+    OCT_append_octad(CH,&CS);                // 2+TLS_MAX_CIPHER_SUITES*2
     OCT_append_int(CH,compressionMethods,2);  // 2
     OCT_append_int(CH,extlen,2);              // 2
 
@@ -430,14 +430,14 @@ void sendAlert(TLS_session *session,int type)
 
 void sendKeyUpdate(TLS_session *session,int type)
 {
-	char up[5];
-	octad UP={0,sizeof(up),up};
-	OCT_append_byte(&UP,KEY_UPDATE,1);
-	OCT_append_int(&UP,1,3);
-	OCT_append_int(&UP,type,1);
-	OCT_kill(&session->IBUFF); session->ptr=0;
-	sendClientMessage(session,HSHAKE,TLS1_2,&UP,NULL,true); // sent using old keys
-	deriveUpdatedKeys(&session->K_send,&session->CTS);		// now update keys
+    char up[5];
+    octad UP={0,sizeof(up),up};
+    OCT_append_byte(&UP,KEY_UPDATE,1);
+    OCT_append_int(&UP,1,3);
+    OCT_append_int(&UP,type,1);
+    OCT_kill(&session->IBUFF); session->ptr=0;
+    sendClientMessage(session,HSHAKE,TLS1_2,&UP,NULL,true); // sent using old keys
+    deriveUpdatedKeys(&session->K_send,&session->CTS);        // now update keys
     log(IO_PROTOCOL,(char *)"KEY UPDATE REQUESTED\n",NULL,0,NULL);
 }
 
@@ -447,8 +447,8 @@ void sendClientFinish(TLS_session *session,octad *CHF)
     char pt[4];
     octad PT={0,sizeof(pt),pt};
 
-    OCT_append_byte(&PT,FINISHED,1);	// indicates handshake message "client finished" 
-    OCT_append_int(&PT,CHF->len,3);		// .. and its length 
+    OCT_append_byte(&PT,FINISHED,1);    // indicates handshake message "client finished" 
+    OCT_append_int(&PT,CHF->len,3);        // .. and its length 
 
     runningHash(session,&PT);
     runningHash(session,CHF);
@@ -478,7 +478,7 @@ void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN)
     OCT_append_byte(&PT,CERTIFICATE,1);
     if (CERTCHAIN==NULL) {  // no acceptable certificate available
         OCT_append_int(&PT,4,3);
-		int nb=session->CTX.len;
+        int nb=session->CTX.len;
         OCT_append_byte(&PT,nb,1); // cert context
         if (nb>0)
             OCT_append_octad(&PT,&session->CTX);
@@ -487,7 +487,7 @@ void sendClientCertificateChain(TLS_session *session,octad *CERTCHAIN)
         sendClientMessage(session,HSHAKE,TLS1_2,&PT,NULL,true);
     } else {
         OCT_append_int(&PT,4+CERTCHAIN->len,3);
-		int nb=session->CTX.len;
+        int nb=session->CTX.len;
         OCT_append_byte(&PT,nb,1); // cert context
         if (nb>0)
             OCT_append_octad(&PT,&session->CTX);
@@ -545,21 +545,21 @@ int alert_from_cause(int rtn)
         return CERTIFICATE_EXPIRED;
     case MEM_OVERFLOW:
         return DECODE_ERROR;
-	case FORBIDDEN_EXTENSION:
-		return ILLEGAL_PARAMETER;
-	case MAX_EXCEEDED:
-		return RECORD_OVERFLOW;
-	case CERT_VERIFY_FAIL:
-		return DECRYPT_ERROR;
-	case BAD_HANDSHAKE:
-		return HANDSHAKE_FAILURE;
-	case BAD_REQUEST_UPDATE:
-		return ILLEGAL_PARAMETER;
+    case FORBIDDEN_EXTENSION:
+        return ILLEGAL_PARAMETER;
+    case MAX_EXCEEDED:
+        return RECORD_OVERFLOW;
+    case CERT_VERIFY_FAIL:
+        return DECRYPT_ERROR;
+    case BAD_HANDSHAKE:
+        return HANDSHAKE_FAILURE;
+    case BAD_REQUEST_UPDATE:
+        return ILLEGAL_PARAMETER;
     case MISSING_EXTENSIONS:
         return MISSING_EXTENSION;
-	case BAD_MESSAGE:
-	case EMPTY_CERT_CHAIN:
-		return DECODE_ERROR;
+    case BAD_MESSAGE:
+    case EMPTY_CERT_CHAIN:
+        return DECODE_ERROR;
     default:
         return ILLEGAL_PARAMETER;    
     }

@@ -44,17 +44,6 @@ impl CERT {
 fn create_full_name(fullname: &mut [u8],cert: &[u8],ic: usize,len: usize) -> usize {
     let mut ptr=0;
     ptr=utils::append_bytes(fullname,ptr,&cert[ic..ic+len]);
-/*
-    let mut ptr=0;
-    let mut ep=x509::find_entity_property(cert,&x509::MN,ic);
-    ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]);
-    ptr=utils::append_byte(fullname,ptr,'/' as u8,1);
-    ep=x509::find_entity_property(cert,&x509::ON,ic);
-    ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]);
-    ptr=utils::append_byte(fullname,ptr,'/' as u8,1);
-    ep=x509::find_entity_property(cert,&x509::UN,ic);
-    ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]);
-*/
     return ptr;
 }
 
@@ -146,14 +135,6 @@ fn parse_cert(scert: &[u8],start: &mut usize,len: &mut usize,prev_issuer: &mut[u
     ret=x509::find_subject(cert);
     ct.sblen=create_full_name(&mut ct.subject,cert,ret.index,ret.length);
 
-/*
-    let mut ret=x509::find_issuer(cert);
-    let mut ic=ret.index;
-    ct.islen=create_full_name(&mut ct.issuer,cert,ic);
-    ret=x509::find_subject(cert);
-    ic=ret.index;
-    ct.sblen=create_full_name(&mut ct.subject,cert,ic);
-*/
     if !check_cert_not_expired(cert) {
         log(IO_DEBUG,"Certificate has expired\n",-1,None);
         ct.status=CERT_OUTOFDATE;

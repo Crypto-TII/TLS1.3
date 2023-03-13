@@ -13,12 +13,12 @@
 #include "tls_sockets.h"
 
 typedef uint8_t byte;           /**< 8-bit unsigned integer */
-typedef int8_t sign8 ;			/**< 8-bit signed integer */
-typedef int16_t sign16;			/**< 16-bit signed integer */
-typedef int32_t sign32;			/**< 32-bit signed integer */
-typedef int64_t sign64;			/**< 64-bit signed integer */
-typedef uint32_t unsign32 ;		/**< 32-bit unsigned integer */
-typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
+typedef int8_t sign8 ;          /**< 8-bit signed integer */
+typedef int16_t sign16;         /**< 16-bit signed integer */
+typedef int32_t sign32;         /**< 32-bit signed integer */
+typedef int64_t sign64;         /**< 64-bit signed integer */
+typedef uint32_t unsign32 ;     /**< 32-bit unsigned integer */
+typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 
 // Terminal Output
 #define IO_NONE 0           /**< Run silently */
@@ -54,12 +54,12 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define POST_HS_AUTH              /**< Willing to do post handshake authentication */
 #define CLIENT_CERT RSA_SS        /**< Indicate capability of authenticating with a cert plus signing key */
 
-#define CRYPTO_SETTING TYPICAL   /**< Determine Cryptography settings */
+#define CRYPTO_SETTING TYPICAL    /**< Determine Cryptography settings */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
-#define ALLOW_SELF_SIGNED		 /**< allow self-signed server cert */
-//#define NO_CERT_CHECKS		 /**< Don't do any checks on server certs - useful for Anvil testing */
-#define TRY_EARLY_DATA           /**< Try to send early data on resumptions */
+#define ALLOW_SELF_SIGNED         /**< allow self-signed server cert */
+//#define NO_CERT_CHECKS          /**< Don't do any checks on server certs - useful for Anvil testing */
+#define TRY_EARLY_DATA            /**< Try to send early data on resumptions */
 
 //#define ENABLE_HEARTBEATS        /**< Enable heartbeats */
 //#define PEER_CAN_HEARTBEAT       /**< Allow peer to heartbeat */
@@ -70,17 +70,17 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 //#define SHALLOW_STACK           /**< Get large arrays from heap, else stack */
 
 // comment out if no max record size. In practise TLS1.3 doesn't seem to support this record_size_limit extension, so use with caution
-// #define MAX_RECORD 1024     /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IBUFF_SIZE below */
+// #define MAX_RECORD 1024       /**< Maximum record size client is willing to receive - should be less than TLS_MAX_IBUFF_SIZE below */
 // Note that if this is not used, max_fragment_size extension is tried instead, see TLS_MAX_FRAG below
 
 // define this so that all encrypted records are padded with 0s to full length
-// #define PAD_SHORT_RECORDS		/**< Pad short output records */ 
+// #define PAD_SHORT_RECORDS     /**< Pad short output records */ 
 
 //#define PREFER_RAW_SERVER_PUBLIC_KEY   /**< Would be happy with raw public key from server */
 //#define PREFER_RAW_CLIENT_PUBLIC_KEY   /**< Would prefer server to accept raw public key from client */
 
 // may need to undefine this for fuzzing 
-#define MERGE_MESSAGES                  /**< allow merging of messages into single record */
+#define MERGE_MESSAGES           /**< allow merging of messages into single record */
 
 // *****************************************************************************
 
@@ -100,21 +100,21 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_EXT_LABEL 256            /**< Max external psk label size */
 
 // Max Frag length must be less than TLS_MAX_IBUFF_SIZE
-#define TLS_MAX_FRAG 2					/**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
+#define TLS_MAX_FRAG 2                   /**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
 
 #if CRYPTO_SETTING==TYPICAL
- #define TLS_MAX_IBUFF_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
- #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
- #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
+ #define TLS_MAX_IBUFF_SIZE (16384+256)  /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_PLAIN_FRAG 16384        /**< Max Plaintext Fragment size */
+ #define TLS_MAX_CIPHER_FRAG (16384+256) /**< Max Ciphertext Fragment size */
 
  #define TLS_MAX_CERT_SIZE 2048       /**< I checked - current max for root CAs is 2016 */
  #define TLS_MAX_CERT_B64 2800        /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 1024           /**< Max client hello size (less extensions) KEX public key is largest component */
 
- #define TLS_MAX_SIG_PUB_KEY_SIZE 512        /**< Max signature public key size in bytes		4096-bit RSA */
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 512        /**< Max signature public key size in bytes        4096-bit RSA */
  #define TLS_MAX_SIG_SECRET_KEY_SIZE 1280    /**< Max signature private key size in bytes       4096-bit RSA */
  #define TLS_MAX_SIGNATURE_SIZE 512          /**< Max digital signature size in bytes           4096-bit RSA */
- #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes		384-bit ECC */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes        384-bit ECC */
  #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        384-bit ECC */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    384-bit ECC */
 #endif
@@ -122,8 +122,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #if CRYPTO_SETTING == POST_QUANTUM
 
  #define TLS_MAX_IBUFF_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
- #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
- #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
+ #define TLS_MAX_PLAIN_FRAG 16384            /**< Max Plaintext Fragment size */
+ #define TLS_MAX_CIPHER_FRAG (16384+256)     /**< Max Ciphertext Fragment size */
 
  #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for Dilithium!*/
  #define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
@@ -140,8 +140,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 #if CRYPTO_SETTING == HYBRID
 
- #define TLS_MAX_IBUFF_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
- #define TLS_MAX_PLAIN_FRAG 16384		 /**< Max Plaintext Fragment size */
+ #define TLS_MAX_IBUFF_SIZE (16384+256)   /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_PLAIN_FRAG 16384         /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
 
  #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for Dilithium!*/
@@ -149,28 +149,28 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
  #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
 
 // These all blow up post quantum
- #define TLS_MAX_SIG_PUB_KEY_SIZE 1312+65        /**< Max signature public key size in bytes     DILITHIUM2 + P256 */
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 1312+65         /**< Max signature public key size in bytes     DILITHIUM2 + P256 */
  #define TLS_MAX_SIG_SECRET_KEY_SIZE 2528+200     /**< Max signature private key size in bytes    DILITHIUM2 + P256 (maybe includes the public key?) */
  #define TLS_MAX_SIGNATURE_SIZE 2420+100          /**< Max signature size in bytes                DILITHIUM2 + P256 (DER encoding for ECC sig) */
- #define TLS_MAX_KEX_PUB_KEY_SIZE 1184+32        /**< Max key exchange public key size in bytes  KYBER768+X25519   */
- #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088+32     /**< Max key exchange (KEM) ciphertext size     KYBER768+X25519   */
- #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400+32     /**< Max key exchange private key size in bytes KYBER768+X25519   */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 1184+32         /**< Max key exchange public key size in bytes  KYBER768+X25519   */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088+32      /**< Max key exchange (KEM) ciphertext size     KYBER768+X25519   */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400+32      /**< Max key exchange private key size in bytes KYBER768+X25519   */
 #endif
 
 
 #if CRYPTO_SETTING==TINY_ECC
- #define TLS_MAX_IBUFF_SIZE (4096+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
- #define TLS_MAX_PLAIN_FRAG 4096		 /**< Max Plaintext Fragment size */
+ #define TLS_MAX_IBUFF_SIZE (4096+256)   /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_PLAIN_FRAG 4096         /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (4096+256)  /**< Max Ciphertext Fragment size */
 
  #define TLS_MAX_CERT_SIZE 2048      /**< I checked - current max for root CAs is 2016 */
  #define TLS_MAX_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 1024          /**< Max client hello size (less extensions) KEX public key is largest component */
 
- #define TLS_MAX_SIG_PUB_KEY_SIZE 133        /**< Max signature public key size in bytes		ECC */
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 133        /**< Max signature public key size in bytes        ECC */
  #define TLS_MAX_SIG_SECRET_KEY_SIZE 66      /**< Max signature private key size in bytes       ECC */
  #define TLS_MAX_SIGNATURE_SIZE 132          /**< Max signature size in bytes                   ECC */
- #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes		ECC */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes        ECC */
  #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        ECC */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    ECC */
 #endif
@@ -181,22 +181,22 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS_MAX_CLIENT_CHAIN_LEN 1             /**< Maximum Client Certificate chain length - one self signed here */
 #define TLS_MAX_CLIENT_CHAIN_SIZE (TLS_MAX_CLIENT_CHAIN_LEN*TLS_MAX_CERT_SIZE) /**< Maximum Client Certificate chain length in bytes */
 
-#define TLS_MAX_SHARED_SECRET_SIZE 256	 /**< Max key exchange Shared secret size */
+#define TLS_MAX_SHARED_SECRET_SIZE 256    /**< Max key exchange Shared secret size */
 
 // Both of these are bumped up by PQ IBE and Hybrid
-#define TLS_MAX_TICKET_SIZE 4196         /**< maximum resumption ticket size - beware some servers send much bigger tickets! */
-#define TLS_MAX_EXTENSIONS 6144          /**< Max extensions size */
+#define TLS_MAX_TICKET_SIZE 4196        /**< maximum resumption ticket size - beware some servers send much bigger tickets! */
+#define TLS_MAX_EXTENSIONS 6144         /**< Max extensions size */
 
 #define TLS_MAX_ECC_FIELD 66            /**< Max ECC field size in bytes */
 #define TLS_MAX_IV_SIZE 12              /**< Max IV size in bytes */
 #define TLS_MAX_TAG_SIZE 16             /**< Max HMAC tag length in bytes */    
 #define TLS_MAX_COOKIE 128              /**< Max Cookie size */    
 
-#define TLS_MAX_OUTPUT_RECORD_SIZE 1024   /**< Max output record size */
+#define TLS_MAX_OUTPUT_RECORD_SIZE 1024 /**< Max output record size */
 #define TLS_MAX_OBUFF_SIZE (TLS_MAX_OUTPUT_RECORD_SIZE+TLS_MAX_TAG_SIZE+6) /**< Max output buffer size */
 
 #define TLS_MAX_SERVER_NAME 128         /**< Max server name size in bytes */
-#define TLS_MAX_SUPPORTED_GROUPS 10      /**< Max number of supported crypto groups */
+#define TLS_MAX_SUPPORTED_GROUPS 10     /**< Max number of supported crypto groups */
 #define TLS_MAX_SUPPORTED_SIGS 16       /**< Max number of supported signature schemes */    
 #define TLS_MAX_PSK_MODES 2             /**< Max preshared key modes */
 #define TLS_MAX_CIPHER_SUITES 5         /**< Max number of supported cipher suites */
@@ -212,8 +212,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define X25519 0x001d                   /**< X25519 elliptic curve key exchange */
 #define SECP256R1 0x0017                /**< NIST SECP256R1 elliptic curve key exchange */
 #define SECP384R1 0x0018                /**< NIST SECP384R1 elliptic curve key exchange */
-#define SECP521R1 0x0019				/**< NIST SECP521R1 elliptic curve key exchange */
-#define X448 0x001e						/**< X448 elliptic curve key exchange */
+#define SECP521R1 0x0019                /**< NIST SECP521R1 elliptic curve key exchange */
+#define X448 0x001e                     /**< X448 elliptic curve key exchange */
 #define KYBER768 0x4242                 /**< Kyber PQ key exchange - NOTE I just made this up! Not generally recognised! */
 #define HYBRID_KX 0x421d                /**< Hybrid key exchange, Kyber+X25519 */
 
@@ -245,8 +245,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define TLS1_2 0x0303                   /**< TLS 1.2 version */
 #define TLS1_3 0x0304                   /**< TLS 1.3 version */
 
-#define TLS13_UPDATE_NOT_REQUESTED 0			/**< Updating my keys */
-#define TLS13_UPDATE_REQUESTED 1				/**< Updating my keys and telling you to update yours */
+#define TLS13_UPDATE_NOT_REQUESTED 0    /**< Updating my keys */
+#define TLS13_UPDATE_REQUESTED 1        /**< Updating my keys and telling you to update yours */
 
 // Extensions 
 #define SERVER_NAME 0x0000              /**< Server Name extension */
@@ -308,16 +308,16 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define CA_NOT_FOUND -13                /**< Certificate Authority not found */
 #define CERT_OUTOFDATE -14              /**< Certificate Expired */
 #define MEM_OVERFLOW -15                /**< Memory Overflow */
-#define FORBIDDEN_EXTENSION -16			/**< Forbidden Encrypted Extension */
-#define MAX_EXCEEDED -17				/**< Maximum record size exceeded */
+#define FORBIDDEN_EXTENSION -16         /**< Forbidden Encrypted Extension */
+#define MAX_EXCEEDED -17                /**< Maximum record size exceeded */
 #define EMPTY_CERT_CHAIN -18            /**< Empty Certificate Message */
-#define SELF_SIGNED_CERT -20			/**< Self signed certificate */
+#define SELF_SIGNED_CERT -20            /**< Self signed certificate */
 #define TIME_OUT -21                    /**< Time out */
 #define ERROR_ALERT_RECEIVED -22        /**< Alert has been received */
 #define BAD_MESSAGE -23                 /**< Badly formed message */
 #define CERT_VERIFY_FAIL -24            /**< Certificate Verification failure */
 #define BAD_HANDSHAKE -26               /**< Could not agree */
-#define BAD_REQUEST_UPDATE -27			/**< Bad Request Update value */
+#define BAD_REQUEST_UPDATE -27          /**< Bad Request Update value */
 #define CLOSURE_ALERT_RECEIVED -28      /**< Alert has been received */
 #define MISSING_EXTENSIONS -30          /**< Some mandatory extensions are missing */
 // client alerts 
@@ -331,8 +331,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define PROTOCOL_VERSION 0x46           /**< Wrong TLS version */
 #define DECODE_ERROR 0x32               /**< Decode error alert */
 #define RECORD_OVERFLOW 0x16            /**< Record Overflow */
-#define BAD_RECORD_MAC 0x14				/**< Bad Record Mac */
-#define HANDSHAKE_FAILURE 0x28			/**< Could not agree */
+#define BAD_RECORD_MAC 0x14             /**< Bad Record Mac */
+#define HANDSHAKE_FAILURE 0x28          /**< Could not agree */
 #define CLOSE_NOTIFY 0x00               /**< Orderly shut down of connection */
 #define MISSING_EXTENSION 0x6D;         /**< Missing extension */
 
@@ -340,7 +340,7 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 
 #define TLS13_DISCONNECTED 0            /**< TLS1.3 Connection is broken */
 #define TLS13_CONNECTED 1               /**< TLS1.3 Connection is made */ 
-#define TLS13_HANDSHAKING 2				/**< TLS1.3 is handshaking */
+#define TLS13_HANDSHAKING 2             /**< TLS1.3 is handshaking */
 
 // protocol returns..
 #define TLS_FAILURE 0                   /**< Failed to cmake TLS1.3 connection */
@@ -354,8 +354,8 @@ typedef uint64_t unsign64;		/**< 64-bit unsigned integer */
 #define PSK_IBE 2           /**< Using IBE based PSK */
 
 // Certificate types
-#define X509_CERT 0			/**< X509 Certificate-based authentication */
-#define RAW_PUBLIC_KEY 2	/**< Raw Public Key based authentication */
+#define X509_CERT 0         /**< X509 Certificate-based authentication */
+#define RAW_PUBLIC_KEY 2    /**< Raw Public Key based authentication */
 
 /**
  * @brief function return structure */
@@ -386,7 +386,7 @@ typedef struct
     octad IV;               /**< IV as octad */
     unsign32 record;        /**< current record number - to be incremented */
     int suite;              /**< Cipher Suite */
-	int taglen;				/**< Tag Length */
+    int taglen;             /**< Tag Length */
 } crypto;
 
 /**
@@ -422,14 +422,14 @@ typedef struct
 typedef struct 
 {
     int status;             /**< Connection status */
-	int max_record;         /**< max record size I should send */
+    int max_record;         /**< max record size I should send */
     Socket *sockptr;        /**< Pointer to socket */
-	char id[32];            /**< Session ID */
+    char id[32];            /**< Session ID */
     char hostname[TLS_MAX_SERVER_NAME];     /**< Server name for connection */
     int cipher_suite;       /**< agreed cipher suite */
     int favourite_group;    /**< favourite key exchange group - may be changed on handshake retry */
-	int server_cert_type;   /**< server certificate type */
-	int client_cert_type;   /**< client certificate type */
+    int server_cert_type;   /**< server certificate type */
+    int client_cert_type;   /**< client certificate type */
     crypto K_send;          /**< Sending Key */
     crypto K_recv;          /**< Receiving Key */
     octad HS;               /**< Handshake secret */
@@ -441,19 +441,19 @@ typedef struct
     octad CTS;              /**< Client Traffic secret */
     char cts[TLS_MAX_HASH]; /**< Client Traffic secret data */
     octad CTX;              /**< Certificate Request Context */
-    char ctx[TLS_MAX_HASH];	/**< Certificate Request Context data */
-    octad IBUFF;               /**< Main input buffer for this connection */
-	octad OBUFF;			/**< output buffer for this connection */
+    char ctx[TLS_MAX_HASH]; /**< Certificate Request Context data */
+    octad IBUFF;            /**< Main input buffer for this connection */
+    octad OBUFF;            /**< output buffer for this connection */
 #ifndef SHALLOW_STACK
     char ibuff[TLS_MAX_IBUFF_SIZE]; /**< Byte array for main input buffer for this connection */
-	char obuff[TLS_MAX_OBUFF_SIZE]; /**< output buffer for this connection */
+    char obuff[TLS_MAX_OBUFF_SIZE]; /**< output buffer for this connection */
 #endif
     int ptr;                /**< pointer into IBUFF buffer */
     unihash tlshash;        /**< Transcript hash recorder */
     ticket T;               /**< resumption ticket */
-	bool expect_heartbeats;  /**< Expect to receive heartbeats */
-	bool allowed_to_heartbeat; /**< Am I allowed to heartbeat? */
-	bool heartbeat_req_in_flight; /**< timestamp on outstanding request, otherwise 0 */
+    bool expect_heartbeats;       /**< Expect to receive heartbeats */
+    bool allowed_to_heartbeat;    /**< Am I allowed to heartbeat? */
+    bool heartbeat_req_in_flight; /**< timestamp on outstanding request, otherwise 0 */
 } TLS_session;
 
 // IBUFF buffer

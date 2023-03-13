@@ -43,16 +43,6 @@ impl CERT {
 fn create_full_name(fullname: &mut [u8],cert: &[u8],ic: usize,len: usize) -> usize {
     let mut ptr=0;
     ptr=utils::append_bytes(fullname,ptr,&cert[ic..ic+len]);
-/*
-    let mut ptr=0;
-    let mut ep=x509::find_entity_property(cert,&x509::MN,ic);
-    ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]);
-    ptr=utils::append_byte(fullname,ptr,'/' as u8,1);
-    ep=x509::find_entity_property(cert,&x509::ON,ic);
-    ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]);
-    ptr=utils::append_byte(fullname,ptr,'/' as u8,1);
-    ep=x509::find_entity_property(cert,&x509::UN,ic);
-    ptr=utils::append_bytes(fullname,ptr,&cert[ep.index..ep.index+ep.length]); */
     return ptr;
 }
 

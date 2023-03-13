@@ -402,14 +402,7 @@ impl SESSION {
                     self.obuff[j]=rh[j];
                 }
                 socket::send_bytes(&mut self.sockptr,&self.obuff[0..reclen+5]);
-/*
-                if !self.k_send.active {
-                    let myrlen=(self.obuff[3] as usize)*256 + (self.obuff[4] as usize);
-                    let olen=(self.obuff[7] as usize)*256 + (self.obuff[8] as usize);
-                    if olen+4 != myrlen {
-                        println!("SCREAM SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS");
-                    }
-                } */
+
                 self.optr=0;
                 for j in 0..reclen+5 {
                     self.obuff[j]=0; // padding by zeros ensured, kill evidence
