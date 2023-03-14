@@ -474,7 +474,7 @@ impl SESSION {
         for _ in 0..16 {
             ptr=utils::append_byte(&mut hb,ptr,sal::random_byte(),1);
         }
-	    self.heartbeat_req_in_flight=true;
+        self.heartbeat_req_in_flight=true;
         self.send_record(HEART_BEAT,TLS1_2,&hb[0..ptr],true);
     }
 
@@ -748,16 +748,16 @@ impl SESSION {
         } 
 
         r=self.parse_int_pull(3); let tlen=r.val; if r.err!=0 {return r;}   // get length of certificate chain
-	    if tlen==0 {
-		    r.err=EMPTY_CERT_CHAIN;
+        if tlen==0 {
+            r.err=EMPTY_CERT_CHAIN;
             self.running_hash_io();
-		    return r;
-	    }
-	    if tlen+4!=len {
-		    r.err=BAD_CERT_CHAIN;
+            return r;
+        }
+        if tlen+4!=len {
+            r.err=BAD_CERT_CHAIN;
             self.running_hash_io();
-		    return r;
-	    }
+            return r;
+        }
         let start=self.ptr;
         r=self.parse_pull(tlen); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.ibuff
 // Update Transcript hash
@@ -1199,9 +1199,9 @@ impl SESSION {
                         r.err=UNRECOGNIZED_EXT;
                         return r;
                     }
-			        self.expect_heartbeats=true;
+                    self.expect_heartbeats=true;
 //println!("EXPECTING HEARTBEATs");
-			        if hbmode==1 {
+                    if hbmode==1 {
 //println!("ALLOWED TO HEARTBEAT");
                         self.allowed_to_heartbeat=true;
                     } else {

@@ -12,51 +12,51 @@
 #include "tls1_3.h"
 #include "tls_x509.h"
 
-/**	@brief internal printf function - all output funnels through this function 
+/** @brief internal printf function - all output funnels through this function 
  *
-	@param s a string to be output
+    @param s a string to be output
  */
 extern void myprintf(char *s);
 
-/**	@brief basic logging function
+/** @brief basic logging function
  *
-	@param logit logging level
-	@param preamble a string to be output
+    @param logit logging level
+    @param preamble a string to be output
     @param string another string, or a format specifier for info, or NULL
     @param info an integer to be output
     @param O an octad to be output (or NULL)
  */
 extern void log(int logit,char *preamble,char *string,unsign32 info,octad *O);
 
-/**	@brief logging the Server hello
+/** @brief logging the Server hello
  *
-	@param cipher_suite the chosen cipher suite
+    @param cipher_suite the chosen cipher suite
     @param pskid the chosen preshared key (or -1 if none)
     @param PK the Server Public Key
     @param CK a Cookie (if any)
  */
 extern void logServerHello(int cipher_suite,int pskid,octad *PK,octad *CK);
 
-/**	@brief logging a resumption ticket
+/** @brief logging a resumption ticket
  *
-	@param T a resumption ticket
+    @param T a resumption ticket
  */
 extern void logTicket(ticket *T);
 
-/**	@brief logging server extended extensions responses vs expectations
+/** @brief logging server extended extensions responses vs expectations
  *
-	@param e structure containing server expectations
-	@param r structure containing server responses
+    @param e structure containing server expectations
+    @param r structure containing server responses
  */
 extern void logEncExt(ee_status *e,ee_status *r);
 
-/**	@brief logging a Certificate in standard base 64 format
+/** @brief logging a Certificate in standard base 64 format
  *
-	@param CERT the certificate to be logged
+    @param CERT the certificate to be logged
  */
 extern void logCert(octad *CERT);
 
-/**	@brief logging Certificate details
+/** @brief logging Certificate details
  *
     @param PUBKEY the certificate public key octad
     @param pk the public key type
@@ -67,31 +67,31 @@ extern void logCert(octad *CERT);
  */
 extern void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT);
 
-/**	@brief log client processing of a Server response
+/** @brief log client processing of a Server response
  *
-	@param r the Server response 
+    @param r the Server response 
  */
 extern void logServerResponse(ret r);
 
-/**	@brief log Server Alert
+/** @brief log Server Alert
  *
     @param detail the server's alert code
  */
 extern void logAlert(int detail);
 
-/**	@brief log Cipher Suite
+/** @brief log Cipher Suite
  *
     @param cipher_suite the Cipher Suite to be logged
  */
 extern void logCipherSuite(int cipher_suite);
 
-/**	@brief log Key Exchange Group
+/** @brief log Key Exchange Group
  *
     @param kex the Key Exchange Group to be logged
  */
 extern void logKeyExchange(int kex);
 
-/**	@brief log Signature Algorithm
+/** @brief log Signature Algorithm
  *
     @param sigAlg the Signature Algorithm to be logged
  */

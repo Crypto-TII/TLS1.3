@@ -169,7 +169,7 @@ pub const RECORD_SIZE_LIMIT:usize = 0x001c;       // Record Size Limit
 pub const CLIENT_CERT_TYPE:usize = 0x0013;        // Client Certificate type
 pub const SERVER_CERT_TYPE:usize = 0x0014;        // Server Certificate type
 pub const HEARTBEAT:usize = 0x000f;               // Heartbeat
-pub const CERT_AUTHORITIES:usize = 0x002f;              // Certificate Authorities 
+pub const CERT_AUTHORITIES:usize = 0x002f;        // Certificate Authorities 
 
 // pre-shared Key (PSK) modes 
 //pub const PSKOK:usize = 0x00;                   // Preshared Key only mode 
@@ -199,7 +199,7 @@ pub const ERROR_ALERT_RECEIVED:isize=-22;         // alert received
 pub const BAD_MESSAGE:isize=-23;                  // Badly formed mesage
 pub const CERT_VERIFY_FAIL:isize= -24;            // Certificate Verification failure */
 pub const BAD_HANDSHAKE:isize=-26;                // Could not agree
-pub const BAD_REQUEST_UPDATE:isize= -27;		  // Bad Request Update value
+pub const BAD_REQUEST_UPDATE:isize= -27;          // Bad Request Update value
 pub const CLOSURE_ALERT_RECEIVED:isize=-28;       // alert received
 pub const MISSING_EXTENSIONS:isize= -30;          // Missing one or more extesions
 
@@ -229,7 +229,7 @@ pub const CERTIFICATE_REQUIRED: u8 = 0x74;        // Certificate Expected
 pub const PROTOCOL_VERSION: u8 =  0x46;           // Wrong TLS version 
 pub const DECODE_ERROR: u8 =  0x32;               // Decode error alert 
 pub const RECORD_OVERFLOW: u8 =  0x16;            // Record Overflow 
-pub const BAD_RECORD_MAC: u8 = 0x14;			  // Bad Record Mac 
+pub const BAD_RECORD_MAC: u8 = 0x14;              // Bad Record Mac 
 pub const HANDSHAKE_FAILURE: u8 = 0x28;           // Handshake failure
 pub const CLOSE_NOTIFY: u8 =  0x00;               // Orderly shut down of connection 
 //pub const MISSING_EXTENSION: u8 = 0x6D;         // Missing extensions
@@ -265,9 +265,9 @@ pub fn alert_from_cause(rtn: isize) -> u8
         CA_NOT_FOUND => return UNKNOWN_CA,
         CERT_OUTOFDATE => return CERTIFICATE_EXPIRED,
         MEM_OVERFLOW => return DECODE_ERROR,
-	    FORBIDDEN_EXTENSION => return ILLEGAL_PARAMETER,
-	    MAX_EXCEEDED => return RECORD_OVERFLOW,
-	    EMPTY_CERT_CHAIN => return DECODE_ERROR,
+        FORBIDDEN_EXTENSION => return ILLEGAL_PARAMETER,
+        MAX_EXCEEDED => return RECORD_OVERFLOW,
+        EMPTY_CERT_CHAIN => return DECODE_ERROR,
         TIME_OUT => return CLOSE_NOTIFY,
         ERROR_ALERT_RECEIVED => return CLOSE_NOTIFY,
         CLOSURE_ALERT_RECEIVED => return CLOSE_NOTIFY,

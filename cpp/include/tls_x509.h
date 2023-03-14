@@ -74,123 +74,123 @@ extern int ecdsa_sig_decode(octad *c);
 
 /** @brief Extract private key
  *
-	@param c an X.509 private key 
-	@param pk the extracted private key - for RSA octad = p|q|dp|dq|c, for ECC octad = k
-	@return 0 on failure, or indicator of private key type (ECC or RSA)
+    @param c an X.509 private key 
+    @param pk the extracted private key - for RSA octad = p|q|dp|dq|c, for ECC octad = k
+    @return 0 on failure, or indicator of private key type (ECC or RSA)
 */
 extern pktype X509_extract_private_key(octad *c,octad *pk);
 
 /** @brief Extract certificate signature
  *
-	@param c an X.509 certificate
-	@param s the extracted signature
-	@return 0 on failure, or indicator of signature type (ECC or RSA)
+    @param c an X.509 certificate
+    @param s the extracted signature
+    @return 0 on failure, or indicator of signature type (ECC or RSA)
 
 */
 extern pktype X509_extract_cert_sig(octad *c, octad *s);
 /** @brief
  *
-	@param sc a signed certificate
-	@param c the extracted certificate
-	@return 0 on failure
+    @param sc a signed certificate
+    @param c the extracted certificate
+    @return 0 on failure
 */
 extern int X509_extract_cert(octad *sc, octad *c);
 
 /** @brief
  *
-	@param c an X.509 certificate
-	@param ptr pointer to ASN.1 raw public key
-	@return length of raw public key
+    @param c an X.509 certificate
+    @param ptr pointer to ASN.1 raw public key
+    @return length of raw public key
 */
 extern int X509_find_public_key(octad *c,int *ptr);
 
 /** @brief
  *
-	@param c an ASN.1 encoded public key
-	@param key the extracted public key
-	@return indicator of public key type (ECC or RSA)
+    @param c an ASN.1 encoded public key
+    @param key the extracted public key
+    @return indicator of public key type (ECC or RSA)
 */
 extern pktype X509_get_public_key(octad *c,octad *key);
 
 
 /** @brief
  *
-	@param c an X.509 certificate
-	@param k the extracted key
-	@return 0 on failure, or indicator of public key type (ECC or RSA)
+    @param c an X.509 certificate
+    @param k the extracted key
+    @return 0 on failure, or indicator of public key type (ECC or RSA)
 */
 extern pktype X509_extract_public_key(octad *c, octad *k);
 /** @brief
  *
-	@param c an X.509 certificate
+    @param c an X.509 certificate
     @param len length of issuer field
-	@return 0 on failure, or pointer to issuer field in cert
+    @return 0 on failure, or pointer to issuer field in cert
 */
 extern int X509_find_issuer(octad *c,int *len);
 /** @brief
  *
-	@param c an X.509 certificate
-	@return 0 on failure, or pointer to validity field in cert
+    @param c an X.509 certificate
+    @return 0 on failure, or pointer to validity field in cert
 */
 extern int X509_find_validity(octad *c);
 /** @brief
  *
-	@param c an X.509 certificate
+    @param c an X.509 certificate
     @param len length of suject field
-	@return 0 on failure, or pointer to subject field in cert
+    @return 0 on failure, or pointer to subject field in cert
 */
 extern int X509_find_subject(octad *c,int *len);
 
 /** @brief
  *
-	@param c an X.509 certificate
-	@return true if self-signed, else false
+    @param c an X.509 certificate
+    @return true if self-signed, else false
 */
 extern int X509_self_signed(octad *c);
 
 /** @brief
  *
-	@param c an X.509 certificate
-	@param S is OID of property we are looking for
-	@param s is a pointer to the section of interest in the cert
-	@param f is pointer to the length of the property
-	@return 0 on failure, or pointer to the property
+    @param c an X.509 certificate
+    @param S is OID of property we are looking for
+    @param s is a pointer to the section of interest in the cert
+    @param f is pointer to the length of the property
+    @return 0 on failure, or pointer to the property
 */
 extern int X509_find_entity_property(octad *c, octad *S, int s, int *f);
 /** @brief
  *
-	@param c an X.509 certificate
-	@param s is a pointer to the start of the validity field
-	@return 0 on failure, or pointer to the start date
+    @param c an X.509 certificate
+    @param s is a pointer to the start of the validity field
+    @return 0 on failure, or pointer to the start date
 */
 extern int X509_find_start_date(octad *c, int s);
 /** @brief
  *
-	@param c an X.509 certificate
-	@param s is a pointer to the start of the validity field
-	@return 0 on failure, or pointer to the expiry date
+    @param c an X.509 certificate
+    @param s is a pointer to the start of the validity field
+    @return 0 on failure, or pointer to the expiry date
 */
 extern int X509_find_expiry_date(octad *c, int s);
 
 /** @brief
  *
-	@param c an X.509 certificate
-	@return 0 on failure (or no extensions), or pointer to extensions field in cert
+    @param c an X.509 certificate
+    @return 0 on failure (or no extensions), or pointer to extensions field in cert
 */
 extern int X509_find_extensions(octad *c);
 /** @brief
  *
-	@param c an X.509 certificate
-	@param S is OID of particular extension we are looking for
-	@param s is a pointer to the section of interest in the cert
-	@param f is pointer to the length of the extension
-	@return 0 on failure, or pointer to the extension
+    @param c an X.509 certificate
+    @param S is OID of particular extension we are looking for
+    @param s is a pointer to the section of interest in the cert
+    @param f is pointer to the length of the extension
+    @return 0 on failure, or pointer to the extension
 */
 extern int X509_find_extension(octad *c, octad *S, int s, int *f);
 
 /** @brief
  *
-	@param c an X.509 certificate
+    @param c an X.509 certificate
     @param s is a pointer to certificate extension SubjectAltNames
     @param name is a URL
     @return 0 on failure, 1 if URL is in list of alt names

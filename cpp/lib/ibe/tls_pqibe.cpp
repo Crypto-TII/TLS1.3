@@ -45,200 +45,200 @@ const byte rkey[]={103,198,105,115,81,255,74,236,41,205,186,171,242,251,227,70,1
 
 static int32_t redc(uint64_t T)
 {
-	uint32_t m=(uint32_t)T*(uint32_t)ND;
-	return ((uint64_t)m*PRIME+T)>>32;
+    uint32_t m=(uint32_t)T*(uint32_t)ND;
+    return ((uint64_t)m*PRIME+T)>>32;
 }
 
 static int32_t nres(uint32_t x)
 {
-	return redc((uint64_t)x*R2MODP);
+    return redc((uint64_t)x*R2MODP);
 }
 
 static int32_t modmul(uint32_t a,uint32_t b)
 {
-	return redc((uint64_t)a*b);
+    return redc((uint64_t)a*b);
 }
 
 /* NTT code */
 /* Cooley-Tukey NTT */
 static void ntt(int32_t *b)
 {
-	int m,i,j,k,t=DEGREE/2;
-	int32_t S,U,V,q=PRIME;
+    int m,i,j,k,t=DEGREE/2;
+    int32_t S,U,V,q=PRIME;
 
-	for (j=0;j<DEGREE;j++)
-		b[j]=nres(b[j]);
+    for (j=0;j<DEGREE;j++)
+        b[j]=nres(b[j]);
 
-	m=1;
-	while (m<DEGREE)
-	{
-		k=0;
-		for (i=0;i<m;i++)
-		{
-			S=roots[m+i];
-			for (j=k;j<k+t;j++)
-			{
-				U=b[j];   
-				V=modmul(b[j+t],S);
-				b[j]=U+V;
-				b[j+t]=U+2*q-V;
-			}
-			k+=2*t;
-		}
-		t/=2;
-		m*=2;
-	}
+    m=1;
+    while (m<DEGREE)
+    {
+        k=0;
+        for (i=0;i<m;i++)
+        {
+            S=roots[m+i];
+            for (j=k;j<k+t;j++)
+            {
+                U=b[j];   
+                V=modmul(b[j+t],S);
+                b[j]=U+V;
+                b[j+t]=U+2*q-V;
+            }
+            k+=2*t;
+        }
+        t/=2;
+        m*=2;
+    }
 }
 
 /* Gentleman-Sande INTT */
 static void intt(int32_t *b)
 {
-	int m,i,j,k,n,t=1;
-	int32_t S,U,V,W,q=PRIME;
-	int lim;
+    int m,i,j,k,n,t=1;
+    int32_t S,U,V,W,q=PRIME;
+    int lim;
 
-	m=DEGREE/2;
-	n=LGN;
-
-
-	while (m>=LIM)
-	{
-		n--;
-		k=0;
-		for (i=0;i<m;i++)
-		{
-			S=iroots[m+i];
-			for (j=k;j<k+t;j++)
-			{
-
-				U=b[j]; 
-				V=b[j+t]; 
-				b[j]=U+V;	
-				W=U+DLQ-V; 
-				b[j+t]=modmul(W,S); 
-			}
-			k+=2*t;
-		}
-		t*=2;
-		m/=2;
-	}
-
-	while (m>1)
-	{
-		lim=LIM>>n;
-		n--;
-		k=0;
-		for (i=0;i<m;i++)
-		{
-			S=iroots[m+i];
+    m=DEGREE/2;
+    n=LGN;
 
 
-			for (j=k;j<k+lim;j++)
-			{
-				U=modmul(b[j],ONE);  
-				V=modmul(b[j+t],ONE); 
-				b[j]=U+V;	
-				W=U+DLQ-V; 
-				b[j+t]=modmul(W,S);
-			}
+    while (m>=LIM)
+    {
+        n--;
+        k=0;
+        for (i=0;i<m;i++)
+        {
+            S=iroots[m+i];
+            for (j=k;j<k+t;j++)
+            {
 
-			for (j=k+lim;j<k+t;j++)
-			{
-				U=b[j]; 
-				V=b[j+t]; 
-				b[j]=U+V;	
-				W=U+DLQ-V; 
-				b[j+t]=modmul(W,S);
-			}
-			k+=2*t;
-		}
-		t*=2;
-		m/=2;
-	}
+                U=b[j]; 
+                V=b[j+t]; 
+                b[j]=U+V;    
+                W=U+DLQ-V; 
+                b[j+t]=modmul(W,S); 
+            }
+            k+=2*t;
+        }
+        t*=2;
+        m/=2;
+    }
 
-	t=DEGREE/2;
-	for (j=0;j<t;j++)
-	{
+    while (m>1)
+    {
+        lim=LIM>>n;
+        n--;
+        k=0;
+        for (i=0;i<m;i++)
+        {
+            S=iroots[m+i];
 
-		if (j<LIM/2)
-		{ // need to knock back excesses. Never used if L=1.
-			U=modmul(b[j],ONE);  
-			V=modmul(b[j+t],ONE); 
-		}
-		else
-		{
-			U=b[j];
-			V=b[j+t];
-		}
-		W=U+DLQ-V; 
-		b[j+t]=modmul(W,invpr); 
-		b[j]=modmul(U+V,inv);
 
-	}
+            for (j=k;j<k+lim;j++)
+            {
+                U=modmul(b[j],ONE);  
+                V=modmul(b[j+t],ONE); 
+                b[j]=U+V;    
+                W=U+DLQ-V; 
+                b[j+t]=modmul(W,S);
+            }
 
-	for (j=0;j<DEGREE;j++)
-	{
-		b[j]=redc((uint64_t)b[j]);  
-		b[j]=b[j]-q;
-		b[j]+=(b[j]>>31)&q;
-	}
+            for (j=k+lim;j<k+t;j++)
+            {
+                U=b[j]; 
+                V=b[j+t]; 
+                b[j]=U+V;    
+                W=U+DLQ-V; 
+                b[j+t]=modmul(W,S);
+            }
+            k+=2*t;
+        }
+        t*=2;
+        m/=2;
+    }
+
+    t=DEGREE/2;
+    for (j=0;j<t;j++)
+    {
+
+        if (j<LIM/2)
+        { // need to knock back excesses. Never used if L=1.
+            U=modmul(b[j],ONE);  
+            V=modmul(b[j+t],ONE); 
+        }
+        else
+        {
+            U=b[j];
+            V=b[j+t];
+        }
+        W=U+DLQ-V; 
+        b[j+t]=modmul(W,invpr); 
+        b[j]=modmul(U+V,inv);
+
+    }
+
+    for (j=0;j<DEGREE;j++)
+    {
+        b[j]=redc((uint64_t)b[j]);  
+        b[j]=b[j]-q;
+        b[j]+=(b[j]>>31)&q;
+    }
 }
 
 // polynomial functions
 /* reduces inputs < 2q */
 static void poly_soft_reduce(int32_t *poly)
 {
-	int i;
-	int32_t e;
-	for (i=0;i<DEGREE;i++)
-	{
-		e=poly[i]-PRIME;
-		poly[i]=(e+((e>>31)&PRIME));  //**
-	}
+    int i;
+    int32_t e;
+    for (i=0;i<DEGREE;i++)
+    {
+        e=poly[i]-PRIME;
+        poly[i]=(e+((e>>31)&PRIME));  //**
+    }
 }
 
 /* fully reduces modulo q */
 static void poly_hard_reduce(int32_t *poly)
 {
-	int i;
-	int32_t e;
-	for (i=0;i<DEGREE;i++)
-	{
-		e=modmul(poly[i],ONE);
-		e=e-PRIME;
-		poly[i]=e+((e>>31)&PRIME);
-	}
+    int i;
+    int32_t e;
+    for (i=0;i<DEGREE;i++)
+    {
+        e=modmul(poly[i],ONE);
+        e=e-PRIME;
+        poly[i]=e+((e>>31)&PRIME);
+    }
 }
 
 // multiply two polynomials in frequency domain
 static void poly_mul(int32_t *p1,int32_t *p2,int32_t *p3)
 {
-	int i;
-	for (i=0;i<DEGREE;i++)
-		p1[i]=modmul(p2[i],p3[i]);
-	poly_hard_reduce(p1);
+    int i;
+    for (i=0;i<DEGREE;i++)
+        p1[i]=modmul(p2[i],p3[i]);
+    poly_hard_reduce(p1);
 }
 
 static void poly_add(int32_t *p1,int32_t *p2,int32_t *p3)
 {
-	int i;
-	for (i=0;i<DEGREE;i++)
-		p1[i]=(p2[i]+p3[i]);    //**
+    int i;
+    for (i=0;i<DEGREE;i++)
+        p1[i]=(p2[i]+p3[i]);    //**
 }
 
 static void poly_sub(int32_t *p1,int32_t *p2,int32_t *p3)
 {
-	int i;
-	for (i=0;i<DEGREE;i++)
-		p1[i]=(p2[i]+PRIME-p3[i]);  //**
+    int i;
+    for (i=0;i<DEGREE;i++)
+        p1[i]=(p2[i]+PRIME-p3[i]);  //**
 }
 
 // shorten, but round to VBITS
 static void poly_shorten(int32_t *p)
 {
-	int i;
-	for (i=0;i<DEGREE;i++) {
-		p[i]/=(1<<(UBITS-VBITS-1));
+    int i;
+    for (i=0;i<DEGREE;i++) {
+        p[i]/=(1<<(UBITS-VBITS-1));
         if ((p[i]&1) == 1) {
             p[i]>>=1;
             p[i]+=1;
@@ -250,85 +250,85 @@ static void poly_shorten(int32_t *p)
 
 static void poly_lengthen(int32_t *p)
 {
-	int i;
-	for (i=0;i<DEGREE;i++)
-		p[i]*=(1<<(UBITS-VBITS));
+    int i;
+    for (i=0;i<DEGREE;i++)
+        p[i]*=(1<<(UBITS-VBITS));
 }
 
 static void hid(char *ID,int32_t *id)
 { // hash identity to polynomial
-	sha3 SHA3;
-	char hash[4*DEGREE];
+    sha3 SHA3;
+    char hash[4*DEGREE];
     SHA3_init(&SHA3,SHAKE128);
-	int k,m,i=0;
-	while (ID[i]!=0)
-		SHA3_process(&SHA3,ID[i++]);
-	SHA3_shake(&SHA3,hash,4*DEGREE);
+    int k,m,i=0;
+    while (ID[i]!=0)
+        SHA3_process(&SHA3,ID[i++]);
+    SHA3_shake(&SHA3,hash,4*DEGREE);
 
-	for (i=m=0;i<DEGREE;i++)
-	{
-		byte n=(byte)hash[m++];
-		uint32_t s=(uint32_t)n;
-		for (k=1;k<4;k++) {s<<=8; n=(byte)hash[m++]; s+=(uint32_t)n;}
-		s%=PRIME;
-		id[i]=(int32_t)s;
-		//if (id[i]>(PRIME/2)) id[i]-=PRIME;
-	}
+    for (i=m=0;i<DEGREE;i++)
+    {
+        byte n=(byte)hash[m++];
+        uint32_t s=(uint32_t)n;
+        for (k=1;k<4;k++) {s<<=8; n=(byte)hash[m++]; s+=(uint32_t)n;}
+        s%=PRIME;
+        id[i]=(int32_t)s;
+        //if (id[i]>(PRIME/2)) id[i]-=PRIME;
+    }
 }
 
 // get n-th bit from byte array
 static int getbit(byte b[],int n)
 {
-	int wd=n/8;
-	int bt=n%8;
-	return (b[wd]>>bt)&1;
+    int wd=n/8;
+    int bt=n%8;
+    return (b[wd]>>bt)&1;
 }
 
 // centered binomial distribution
 static void CBD(byte bts[],int32_t *f)
 {
-	int a,b;
-	for (int i=0;i<DEGREE;i++)
-	{
-		a=getbit(bts,2*i);
-		b=getbit(bts,2*i+1);
-		f[i]=(PRIME+a-b)%PRIME; 
-	}
+    int a,b;
+    for (int i=0;i<DEGREE;i++)
+    {
+        a=getbit(bts,2*i);
+        b=getbit(bts,2*i+1);
+        f[i]=(PRIME+a-b)%PRIME; 
+    }
 }
 
 // hash internal key of length DEGREE/8 into external key of length 32 
 static void hdk(byte *ikey,byte *key) {
-	sha3 SHA3;
+    sha3 SHA3;
     SHA3_init(&SHA3,SHA3_HASH256);
     for (int i=0;i<DEGREE/8;i++) SHA3_process(&SHA3,ikey[i]);
     SHA3_hash(&SHA3,(char *)key);
 }
 
 static void expand(byte *ikey,int32_t *key) {
-	int i,k,m;
-	byte next=0;
-	for (m=k=i=0;i<DEGREE;i++)
-	{ // expand into polynomial
+    int i,k,m;
+    byte next=0;
+    for (m=k=i=0;i<DEGREE;i++)
+    { // expand into polynomial
         if (m==0)
             next=ikey[k++];
-		key[i]=(next&1)*(PRIME/2); 
+        key[i]=(next&1)*(PRIME/2); 
         next>>=1; m++; m&=7;
-	}
+    }
 }
 
 static void shrink(int32_t *key,byte *ikey)
 {
-	int i,k,m;
-	byte next=0;
-	for (m=k=i=0;i<DEGREE;i++)
-	{ // shrink into byte array
-		next+=((key[i]/(PRIME/2))&1)<<m; m++;
-		if (m==8) {
-			m=0;
-			ikey[k]=next; k++;
-			next=0;
-		} 
-	}
+    int i,k,m;
+    byte next=0;
+    for (m=k=i=0;i<DEGREE;i++)
+    { // shrink into byte array
+        next+=((key[i]/(PRIME/2))&1)<<m; m++;
+        if (m==8) {
+            m=0;
+            ikey[k]=next; k++;
+            next=0;
+        } 
+    }
 }
 
 // array t has ab active bits per word
@@ -401,17 +401,17 @@ static int pack_ct(byte ct[],int32_t *u,int32_t *v)
 static int chk_pack_ct(byte ct[],int32_t *u,int32_t *v)
 {
     int ptr,bts,i,n=0;
-	byte m,diff=0;
+    byte m,diff=0;
     ptr=bts=0;
     for (i=0;i<ULEN;i++) {
         m=nextbyte32(UBITS,u,ptr,bts);
-		diff|=(m^ct[n++]);
-	}
-	ptr=bts=0;
-	for (i=0;i<VLEN;i++) {
+        diff|=(m^ct[n++]);
+    }
+    ptr=bts=0;
+    for (i=0;i<VLEN;i++) {
         m=nextbyte32(VBITS,v,ptr,bts);
-		diff|=(m^ct[n++]);
-	}
+        diff|=(m^ct[n++]);
+    }
     return diff;
 }
 
@@ -429,76 +429,76 @@ static void unpack_ct(int32_t *u,int32_t *v,byte pk[])
 // ID is identity, ikey is input session key, ud/vt is ciphertext
 static void cpa_base_encrypt(char *ID,byte *ikey,int32_t *ud,int32_t *vd)
 {
-	int i,j;
-	int32_t rd[DEGREE],e[DEGREE];
-	byte sigma[32];
-	byte buff[256];
-	sha3 sh;
+    int i,j;
+    int32_t rd[DEGREE],e[DEGREE];
+    byte sigma[32];
+    byte buff[256];
+    sha3 sh;
 
-	hdk(ikey,sigma);  // Use ikey as seed
-	SHA3_init(&sh,SHAKE256);
-	for (j=0;j<32;j++)
-		SHA3_process(&sh,sigma[j]); 
-	SHA3_process(&sh,0);
-	SHA3_shake(&sh,(char *)buff,256);
-	CBD(buff,rd);
+    hdk(ikey,sigma);  // Use ikey as seed
+    SHA3_init(&sh,SHAKE256);
+    for (j=0;j<32;j++)
+        SHA3_process(&sh,sigma[j]); 
+    SHA3_process(&sh,0);
+    SHA3_shake(&sh,(char *)buff,256);
+    CBD(buff,rd);
 
-	for (i=0;i<DEGREE;i++)
-		e[i]=H[i];   // already in ntt format
+    for (i=0;i<DEGREE;i++)
+        e[i]=H[i];   // already in ntt format
 
-	ntt(rd);
-	poly_mul(ud,e,rd);
-	intt(ud);
+    ntt(rd);
+    poly_mul(ud,e,rd);
+    intt(ud);
 
-	SHA3_init(&sh,SHAKE256);
-	for (j=0;j<32;j++)
-		SHA3_process(&sh,sigma[j]); 
-	SHA3_process(&sh,1);
-	SHA3_shake(&sh,(char *)buff,256);
-	CBD(buff,e);
+    SHA3_init(&sh,SHAKE256);
+    for (j=0;j<32;j++)
+        SHA3_process(&sh,sigma[j]); 
+    SHA3_process(&sh,1);
+    SHA3_shake(&sh,(char *)buff,256);
+    CBD(buff,e);
 
-	poly_add(ud,ud,e);
-	poly_hard_reduce(ud);
+    poly_add(ud,ud,e);
+    poly_hard_reduce(ud);
 
 // v=rt+e2+K
-	hid(ID,e);
-	ntt(e);
-	poly_mul(vd,e,rd);
-	intt(vd);
+    hid(ID,e);
+    ntt(e);
+    poly_mul(vd,e,rd);
+    intt(vd);
 
-	SHA3_init(&sh,SHAKE256);
-	for (j=0;j<32;j++)
-		SHA3_process(&sh,sigma[j]); 
-	SHA3_process(&sh,2);
-	SHA3_shake(&sh,(char *)buff,256);
-	CBD(buff,e); 
+    SHA3_init(&sh,SHAKE256);
+    for (j=0;j<32;j++)
+        SHA3_process(&sh,sigma[j]); 
+    SHA3_process(&sh,2);
+    SHA3_shake(&sh,(char *)buff,256);
+    CBD(buff,e); 
 
-	poly_add(vd,vd,e);
-	poly_soft_reduce(vd);
+    poly_add(vd,vd,e);
+    poly_soft_reduce(vd);
 
-	expand(ikey,e); // expand to polynomial - re-use e
-	poly_add(vd,vd,e);
-	poly_hard_reduce(vd);
-	poly_shorten(vd);
+    expand(ikey,e); // expand to polynomial - re-use e
+    poly_add(vd,vd,e);
+    poly_hard_reduce(vd);
+    poly_shorten(vd);
 
-//	pack_ct(ct,ud,vd);
+//    pack_ct(ct,ud,vd);
 }
 
 // ID is identity, ikey is input session key, ct is ciphertext
 static void cpa_encrypt(char *ID,byte *ikey,byte *ct)
 {
-	int32_t ud[DEGREE],vd[DEGREE];
-	cpa_base_encrypt(ID,ikey,ud,vd);
-	pack_ct(ct,ud,vd);
+    int32_t ud[DEGREE],vd[DEGREE];
+    cpa_base_encrypt(ID,ikey,ud,vd);
+    pack_ct(ct,ud,vd);
 }
 
 // ID is identity, ikey is output session key, ct is ciphertext
 // This time checking that (ud,vd) does in fact compress to ct
 static byte cpa_check_encrypt(char *ID,byte *ikey,byte *ct)
 {
-	int32_t ud[DEGREE],vd[DEGREE];
-	cpa_base_encrypt(ID,ikey,ud,vd);
-	byte d=chk_pack_ct(ct,ud,vd);
+    int32_t ud[DEGREE],vd[DEGREE];
+    cpa_base_encrypt(ID,ikey,ud,vd);
+    byte d=chk_pack_ct(ct,ud,vd);
     if (d==0)
         return 0;
     else
@@ -506,68 +506,68 @@ static byte cpa_check_encrypt(char *ID,byte *ikey,byte *ct)
 }
 
 static void cpa_decrypt(const int16_t *csk,byte *ct,byte *ikey) {
-	int i;
-	int32_t sk[DEGREE];
-	int32_t u[DEGREE],v[DEGREE];
-	//byte ikey[DEGREE/8];
+    int i;
+    int32_t sk[DEGREE];
+    int32_t u[DEGREE],v[DEGREE];
+    //byte ikey[DEGREE/8];
 
-	unpack_ct(u,v,ct);
+    unpack_ct(u,v,ct);
 
-	for (int i=0;i<DEGREE;i++) {
-		sk[i]=(int32_t)csk[i];
-		if (sk[i]<0) sk[i]+=PRIME;
-	}
-	poly_lengthen(v);
-	ntt(sk);
-	ntt(u);
-	poly_mul(u,u,sk);
-	intt(u);
-	poly_sub(v,v,u);
-	poly_hard_reduce(v);
+    for (int i=0;i<DEGREE;i++) {
+        sk[i]=(int32_t)csk[i];
+        if (sk[i]<0) sk[i]+=PRIME;
+    }
+    poly_lengthen(v);
+    ntt(sk);
+    ntt(u);
+    poly_mul(u,u,sk);
+    intt(u);
+    poly_sub(v,v,u);
+    poly_hard_reduce(v);
 
-	for (i=0;i<DEGREE;i++)
-	{
-		if (v[i]>(PRIME/4) && v[i]<((3*PRIME)/4)) v[i]=PRIME/2;
-		else v[i]=0;;
-	}	
+    for (i=0;i<DEGREE;i++)
+    {
+        if (v[i]>(PRIME/4) && v[i]<((3*PRIME)/4)) v[i]=PRIME/2;
+        else v[i]=0;;
+    }    
 
-	shrink(v,ikey);
+    shrink(v,ikey);
 }
 
 // encapsulate 32-byte key inside ciphertext ct
 void PQIBE_CCA_ENCRYPT(char *ID,octet *R32,octet *KEY,octet *CT)
 {
-	int i;
-	byte ikey[DEGREE/8],ss[32];
-	sha3 sh;
-	SHA3_init(&sh,SHAKE256);
-	for (i=0;i<R32->len;i++)
-		SHA3_process(&sh,R32->val[i]); 
-	SHA3_shake(&sh,(char *)ikey,128);
-	hdk(ikey,ss);
+    int i;
+    byte ikey[DEGREE/8],ss[32];
+    sha3 sh;
+    SHA3_init(&sh,SHAKE256);
+    for (i=0;i<R32->len;i++)
+        SHA3_process(&sh,R32->val[i]); 
+    SHA3_shake(&sh,(char *)ikey,128);
+    hdk(ikey,ss);
 
-	cpa_encrypt(ID,ikey,(byte *)CT->val);
+    cpa_encrypt(ID,ikey,(byte *)CT->val);
 
-	for (i=0;i<32;i++)
-		CT->val[i+ULEN+VLEN]=(char)ss[i];
+    for (i=0;i<32;i++)
+        CT->val[i+ULEN+VLEN]=(char)ss[i];
     CT->len=ULEN+VLEN+32;
 
-	SHA3_init(&sh,SHA3_HASH256);
-	for (i=0;i<CT->len;i++)
-		SHA3_process(&sh,(unsigned char)CT->val[i]); 
-	for (i=0;i<DEGREE/8;i++)
-		SHA3_process(&sh,ikey[i]); 
-	SHA3_hash(&sh,KEY->val);
+    SHA3_init(&sh,SHA3_HASH256);
+    for (i=0;i<CT->len;i++)
+        SHA3_process(&sh,(unsigned char)CT->val[i]); 
+    for (i=0;i<DEGREE/8;i++)
+        SHA3_process(&sh,ikey[i]); 
+    SHA3_hash(&sh,KEY->val);
     KEY->len=32;
 }
 
 // decapsulate 32-byte key inside ciphertext ct
 void PQIBE_CCA_DECRYPT(char *ID,const int16_t *csk,octet *CT,octet *KEY) {
-	int i;
-	byte ikey[DEGREE/8];
-	sha3 sh;
-	cpa_decrypt(csk,(byte *)CT->val,ikey);
-	byte mask=cpa_check_encrypt(ID,ikey,(byte *)CT->val); // make sure to generate the same ciphertext
+    int i;
+    byte ikey[DEGREE/8];
+    sha3 sh;
+    cpa_decrypt(csk,(byte *)CT->val,ikey);
+    byte mask=cpa_check_encrypt(ID,ikey,(byte *)CT->val); // make sure to generate the same ciphertext
 
     for (i=0;i<DEGREE/8;i++)
         ikey[i]^=(ikey[i]^rkey[i])&mask;    // if not substitute some nonsense
@@ -582,61 +582,61 @@ void PQIBE_CCA_DECRYPT(char *ID,const int16_t *csk,octet *CT,octet *KEY) {
 }
 /*
 int main() {
-	int i,m,k;
-	byte ikey[DEGREE/8],ikey2[DEGREE/8];
-	sha3 SHA3;
-	byte ct[4000];
-	byte key[32];
-	byte key2[32];
-	byte r32[32];
+    int i,m,k;
+    byte ikey[DEGREE/8],ikey2[DEGREE/8];
+    sha3 SHA3;
+    byte ct[4000];
+    byte key[32];
+    byte key2[32];
+    byte r32[32];
 
-	//for (i=0;i<128;i++)
-	//	printf("%d,",rand()%256);
-	//printf("\n");
+    //for (i=0;i<128;i++)
+    //    printf("%d,",rand()%256);
+    //printf("\n");
 
 for (m=0;m<100;m++)
 {
-	for (i=0;i<32;i++) // create byte array with DEGREE bits for polynomial
-		r32[i]=rand()%256;
+    for (i=0;i<32;i++) // create byte array with DEGREE bits for polynomial
+        r32[i]=rand()%256;
 
-//	for (i=0;i<DEGREE/8;i++) // create byte array with DEGREE bits for polynomial
-//		ikey[i]=rand()%256;
+//    for (i=0;i<DEGREE/8;i++) // create byte array with DEGREE bits for polynomial
+//        ikey[i]=rand()%256;
 
-//	cpa_encrypt(ID,ikey,ct);
-//	cout << "session key= ";
-//	for (i=0;i<32;i++) {
-//		cout << (int)ikey[i] << ",";
-//	}
-//	cout << endl;
+//    cpa_encrypt(ID,ikey,ct);
+//    cout << "session key= ";
+//    for (i=0;i<32;i++) {
+//        cout << (int)ikey[i] << ",";
+//    }
+//    cout << endl;
 
-//	cpa_decrypt(csk,ct,ikey2);
-//	cout << "session key= ";
-//	for (i=0;i<32;i++) {
-//		cout << (int)ikey2[i] << ",";
-//	}
-//	cout << endl;
+//    cpa_decrypt(csk,ct,ikey2);
+//    cout << "session key= ";
+//    for (i=0;i<32;i++) {
+//        cout << (int)ikey2[i] << ",";
+//    }
+//    cout << endl;
 
 
 
-	core::IBE_CCA_encrypt(ID,r32,key,ct);
-	printf("EK= ");
-	for (i=0;i<32;i++)
-		printf("%d,",key[i]); 
-	printf("\n");
+    core::IBE_CCA_encrypt(ID,r32,key,ct);
+    printf("EK= ");
+    for (i=0;i<32;i++)
+        printf("%d,",key[i]); 
+    printf("\n");
 
-	core::IBE_CCA_decrypt(ID,csk,ct,key2);
-	printf("DK= ");
-	for (i=0;i<32;i++)
-		printf("%d,",key2[i]); 
-	printf("\n");
+    core::IBE_CCA_decrypt(ID,csk,ct,key2);
+    printf("DK= ");
+    for (i=0;i<32;i++)
+        printf("%d,",key2[i]); 
+    printf("\n");
 
-	for (i=0;i<32;i++)
-	{
-		if (key[i]!=key2[i]) {printf("SCREAM\n"); exit(0);}
-	}
+    for (i=0;i<32;i++)
+    {
+        if (key[i]!=key2[i]) {printf("SCREAM\n"); exit(0);}
+    }
 
 }
 
-	return 0;
+    return 0;
 }
 */

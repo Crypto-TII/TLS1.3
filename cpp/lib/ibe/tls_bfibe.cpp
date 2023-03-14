@@ -69,18 +69,18 @@ static void h3(octet *U,octet *V,BIG r,ECP *rP)
     BIG_rcopy(q, CURVE_Order);
     char raw[128];
     octet RAW = {128, sizeof(raw), raw};
-	sha3 sh;
-	SHA3_init(&sh,SHAKE256);
-	for (i=0;i<U->len;i++) {
-		SHA3_process(&sh,U->val[i]&0xff);
+    sha3 sh;
+    SHA3_init(&sh,SHAKE256);
+    for (i=0;i<U->len;i++) {
+        SHA3_process(&sh,U->val[i]&0xff);
     } 
     if (V!=NULL)
     {
-	    for (i=0;i<V->len;i++) {
-		    SHA3_process(&sh,V->val[i]&0xff); 
+        for (i=0;i<V->len;i++) {
+            SHA3_process(&sh,V->val[i]&0xff); 
         }
     }
-	SHA3_shake(&sh,raw,128);
+    SHA3_shake(&sh,raw,128);
     CREATE_CSPRNG(&RNG, &RAW);
     BIG_randtrunc(r, q, 2 * CURVE_SECURITY_BLS12381, &RNG);
     ECP_generator(rP);
@@ -90,10 +90,10 @@ static void h3(octet *U,octet *V,BIG r,ECP *rP)
 /* hash input octet to 32 bytes */
 static void h4(octet *I,octet *O)
 {
-	sha3 sh;
-	SHA3_init(&sh,SHA3_HASH256);
-	for (int i=0;i<I->len;i++) {
-		SHA3_process(&sh,I->val[i]&0xff);
+    sha3 sh;
+    SHA3_init(&sh,SHA3_HASH256);
+    for (int i=0;i<I->len;i++) {
+        SHA3_process(&sh,I->val[i]&0xff);
     }  
     SHA3_hash(&sh,O->val);
     O->len=32;
@@ -140,10 +140,10 @@ bool BFIBE_CCA_ENCRYPT(char *ID,octet *R32,octet *M,octet *CT)
     octet W = {0, sizeof(w), w};
     octet Z = {0, sizeof(z), z};
 
-	sha3 sh;
-	SHA3_init(&sh,SHAKE256);
-	for (int i=0;i<R32->len;i++) {
-		SHA3_process(&sh,R32->val[i]&0xff);
+    sha3 sh;
+    SHA3_init(&sh,SHAKE256);
+    for (int i=0;i<R32->len;i++) {
+        SHA3_process(&sh,R32->val[i]&0xff);
     }     
     SHA3_shake(&sh,SIGMA.val,32);   // random sigma
     SHA3_shake(&sh,M->val,32);      // generate encapsulated 

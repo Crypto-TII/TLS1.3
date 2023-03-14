@@ -73,10 +73,10 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
     octad OWNER={0,sizeof(owner),owner};
 #ifdef SHALLOW_STACK
     char *b=(char *)malloc(TLS_MAX_CERT_B64);
-    octad SC={0,TLS_MAX_CERT_B64,b};		// optimization - share memory - can convert from base64 to binary in place
+    octad SC={0,TLS_MAX_CERT_B64,b};        // optimization - share memory - can convert from base64 to binary in place
 #else
-    char b[TLS_MAX_CERT_B64];				// maximum size for CA root signed certs in base64
-    octad SC={0,sizeof(b),b};				// optimization - share memory - can convert from base64 to binary in place
+    char b[TLS_MAX_CERT_B64];                // maximum size for CA root signed certs in base64
+    octad SC={0,sizeof(b),b};                // optimization - share memory - can convert from base64 to binary in place
 #endif
     char line[80]; int ptr=0;
 
@@ -113,9 +113,9 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
 #ifdef SHALLOW_STACK
                     free(b);
 #endif
-//		char buff[256];
-//		OCT_output_base64(&OWNER,256,buff);
-//		printf("BASE64 DN = %s\n",buff);
+//        char buff[256];
+//        OCT_output_base64(&OWNER,256,buff);
+//        printf("BASE64 DN = %s\n",buff);
 
                     return true;
                 }
@@ -229,15 +229,15 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAI
         OCT_from_base64(&SC,b);
 
 // Maybe send raw key instead?
-		if (cert_type==RAW_PUBLIC_KEY)
-		{
-			X509_extract_cert(&SC,&SC);
-			len=X509_find_public_key(&SC,&ptr);
-			octad PK={len,len,&SC.val[ptr]};
-			OCT_append_int(CERTCHAIN,len,3);
-			OCT_append_octad(CERTCHAIN,&PK);
-			break;
-		}
+        if (cert_type==RAW_PUBLIC_KEY)
+        {
+            X509_extract_cert(&SC,&SC);
+            len=X509_find_public_key(&SC,&ptr);
+            octad PK={len,len,&SC.val[ptr]};
+            OCT_append_int(CERTCHAIN,len,3);
+            OCT_append_octad(CERTCHAIN,&PK);
+            break;
+        }
 
 // add to Certificate Chain
         OCT_append_int(CERTCHAIN,SC.len,3);
@@ -265,12 +265,12 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAI
     free(b);
 #endif
 
-	if (myprivate==NULL)
-	{ // its in hardware. Get what type it is
-		int clientCertReqs[TLS_MAX_SUPPORTED_SIGS];
-		getSigRequirements(clientCertReqs);
-		return clientCertReqs[0];
-	}
+    if (myprivate==NULL)
+    { // its in hardware. Get what type it is
+        int clientCertReqs[TLS_MAX_SUPPORTED_SIGS];
+        getSigRequirements(clientCertReqs);
+        return clientCertReqs[0];
+    }
 
 
 // figure out kind of signature client can apply - will be tested against client capabilities
@@ -313,17 +313,17 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
 
     sst=stripDownCert(SCERT,SSIG,&ISSUER,&SUBJECT);    // break down Cert and extract signature
 
-	if (!checkCertNotExpired(SCERT)) {
+    if (!checkCertNotExpired(SCERT)) {
         log(IO_DEBUG,(char *)"Certificate has expired\n",NULL,0,NULL);
-		return  CERT_OUTOFDATE;
-	}
+        return  CERT_OUTOFDATE;
+    }
     if (sst.type==0)
     {
         log(IO_DEBUG,(char *)"Unrecognised Signature Type\n",NULL,0,NULL);
         return BAD_CERT_CHAIN;
     }
 
-	spt=getPublicKeyFromCert(SCERT,PUBKEY);
+    spt=getPublicKeyFromCert(SCERT,PUBKEY);
     logCertDetails(PUBKEY,spt,SSIG,sst,&ISSUER,&SUBJECT);
 
     if (spt.type==0)
@@ -335,20 +335,20 @@ static int parseCert(octad *SCERT,pktype &sst,octad *SSIG,octad *PREVIOUS_ISSUER
     if (OCT_compare(&ISSUER,&SUBJECT))
     { //self-signed certificate
         log(IO_DEBUG,(char *)"Self signed Cert\n",NULL,0,NULL);
-		return SELF_SIGNED_CERT;   // not necessarily fatal
-	}
+        return SELF_SIGNED_CERT;   // not necessarily fatal
+    }
 
-	if (PREVIOUS_ISSUER->len!=0)
-	{ // there was one
-		if (!OCT_compare(PREVIOUS_ISSUER,&SUBJECT))
-		{ // Is subject of this cert the issuer of the previous cert?
-			log(IO_DEBUG,(char *)"Subject of this certificate is not issuer of prior certificate\n",NULL,0,NULL);
-			return BAD_CERT_CHAIN;
-		}
-	}
-	OCT_copy(PREVIOUS_ISSUER,&ISSUER); // update issuer
+    if (PREVIOUS_ISSUER->len!=0)
+    { // there was one
+        if (!OCT_compare(PREVIOUS_ISSUER,&SUBJECT))
+        { // Is subject of this cert the issuer of the previous cert?
+            log(IO_DEBUG,(char *)"Subject of this certificate is not issuer of prior certificate\n",NULL,0,NULL);
+            return BAD_CERT_CHAIN;
+        }
+    }
+    OCT_copy(PREVIOUS_ISSUER,&ISSUER); // update issuer
 
-	return 0;
+    return 0;
 }
 
 // extract server public key, and check validity of certificate chain
@@ -378,26 +378,26 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PU
 
     r=parseoctadptr(&SERVER_CERT,len,CERTCHAIN,ptr); if (r.err) return r.err;
 
-	if (cert_type==RAW_PUBLIC_KEY) { // its not a certificate, its a raw public key. We agreed that this was OK.
-		X509_get_public_key(&SERVER_CERT,PUBKEY);
-		return 0;  // NOTE no confirmation of identity
-	}
+    if (cert_type==RAW_PUBLIC_KEY) { // its not a certificate, its a raw public key. We agreed that this was OK.
+        X509_get_public_key(&SERVER_CERT,PUBKEY);
+        return 0;  // NOTE no confirmation of identity
+    }
 
     r=parseInt(CERTCHAIN,2,ptr); len=r.val; if (r.err) return r.err;
     ptr+=len;   // skip certificate extensions
 
 // Check and parse Server Cert
-	rtn=parseCert(&SERVER_CERT,sst,SERVER_SIG,&ISSUER,spt,PUBKEY);
-	if (rtn != 0) {
-		if (rtn==SELF_SIGNED_CERT)
-		{
-			if (!checkCertSig(sst,&SERVER_CERT,SERVER_SIG,PUBKEY)) {
-				return BAD_CERT_CHAIN;
-			}
-		} else {
-			return rtn;
-		}
-	}
+    rtn=parseCert(&SERVER_CERT,sst,SERVER_SIG,&ISSUER,spt,PUBKEY);
+    if (rtn != 0) {
+        if (rtn==SELF_SIGNED_CERT)
+        {
+            if (!checkCertSig(sst,&SERVER_CERT,SERVER_SIG,PUBKEY)) {
+                return BAD_CERT_CHAIN;
+            }
+        } else {
+            return rtn;
+        }
+    }
 // Confirm Identity - public key is associated with this hostname
     if (!checkHostnameInCert(&SERVER_CERT,hostname) && strcmp(hostname,"localhost")!=0)
     { // Check that certificate covers the server URL
@@ -405,13 +405,13 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PU
         return BAD_CERT_CHAIN;
     }
 
-	if (rtn==SELF_SIGNED_CERT) 
+    if (rtn==SELF_SIGNED_CERT) 
     {
 #ifdef ALLOW_SELF_SIGNED
         log(IO_PROTOCOL,(char *)"Self-signed Certificate allowed\n",NULL,0,NULL);
-		return 0;  // If self-signed, thats the end of the chain. And for development its acceptable
+        return 0;  // If self-signed, thats the end of the chain. And for development its acceptable
 #else
-		return rtn;
+        return rtn;
 #endif
     }
     if (ptr==CERTCHAIN->len)
@@ -444,13 +444,13 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PU
 #endif
 
 // Check and parse Intermediate Cert
-	rtn=parseCert(&INTER_CERT,ist,&INTER_SIG,&ISSUER,ipt,&PK);
-	if (rtn != 0) {
+    rtn=parseCert(&INTER_CERT,ist,&INTER_SIG,&ISSUER,ipt,&PK);
+    if (rtn != 0) {
 #ifdef SHALLOW_STACK
         free(INTER_SIG.val); free(PK.val);
 #endif
-		return BAD_CERT_CHAIN;
-	}
+        return BAD_CERT_CHAIN;
+    }
 
     if (!checkCertSig(sst,&SERVER_CERT,SERVER_SIG,&PK)) {  // Check intermediate signature on Server's certificate 
         log(IO_DEBUG,(char *)"Server Certificate sig is NOT OK\n",NULL,0,NULL);

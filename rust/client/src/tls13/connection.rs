@@ -464,7 +464,7 @@ impl SESSION {
         for _ in 0..16 {
             ptr=utils::append_byte(&mut hb,ptr,sal::random_byte(),1);
         }
-	    self.heartbeat_req_in_flight=true;
+        self.heartbeat_req_in_flight=true;
         self.send_record(HEART_BEAT,TLS1_2,&hb[0..ptr],true);
     }
 
@@ -991,14 +991,14 @@ impl SESSION {
         }
         r=self.parse_int_pull(2); let cipher=r.val as u16; if r.err!=0 {return r;}
         left-=2;
-	    if self.cipher_suite!=0 { // don't allow a change after initial assignment
-		    if cipher!=self.cipher_suite
-		    {
-			    r.err=BAD_HELLO;
-			    return r;
-		    }
-	    }
-	    self.cipher_suite=cipher;
+        if self.cipher_suite!=0 { // don't allow a change after initial assignment
+            if cipher!=self.cipher_suite
+            {
+                r.err=BAD_HELLO;
+                return r;
+            }
+        }
+        self.cipher_suite=cipher;
         r=self.parse_int_pull(1); let cmp=r.val; if r.err!=0 {return r;}
         left-=1; // Compression not used in TLS1.3
         if cmp!=0  { 
@@ -1193,9 +1193,9 @@ impl SESSION {
                         r.err=UNRECOGNIZED_EXT;
                         return r;
                     }
-			        self.expect_heartbeats=true;
+                    self.expect_heartbeats=true;
 //println!("EXPECTING HEARTBEATs");
-			        if hbmode==1 {
+                    if hbmode==1 {
                         self.allowed_to_heartbeat=true;
 //println!("ALLOWED TO HEARTBEAT");
                     } else {
@@ -1206,10 +1206,10 @@ impl SESSION {
                     let mut name:[u8;256]=[0;256];
                     r=self.parse_int_pull(2); let xlen=r.val; if r.err!=0 {return r;}
                     r=self.parse_int_pull(1); let mfl=r.val; if r.err!=0 {return r;}
-			        if tlen!=xlen+2 || xlen!=mfl+1 {
+                    if tlen!=xlen+2 || xlen!=mfl+1 {
                         r.err=UNRECOGNIZED_EXT;
                         return r;
-			        }
+                    }
                     r=self.parse_bytes_pull(&mut name[0..mfl]); if r.err!=0 {return r;}
                     response.alpn=true;
                     if !expected.alpn {
@@ -1262,10 +1262,10 @@ impl SESSION {
         }
 
         r=self.parse_int_pull(3); let len=r.val; if r.err!=0 {return r;}         // message length   
-	    if len==0 {
-		    r.err=EMPTY_CERT_CHAIN;
-		    return r;
-	    }
+        if len==0 {
+            r.err=EMPTY_CERT_CHAIN;
+            return r;
+        }
         log(IO_DEBUG,"Certificate Chain Length= ",len as isize,None);
         r=self.parse_int_pull(1); let rc=r.val; if r.err!=0 {return r;} 
         if rc!=0x00 {
@@ -1274,14 +1274,14 @@ impl SESSION {
         }
         r=self.parse_int_pull(3); let tlen=r.val; if r.err!=0 {return r;}   // get length of certificate chain
 
-	    if tlen==0 {
-		    r.err=EMPTY_CERT_CHAIN;
-		    return r;
-	    }
-	    if tlen+4!=len {
-		    r.err=BAD_CERT_CHAIN;
-		    return r;
-	    }
+        if tlen==0 {
+            r.err=EMPTY_CERT_CHAIN;
+            return r;
+        }
+        if tlen+4!=len {
+            r.err=BAD_CERT_CHAIN;
+            return r;
+        }
         let start=self.ptr;
         r=self.parse_pull(tlen); if r.err!=0 {return r;} // get pointer to certificate chain, and pull it all into self.ibuff
 // Update Transcript hash
@@ -1408,7 +1408,7 @@ impl SESSION {
         if origin==EXTERNAL_PSK {
             resmode=2;
         }
-	    let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,resmode);
+        let mut extlen=self.build_extensions(&mut ext,pk_s,&mut expected,resmode);
         if have_early_data {
             extlen=extensions::add_early_data(&mut ext,extlen); expected.early_data=true;                 // try sending client message as early data if allowed
         }
@@ -1491,12 +1491,12 @@ impl SESSION {
             return TLS_FAILURE;
         }
 
-	    if pskid>0 { // pskid out-of-range (only one allowed)
+        if pskid>0 { // pskid out-of-range (only one allowed)
             self.send_alert(ILLEGAL_PARAMETER);
             log(IO_PROTOCOL,"Resumption Handshake failed\n",-1,None);
             self.clean();
             return TLS_FAILURE;
-	    }
+        }
 
         logger::log_server_hello(self.cipher_suite,pskid,pk_s,&cookie[0..cklen]);
         logger::log_key_exchange(IO_PROTOCOL,kex);

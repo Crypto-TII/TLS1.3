@@ -30,16 +30,16 @@
 
 #ifndef TLS_ARDUINO
 
-/**	@brief create a client socket 
+/** @brief create a client socket 
  *
-	@param port the TCP/IP port on which to connect
+    @param port the TCP/IP port on which to connect
     @param ip the IP address with which to connect
     @param toms the time-out period in milliseconds
     @return the socket handle
  */
 extern int setclientsock(int port, char *ip, int toms);
 
-/**	@brief get the IP address from a URL
+/** @brief get the IP address from a URL
  *
     @param ip the IP address
     @param hostname the input Server name (URL)
@@ -125,62 +125,62 @@ public:
 };
 #else
 
-/**	@brief clear out the socket RX buffer 
+/** @brief clear out the socket RX buffer 
  *
-	@param client the socket connection to the Server
+    @param client the socket connection to the Server
     @param IO an octad to receive the data
  */
 extern void clearsoc(Socket &client,octad *IO);
 
 #endif
 
-/**	@brief send an octad over a socket 
+/** @brief send an octad over a socket 
  *
-	@param client the socket connection to the Server
+    @param client the socket connection to the Server
     @param B the octad to be transmitted
  */
 extern void sendOctad(Socket *client,octad *B);
 
-/**	@brief send a 16-bit integer as an octad to Server
+/** @brief send a 16-bit integer as an octad to Server
  *
-	@param client the socket connection to the Server
+    @param client the socket connection to the Server
     @param len the 16-bit integer to be encoded as octad and transmitted
  */
 extern void sendLen(Socket *client,int len);
 
-/**	@brief receive bytes over a socket sonnection
+/** @brief receive bytes over a socket sonnection
  *
-	@param client the socket connection to the Server
+    @param client the socket connection to the Server
     @param b the received bytes
     @param expected the number of bytes expected
     @return -1 on failure, 0 on success
  */
 extern int getBytes(Socket *client,char *b,int expected);
 
-/**	@brief receive 16-bit integer from a socket
+/** @brief receive 16-bit integer from a socket
  *
-	@param client the socket connection to the Server
+    @param client the socket connection to the Server
     @return a 16-bit integer
  */
 extern int getInt16(Socket *client);
 
-/**	@brief receive 24-bit integer from a socket
+/** @brief receive 24-bit integer from a socket
  *
-	@param client the socket connection to the Server
+    @param client the socket connection to the Server
     @return a 24-bit integer
  */
 extern int getInt24(Socket *client);
 
-/**	@brief receive a single byte from a socket
+/** @brief receive a single byte from a socket
  *
-	@param client the socket connection to the Server
+    @param client the socket connection to the Server
     @return a byte
  */
 extern int getByte(Socket *client);
 
-/**	@brief receive an octad from a socket
+/** @brief receive an octad from a socket
  *
-	@param client the socket connection to the Server
+    @param client the socket connection to the Server
     @param B the output octad
     @param expected the number of bytes expected
     @return -1 on failure, 0 on success

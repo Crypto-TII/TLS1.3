@@ -290,7 +290,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
 
     len = getalen(INT, c->val, j);
     if (len < 0) return ret;
-    j += skip(len) + len;			// jump over serial number clause (if there is one)
+    j += skip(len) + len;            // jump over serial number clause (if there is one)
 
     len = getalen(SEQ, c->val, j); 
     if (len < 0) return ret;        
@@ -317,7 +317,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         if (len < 0) return ret;
         j += skip(len);
         rlen=32;
-		if (rlen>pk->max) return ret;
+        if (rlen>pk->max) return ret;
         pk->len=rlen;
         for (i=0;i<rlen-len;i++)
             pk->val[i]=0;
@@ -368,13 +368,13 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         if (len < 0) return ret;
         j += skip(len);
 
-		if (len>pk->max) return ret;
+        if (len>pk->max) return ret;
         for (i=0;i<len;i++)
             pk->val[i]=c->val[j++];
 
         j=end; // skip ahead to PQ private key
         tlen=tot-j;
-		if (tlen+len>pk->max) return ret;
+        if (tlen+len>pk->max) return ret;
         pk->len=tlen+len;
         for (i=0;i<tlen;i++)
             pk->val[len+i]=c->val[j++];
@@ -485,12 +485,12 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         for (i=rlen-len;i<rlen;i++)
             pk->val[i]=c->val[j++];
 
-        flen=rlen;				// should be same length for all
+        flen=rlen;                // should be same length for all
         for (k=1;k<5;k++)
         {
             len = getalen(INT,c->val,j);
             if (len<0) return ret;
-            j += skip(len);		// get q,dp,dq,c
+            j += skip(len);        // get q,dp,dq,c
             if (c->val[j] == 0)
             { // skip leading zero
                 j++;
@@ -765,11 +765,11 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         rlen=bround(len);
         ex=rlen-len;
         siglen=2*rlen;
-		if (siglen>sig->max)
-		{
-			ret.type=0;
-			return ret;
-		}
+        if (siglen>sig->max)
+        {
+            ret.type=0;
+            return ret;
+        }
         
         slen=0;
         for (i=0;i<ex;i++)
@@ -798,11 +798,11 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
 
 // now get PQ sig
         siglen+=end-j;
-		if (siglen>sig->max)
-		{
-			ret.type=0;
-			return ret;
-		}
+        if (siglen>sig->max)
+        {
+            ret.type=0;
+            return ret;
+        }
         sig->len=siglen; /**/
         while (j<end)
             sig->val[slen++]=sc->val[j++];
@@ -1078,7 +1078,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
 
     len = getalen(ANY, c->val, j);
     if (len < 0) return ret;
-    j += skip(len) + len;				// jump over version clause
+    j += skip(len) + len;                // jump over version clause
 
     len = getalen(INT, c->val, j);
 
@@ -1086,7 +1086,7 @@ pktype X509_extract_public_key(octad *c, octad *key)
 
     len = getalen(SEQ, c->val, j);
     if (len < 0) return ret;
-    j += skip(len) + len;				// jump over signature algorithm
+    j += skip(len) + len;                // jump over signature algorithm
 
     len = getalen(SEQ, c->val, j);
     if (len < 0) return ret;
@@ -1235,15 +1235,15 @@ int X509_find_issuer(octad *c,int *flen)
 
     len = getalen(ANY, c->val, j);
     if (len < 0) return 0;
-    j += skip(len) + len;				// jump over version clause
+    j += skip(len) + len;                // jump over version clause
 
     len = getalen(INT, c->val, j);
 
-    if (len > 0) j += skip(len) + len;	// jump over serial number clause (if there is one)
+    if (len > 0) j += skip(len) + len;    // jump over serial number clause (if there is one)
 
     len = getalen(SEQ, c->val, j);
     if (len < 0) return 0;
-    j += skip(len) + len;				// jump over signature algorithm
+    j += skip(len) + len;                // jump over signature algorithm
 
     len=getalen(SEQ,c->val,j);
     *flen=len+skip(len);      // length of issuer
