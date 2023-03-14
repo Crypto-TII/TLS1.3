@@ -39,10 +39,10 @@ int setclientsock(int port,char *ip,int toms)
 // get IP address from Hostname
 int getIPaddress(char *ip,char *hostname)
 {
-	hostent * record = gethostbyname(hostname);
-	if(record == NULL) return 0;
-	in_addr * address = (in_addr * )record->h_addr;
-	strcpy(ip,inet_ntoa(* address));
+    hostent * record = gethostbyname(hostname);
+    if(record == NULL) return 0;
+    in_addr * address = (in_addr * )record->h_addr;
+    strcpy(ip,inet_ntoa(* address));
     return 1;
 }
 
@@ -51,7 +51,7 @@ int getIPaddress(char *ip,char *hostname)
 // Send Octet
 void sendOctad(Socket *client,octad *B)
 {
-	client->write(B->val,B->len);
+    client->write(B->val,B->len);
 //BYTES_WRITTEN+=B->len;
 
 #if VERBOSITY >= IO_WIRE
@@ -122,7 +122,7 @@ int getBytes(Socket *client,char *b,int expected)
             return -1;
         more=client->read(&b[i],len);
         if (more==0) continue;
-		if (more<0) return -1;
+        if (more<0) return -1;
         i+=more;
         len-=more;
     }

@@ -25,7 +25,7 @@ void myprintf(char *s)
 
 void log(int logit,char *preamble,char *string,unsign32 info,octad *O)
 {
-	if (logit>VERBOSITY) return;
+    if (logit>VERBOSITY) return;
 
 #if VERBOSITY>IO_NONE    
     char w[16];
@@ -64,7 +64,7 @@ static void nameCipherSuite(int cipher_suite)
     switch (cipher_suite)
     {
     case TLS_AES_128_GCM_SHA256:
-		myprintf((char *)"TLS_AES_128_GCM_SHA256\n");
+        myprintf((char *)"TLS_AES_128_GCM_SHA256\n");
         break;
     case TLS_AES_256_GCM_SHA384:
         myprintf((char *)"TLS_AES_256_GCM_SHA384\n");   
@@ -102,10 +102,10 @@ static void nameKeyExchange(int kex)
         break;
     case KYBER768:
         myprintf((char *)"KYBER768\n");
-		break;
+        break;
     case HYBRID_KX:
         myprintf((char *)"KYBER + X25519\n");
-		break;
+        break;
     default:
         myprintf((char *)"Non-standard\n");   
         break;
@@ -189,34 +189,34 @@ void logEncExt(ee_status *expected,ee_status *received)
 #endif
 #if VERBOSITY >= IO_DEBUG
     if (expected->alpn)
-	{
-		if (received->alpn)
-		{
-			 log(IO_DEBUG,(char *)"ALPN extension acknowledged by server\n",NULL,0,NULL);
+    {
+        if (received->alpn)
+        {
+             log(IO_DEBUG,(char *)"ALPN extension acknowledged by server\n",NULL,0,NULL);
         
-		} else {
-			log(IO_DEBUG,(char *)"Warning - ALPN extension NOT acknowledged by server\n",NULL,0,NULL);
-		}
-	}
+        } else {
+            log(IO_DEBUG,(char *)"Warning - ALPN extension NOT acknowledged by server\n",NULL,0,NULL);
+        }
+    }
 
     if (expected->server_name)
-	{
-		if (received->server_name)
-		{
-			log(IO_DEBUG,(char *)"Server Name acknowledged\n",NULL,0,NULL);
-		} else {
-			log(IO_DEBUG,(char *)"Server Name NOT acknowledged\n",NULL,0,NULL);
-		}
-	}
+    {
+        if (received->server_name)
+        {
+            log(IO_DEBUG,(char *)"Server Name acknowledged\n",NULL,0,NULL);
+        } else {
+            log(IO_DEBUG,(char *)"Server Name NOT acknowledged\n",NULL,0,NULL);
+        }
+    }
     if (expected->max_frag_length)
-	{
-		if (received->max_frag_length)
-		{
-			log(IO_DEBUG,(char *)"Max frag length request acknowledged\n",NULL,0,NULL);
-		} else {
-			log(IO_DEBUG,(char *)"Max frag length request NOT acknowledged\n",NULL,0,NULL);
-		}
-	}
+    {
+        if (received->max_frag_length)
+        {
+            log(IO_DEBUG,(char *)"Max frag length request acknowledged\n",NULL,0,NULL);
+        } else {
+            log(IO_DEBUG,(char *)"Max frag length request NOT acknowledged\n",NULL,0,NULL);
+        }
+    }
 #endif
 }
 

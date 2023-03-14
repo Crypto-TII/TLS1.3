@@ -15,7 +15,7 @@ extern const char *myprivate; /**< Client private key */
 extern const char *mycert;    /**< Client certificate */
 extern const char *cacerts;   /**< The Root Certificate store */
 
-/**	@brief Get Client Certificate chain requirements
+/** @brief Get Client Certificate chain requirements
  *
     @param sigReqs list of signature requirements
     @return number of such requirements

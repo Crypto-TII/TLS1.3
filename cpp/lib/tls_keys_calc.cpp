@@ -82,7 +82,7 @@ void initCryptoContext(crypto *C)
 
     C->suite=TLS_AES_128_GCM_SHA256; // default
     C->record=0;
-	C->taglen=16;  // default
+    C->taglen=16;  // default
 }
 
 // Fill a crypto context with new key/IV
@@ -116,16 +116,16 @@ void incrementCryptoContext(crypto *C)
 // create expanded HKDF label LB from label and context
 static void hkdfLabel(octad *LB,int length,octad *Label,octad *CTX)
 {
-    OCT_append_int(LB,length,2);					// 2
-    OCT_append_byte(LB,(char)(6+Label->len),1);		// 1
-    OCT_append_string(LB,(char *)"tls13 ");			// 6
-    OCT_append_octad(LB,Label);						// Label->len
+    OCT_append_int(LB,length,2);                    // 2
+    OCT_append_byte(LB,(char)(6+Label->len),1);        // 1
+    OCT_append_string(LB,(char *)"tls13 ");            // 6
+    OCT_append_octad(LB,Label);                        // Label->len
     if (CTX!=NULL)
     {
-        OCT_append_byte(LB, (char)(CTX->len), 1);	// 1
-        OCT_append_octad(LB,CTX);					// CTX->len
+        OCT_append_byte(LB, (char)(CTX->len), 1);    // 1
+        OCT_append_octad(LB,CTX);                    // CTX->len
     } else {
-        OCT_append_byte(LB,0,1);					// 1
+        OCT_append_byte(LB,0,1);                    // 1
     }
 }
 
@@ -199,7 +199,7 @@ void createCryptoContext(int cipher_suite,octad *TS,crypto *context)
 {
     int key,htype=SAL_hashType(cipher_suite);
 
-	key=SAL_aeadKeylen(cipher_suite);
+    key=SAL_aeadKeylen(cipher_suite);
 
     char info[8];
     octad INFO = {0,sizeof(info),info};
@@ -215,7 +215,7 @@ void createCryptoContext(int cipher_suite,octad *TS,crypto *context)
     context->active=true;
     context->suite=cipher_suite;
     context->record=0;
-	context->taglen=SAL_aeadTaglen(cipher_suite);
+    context->taglen=SAL_aeadTaglen(cipher_suite);
 }
 
 void createSendCryptoContext(TLS_session *session,octad *TS)
@@ -253,16 +253,16 @@ void deriveEarlySecrets(int htype,octad *PSK,octad *ES,octad *BKE,octad *BKR)
 
     int hlen=SAL_hashLen(htype);
 
-    OCT_append_byte(&ZK,0,hlen);	// Zero key
+    OCT_append_byte(&ZK,0,hlen);    // Zero key
 
     if (PSK==NULL)
-        OCT_copy(&EMH,&ZK);			// if no PSK available use ZK
+        OCT_copy(&EMH,&ZK);            // if no PSK available use ZK
     else
         OCT_copy(&EMH,PSK);
 
     SAL_hkdfExtract(htype,ES,&ZK,&EMH);  // hash function, ES is output, ZK is salt and EMH is IKM
 
-    SAL_hashNull(htype,&EMH);		// EMH = hash of ""
+    SAL_hashNull(htype,&EMH);        // EMH = hash of ""
 
     if (BKE!=NULL)
     {  // External Binder Key
@@ -311,7 +311,7 @@ void deriveHandshakeSecrets(TLS_session *session,octad *SS,octad *ES,octad *H)
     int htype=SAL_hashType(session->cipher_suite);
     int hlen=SAL_hashLen(htype);
 
-    SAL_hashNull(htype,&EMH);			// hash of ""
+    SAL_hashNull(htype,&EMH);            // hash of ""
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"derived");
@@ -346,8 +346,8 @@ void deriveApplicationSecrets(TLS_session *session,octad *SFH,octad *CFH,octad *
     int htype=SAL_hashType(session->cipher_suite);
     int hlen=SAL_hashLen(htype);
 
-    OCT_append_byte(&ZK,0,hlen);			// 00..00  
-    SAL_hashNull(htype,&EMH);				// hash("")
+    OCT_append_byte(&ZK,0,hlen);            // 00..00  
+    SAL_hashNull(htype,&EMH);                // hash("")
 
     OCT_kill(&INFO);
     OCT_append_string(&INFO,(char *)"derived");

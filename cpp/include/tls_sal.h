@@ -99,51 +99,51 @@ extern int SAL_randomByte();
 */
 extern void SAL_randomOctad(int len, octad *R);
 
-/**	@brief HKDF Extract function
+/** @brief HKDF Extract function
  *
-	@param sha hash algorithm
-	@param PRK an output Key
+    @param sha hash algorithm
+    @param PRK an output Key
     @param SALT public input salt
     @param IKM raw secret keying material
  */
 extern void SAL_hkdfExtract(int sha,octad *PRK,octad *SALT,octad *IKM);
 
-/**	@brief Special HKDF Expand function (for TLS)
+/** @brief Special HKDF Expand function (for TLS)
  *
-	@param htype hash algorithm
+    @param htype hash algorithm
     @param olen is the desired length of the expanded key
-	@param OKM an expanded output Key
+    @param OKM an expanded output Key
     @param PRK is the fixed length input key
     @param INFO is public label information
  */
 extern void SAL_hkdfExpand(int htype, int olen, octad *OKM,octad *PRK, octad *INFO);
 
-/**	@brief simple HMAC function
+/** @brief simple HMAC function
  *
-	@param htype hash algorithm
-	@param T an output tag
+    @param htype hash algorithm
+    @param T an output tag
     @param K an input key, or salt
     @param M an input message
  */
 extern void SAL_hmac(int htype,octad *T,octad *K,octad *M);
 
-/**	@brief simple HASH of nothing function
+/** @brief simple HASH of nothing function
  *
-	@param sha the SHA2 function output length (32,48 or 64)
-	@param H the output hash
+    @param sha the SHA2 function output length (32,48 or 64)
+    @param H the output hash
  */
 extern void SAL_hashNull(int sha,octad *H);
 
 // hash functions
 
-/**	@brief Initiate Hashing context
+/** @brief Initiate Hashing context
  *
-	@param hlen length in bytes of SHA2 hashing output
+    @param hlen length in bytes of SHA2 hashing output
     @param h a hashing context
  */
 extern void SAL_hashInit(int hlen,unihash *h);
 
-/**	@brief Hash process an array of bytes
+/** @brief Hash process an array of bytes
  *
     @param h a hashing context
     @param b the byte array to be included in hash
@@ -152,7 +152,7 @@ extern void SAL_hashInit(int hlen,unihash *h);
 extern void SAL_hashProcessArray(unihash *h,char *b,int len);
 
 
-/**	@brief Hash finish and output
+/** @brief Hash finish and output
  *
     @param h a hashing context
     @param d the current output digest of an ongoing hashing operation
@@ -160,9 +160,9 @@ extern void SAL_hashProcessArray(unihash *h,char *b,int len);
  */
 extern int SAL_hashOutput(unihash *h,char *d);
 
-/**	@brief AEAD encryption 
+/** @brief AEAD encryption 
  *
-	@param send the AES key and IV
+    @param send the AES key and IV
     @param hdrlen the length of the header
     @param hdr the header bytes
     @param ptlen the plaintext length
@@ -171,9 +171,9 @@ extern int SAL_hashOutput(unihash *h,char *d);
  */
 extern void SAL_aeadEncrypt(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt,octad *TAG);
 
-/**	@brief AEAD decryption 
+/** @brief AEAD decryption 
  *
-	@param recv the AES key and IV
+    @param recv the AES key and IV
     @param hdrlen the length of the header
     @param hdr the header bytes
     @param ctlen the ciphertext length
@@ -183,7 +183,7 @@ extern void SAL_aeadEncrypt(crypto *send,int hdrlen,char *hdr,int ptlen,char *pt
  */
 extern bool SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct,octad *TAG);
 
-/**	@brief generate a public/private key pair in an approved group for a key exchange
+/** @brief generate a public/private key pair in an approved group for a key exchange
  *
     @param group the cryptographic group used to generate the key pair
     @param SK the output Private Key
@@ -191,18 +191,18 @@ extern bool SAL_aeadDecrypt(crypto *recv,int hdrlen,char *hdr,int ctlen,char *ct
  */
 extern void SAL_generateKeyPair(int group,octad *SK,octad *PK);
 
-/**	@brief generate a Diffie-Hellman shared secret
+/** @brief generate a Diffie-Hellman shared secret
  *
     @param group the cryptographic group used to generate the shared secret
     @param SK the input client private key
     @param PK the input server public Key
     @param SS the output shared secret
-	@return false for all zeros, else true
+    @return false for all zeros, else true
  */
 extern bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS);
 
 
-/**	@brief Verify a generic TLS signature
+/** @brief Verify a generic TLS signature
  *
     @param sigAlg the signature type
     @param TRANS the signed input transcript hash 
@@ -212,7 +212,7 @@ extern bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS);
  */
 extern bool SAL_tlsSignatureVerify(int sigAlg,octad *TRANS,octad *SIG,octad *PUBKEY);
 
-/**	@brief Apply a generic TLS transcript signature
+/** @brief Apply a generic TLS transcript signature
  *
     @param sigAlg the signature type
     @param KEY the private key used to form the signature

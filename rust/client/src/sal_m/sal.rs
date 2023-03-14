@@ -54,10 +54,10 @@ pub fn random_bytes(len: usize,rn: &mut [u8]){
 /// Return size of key exchange secret key in bytes
 pub fn secret_key_size(group: u16) -> usize {
     if group==config::X25519 {
-    	return 32;
+        return 32;
     }
     if group==config::SECP256R1 {
-    	return 32;
+        return 32;
     }
     if group==config::SECP384R1 {    
         return 48;
@@ -77,10 +77,10 @@ pub fn secret_key_size(group: u16) -> usize {
 /// Return size of clients key exchange public key in bytes
 pub fn client_public_key_size(group: u16) -> usize {
     if group==config::X25519 {
-    	return 32;
+        return 32;
     }
     if group==config::SECP256R1 {
-    	return 65;
+        return 65;
     }
     if group==config::SECP384R1 {    
         return 97;
@@ -100,10 +100,10 @@ pub fn client_public_key_size(group: u16) -> usize {
 /// Return size of servers key exchange public key (or ciphertext) in bytes
 pub fn server_public_key_size(group: u16) -> usize {
     if group==config::X25519 {
-    	return 32;
+        return 32;
     }
     if group==config::SECP256R1 {
-    	return 65;
+        return 65;
     }
     if group==config::SECP384R1 {    
         return 97;
@@ -123,10 +123,10 @@ pub fn server_public_key_size(group: u16) -> usize {
 /// Return shared secret size in bytes
 pub fn shared_secret_size(group: u16) -> usize {
     if group==config::X25519 {
-    	return 32;
+        return 32;
     }
     if group==config::SECP256R1 {
-    	return 32;
+        return 32;
     }
     if group==config::SECP384R1 {    
         return 48;
@@ -416,14 +416,14 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
         pk[0..32].reverse();
     }
     if group==config::SECP256R1 {
-    	use mcore::nist256::ecdh;
-    	random_bytes(32,csk);
-    	ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..32], &mut pk[0..65]);
+        use mcore::nist256::ecdh;
+        random_bytes(32,csk);
+        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..32], &mut pk[0..65]);
     }
     if group==config::SECP384R1 {
-    	use mcore::nist384::ecdh;
-    	random_bytes(48,csk);
-    	ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..48], &mut pk[0..97]);
+        use mcore::nist384::ecdh;
+        random_bytes(48,csk);
+        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..48], &mut pk[0..97]);
     }    
     if group==config::KYBER768 {
         use mcore::kyber;
@@ -474,18 +474,18 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         csk.zeroize();
     }
     if group==config::SECP256R1 {
-    	use mcore::nist256::ecdh;
+        use mcore::nist256::ecdh;
         let mut csk:[u8;32]=[0;32];
-    	random_bytes(32,&mut csk);
-    	ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[0..65]);
+        random_bytes(32,&mut csk);
+        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[0..65]);
         res=ecdh::ecpsvdp_dh(&csk,&cpk[0..65],&mut ss[0..32],0);
         csk.zeroize();
     }
     if group==config::SECP384R1 {
-    	use mcore::nist384::ecdh;
+        use mcore::nist384::ecdh;
         let mut csk:[u8;48]=[0;48];
-    	random_bytes(48,&mut csk);
-    	ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[0..97]);
+        random_bytes(48,&mut csk);
+        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[0..97]);
         res=ecdh::ecpsvdp_dh(&csk,&cpk[0..97],&mut ss[0..48],0);
         csk.zeroize();
     }

@@ -69,7 +69,7 @@ fn h1(identity:&str) -> ECP2 {
     let m=r.nbits();
     let el=roundup(k+roundup(m,2),8);
     hmac::xof_expand(sha3::SHAKE128,&mut okm,2*el,&dst,&id);
-	let mut dx=DBIG::frombytes(&okm[0..el]);
+    let mut dx=DBIG::frombytes(&okm[0..el]);
     let u1=FP::new_big(&dx.dmod(&q));
     dx=DBIG::frombytes(&okm[el..2*el]);
     let u2=FP::new_big(&dx.dmod(&q));
@@ -84,11 +84,11 @@ fn h1(identity:&str) -> ECP2 {
 fn h3(u: &[u8],v: &[u8],r: &mut BIG) -> ECP {
     let q = BIG::new_ints(&rom::CURVE_ORDER);
     let mut raw:[u8;128]=[0;128];
-	let mut sh = SHA3::new(sha3::SHAKE256);
-	for i in 0..u.len() {
+    let mut sh = SHA3::new(sha3::SHAKE256);
+    for i in 0..u.len() {
         sh.process(u[i]);
     }
-	for i in 0..v.len() {
+    for i in 0..v.len() {
         sh.process(v[i]);
     }
     sh.shake(&mut raw,128);
@@ -102,7 +102,7 @@ fn h3(u: &[u8],v: &[u8],r: &mut BIG) -> ECP {
 
 //// hash input octet to 32 bytes
 fn h4(i: &[u8],o: &mut [u8]) {
-	let mut sh = SHA3::new(sha3::HASH256); 
+    let mut sh = SHA3::new(sha3::HASH256); 
     for j in 0..i.len() {
         sh.process(i[j]);
     }
@@ -112,19 +112,19 @@ fn h4(i: &[u8],o: &mut [u8]) {
 /*
 /// encapsulate 32-byte key inside ciphertext ct
 pub fn cca_encrypt(identity: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) -> bool {
-	let mut sigma: [u8;32]=[0;32];
+    let mut sigma: [u8;32]=[0;32];
     let mut u: [u8;2*FS+1]=[0;2*FS+1];
-	let mut v: [u8;32]=[0;32];
-	let mut w: [u8;32]=[0;32];
-	let mut mask: [u8;32]=[0;32];
-	let mut z: [u8;12*FS]=[0;12*FS];
+    let mut v: [u8;32]=[0;32];
+    let mut w: [u8;32]=[0;32];
+    let mut mask: [u8;32]=[0;32];
+    let mut z: [u8;12*FS]=[0;12*FS];
     let mut sh = SHA3::new(sha3::SHAKE256);
     let mut r=BIG::new();
 
-	for i in 0..r32.len() {
-		sh.process(r32[i]);
+    for i in 0..r32.len() {
+        sh.process(r32[i]);
     }
-	sh.shake(&mut sigma,32);
+    sh.shake(&mut sigma,32);
     sh.shake(key,32);
 
     let Qid=h1(identity);
@@ -168,11 +168,11 @@ pub fn cca_encrypt(identity: &str,r32: &[u8],key: &mut[u8],ct: &mut[u8]) -> bool
 */
 /// decapsulate 32-byte key inside ciphertext ct
 pub fn cca_decrypt(csk: &[u8],ct: &[u8],key: &mut[u8]) -> bool {
-	let mut sigma: [u8;32]=[0;32];
-	let u=&ct[0..2*FS+1];
+    let mut sigma: [u8;32]=[0;32];
+    let u=&ct[0..2*FS+1];
     let v=&ct[2*FS+1..2*FS+33];
     let w=&ct[2*FS+33..2*FS+65];
-	let mut z: [u8;12*FS]=[0;12*FS];
+    let mut z: [u8;12*FS]=[0;12*FS];
     let mut r=BIG::new();
     let rP=ECP::frombytes(&u);
     let SK=ECP2::frombytes(csk);

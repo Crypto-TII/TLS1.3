@@ -83,7 +83,7 @@ pub struct CRYPTO {
     pub iv: [u8;MAX_IV_SIZE],   // AEAD cryptographic IV bytes 
     pub record: usize,          // current record number - to be incremented 
     pub suite: u16,             // Cipher Suite 
-	pub taglen: usize		    //Tag Length 
+    pub taglen: usize            //Tag Length 
 }
 
 impl CRYPTO {
