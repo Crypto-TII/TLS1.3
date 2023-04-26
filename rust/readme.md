@@ -115,7 +115,7 @@ and kyber768 for POST\_QUANTUM and HYBRID. The ordering of preferences can be ch
 In most cases it is best to use the same setting for both client and server. If it is desired that the client should interoperate
 with standard websites rather than just our own rust server, then its CRYPTO\_SETTING should be set to use TYPICAL. 
 
-To test our IBE version of TLS, simply run the TiigerTLS server, and then
+To test our IBE version of TLS, simply run the TiigerTLS server, and then from the client window
 
 	cargo run /i localhost
 
