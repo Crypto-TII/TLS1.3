@@ -44,9 +44,13 @@ static octad ECCSHA512 = {8, sizeof(eccsha512), (char *)eccsha512};
 static unsigned char ecpk[7] = {0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01};
 static octad ECPK = {7, sizeof(ecpk), (char *)ecpk};
 
-// ED Public Key - Elliptic curve EdDSA (Ed25519) Signature
-static unsigned char edpk[3] = {0x2B, 0x65, 0x70};              
-static octad EDPK = {3, sizeof(edpk),(char *)edpk};
+// ED25519 Public Key - Elliptic curve EdDSA (Ed25519) Signature
+static unsigned char edpk25519[3] = {0x2B, 0x65, 0x70};  
+static octad EDPK25519 = {3, sizeof(edpk25519),(char *)edpk25519};
+
+// ED448 Public Key - Elliptic curve EdDSA (Ed448) Signature
+static unsigned char edpk448[3] = {0x2B, 0x65, 0x71};  
+static octad EDPK448 = {3, sizeof(edpk448),(char *)edpk448};
 
 // C25519 curve
 static unsigned char prime25519[9] = {0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01}; /*****/
@@ -308,7 +312,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         SOID.val[i++] = c->val[j];
     j=fin;
 
-    if (OCT_compare(&EDPK, &SOID)) 
+    if (OCT_compare(&EDPK25519, &SOID)) 
     { // Its an Ed25519 key
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
@@ -324,7 +328,25 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         for (i=rlen-len;i<rlen;i++)
             pk->val[i]=c->val[j++];
         ret.type = X509_ECD;
-        ret.curve = USE_C25519;
+        ret.curve = USE_ED25519;
+    }
+    if (OCT_compare(&EDPK448, &SOID))
+    { // Its an Ed448 key
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        rlen=57;
+        if (rlen>pk->max) return ret;
+        pk->len=rlen;
+        for (i=0;i<rlen-len;i++)
+            pk->val[i]=0;
+        for (i=rlen-len;i<rlen;i++)
+            pk->val[i]=c->val[j++];
+        ret.type = X509_ECD;
+        ret.curve = USE_ED448;
     }
     if (OCT_compare(&DILITHIUM3, &SOID))
     { // Its a DILITHIUM3 key
@@ -554,10 +576,15 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         SOID.val[i++] = sc->val[j];
 
     // check OID here..
-    if (OCT_compare(&EDPK, &SOID)) 
+    if (OCT_compare(&EDPK25519, &SOID))
     {
         ret.type = X509_ECD;
         ret.hash = X509_H512;
+    }
+    if (OCT_compare(&EDPK448, &SOID))
+    {
+        ret.type = X509_ECD;
+        ret.hash = X509_SHAKE256;
     }
     if (OCT_compare(&ECCSHA256, &SOID))
     {
@@ -615,21 +642,19 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
 
     if (ret.type==X509_ECD)
     {
-        rlen = bround(len);
-        ex = rlen - len;
-        if (rlen>sig->max)
+        if (len>sig->max)
         {
             ret.type=0;
             return ret;
         }
-        sig->len = rlen;
+        sig->len = len;
         i = 0;
-        for (k = 0; k < ex; k++)
-            sig->val[i++] = 0;
-
         fin = j + len;
         for (; j < fin; j++)
             sig->val[i++] = sc->val[j];
+
+        if (ret.hash == X509_H512) ret.curve = USE_ED25519;
+        if (ret.hash == X509_SHAKE256) ret.curve = USE_ED448;
     }
 
     if (ret.type == X509_ECC)
@@ -925,7 +950,8 @@ pktype X509_get_public_key(octad *c,octad *key)
 
     ret.type = 0;
     if (OCT_compare(&ECPK, &KOID)) ret.type = X509_ECC;
-    if (OCT_compare(&EDPK, &KOID)) ret.type = X509_ECD;
+    if (OCT_compare(&EDPK25519, &KOID)) {ret.type = X509_ECD; ret.curve=USE_ED25519;}
+    if (OCT_compare(&EDPK448, &KOID)) {ret.type = X509_ECD;  ret.curve=USE_ED448;}
     if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
     if (OCT_compare(&DILITHIUM3, &KOID)) ret.type = X509_PQ;
     if (OCT_compare(&HYBRID, &KOID)) ret.type = X509_HY;
@@ -953,7 +979,7 @@ pktype X509_get_public_key(octad *c,octad *key)
         for (i = 0; j < fin; j++)
             KOID.val[i++] = c->val[j];
 
-        if (OCT_compare(&PRIME25519, &KOID)) ret.curve = USE_C25519; /*****/
+        if (OCT_compare(&PRIME25519, &KOID)) ret.curve = USE_ED25519; /*****/
         if (OCT_compare(&PRIME256V1, &KOID)) ret.curve = USE_NIST256;
         if (OCT_compare(&SECP384R1, &KOID)) ret.curve = USE_NIST384;
         if (OCT_compare(&SECP521R1, &KOID)) ret.curve = USE_NIST521;
@@ -1042,183 +1068,6 @@ pktype X509_extract_public_key(octad *c, octad *key)
     return X509_get_public_key(&CC,key);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Extract Public Key from inside Certificate
-// if key==NULL just return type
-/*
-pktype X509_extract_public_key(octad *c, octad *key)
-{
-    int i, j, fin, len, sj;
-    char koid[12];     
-    octad KOID = {0, sizeof(koid), koid};
-    pktype ret;
-
-    ret.type = ret.hash = 0;
-    ret.curve = -1;
-
-    j = 0;
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len);
-
-    if (len + j != c->len) return ret;
-
-    len = getalen(ANY, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len;                // jump over version clause
-
-    len = getalen(INT, c->val, j);
-
-    if (len > 0) j += skip(len) + len; // jump over serial number clause (if there is one)
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len;                // jump over signature algorithm
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len; // skip issuer
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len; // skip validity
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len) + len; // skip subject
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len); //
-
-    len = getalen(SEQ, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len);
-
-// ** Maybe dive in and check Public Key OIDs here?
-// ecpublicKey & prime256v1, secp384r1 or secp521r1 for ECC
-// rsapublicKey for RSA
-
-    sj = j + len;
-
-    len = getalen(OID, c->val, j);
-    if (len < 0) return ret;
-    j += skip(len);
-
-    fin = j + len;
-    KOID.len = len;
-    for (i = 0; j < fin; j++)
-        KOID.val[i++] = c->val[j];
-
-    ret.type = 0;
-    if (OCT_compare(&ECPK, &KOID)) ret.type = X509_ECC;
-    if (OCT_compare(&EDPK, &KOID)) ret.type = X509_ECD;
-    if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
-    if (OCT_compare(&DILITHIUM3, &KOID)) ret.type = X509_PQ;
-    if (OCT_compare(&HYBRID, &KOID)) ret.type = X509_HY;
-
-    if (ret.type == 0) return ret;
-
-    if (ret.type == X509_ECC)
-    {
-        // which elliptic curve?
-        len = getalen(OID, c->val, j);
-        if (len < 0)
-        {
-            ret.type = 0;
-            return ret;
-        }
-        j += skip(len);
-
-        fin = j + len;
-        KOID.len = len;
-        for (i = 0; j < fin; j++)
-            KOID.val[i++] = c->val[j];
-
-        if (OCT_compare(&PRIME25519, &KOID)) ret.curve = USE_C25519; 
-        if (OCT_compare(&PRIME256V1, &KOID)) ret.curve = USE_NIST256;
-        if (OCT_compare(&SECP384R1, &KOID)) ret.curve = USE_NIST384;
-        if (OCT_compare(&SECP521R1, &KOID)) ret.curve = USE_NIST521;
-    }
-
-    j = sj; // skip to actual Public Key
-
-    len = getalen(BIT, c->val, j);
-    if (len < 0)
-    {
-        ret.type = 0;
-        return ret;
-    }
-    j += skip(len); //
-    j++;
-    len--; // skip bit shift (hopefully 0!)
-
-// extract key
-    if (key==NULL)
-        return ret;
-    if (ret.type == X509_ECC || ret.type == X509_ECD || ret.type == X509_PQ || ret.type == X509_HY)
-    {
-        if (ret.type==X509_HY)
-        {
-            j+=4;
-            len-=4;
-        }
-        key->len = len;
-        fin = j + len;
-        for (i = 0; j < fin; j++)
-            key->val[i++] = c->val[j];
-
-    }
-    if (ret.type == X509_PQ  || ret.type == X509_HY) 
-        ret.curve=8*len;
-
-    if (ret.type == X509_RSA)
-    {
-        // Key is (modulus,exponent) - assume exponent is 65537
-        len = getalen(SEQ, c->val, j);
-        if (len < 0)
-        {
-            ret.type = 0;
-            return ret;
-        }
-        j += skip(len); //
-
-        len = getalen(INT, c->val, j); // get modulus
-        if (len < 0)
-        {
-            ret.type = 0;
-            return ret;
-        }
-        j += skip(len); //
-        if (c->val[j] == 0)
-        {
-            j++;
-            len--; // remove leading zero
-        }
-
-        key->len = len;
-        fin = j + len;
-        for (i = 0; j < fin; j++)
-            key->val[i++] = c->val[j];
-
-        ret.curve = 8 * len;
-    }
-    return ret;
-}
-*/
 // Find pointer to main sections of cert, before extracting individual field
 // Find index to issuer in cert, and its length
 // This is the certificate DER encoded distinguished issuer name 

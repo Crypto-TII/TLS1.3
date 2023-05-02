@@ -95,5 +95,13 @@ pub fn get_client_credentials(privkey: &mut [u8],sklen: &mut usize,cert_type: u8
     if pk.kind==x509::HY {
         kind=DILITHIUM2_P256;   
     }
+    if pk.kind==x509::ECD {
+        if pk.curve==x509::USE_ED25519 {
+            kind=ED25519;
+        }
+        if pk.curve==x509::USE_ED448 {
+            kind=ED448;
+        }
+    }
     return kind;
 }

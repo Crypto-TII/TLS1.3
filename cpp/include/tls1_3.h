@@ -28,10 +28,11 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application progress + bytes on the wire */
 
 // // Supported CRYPTO_SETTINGs
-#define TINY_ECC 0          /**< ECC keys only */
-#define TYPICAL 1           /**< Mixture of RSA and ECC - for use with most standard web servers */
-#define POST_QUANTUM 2      /**< Post quantum (Dilithium+Kyber?) */   
-#define HYBRID 3            /**< Hybrid, Kyber/Dilithium + X25519 */
+#define TINY_ECC 1          /**< ECC keys only */
+#define TYPICAL 2           /**< Mixture of RSA and ECC - for use with most standard web servers */
+#define POST_QUANTUM 3      /**< Post quantum (Dilithium+Kyber?) */   
+#define HYBRID 4            /**< Hybrid, Kyber/Dilithium + X25519 */
+#define EDDSA 0             /**< experimental EDDSA certificate chain used */
 
 // Client Certificate Chain + Key
 #define NOCERT 0  /**< Don't have a Client Cert */
@@ -41,6 +42,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define HYB_SS 6  /**< self signed Hybrid cert (Dilithium+ECC) */
 #define HW_1 4    /**< RP2040 1 Hardware cert */
 #define HW_2 5    /**< RP2040 2 Hardware cert */
+#define EDD_SS 7  /**< self signed Ed25519 cert */
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 
@@ -158,7 +160,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #endif
 
 
-#if CRYPTO_SETTING==TINY_ECC
+#if CRYPTO_SETTING==TINY_ECC || CRYPTO_SETTING==EDDSA
  #define TLS_MAX_IBUFF_SIZE (4096+256)   /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 4096         /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (4096+256)  /**< Max Ciphertext Fragment size */
@@ -228,6 +230,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define RSA_PKCS1_SHA384 0x0501         /**< Supported RSA Signature algorithm */
 #define RSA_PKCS1_SHA512 0x0601         /**< Supported RSA Signature algorithm */
 #define ED25519 0x0807                  /**< Ed25519 EdDSA Signature algorithm */
+#define ED448 0x0808                    /**< Ed448 EdDSA Signature algorithm */
 #define DILITHIUM2 0x0902               /**< Dilithium2 Signature algorithm */
 #define DILITHIUM3 0x0903               /**< Dilithium3 Signature algorithm */
 #define DILITHIUM2_P256 0x09F2          /**< Dilithium2+SECP256R1 Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */

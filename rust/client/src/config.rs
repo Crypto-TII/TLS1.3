@@ -45,7 +45,10 @@ pub const ECDSA_SECP256R1_SHA384: u16 = 0x0413;
 /// Dilithium2 Hybrid Signature algorithm
 pub const DILITHIUM2_P256: u16 = 0x09F2; // this type can be negotiated, but always implemented seperately by SAL
 // Ed25519 EdDSA Signature algorithm
-//pub const ED25519: usize = 0x0807;                   
+pub const ED25519: u16 = 0x0807;                   
+// Ed448 EdDSA Signature algorithm
+pub const ED448: u16 = 0x0808; 
+
 
 // Maximum sizes for some stack arrays
 /// Max ECC field size in bytes 
@@ -69,13 +72,15 @@ pub const MAX_CIPHER_FRAG: usize = 16384+256;
 
 // Supported CRYPTO_SETTINGs
 /// ECC support only
-pub const TINY_ECC: usize = 0;   
+pub const TINY_ECC: usize = 1;   
 /// ECC + RSA support 
-pub const TYPICAL: usize = 1;        
+pub const TYPICAL: usize = 2;        
 /// POST_QUANTUM support
-pub const POST_QUANTUM: usize = 2;      
+pub const POST_QUANTUM: usize = 3;      
 /// HYBRID support
-pub const HYBRID: usize = 3;
+pub const HYBRID: usize = 4;
+/// EDDSA support
+pub const EDDSA: usize = 0;
 
 // These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA

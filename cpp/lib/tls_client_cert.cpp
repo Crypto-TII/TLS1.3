@@ -13,7 +13,7 @@
 
 #if CLIENT_CERT == ECC_SS
 
-// My personal ECC private key - Certificate expires Jan 2026
+// My personal ECDSA private key - Certificate expires Jan 2026
 const char *myprivate=(char *)
 "-----BEGIN PRIVATE KEY-----\n"
 "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgwmEaEau6Dybv+N5d\n"
@@ -47,6 +47,40 @@ int getSigRequirements(int *sigReqs) {
 }
 
 #endif
+
+#if CLIENT_CERT == EDD_SS
+
+// My personal EDDSA private key - Certificate expires Jan 2026
+const char *myprivate=(char *)
+"-----BEGIN PRIVATE KEY-----\n"
+"MC4CAQAwBQYDK2VwBCIEIHlr6fjIis7VBPeGoP78bBXunfGqRNfv2PM6B/GurYTV\n"
+"-----END PRIVATE KEY-----\n";
+
+// self-signed cert
+const char *mycert=(char *)
+"-----BEGIN CERTIFICATE-----\n"
+"MIICMzCCAeWgAwIBAgIUBRZr5MpC58wQdpEZdnwSy43EhS0wBQYDK2VwMIGOMQsw\n"
+"CQYDVQQGEwJJRTEQMA4GA1UECAwHSXJlbGFuZDEPMA0GA1UEBwwGRHVibGluMQ8w\n"
+"DQYDVQQKDAZTaGFtdXMxETAPBgNVBAsMCFJlc2VhcmNoMRMwEQYDVQQDDApNaWtl\n"
+"IFNjb3R0MSMwIQYJKoZIhvcNAQkBFhRtaWNoYWVsLnNjb3R0QHRpaS5hZTAeFw0y\n"
+"MzA1MDIxNDMzMDVaFw0yNjAxMjYxNDMzMDVaMIGOMQswCQYDVQQGEwJJRTEQMA4G\n"
+"A1UECAwHSXJlbGFuZDEPMA0GA1UEBwwGRHVibGluMQ8wDQYDVQQKDAZTaGFtdXMx\n"
+"ETAPBgNVBAsMCFJlc2VhcmNoMRMwEQYDVQQDDApNaWtlIFNjb3R0MSMwIQYJKoZI\n"
+"hvcNAQkBFhRtaWNoYWVsLnNjb3R0QHRpaS5hZTAqMAUGAytlcAMhALvif4QmTzbS\n"
+"RuZAB6zRDtIcCOL5dJf1IP+7TQRlZ1I/o1MwUTAdBgNVHQ4EFgQUC6drttANglSF\n"
+"PbodPcsgxasZ5TYwHwYDVR0jBBgwFoAUC6drttANglSFPbodPcsgxasZ5TYwDwYD\n"
+"VR0TAQH/BAUwAwEB/zAFBgMrZXADQQAx2L90LWfhs2LJG5xcMyFB0YMG7ebbapbL\n"
+"2ij1QxL+kyyx5x/7lTJZZin8I036tLR739JOW05uwtjq+im49QQE\n"
+"-----END CERTIFICATE-----\n";
+
+// Report signature requirements for our certificate chain
+int getSigRequirements(int *sigReqs) {
+    sigReqs[0]=ED25519;
+    return 1;
+}
+
+#endif
+
 
 #if CLIENT_CERT == HW_1
 // My first Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0. Expires November 2026

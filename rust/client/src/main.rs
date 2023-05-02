@@ -362,7 +362,7 @@ fn main() {
                     session.t.favourite_group=X25519;
                 }
                 if psk_type == PSK_IBE {
-                    if CRYPTO_SETTING == TYPICAL || CRYPTO_SETTING == TINY_ECC {
+                    if CRYPTO_SETTING == TYPICAL || CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == EDDSA {
                         log(IO_PROTOCOL,"Using Pairing-Based IBE\n",-1,None);
                         let mut r32:[u8;32]=[0;32];
                         sal::random_bytes(32,&mut r32);

@@ -13,6 +13,8 @@
 #include "ecdh_C25519.h"
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
+#include "eddsa_Ed25519.h"
+#include "eddsa_Ed448.h"
 #if CRYPTO_SETTING>=POST_QUANTUM
 #include "dilithium.h"
 #include "kyber.h"
@@ -56,7 +58,7 @@ int SAL_ciphers(int *ciphers)
 int SAL_groups(int *groups)
 {
     int n=0;
-#if CRYPTO_SETTING==TINY_ECC
+#if CRYPTO_SETTING==TINY_ECC  || CRYPTO_SETTING==EDDSA
     n=3;
     groups[0]=X25519;
     groups[1]=SECP256R1;
@@ -88,9 +90,11 @@ int SAL_groups(int *groups)
 
 int SAL_sigs(int *sigAlgs)
 {
-    int n=2;
+    int n=4;
     sigAlgs[0]=ECDSA_SECP256R1_SHA256;
     sigAlgs[1]=ECDSA_SECP384R1_SHA384;
+    sigAlgs[2]=ED25519;
+    sigAlgs[3]=ED448;
 #if CRYPTO_SETTING>TINY_ECC
     sigAlgs[n]=RSA_PSS_RSAE_SHA256; n++;
 #endif
@@ -106,9 +110,11 @@ int SAL_sigs(int *sigAlgs)
 
 int SAL_sigCerts(int *sigAlgsCert)
 {
-    int n=2;
+    int n=4;
     sigAlgsCert[0]=ECDSA_SECP256R1_SHA256;
     sigAlgsCert[1]=ECDSA_SECP384R1_SHA384;
+    sigAlgsCert[2]=ED25519;
+    sigAlgsCert[3]=ED448;
 #if CRYPTO_SETTING>TINY_ECC
     sigAlgsCert[n]=RSA_PKCS1_SHA256; n++;
     sigAlgsCert[n]=RSA_PKCS1_SHA384; n++;
@@ -767,8 +773,19 @@ static bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 }
 
 static bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
-{ // TBD
-    return false;
+{ 
+    octet MC_CERT=octad_to_octet(CERT);
+    octet MC_SIG=octad_to_octet(SIG);
+    octet MC_PUBKEY=octad_to_octet(PUBKEY);
+    return Ed25519::EDDSA_VERIFY(false,&MC_PUBKEY,NULL,&MC_CERT,&MC_SIG);
+}
+
+static bool Ed448_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+{ 
+    octet MC_CERT=octad_to_octet(CERT);
+    octet MC_SIG=octad_to_octet(SIG);
+    octet MC_PUBKEY=octad_to_octet(PUBKEY);
+    return Ed448::EDDSA_VERIFY(false,&MC_PUBKEY,NULL,&MC_CERT,&MC_SIG);
 }
 
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
@@ -831,7 +848,21 @@ static void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 }
 
 static void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG)
-{ // TBD
+{ 
+    octet MC_MESS=octad_to_octet(MESS);
+    octet MC_KEY=octad_to_octet(KEY);
+    octet MC_SIG=octad_to_octet(SIG);
+    Ed25519::EDDSA_SIGNATURE(false,&MC_KEY,NULL,&MC_MESS,&MC_SIG);
+    SIG->len=MC_SIG.len;
+}
+
+static void Ed448_SIGN(octad *KEY,octad *MESS,octad *SIG)
+{ 
+    octet MC_MESS=octad_to_octet(MESS);
+    octet MC_KEY=octad_to_octet(KEY);
+    octet MC_SIG=octad_to_octet(SIG);
+    Ed448::EDDSA_SIGNATURE(false,&MC_KEY,NULL,&MC_MESS,&MC_SIG);
+    SIG->len=MC_SIG.len;
 }
 
 // Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
@@ -949,6 +980,9 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
         case ED25519:
             result= Ed25519_VERIFY(BUFF,SIG,PUBKEY);
             break;
+        case ED448:
+            result= Ed448_VERIFY(BUFF,SIG,PUBKEY);
+            break;
 #if CRYPTO_SETTING>=POST_QUANTUM
         case DILITHIUM3:
             result= DILITHIUM3_VERIFY(BUFF,SIG,PUBKEY);
@@ -977,6 +1011,9 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
         break;
     case ED25519:
         Ed25519_SIGN(KEY,TRANS,SIG) ;
+        break;
+    case ED448:
+        Ed448_SIGN(KEY,TRANS,SIG);
         break;
     case ECDSA_SECP256R1_SHA256:
         SECP256R1_ECDSA_SIGN(32,KEY,TRANS,SIG);

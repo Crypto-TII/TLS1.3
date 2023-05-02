@@ -160,8 +160,10 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
         res=SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA256,CERT,SIG,PUBKEY);
     if (st.type== X509_ECC && st.hash==X509_H384 && st.curve==USE_NIST384)
         res=SAL_tlsSignatureVerify(ECDSA_SECP384R1_SHA384,CERT,SIG,PUBKEY);
-    if (st.type== X509_ECD && st.curve==USE_C25519)
+    if (st.type== X509_ECD && st.curve==USE_ED25519)
         res=SAL_tlsSignatureVerify(ED25519,CERT,SIG,PUBKEY);
+    if (st.type== X509_ECD && st.curve==USE_ED448)
+        res=SAL_tlsSignatureVerify(ED448,CERT,SIG,PUBKEY);
     if (st.type== X509_RSA && st.hash==X509_H256)
         res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA256,CERT,SIG,PUBKEY);
     if (st.type== X509_RSA && st.hash==X509_H384)
@@ -293,7 +295,11 @@ int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAI
     {
         kind=DILITHIUM2_P256;  
     }
-
+    if (pk.type==X509_ECD)
+    {
+        if (pk.curve==USE_ED25519) kind=ED25519;  // as long as this is a client capability
+        if (pk.curve==USE_ED448) kind=ED448;  // as long as this is a client capability
+    }
     return kind;
 }
 #endif

@@ -202,6 +202,9 @@ fn main() {
     if CRYPTO_SETTING==TINY_ECC {
         println!("Configured for Small ECC TLS client connections");
     }
+    if CRYPTO_SETTING==EDDSA {
+        println!("Configured for EDDSA connections");
+    }
     if CRYPTO_SETTING==POST_QUANTUM {
         println!("Configured for Post Quantum TLS client connections");
     }

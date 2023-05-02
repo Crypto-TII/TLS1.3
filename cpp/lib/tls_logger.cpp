@@ -304,7 +304,7 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
     log(IO_DEBUG,(char *)"Signature on Certificate is ",NULL,0,SIG); 
     if (sg.type==X509_ECC)
     {
-        log(IO_DEBUG,(char *)"ECC signature ",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"ECDSA signature ",NULL,0,NULL);
         if (sg.curve==USE_NIST256)
             log(IO_DEBUG,(char *)"Curve is SECP256R1\n",NULL,0,NULL);
         if (sg.curve==USE_NIST384)
@@ -314,6 +314,14 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
         if (sg.hash == X509_H256) log(IO_DEBUG,(char *)"Hashed with SHA256\n",NULL,0,NULL);
         if (sg.hash == X509_H384) log(IO_DEBUG,(char *)"Hashed with SHA384\n",NULL,0,NULL);
         if (sg.hash == X509_H512) log(IO_DEBUG,(char *)"Hashed with SHA512\n",NULL,0,NULL);
+    }
+    if (sg.type==X509_ECD)
+    {
+       log(IO_DEBUG,(char *)"EDDSA signature ",NULL,0,NULL);
+        if (sg.curve==USE_ED25519)
+            log(IO_DEBUG,(char *)"Curve is ED25519\n",NULL,0,NULL);
+        if (sg.curve==USE_ED448)
+            log(IO_DEBUG,(char *)"Curve is ED448\n",NULL,0,NULL);
     }
     if (sg.type==X509_RSA)
         log(IO_DEBUG,(char *)"RSA signature of length ",(char *)"%d",sg.curve,NULL);

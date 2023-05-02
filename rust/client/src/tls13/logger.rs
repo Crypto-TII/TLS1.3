@@ -68,6 +68,8 @@ pub fn log_sig_alg(level: usize,sigalg: u16) {
         DILITHIUM3 => log(level,"DILITHIUM3\n",-1,None),
         DILITHIUM2 => log(level,"DILITHIUM2\n",-1,None),
         DILITHIUM2_P256 => log(level,"DILITHIUM2 + P256\n",-1,None),
+        ED25519 => log(level,"Ed25519\n",-1,None),
+        ED448 => log(level,"Ed448\n",-1,None),
         _ => log(level,"Non-standard\n",-1,None)
     }     
 }
@@ -155,7 +157,7 @@ pub fn log_cert_details(d: &CERT)
     log(IO_DEBUG,"Parsing Certificate\n",-1,None);
     log(IO_DEBUG,"Signature on Certificate is ",0,Some(&d.sig[0..d.sgt.len])); 
     if d.sgt.kind==x509::ECC {
-        log(IO_DEBUG,"ECC signature ",-1,None);
+        log(IO_DEBUG,"ECDSA signature ",-1,None);
         if d.sgt.curve==x509::USE_NIST256 {
             log(IO_DEBUG,"Curve is SECP256R1 ",-1,None);
         }
@@ -168,6 +170,15 @@ pub fn log_cert_details(d: &CERT)
         if d.sgt.hash == x509::H256 {log(IO_DEBUG,"Hashed with SHA256\n",-1,None);}
         if d.sgt.hash == x509::H384 {log(IO_DEBUG,"Hashed with SHA384\n",-1,None);}
         if d.sgt.hash == x509::H512 {log(IO_DEBUG,"Hashed with SHA512\n",-1,None);}
+    }
+    if d.sgt.kind==x509::ECD {
+        log(IO_DEBUG,"EDDSA signature ",-1,None);
+        if d.sgt.curve==x509::USE_ED25519 {
+            log(IO_DEBUG,"Curve is ED25519 ",-1,None);
+        }
+        if d.sgt.curve==x509::USE_ED448 {
+            log(IO_DEBUG,"Curve is ED448 ",-1,None);
+        }
     }
     if d.sgt.kind==x509::RSA {
         log(IO_DEBUG,"RSA signature of length ",d.sgt.curve as isize,None);

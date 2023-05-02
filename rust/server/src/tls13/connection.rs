@@ -1122,7 +1122,6 @@ impl SESSION {
 //println!("CPKLEN= {}",cpklen);
                         r=self.parse_bytes_pull(&mut cpk[0..cpklen]); if r.err!=0 {return r;}
                         remain-=4+cpklen;
-//println!("ALG= {}",alg);
                         if group_support(alg) { // check here that cpklen is correct length for this algorithm
                             if cpklen!=sal::client_public_key_size(alg) {
                                 r.err=BAD_PARAMETER; 
@@ -1370,7 +1369,6 @@ impl SESSION {
             r.err=BAD_HANDSHAKE;
             return r;
         }
-//println!("PSK 5");
         let mut retry=false;
         if !resume { // check for agreement on cipher suite and group - might need to ask for a handshake retry
             let mut scs:[u16;MAX_CIPHER_SUITES]=[0;MAX_CIPHER_SUITES]; // choose a cipher suite
@@ -1419,7 +1417,6 @@ impl SESSION {
             }
 
         } else {
-//println!("PSK 5b");
             for i in 0..nccs { // check clients list of favourite suites
                 if cipher_support(ccs[i]) { // find the first one I support - this should be the one I issued ticket for
                     self.cipher_suite=ccs[i];
@@ -1589,7 +1586,7 @@ impl SESSION {
 
 // process it depending on the active crypto-setting
             match CRYPTO_SETTING {
-                TYPICAL | TINY_ECC => {
+                TYPICAL | TINY_ECC | EDDSA => {
                     const HAFLEN:usize=servercert::BFSK.len()/2;
                     let mut bfsk: [u8; HAFLEN]=[0;HAFLEN];
                     utils::decode_hex(&mut bfsk,&servercert::BFSK);

@@ -92,6 +92,31 @@ DjAMBgNVHRMEBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCICKN5A5XOXQlT+V2Wb3E\
 nhWuRdNNj3DuzgMOOGFY0+cgAiA9IYkrIEgIne/iYP8cy9dv2Fg7A8jlYpNIU6su\
 qMdgKQ=="];
 
+
+// This Server + Intermediate CA chain is based on the ed448+ed25519 elliptic curves. Expires Jan 2026.
+
+pub const ED_PRIVATE: &str = 
+"MC4CAQAwBQYDK2VwBCIEIBDarp6gZMMNAW97V5vZWyPcg38GEyrRUl/mKId4ZfJ1";
+
+pub const ED_CERTCHAIN: [&str;2] = [
+
+"MIIBGDCBmQIBATAFBgMrZXEwJDEiMCAGA1UEAwwZVGlpZ2VyVExTIGludGVybWVk\
+aWF0ZSBDQTAeFw0yMzA1MDExMTI3MThaFw0yNjAxMjUxMTI3MThaMBsxGTAXBgNV\
+BAMMEFRpaWdlclRMUyBzZXJ2ZXIwKjAFBgMrZXADIQCgtt41J0anRPIIOo5v5nf9\
+xho3AAMXjVP1+SxPZ63PZjAFBgMrZXEDcwATk5A+BpmO3ooatxbW0u9X9l9+WWEH\
+YfgJgjHhqUhH1qjSsGSrr2OO/6gKX8saxPz0J3soAHfGKoA6p+2KzEh7LUhXUsDA\
+5j/j+SavVmP/Z2a61ANOfDY8em3uPg9lYrPdQ123z6b5FgBOyFQ2nw16MwA=",
+
+"MIIBXDCB3aADAgECAhQMsUGg7j25uStmRDTDKOGt04D9yzAFBgMrZXEwHDEaMBgG\
+A1UEAwwRVGlpZ2VyVExTIHJvb3QgQ0EwHhcNMjMwNTAxMTEyNDUzWhcNMjYwMTI1\
+MTEyNDUzWjAkMSIwIAYDVQQDDBlUaWlnZXJUTFMgaW50ZXJtZWRpYXRlIENBMEMw\
+BQYDK2VxAzoAUsiJQRuUoUPw5BCvMuFCKVLTl+ONH8rVJP2ZzRX4+XSOsQddHjGu\
+OxCJDUq6RdkIX9rKHbukqcGAoxAwDjAMBgNVHRMEBTADAQH/MAUGAytlcQNzAPXR\
+C8VEsvyWIJHiOD03nFW23xBwBwsQANYxBwBnTTHq88wKvXn5yMxTEii1YR/bYnxU\
+IZX7SwrWAMnauGBzoetBx0+iyLUztOeTj6zZzLgn1BOKtF+RIXghz2ex/nYmq8AB\
+GpRBvWpLhJSiiYy/vXYCAA=="];
+
+
 // Experimental Hybrid Dilithium2+p256 Server key + Intermediate CA chain. Expires July 2023
 pub const HY_PRIVATE: &str =
 "MIIPkgIBADAIBgYrzg8CBwEEgg+BBIIPfQAAAHkwdwIBAQQgUD9a9w53IvGovaKp\
@@ -1090,6 +1115,11 @@ pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
         sig_reqs[1]=ECDSA_SECP256R1_SHA256;
         ns+=2;
     }
+    if CRYPTO_SETTING==EDDSA {
+        sig_reqs[0]=ED25519;
+        sig_reqs[1]=ED448;
+        ns+=2;
+    }
     return ns;
 }
 
@@ -1142,6 +1172,10 @@ pub fn get_server_credentials(privkey: &mut [u8],sklen: &mut usize,cert_type: u8
         key=HY_PRIVATE;
         ptr=extract_chain(&HY_CERTCHAIN,cert_type,&mut sc,certchain);
     }
+    if CRYPTO_SETTING==EDDSA {
+        key=ED_PRIVATE;
+        ptr=extract_chain(&ED_CERTCHAIN,cert_type,&mut sc,certchain);
+    }
     *cclen=ptr;
 // next get secret key
     let sclen=utils::decode_b64(&key.as_bytes(),&mut sc);
@@ -1167,6 +1201,13 @@ pub fn get_server_credentials(privkey: &mut [u8],sklen: &mut usize,cert_type: u8
     if pk.kind==x509::HY {
         kind=DILITHIUM2_P256;  // *** also need to check that secp256r1 is supported - kind indicates that both signature keys are in privkey
     }
-
+    if pk.kind==x509::ECD {
+        if pk.curve==x509::USE_ED25519 {
+            kind=ED25519;
+        }
+        if pk.curve==x509::USE_ED448 {
+            kind=ED448;
+        }
+    }
     return kind;
 }

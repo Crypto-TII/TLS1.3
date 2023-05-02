@@ -95,6 +95,12 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     if st.kind==x509::ECC && st.hash==x509::H384 && st.curve==x509::USE_NIST384 {
         return sal::tls_signature_verify(ECDSA_SECP384R1_SHA384,cert,sig,pubkey);
     }
+    if st.kind==x509::ECD && st.curve==x509::USE_ED25519{
+        return sal::tls_signature_verify(ED25519,cert,sig,pubkey);
+    }
+    if st.kind==x509::ECD && st.curve==x509::USE_ED448{
+        return sal::tls_signature_verify(ED448,cert,sig,pubkey);
+    }
     if st.kind==x509::RSA && st.hash==x509::H256 {
         return sal::tls_signature_verify(RSA_PKCS1_SHA256,cert,sig,pubkey);
     }

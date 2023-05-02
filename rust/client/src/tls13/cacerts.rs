@@ -2,10 +2,10 @@
 //! CA root certificate store
 
 // First cert is our own experimental hybrid p256+DILITHIUM2 root certificate, then a DILITHIUM3 root certificate (Remove to save memory)
-// Third is our own secp256r1 root certificate
+// Third is our own secp256r1 root certificate, fourth is our own ed448 root certificate
 // after that all globaly accepted CAs
 
-pub const CERT_STORE_SIZE:usize=138+3;
+pub const CERT_STORE_SIZE:usize=138+4;
 
 // expires July 2023
 pub const CACERTS: [&str;CERT_STORE_SIZE]= [
@@ -341,6 +341,17 @@ DgQWBBSTV6Jk8SGIoDpFgRVa0ff/7IyadjAfBgNVHSMEGDAWgBSTV6Jk8SGIoDpF\
 gRVa0ff/7IyadjAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIQDG\
 3OZtZ2fflA/tvblnTuXSUrQW2QfZP9LGAjBuKMhvGQIgH3tvw6g21ZxTABZS4JMU\
 G2i8HbvF7TswzTUkOGdeN+Y=",
+
+// EDDSA expires Jan 2026
+"MIIBmDCCARigAwIBAgIUON4MhGt/yJjaMwD8/bX17kZn9ikwBQYDK2VxMBwxGjAY\
+BgNVBAMMEVRpaWdlclRMUyByb290IENBMB4XDTIzMDUwMTExMjM0OVoXDTI2MDEy\
+NTExMjM0OVowHDEaMBgGA1UEAwwRVGlpZ2VyVExTIHJvb3QgQ0EwQzAFBgMrZXED\
+OgBgs1wDOyR/QuqUugf+4fFcl74f4nxopVIHyp/z8rkwW5ej9Ns/tyWStC9FY1XU\
+KOJOY/OLNVRsMQCjUzBRMB0GA1UdDgQWBBR2kOEcrMY3yjNjQ+dz4OHFT2UcbTAf\
+BgNVHSMEGDAWgBR2kOEcrMY3yjNjQ+dz4OHFT2UcbTAPBgNVHRMBAf8EBTADAQH/\
+MAUGAytlcQNzAJb1pnAheREXu/hQWVmCEEgu1JZPW1Ik4GDDE/isEziVRRRAbAXb\
+KxQkfAha7YCg8vyfS6lCCLMdANDFSM6tfAqEvl+4z5RR79U6sNEMN0zcgoI1l94i\
+IoVQUBMjZ+RCQeBJeQ+8nLehcCoSI5a4oTcSAA==",
 
 "MIICHjCCAaSgAwIBAgIRYFlJ4CYuu1X5CneKcflK2GwwCgYIKoZIzj0EAwMwUDEk\
 MCIGA1UECxMbR2xvYmFsU2lnbiBFQ0MgUm9vdCBDQSAtIFI1MRMwEQYDVQQKEwpH\

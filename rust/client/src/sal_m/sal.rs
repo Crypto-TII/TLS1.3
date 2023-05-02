@@ -153,7 +153,7 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
 
 /// Provide list of supported key exchange groups. IMPORTANT - Favourite group (as used in client Hello) is placed first in list
 pub fn groups(groups: &mut [u16]) -> usize {
-    if config::CRYPTO_SETTING==config::TINY_ECC {
+    if config::CRYPTO_SETTING==config::TINY_ECC || config::CRYPTO_SETTING==config::EDDSA {
         groups[0]=config::X25519;
         groups[1]=config::SECP256R1;
         groups[2]=config::SECP384R1;
@@ -185,9 +185,11 @@ pub fn groups(groups: &mut [u16]) -> usize {
 
 /// Provide list of supported signature algorithms (for TLS)
 pub fn sigs(sig_algs: &mut [u16]) -> usize {
-    let mut n=2;
+    let mut n=4;
     sig_algs[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs[1]=config::ECDSA_SECP384R1_SHA384;
+    sig_algs[2]=config::ED25519;
+    sig_algs[3]=config::ED448;
     if config::CRYPTO_SETTING>config::TINY_ECC {
         sig_algs[n]=config::RSA_PSS_RSAE_SHA256; n+=1;
     }
@@ -203,9 +205,11 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
 
 /// Provide list of supported signature algorithms (for Certificates)
 pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
-    let mut n=2;
+    let mut n=4;
     sig_algs_cert[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs_cert[1]=config::ECDSA_SECP384R1_SHA384;
+    sig_algs_cert[2]=config::ED25519;
+    sig_algs_cert[3]=config::ED448;
     if config::CRYPTO_SETTING>config::TINY_ECC {
         sig_algs_cert[n]=config::RSA_PKCS1_SHA256; n+=1;
         sig_algs_cert[n]=config::RSA_PKCS1_SHA384; n+=1;
@@ -731,6 +735,16 @@ pub fn secp384r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) 
     return true;
 }
 
+pub fn ed25519_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+    use mcore::ed25519::eddsa;
+    return eddsa::verify(false,pubkey,None,cert,sig);
+}
+
+pub fn ed448_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+    use mcore::ed448::eddsa;
+    return eddsa::verify(false,pubkey,None,cert,sig);
+}
+
 /// Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::nist256::ecdh;
@@ -765,6 +779,22 @@ pub fn secp384r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) ->
         sig[48+i]=s[i];
     }
     return 96;
+}
+
+pub fn ed25519_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+    use mcore::ed25519::eddsa;
+    if eddsa::signature(false,key,None,mess,sig)!=0 {
+        return 0;
+    }
+    return 64;
+}
+
+pub fn ed448_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+    use mcore::ed448::eddsa;
+    if eddsa::signature(false,key,None,mess,sig)!=0 {
+        return 0;
+    }
+    return 114;
 }
 
 /// Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
@@ -834,10 +864,13 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
         config::ECDSA_SECP256R1_SHA384 => {return secp256r1_ecdsa_verify(48,buff,sig,pubkey);}, 
         config::RSA_PKCS1_SHA384 => {return rsa_pkcs15_verify(48,buff,sig,pubkey);},
         config::ECDSA_SECP384R1_SHA384 => {return secp384r1_ecdsa_verify(48,buff,sig,pubkey);},
+        config::ED25519 => { return ed25519_verify(buff,sig,pubkey);}, 
+        config::ED448 => { return ed448_verify(buff,sig,pubkey);}, 
         config::RSA_PKCS1_SHA512 => {return rsa_pkcs15_verify(64,buff,sig,pubkey);},
         config::RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_verify(32,buff,sig,pubkey);},
         config::DILITHIUM3 => {return dilithium3_verify(buff,sig,pubkey);},
         config::DILITHIUM2 => {return dilithium2_verify(buff,sig,pubkey);},
+
         _ => {return false;}
     }
 }
@@ -849,6 +882,8 @@ pub fn tls_signature(sigalg: u16,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usiz
         config:: ECDSA_SECP256R1_SHA256 => {return secp256r1_ecdsa_sign(32,key,trans,sig);},
         config:: ECDSA_SECP256R1_SHA384 => {return secp256r1_ecdsa_sign(48,key,trans,sig);},
         config:: ECDSA_SECP384R1_SHA384 => {return secp384r1_ecdsa_sign(48,key,trans,sig);},
+        config:: ED25519 => { return ed25519_sign(key,trans,sig);},
+        config:: ED448 => { return ed448_sign(key,trans,sig);},
         config:: DILITHIUM3 => {return dilithium3_sign(key,trans,sig);},
         config:: DILITHIUM2 => {return dilithium2_sign(key,trans,sig);},
         _ => {return 0;}
