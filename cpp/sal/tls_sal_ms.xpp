@@ -13,7 +13,7 @@
 #include "ecdh_C25519.h"
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
-#include "eddsa_Ed25519.h"
+//#include "eddsa_Ed25519.h"
 #include "eddsa_Ed448.h"
 #if CRYPTO_SETTING>=POST_QUANTUM
 #include "dilithium.h"
