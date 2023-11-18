@@ -23,7 +23,7 @@ extern crate rand;
 
 /// Return SAL name
 pub fn name() -> &'static str {
-    return "MIRACL Core + OQS";
+    return "MIRACL Core";
 }
 
 /// Initialize SAL

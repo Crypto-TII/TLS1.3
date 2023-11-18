@@ -178,6 +178,9 @@ static void nameSigAlg(int sigAlg)
     case ED25519:
         printf("ED25519\n");   
         break;
+    case ED448:
+        printf("ED448\n");   
+        break;
     case DILITHIUM2:
         printf("DILITHIUM2\n");   
         break;

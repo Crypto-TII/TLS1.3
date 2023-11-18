@@ -117,6 +117,9 @@ static void nameSigAlg(int sigAlg)
     case ED25519:
         Serial.println("ED25519");   
         break;
+    case ED448:
+        Serial.println("ED448");   
+        break;
     case DILITHIUM2:
         Serial.println("DILITHIUM2");   
         break;

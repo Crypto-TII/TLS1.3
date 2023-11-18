@@ -191,6 +191,8 @@ fn name_signature(sigalg: u16) {
         RSA_PSS_RSAE_SHA512 => println!("RSA_PSS_RSAE_SHA512"),
         RSA_PKCS1_SHA512 => println!("RSA_PKCS1_SHA512"),
         DILITHIUM3 => println!("DILITHIUM3"),
+        ED25519 => println!("ED25519"),
+        ED448 => println!("ED448"),
         _ => println!("Non-standard")        
     }
 }
