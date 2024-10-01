@@ -572,7 +572,7 @@ static bool DILITHIUM3_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
     octet MC_CERT=octad_to_octet(CERT);
     octet MC_SIG=octad_to_octet(SIG);
     octet MC_PUBKEY=octad_to_octet(PUBKEY);
-    return DLTHM_verify_3(&MC_PUBKEY,&MC_CERT,&MC_SIG);    
+    return DLTHM_verify_3(false,&MC_PUBKEY,NULL,&MC_CERT,&MC_SIG);    
 }
 
 static void DILITHIUM3_SIGN(octad *KEY,octad *MESS,octad *SIG)
@@ -581,7 +581,7 @@ static void DILITHIUM3_SIGN(octad *KEY,octad *MESS,octad *SIG)
     octet MC_KEY=octad_to_octet(KEY);
     octet MC_SIG=octad_to_octet(SIG);
 
-    DLTHM_signature_3(&MC_KEY,&MC_MESS,&MC_SIG); 
+    DLTHM_signature_3(false,NULL,&MC_KEY,NULL,&MC_MESS,&MC_SIG); 
     SIG->len=MC_SIG.len;
 }
 
@@ -590,7 +590,7 @@ static bool DILITHIUM2_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
     octet MC_CERT=octad_to_octet(CERT);
     octet MC_SIG=octad_to_octet(SIG);
     octet MC_PUBKEY=octad_to_octet(PUBKEY);
-    return DLTHM_verify_2(&MC_PUBKEY,&MC_CERT,&MC_SIG);    
+    return DLTHM_verify_2(false,&MC_PUBKEY,NULL,&MC_CERT,&MC_SIG);    
 }
 
 static void DILITHIUM2_SIGN(octad *KEY,octad *MESS,octad *SIG)
@@ -599,7 +599,7 @@ static void DILITHIUM2_SIGN(octad *KEY,octad *MESS,octad *SIG)
     octet MC_KEY=octad_to_octet(KEY);
     octet MC_SIG=octad_to_octet(SIG);
 
-    DLTHM_signature_2(&MC_KEY,&MC_MESS,&MC_SIG); 
+    DLTHM_signature_2(false,NULL,&MC_KEY,NULL,&MC_MESS,&MC_SIG); 
     SIG->len=MC_SIG.len;
 }
 #endif

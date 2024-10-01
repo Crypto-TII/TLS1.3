@@ -599,26 +599,26 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
 /// Dilithium signature verification
 fn dilithium3_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::dilithium;
-    return dilithium::verify_3(&pubkey[0..dilithium::PK_SIZE_3],cert,sig);
+    return dilithium::verify_3(false,&pubkey[0..dilithium::PK_SIZE_3],None,cert,sig);
 }
 
 /// Dilithium signature
 pub fn dilithium3_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::dilithium;
-    dilithium::signature_3(&key[0..dilithium::SK_SIZE_3],mess,sig);
+    dilithium::signature_3(false,None,&key[0..dilithium::SK_SIZE_3],None,mess,sig);
     return dilithium::SIG_SIZE_3;
 }
 
 /// Dilithium signature verification
 fn dilithium2_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use mcore::dilithium;
-    return dilithium::verify_2(&pubkey[0..dilithium::PK_SIZE_2],cert,sig);
+    return dilithium::verify_2(false,&pubkey[0..dilithium::PK_SIZE_2],None,cert,sig);
 }
 
 /// Dilithium signature 
 pub fn dilithium2_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::dilithium;
-    dilithium::signature_2(&key[0..dilithium::SK_SIZE_2],mess,sig);
+    dilithium::signature_2(false,None,&key[0..dilithium::SK_SIZE_2],None,mess,sig);
     return dilithium::SIG_SIZE_2;
 }
 
