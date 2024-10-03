@@ -347,6 +347,8 @@ const char *cacerts=(char *)
 */
 #endif
 #if CRYPTO_SETTING == TINY_ECC
+
+/*
 "-----BEGIN CERTIFICATE-----\n"                                       // Expires June 2023
 "MIIBjTCCATOgAwIBAgIUbraw40ya/lt/Pja8JrDeNgC1lk4wCgYIKoZIzj0EAwIw\n"
 "HDEaMBgGA1UEAwwRVGlpZ2VyVExTIHJvb3QgQ0EwHhcNMjIwNjI1MTcxNzUzWhcN\n"
@@ -358,6 +360,22 @@ const char *cacerts=(char *)
 "3OZtZ2fflA/tvblnTuXSUrQW2QfZP9LGAjBuKMhvGQIgH3tvw6g21ZxTABZS4JMU\n"
 "G2i8HbvF7TswzTUkOGdeN+Y=\n"
 "-----END CERTIFICATE-----\n"
+*/
+
+"-----BEGIN CERTIFICATE-----\n"                                       // Expires June 2027
+"MIIBjTCCATOgAwIBAgIUHWh+9FwWRWeIN1mxJ+ggotMGgZUwCgYIKoZIzj0EAwIw\n"
+"HDEaMBgGA1UEAwwRVGlpZ2VyVExTIHJvb3QgQ0EwHhcNMjQxMDAzMDUzOTM4WhcN\n"
+"MjcwNjMwMDUzOTM4WjAcMRowGAYDVQQDDBFUaWlnZXJUTFMgcm9vdCBDQTBZMBMG\n"
+"ByqGSM49AgEGCCqGSM49AwEHA0IABDMloFqarf0gUgAzkthGhISd18WTFpe+UYvA\n"
+"sm0p0WpStutV0jEgAfSiv262xDmHVrhD3Fa9pNAK3a/0z7jDn8ejUzBRMB0GA1Ud\n"
+"DgQWBBT3n1sOKITqHKqRzjGvqVmrqtLapDAfBgNVHSMEGDAWgBT3n1sOKITqHKqR\n"
+"zjGvqVmrqtLapDAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIGbt\n"
+"EVq0r+4WBgNrT0hw5l1loljeik1fYwo0UFjNHBLWAiEA3egzdQq/zrrQlEn2/zPa\n"
+"dL5Mgi9ugbCnTPt2+COSRKI=\n"
+"-----END CERTIFICATE-----\n"
+
+
+
 #endif
 #if CRYPTO_SETTING == EDDSA
 "-----BEGIN CERTIFICATE-----\n"
