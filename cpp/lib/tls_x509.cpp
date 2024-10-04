@@ -85,12 +85,20 @@ static unsigned char rsasha512[9] = {0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0
 static octad RSASHA512 = {9, sizeof(rsasha512), (char *)rsasha512};
 
 // DILITHIUM3
-static unsigned char dilithium3[11] = {0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05};
-static octad DILITHIUM3 = {11, sizeof(dilithium3), (char *)dilithium3};
+//static unsigned char dilithium3[11] = {0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05};
+//static octad DILITHIUM3 = {11, sizeof(dilithium3), (char *)dilithium3};
 
-// DILITHIUM2 + P256
-static unsigned char hybrid[6] = {0x2B, 0xCE, 0x0F, 0x02, 0x07, 0x01};
-static octad HYBRID = {6,sizeof(hybrid), (char *)hybrid};
+// MLDSA65 - official
+//static unsigned char mldsa65[8] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x12};
+//static octad MLDSA65 = {8, sizeof(mldsa65), (char *)mldsa65};
+
+// MLDSA65 - OQS
+static unsigned char mldsa65[11] = {0x2B, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x0C, 0x06, 0x05};
+static octad MLDSA65 = {11, sizeof(mldsa65), (char *)mldsa65};
+
+// MLDSA44 + P256 - OQS
+static unsigned char hybrid[5] = {0x2B, 0xCE, 0x0F, 0x07, 0x01};
+static octad HYBRID = {5,sizeof(hybrid), (char *)hybrid};
 
 // Cert details
 // countryName
@@ -348,8 +356,25 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         ret.type = X509_ECD;
         ret.curve = USE_ED448;
     }
-    if (OCT_compare(&DILITHIUM3, &SOID))
+/*    if (OCT_compare(&DILITHIUM3, &SOID))
     { // Its a DILITHIUM3 key
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;
+        j += skip(len);
+        tlen=len; 
+        if (tlen>pk->max)
+            tlen=pk->max;
+        for (i=0;i<tlen;i++)
+            pk->val[i]=c->val[j++];
+        pk->len=tlen;
+        ret.type=X509_PQ;
+        ret.curve=8*tlen;
+    }*/
+    if (OCT_compare(&MLDSA65, &SOID))
+    { // Its an MLDSA65 key
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
         j += skip(len);
@@ -616,7 +641,12 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         ret.type = X509_RSA;
         ret.hash = X509_H512;
     }
-    if (OCT_compare(&DILITHIUM3, &SOID))
+/*    if (OCT_compare(&DILITHIUM3, &SOID))
+    {
+        ret.type = X509_PQ;
+        ret.hash = 0; // hash type is implicit
+    }*/
+    if (OCT_compare(&MLDSA65, &SOID))
     {
         ret.type = X509_PQ;
         ret.hash = 0; // hash type is implicit
@@ -953,7 +983,8 @@ pktype X509_get_public_key(octad *c,octad *key)
     if (OCT_compare(&EDPK25519, &KOID)) {ret.type = X509_ECD; ret.curve=USE_ED25519;}
     if (OCT_compare(&EDPK448, &KOID)) {ret.type = X509_ECD;  ret.curve=USE_ED448;}
     if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
-    if (OCT_compare(&DILITHIUM3, &KOID)) ret.type = X509_PQ;
+    //if (OCT_compare(&DILITHIUM3, &KOID)) ret.type = X509_PQ;
+    if (OCT_compare(&MLDSA65, &KOID)) ret.type = X509_PQ;
     if (OCT_compare(&HYBRID, &KOID)) ret.type = X509_HY;
 
     if (ret.type == 0) return ret;
