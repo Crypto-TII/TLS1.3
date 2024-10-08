@@ -134,7 +134,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // These all blow up post quantum
  #define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max signature public key size in bytes     DILITHIUM3 */
  #define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max signature private key size in bytes    DILITHIUM3 (maybe includes the public key?) */
- #define TLS_MAX_SIGNATURE_SIZE 3312          /**< Max signature size in bytes                DILITHIUM3 */
+ #define TLS_MAX_SIGNATURE_SIZE 3309          /**< Max signature size in bytes                DILITHIUM3 */
  #define TLS_MAX_KEX_PUB_KEY_SIZE 1184        /**< Max key exchange public key size in bytes  KYBER768   */
  #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088     /**< Max key exchange (KEM) ciphertext size     KYBER768   */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes KYBER768   */

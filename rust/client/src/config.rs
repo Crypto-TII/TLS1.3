@@ -90,7 +90,7 @@ pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size (less 
 // These all blow up post quantum
 pub const MAX_SIG_PUBLIC_KEY: usize = 1952+100;        // Maximum signature Public key size Dilithium 3
 pub const MAX_SIG_SECRET_KEY: usize = 4000+100;        // Maximum signature Public key size Dilithium 3
-pub const MAX_SIGNATURE_SIZE: usize = 3312+100;        // Maximum signature size in bytes - Dilithium 3 
+pub const MAX_SIGNATURE_SIZE: usize = 3309+100;        // Maximum signature size in bytes - Dilithium 3 
 pub const MAX_KEX_PUBLIC_KEY: usize = 1184+32;         // Maximum key exchange public key size (also Encapsulation size for KEM) - was 136 pre-quantum
 pub const MAX_KEX_CIPHERTEXT: usize = 1088+32;         // Maximum key exchange (KEM) ciphertext size
 pub const MAX_KEX_SECRET_KEY: usize = 2400+32;         // Maximum key exchange Secret key size. The +32 is for hybrid with X25519
