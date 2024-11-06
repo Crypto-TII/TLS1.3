@@ -28,11 +28,16 @@ elif chkarg "-2"
 then
     echo "Building using LibSodium + Miracl"
     sh ./scripts/build_s.sh
+elif chkarg "-3"
+then
+    echo "Building using TLSECC + Miracl"
+    sh ./scripts/build_t.sh
 else
     echo "No arguments specified\n"
     echo "Parameters:"
     echo " -1\tMiracl"
     echo " -2\tMiracl + LibSodium"   
-    echo " -3\tCustom Library" 
+    echo " -3\tMiracl + TLSECC"   
+    echo " -4\tCustom Library" 
     exit
 fi

@@ -33,6 +33,12 @@ To use a SAL which includes some functionality from the well known sodium crypto
 
 	bash ./scripts/build.sh -2
 
+## Miracl + TLSECC
+
+To use a SAL with much faster elliptic curve cryptography, we can use the TLSECC library https://github.com/mcarrickscott/TLSECC
+
+	bash ./scripts/build.sh -3
+
 # Try it out
 
 After the build complete successfully, the example executable *client* and the TiigerTLS library *libtiitls.a* are generated in the build directory

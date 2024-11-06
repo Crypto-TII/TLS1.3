@@ -1023,10 +1023,10 @@ os.system(deltext+" client.cpp")
 # os.system(deltext+ " ECC*.* ")
 #
 # using miracl + ECC608a hardware
-os.system(copytext+" tls_sal_mh.xpp "+"tls_sal.cpp")
+# os.system(copytext+" tls_sal_mh.xpp "+"tls_sal.cpp")
 #
 # or.. $*$*$*$*
-# os.system(copytext+" tls_sal_mhp.xpp "+"tls_sal.cpp")
+os.system(copytext+" tls_sal_mhp.xpp "+"tls_sal.cpp")
 # ..and copy x25519.S into project from  https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
 #
 

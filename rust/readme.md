@@ -21,15 +21,22 @@ be random and unique for each server instance.
 Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL. First clone the repository and move to 
 the *TLS13/rust* directory (where this README is)
 
-Currently the Rust implementation only supports a MIRACL-based SAL. To install MIRACL from this directory (TLS1.3/rust) proceed as follows. In the unlikely event that yours is a 
-32-bit environment specify *config32* instead.
+The Rust implementation uses a SAL based on the MIRACL and TLSECC cryptographic libraries, where TLSECC supports the elliptic curve cryptography and MIRACL supports everything else. To install from this directory (TLS1.3/rust) proceed as follows. In the unlikely event that yours is a 32-bit environment change 64 to 32 in two places.
 
 	git clone https://github.com/miracl/core.git
 	cd core/rust
 	python3 config64.py test
 	cd ../..
+	git clone https://github.com/mcarrickscott/TLSECC
+	cd TLSECC
+	cargo new --lib tlsecc
+	cd tlsecc/src
+	cp ../../rust64/* .
+	cd ..
+	cargo build --release
+	cd ../..
 
-To build the client program move to the *client* directory. Check that the *Cargo.toml* file has the correct path to the MIRACL library. Then 
+To build the client program move to the *client* directory. Check that the *Cargo.toml* file has the correct path to the MIRACL and TLSECC libraries. Then 
 
 	cargo build
 
@@ -37,7 +44,7 @@ To build in release mode (much faster code)
 
 	cargo build --release
 
-To build and run the server program move to the *server* directory in a new window. Again check that the *Cargo.toml* file has the correct path to the MIRACL library. Then 
+To build and run the server program move to the *server* directory in a new window. Again check that the *Cargo.toml* file has the correct path to the MIRACL and TLSECC libraries. Then 
 
 	cargo run
 	

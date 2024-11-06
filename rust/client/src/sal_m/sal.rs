@@ -1,11 +1,12 @@
 
-//! Security Abstraction Layer. This version uses MIRACL core functions
+//! Security Abstraction Layer. This version uses MIRACL core functions, plus elliptic curve crypto from TLSECC
 
 #![allow(dead_code)]
 
 use zeroize::Zeroize;
 
 extern crate mcore;
+extern crate tlsecc;
 use mcore::hmac;
 use mcore::hash256::HASH256;
 use mcore::hash384::HASH384;
@@ -69,6 +70,8 @@ pub fn secret_key_size(group: u16) -> usize {
     }
     if group==config::HYBRID_KX {
         return mcore::kyber::SECRET_CCA_SIZE_768+32;
+        //let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        //return kem.length_secret_key()+32;
     }
 
     return 0;
@@ -92,6 +95,8 @@ pub fn client_public_key_size(group: u16) -> usize {
     }
     if group==config::HYBRID_KX {
         return mcore::kyber::PUBLIC_SIZE_768+32;
+        //let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        //return kem.length_public_key()+32;    
     }
  
     return 0;
@@ -115,6 +120,8 @@ pub fn server_public_key_size(group: u16) -> usize {
     }
     if group==config::HYBRID_KX {
         return mcore::kyber::CIPHERTEXT_SIZE_768+32;
+        //let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        //return kem.length_ciphertext()+32;         
     }
 
     return 0;
@@ -138,6 +145,8 @@ pub fn shared_secret_size(group: u16) -> usize {
     }
     if group==config::HYBRID_KX {
         return mcore::kyber::SHARED_SECRET_768+32;
+        //let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
+        //return kem.length_shared_secret()+32; 
     }
  
     return 0;
@@ -151,36 +160,18 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
     return n;
 }
 
-/// Provide list of supported key exchange groups. IMPORTANT - Favourite group (as used in client Hello) is placed first in list
+/// Provide list of supported key exchange groups
+// Note that ordering here does not matter
 pub fn groups(groups: &mut [u16]) -> usize {
-    if config::CRYPTO_SETTING==config::TINY_ECC || config::CRYPTO_SETTING==config::EDDSA {
-        groups[0]=config::X25519;
-        groups[1]=config::SECP256R1;
-        groups[2]=config::SECP384R1;
-        return 3;
+    let mut n=3;
+    groups[0]=config::X25519;
+    groups[1]=config::SECP256R1;
+    groups[2]=config::SECP384R1;
+    if config::CRYPTO_SETTING>=config::POST_QUANTUM {
+        groups[n]=config::KYBER768; n+=1;
+        groups[n]=config::HYBRID_KX; n+=1;
     }
-    if config::CRYPTO_SETTING==config::TYPICAL {
-        groups[0]=config::X25519;
-        groups[1]=config::SECP256R1;
-        groups[2]=config::SECP384R1;
-        return 3;
-    }
-    if config::CRYPTO_SETTING==config::POST_QUANTUM {
-        groups[0]=config::KYBER768;
-        groups[1]=config::X25519;
-        groups[2]=config::SECP256R1;
-        groups[3]=config::SECP384R1;
-        return 4;
-    } 
-    if config::CRYPTO_SETTING==config::HYBRID {
-        groups[0]=config::HYBRID_KX;
-        groups[1]=config::KYBER768;
-        groups[2]=config::X25519;
-        groups[3]=config::SECP256R1;
-        groups[4]=config::SECP384R1;
-        return 5;
-    }
-    return 0;
+    return n;
 }
 
 /// Provide list of supported signature algorithms (for TLS)
@@ -198,7 +189,7 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
     }
     if config::CRYPTO_SETTING==config::HYBRID {
         sig_algs[n]=config::DILITHIUM2; n+=1;
-        sig_algs[n]=config::DILITHIUM2_P256; n+=1;
+        sig_algs[n]=config::DILITHIUM2_P256; n+=1;  
     }
     return n;
 }
@@ -219,7 +210,7 @@ pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
         sig_algs_cert[n]=config::DILITHIUM3; n+=1;   
     }
     if config::CRYPTO_SETTING==config::HYBRID {
-        sig_algs_cert[n]=config::DILITHIUM2; n+=1;  
+        sig_algs_cert[n]=config::DILITHIUM2; n+=1; 
         sig_algs_cert[n]=config::DILITHIUM2_P256; n+=1;   
     }
     return n;
@@ -411,23 +402,19 @@ pub fn aead_decrypt(recv: &keys::CRYPTO,hdr: &[u8],ct: &mut [u8],tag: &[u8]) -> 
 /// Generate key exchange private/public key pair
 pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
     if group==config::X25519 {
-        use mcore::c25519::ecdh;
+        use tlsecc::x25519;
         random_bytes(32,csk);
-        csk[31] &= 248;
-        csk[0] &=127;
-        csk[0] |=64;
-        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..32], &mut pk[0..32]);
-        pk[0..32].reverse();
+        x25519::KEY_PAIR(&csk[0..32],&mut pk[0..32]);
     }
     if group==config::SECP256R1 {
-        use mcore::nist256::ecdh;
+        use tlsecc::s256;
         random_bytes(32,csk);
-        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..32], &mut pk[0..65]);
+        s256::KEY_PAIR(false,&csk[0..32], &mut pk[0..65]);
     }
     if group==config::SECP384R1 {
-        use mcore::nist384::ecdh;
+        use tlsecc::s384;
         random_bytes(48,csk);
-        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[0..48], &mut pk[0..97]);
+        s384::KEY_PAIR(false,&csk[0..48], &mut pk[0..97]);
     }    
     if group==config::KYBER768 {
         use mcore::kyber;
@@ -435,62 +422,47 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
         random_bytes(64,&mut r64);
         kyber::keypair_768(&r64,&mut csk[0..kyber::SECRET_CCA_SIZE_768],&mut pk[0..kyber::PUBLIC_SIZE_768]);
     }
+
     if group==config::HYBRID_KX {
         use mcore::kyber;          // first kyber
         let mut r64: [u8;64]=[0;64];
         random_bytes(64,&mut r64);
         kyber::keypair_768(&r64,&mut csk[0..kyber::SECRET_CCA_SIZE_768],&mut pk[0..kyber::PUBLIC_SIZE_768]);
 
-        use mcore::c25519::ecdh; // append an X25519
+        use tlsecc::x25519;// append an X25519
         let startsk=secret_key_size(config::KYBER768);
         let startpk=client_public_key_size(config::KYBER768);
         random_bytes(32,&mut csk[startsk..startsk+32]);
-        csk[startsk+31] &= 248;
-        csk[startsk] &=127;
-        csk[startsk] |=64;
-        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk[startsk..startsk+32], &mut pk[startpk..startpk+32]);
-        pk[startpk..startpk+32].reverse();
-
+        x25519::KEY_PAIR(&csk[startsk..startsk+32], &mut pk[startpk..startpk+32]);
     }
- 
 }
 
 /// Given client public key cpk, generate shared secret ss and server public key or encapsulation spk
 pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) -> bool {
     //let mut csk:[u8;config::MAX_KEX_SECRET_KEY]=[0;config::MAX_KEX_SECRET_KEY];
-    let mut res=0;
+    let mut success=false;
     if group==config::X25519 {
-        use mcore::c25519::ecdh;
+        use tlsecc::x25519;
         let mut csk:[u8;32]=[0;32];
         random_bytes(32,&mut csk);
-        csk[31] &= 248;
-        csk[0] &=127;
-        csk[0] |=64;
-        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[0..32]);
-        spk[0..32].reverse();
-        let mut rpk:[u8;32]=[0;32];
-        for i in 0..32 {
-            rpk[i]=cpk[i]
-        }
-        rpk[0..32].reverse();
-        res=ecdh::ecpsvdp_dh(&csk,&rpk[0..32],&mut ss[0..32],0);
-        ss[0..32].reverse();
+        x25519::KEY_PAIR(&csk[0..32],&mut spk[0..32]);
+        success=x25519::SHARED_SECRET(&csk[0..32],&cpk[0..32],&mut ss[0..32]);
         csk.zeroize();
     }
     if group==config::SECP256R1 {
-        use mcore::nist256::ecdh;
+        use tlsecc::s256;
         let mut csk:[u8;32]=[0;32];
         random_bytes(32,&mut csk);
-        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[0..65]);
-        res=ecdh::ecpsvdp_dh(&csk,&cpk[0..65],&mut ss[0..32],0);
+        s256::KEY_PAIR(false,&mut csk[0..32], &mut spk[0..65]);
+        success=s256::SHARED_SECRET(&csk[0..32],&cpk[0..65],&mut ss[0..32]);       
         csk.zeroize();
     }
     if group==config::SECP384R1 {
-        use mcore::nist384::ecdh;
+        use tlsecc::s384;
         let mut csk:[u8;48]=[0;48];
         random_bytes(48,&mut csk);
-        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[0..97]);
-        res=ecdh::ecpsvdp_dh(&csk,&cpk[0..97],&mut ss[0..48],0);
+        s384::KEY_PAIR(false,&mut csk[0..48], &mut spk[0..97]);
+        success=s384::SHARED_SECRET(&csk[0..48],&cpk[0..97],&mut ss[0..48]);
         csk.zeroize();
     }
     if group==config::KYBER768 {
@@ -498,9 +470,9 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         let mut r32: [u8;32]=[0;32];
         random_bytes(32,&mut r32);
         kyber::encrypt_768(&r32,&cpk[0..kyber::PUBLIC_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768],&mut spk[0..kyber::CIPHERTEXT_SIZE_768]);
-        r32.zeroize(); 
+        r32.zeroize();
+        success=true;
     }
-
     if group==config::HYBRID_KX {
         use mcore::kyber;
         let mut r32: [u8;32]=[0;32];
@@ -508,89 +480,65 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         kyber::encrypt_768(&r32,&cpk[0..kyber::PUBLIC_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768],&mut spk[0..kyber::CIPHERTEXT_SIZE_768]);
         r32.zeroize();
 
-        use mcore::c25519::ecdh; // append an X25519
+        use tlsecc::x25519; // append an X25519
         let startct=server_public_key_size(config::KYBER768);
         let startpk=client_public_key_size(config::KYBER768);
         let startss=shared_secret_size(config::KYBER768);
 
         let mut csk:[u8;32]=[0;32];
         random_bytes(32,&mut csk);
-        csk[31] &= 248;
-        csk[0] &=127;
-        csk[0] |=64;
-        ecdh::key_pair_generate(None::<&mut RAND>, &mut csk, &mut spk[startct..startct+32]);
-        spk[startct..startct+32].reverse();
-        let mut rpk:[u8;32]=[0;32];
-        for i in 0..32 {
-            rpk[i]=cpk[startpk+i]
-        }
-        rpk[0..32].reverse();
-        res=ecdh::ecpsvdp_dh(&csk,&rpk[0..32],&mut ss[startss..startss+32],0);
-        ss[startss..startss+32].reverse();
+        x25519::KEY_PAIR(&csk, &mut spk[startct..startct+32]);
+        success=x25519::SHARED_SECRET(&csk,&cpk[startpk..startpk+32],&mut ss[startss..startss+32]);        
         csk.zeroize();
-
     }
-
 // all zeros is suspect...
     let mut ors=ss[0];
     for i in 1..ss.len() {
         ors |= ss[i];
     }
-    if ors==0 || res!=0 {
+    if ors==0 || !success {
         return false;
     }
-    return true;    
+    return true;
+    //csk.zeroize();
 }
 
 /// Generate shared secret SS from secret key SK and public key PK
 pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> bool {
-    let mut res=0;
+    let mut success=false;
     if group==config::X25519 {
-        use mcore::c25519::ecdh;
-        let mut rpk:[u8;32]=[0;32];
-        for i in 0..32 {
-            rpk[i]=pk[i]
-        }
-        rpk[0..32].reverse();
-        res=ecdh::ecpsvdp_dh(&sk[0..32],&rpk[0..32],&mut ss[0..32],0);
-        ss[0..32].reverse();
+    	use tlsecc::x25519;
+    	success=x25519::SHARED_SECRET(&sk[0..32],&pk[0..32],&mut ss[0..32]);   	
     }
     if group==config::SECP256R1 {
-        use mcore::nist256::ecdh;
-        res=ecdh::ecpsvdp_dh(&sk[0..32],&pk[0..65],&mut ss[0..32],0);
-
+        use tlsecc::s256;
+        success=s256::SHARED_SECRET(&sk[0..32],&pk[0..65],&mut ss[0..32]);
     }
     if group==config::SECP384R1 {
-        use mcore::nist384::ecdh;
-        res=ecdh::ecpsvdp_dh(&sk[0..48],&pk[0..97],&mut ss[0..48],0);
+        use tlsecc::s384;
+        success=s384::SHARED_SECRET(&sk[0..48],&pk[0..97],&mut ss[0..48]);
     }
     if group==config::KYBER768 {
         use mcore::kyber;
         kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
+        success=true;
     }
     if group==config::HYBRID_KX {
         use mcore::kyber;
         kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
-
-        use mcore::c25519::ecdh;
+        use tlsecc::x25519;
         let startsk=secret_key_size(config::KYBER768);
         let startct=server_public_key_size(config::KYBER768);
         let startss=shared_secret_size(config::KYBER768);
-
-        let mut rpk:[u8;32]=[0;32];
-        for i in 0..32 {
-            rpk[i]=pk[startct+i]
-        }
-        rpk[0..32].reverse();
-        res=ecdh::ecpsvdp_dh(&sk[startsk..startsk+32],&rpk[0..32],&mut ss[startss..startss+32],0);
-        ss[startss..startss+32].reverse();
+        success=x25519::SHARED_SECRET(&sk[startsk..startsk+32],&pk[startct..startct+32],&mut ss[startss..startss+32]);      
     }
+
 // all zeros is suspect...
     let mut ors=ss[0];
     for i in 1..ss.len() {
         ors |= ss[i];
     }
-    if ors==0 || res!=0 {
+    if ors==0  || !success {
         return false;
     }
     return true;
@@ -602,7 +550,7 @@ fn dilithium3_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return dilithium::verify_3(false,&pubkey[0..dilithium::PK_SIZE_3],None,cert,sig);
 }
 
-/// Dilithium signature
+/// Dilithium signature 
 pub fn dilithium3_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use mcore::dilithium;
     dilithium::signature_3(false,None,&key[0..dilithium::SK_SIZE_3],None,mess,sig);
@@ -621,7 +569,6 @@ pub fn dilithium2_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     dilithium::signature_2(false,None,&key[0..dilithium::SK_SIZE_2],None,mess,sig);
     return dilithium::SIG_SIZE_2;
 }
-
 
 /// RSA 2048-bit PKCS1.5 signature verification
 fn rsa_2048_pkcs15_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
@@ -706,94 +653,57 @@ pub fn rsa_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) -> 
 }
 
 /// NIST secp256r1 curve signature verification
-pub fn secp256r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    use mcore::nist256::ecdh;
-    let mut res=ecdh::public_key_validate(pubkey);
-    if res!=0 {
-        return false;
-    }
-    let (r,s)=sig.split_at(32);
-    res=ecdh::ecpvp_dsa(hlen,pubkey,cert,&r,&s);
-    if res!=0 {
-        return false;
-    }
-    return true;
+pub fn secp256r1_ecdsa_verify(_hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+    use tlsecc::s256;
+    return s256::VERIFY(pubkey,cert,sig);
 }
 
 /// NIST secp384r1 curve signature verification
-pub fn secp384r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    use mcore::nist384::ecdh;
-    let mut res=ecdh::public_key_validate(pubkey);
-    if res!=0 {
-        return false;
-    }
-    let (r,s)=sig.split_at(48);
-    res=ecdh::ecpvp_dsa(hlen,pubkey,cert,&r,&s);
-    if res!=0 {
-        return false;
-    }
-    return true;
+pub fn secp384r1_ecdsa_verify(_hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+    use tlsecc::s384;
+    return s384::VERIFY(pubkey,cert,sig);
 }
 
 pub fn ed25519_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    use mcore::ed25519::eddsa;
-    return eddsa::verify(false,pubkey,None,cert,sig);
+    use tlsecc::s25519;
+    return s25519::VERIFY(pubkey,cert,sig);
+    //use mcore::ed25519::eddsa;
+    //return eddsa::verify(false,pubkey,None,cert,sig);
 }
 
 pub fn ed448_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    use mcore::ed448::eddsa;
-    return eddsa::verify(false,pubkey,None,cert,sig);
+    use tlsecc::s448;
+    return s448::VERIFY(pubkey,cert,sig);
 }
 
 /// Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
-pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
-    use mcore::nist256::ecdh;
-    let mut r:[u8;32]=[0;32];
-    let mut s:[u8;32]=[0;32];
-    let mut raw: [u8; 100] = [0; 100];
-    random_bytes(100,&mut raw);
-    let mut rng=RAND::new();
-    rng.clean();
-    rng.seed(100, &raw); 
-    ecdh::ecpsp_dsa(hlen,&mut rng,key,mess,&mut r,&mut s);
-    for i in 0..32{
-        sig[i]=r[i];
-        sig[32+i]=s[i];
-    }
+pub fn secp256r1_ecdsa_sign(_hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+    use tlsecc::s256;
+    let mut r:[u8;40]=[0;40];
+    random_bytes(40,&mut r);
+    s256::SIGN(key,&r,mess,sig);
     return 64;
 }
 
 /// Use Curve SECP384R1 ECDSA to digitally sign a message using a private key 
-pub fn secp384r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
-    use mcore::nist384::ecdh;
-    let mut r:[u8;48]=[0;48];
-    let mut s:[u8;48]=[0;48];
-    let mut raw: [u8; 100] = [0; 100];
-    random_bytes(100,&mut raw);
-    let mut rng=RAND::new();
-    rng.clean();
-    rng.seed(100, &raw); 
-    ecdh::ecpsp_dsa(hlen,&mut rng,key,mess,&mut r,&mut s);
-    for i in 0..48{
-        sig[i]=r[i];
-        sig[48+i]=s[i];
-    }
+pub fn secp384r1_ecdsa_sign(_hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+    use tlsecc::s384;
+    let mut r:[u8;56]=[0;56];
+    random_bytes(56,&mut r);
+    s384::SIGN(key,&r,mess,sig);
     return 96;
+
 }
 
 pub fn ed25519_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
-    use mcore::ed25519::eddsa;
-    if eddsa::signature(false,key,None,mess,sig)!=0 {
-        return 0;
-    }
+    use tlsecc::s25519;
+    s25519::SIGN(key,None,mess,sig);
     return 64;
 }
 
 pub fn ed448_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
-    use mcore::ed448::eddsa;
-    if eddsa::signature(false,key,None,mess,sig)!=0 {
-        return 0;
-    }
+    use tlsecc::s448;
+    s448::SIGN(key,None,mess,sig);
     return 114;
 }
 
@@ -870,7 +780,6 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
         config::RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_verify(32,buff,sig,pubkey);},
         config::DILITHIUM3 => {return dilithium3_verify(buff,sig,pubkey);},
         config::DILITHIUM2 => {return dilithium2_verify(buff,sig,pubkey);},
-
         _ => {return false;}
     }
 }
