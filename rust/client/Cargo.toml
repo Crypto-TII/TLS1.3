@@ -14,6 +14,9 @@ keywords = ["cryptography", "protocol", "network", "tls_1.3"]
 # release to prevent automatic crates.io publishing
 publish = false
 
+[profile.dev]
+overflow-checks = false
+
 [dependencies]
 # make sure this points to MIRACL Core rust library
 mcore = { path = "../core/rust/mcore" }  # may need changing...
