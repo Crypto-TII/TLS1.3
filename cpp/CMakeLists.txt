@@ -65,7 +65,7 @@ endif ()
 
 # CMake instructions to build client app
 
-add_executable( client src/x86/client.cpp ) 
+add_executable( client src/desktop/client.cpp ) 
 
 target_link_libraries(client tiitls )
 
