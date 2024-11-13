@@ -41,7 +41,11 @@ To use a SAL with much faster elliptic curve cryptography, we can use the TLSECC
 
 # Try it out
 
-After the build complete successfully, the example executable *client* and the TiigerTLS library *libtiitls.a* are generated in the build directory
+After the build complete successfully, the example executable *client* and the TiigerTLS library *libtiitls.a* are generated in the build directory.
+
+The client application can be modified and rebuilt from this directory at any time. For example if using the Miracl+TLSECC SAL, then
+
+	g++ -O2 client.cpp libtiitls.a core.a tlsecc.a -o client
 
 To see the Security Abstraction Layer (SAL) capabilities, navigate to the build directory
 	
