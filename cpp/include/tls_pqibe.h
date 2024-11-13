@@ -14,7 +14,6 @@
 #define PQIBE_H
 
 #include "core.h"
-
 using namespace core;
 
 /** @brief IBE KEM CCA encrypt

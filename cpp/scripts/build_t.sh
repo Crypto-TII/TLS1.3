@@ -60,6 +60,13 @@ mkdir -p ../build
 cp client ../build
 cp libtiitls.a ../build
 cd ../
+cp sal/miracl/core.a build/.
+cp sal/miracl/tlsecc.a build/.
+cp include/tls_*.h build/.
+cp include/tls1_3.h build/.
+cp sal/miracl/includes/core.h build/.
+cp sal/miracl/includes/arch.h build/.
+cp src/x86/client.cpp build/.
 
 # Clean repo
 rm -rf .build

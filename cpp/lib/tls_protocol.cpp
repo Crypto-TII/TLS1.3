@@ -4,6 +4,13 @@
 
 #include "tls_protocol.h"
 
+#include "tls_keys_calc.h"
+#include "tls_cert_chain.h"
+#include "tls_client_recv.h"
+#include "tls_client_send.h"
+#include "tls_tickets.h"
+#include "tls_logger.h"
+
 // Initialise TLS 1.3 session state
 TLS_session TLS13_start(Socket *sockptr,char *hostname)
 {

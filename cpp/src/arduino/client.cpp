@@ -1,9 +1,12 @@
 // Client side C/C++ program to demonstrate TLS1.3 
 // Arduino Version
 
-#include "tls_sal.h"
+
 #include "tls_protocol.h"
 #include "tls_wifi.h"
+
+// for SAL testing and experimental IBE
+#include "tls_sal.h"
 #include "tls_bfibe.h"
 #include "tls_pqibe.h"
 

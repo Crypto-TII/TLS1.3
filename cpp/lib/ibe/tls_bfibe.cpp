@@ -7,12 +7,21 @@
 #include <string.h>
 #include <time.h>
 #include "randapi.h"
+
+#include "pair_BLS12381.h"
 #include "tls_bfibe.h"
 
+using namespace core;
+
+/* Field size is assumed to be greater than or equal to group size */
 #if CHUNK == 32
 using namespace B384_29;
+#define PGS_BLS12381 MODBYTES_B384_29  /**< BF Group Size */
+#define PFS_BLS12381 MODBYTES_B384_29  /**< BF Field Size */
 #else
 using namespace B384_58;
+#define PGS_BLS12381 MODBYTES_B384_58  /**< BF Group Size */
+#define PFS_BLS12381 MODBYTES_B384_58  /**< BF Field Size */
 #endif
 
 using namespace BLS12381;

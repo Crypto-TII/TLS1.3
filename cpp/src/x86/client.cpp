@@ -3,8 +3,12 @@
 // ./client www.bbc.co.uk
 
 #include <time.h>
-#include "tls_sal.h"
 #include "tls_protocol.h"
+#include "tls_tickets.h"
+#include "tls_logger.h"
+
+// for SAL testing and experimental IBE
+#include "tls_sal.h"
 #include "tls_bfibe.h"
 #include "tls_pqibe.h"
 

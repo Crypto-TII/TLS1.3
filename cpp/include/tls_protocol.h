@@ -9,12 +9,8 @@
 #ifndef TLS_PROTOCOL_H
 #define TLS_PROTOCOL_H
 
-#include "tls_keys_calc.h"
-#include "tls_cert_chain.h"
-#include "tls_client_recv.h"
-#include "tls_client_send.h"
-#include "tls_tickets.h"
-#include "tls_logger.h"
+#include "tls1_3.h" // for sockets, octads and session structure
+
 
 /** @brief initialise a TLS 1.3 session structure
  *
