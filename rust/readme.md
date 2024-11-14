@@ -25,16 +25,14 @@ The Rust implementation uses a SAL based on the MIRACL and TLSECC cryptographic 
 
 	git clone https://github.com/miracl/core.git
 	cd core/rust
-	python3 config64.py test
+	python3 config64.py 31 42 44
 	cd ../..
 	git clone https://github.com/mcarrickscott/TLSECC
 	cd TLSECC
 	cargo new --lib tlsecc
 	cd tlsecc/src
 	cp ../../rust64/* .
-	cd ..
-	cargo build --release
-	cd ../..
+	cd ../../..
 
 To build the client program move to the *client* directory. Check that the *Cargo.toml* file has the correct path to the MIRACL and TLSECC libraries. Then 
 
