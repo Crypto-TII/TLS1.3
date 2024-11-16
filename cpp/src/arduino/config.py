@@ -366,6 +366,20 @@ def curveset(nbt,tf,tc,base,m8,rz,mt,qi,ct,ca,pf,stw,sx,g2,ab,cs) :
     replace(fnameh,"YYY",tf)
     replace(fnameh,"XXX",bd)
 
+    fnamec="eddsa_"+tc+".cpp"
+    fnameh="eddsa_"+tc+".h"
+
+    os.system(copytext+" eddsa.cpp "+fnamec)
+    os.system(copytext+" eddsa.h "+fnameh)
+
+    replace(fnamec,"ZZZ",tc)
+    replace(fnamec,"YYY",tf)
+    replace(fnamec,"XXX",bd)
+    replace(fnameh,"ZZZ",tc)
+    replace(fnameh,"YYY",tf)
+    replace(fnameh,"XXX",bd)
+
+
     fnamec="hpke_"+tc+".cpp"
     fnameh="hpke_"+tc+".h"
 
@@ -627,13 +641,13 @@ def curveset(nbt,tf,tc,base,m8,rz,mt,qi,ct,ca,pf,stw,sx,g2,ab,cs) :
 
 replace("arch.h","@WL@","32")
 print("Elliptic Curves")
-print("1. ED25519")
+print("1. Ed25519")
 print("2. C25519")
 print("3. NIST256")
 print("4. BRAINPOOL")
 print("5. ANSSI")
 print("6. HIFIVE")
-print("7. GOLDILOCKS")
+print("7. Ed448")
 print("8. NIST384")
 print("9. C41417")
 print("10. NIST521\n")
@@ -670,18 +684,19 @@ print("37. BLS24479")
 print("38. BLS48556")
 print("39. BLS48581")
 print("40. BLS48286\n")
+print("41. BN158\n")
 
 print("RSA")
-print("41. RSA2048")
-print("42. RSA3072")
-print("43. RSA4096")
-print("44. NewHope\n")
-print("45. Dilithium\n")
-print("46. Kyber\n")
+print("42. RSA2048")
+print("43. RSA3072")
+print("44. RSA4096")
+print("45. NewHope\n")
+print("46. Dilithium\n")
+print("47. Kyber\n")
 
 selection=[]
 ptr=0
-max=47
+max=48
 
 def selected(selection,sel,len) :
     for i in range(0,len):
@@ -731,7 +746,7 @@ while ptr<max:
 # curve security is AES equiavlent, rounded up.
 
     if x==1:
-        curveset("255","F25519","ED25519","29","2","1","PSEUDO_MERSENNE","0","EDWARDS","-1","NOT_PF","","","","","128")
+        curveset("255","F25519","Ed25519","29","2","1","PSEUDO_MERSENNE","0","EDWARDS","-1","NOT_PF","","","","","128")
         curve_selected=True
     if x==2:
         curveset("255","F25519","C25519","29","2","1","PSEUDO_MERSENNE","0","MONTGOMERY","486662","NOT_PF","","","","","128")
@@ -750,7 +765,7 @@ while ptr<max:
         curveset("336","HIFIVE","HIFIVE","29","2","1","PSEUDO_MERSENNE","0","EDWARDS","1","NOT_PF","","","","","192")
         curve_selected=True
     if x==7:
-        curveset("448","GOLDILOCKS","GOLDILOCKS","29","1","0","GENERALISED_MERSENNE","0","EDWARDS","1","NOT_PF","","","","","256")
+        curveset("448","F448","Ed448","29","1","0","GENERALISED_MERSENNE","0","EDWARDS","1","NOT_PF","","","","","256")
         curve_selected=True
     if x==8:
         curveset("384","NIST384","NIST384","29","1","-12","NOT_SPECIAL","0","WEIERSTRASS","-3","NOT_PF","","","","","192")
@@ -800,7 +815,7 @@ while ptr<max:
         curve_selected=True
 
     if x==21:
-        curveset("448","GOLDILOCKS","X448","29","1","0","GENERALISED_MERSENNE","0","MONTGOMERY","156326","NOT_PF","","","","","256")
+        curveset("448","F448","X448","29","1","0","GENERALISED_MERSENNE","0","MONTGOMERY","156326","NOT_PF","","","","","256")
         curve_selected=True
 
     if x==22:
@@ -883,6 +898,9 @@ while ptr<max:
         curveset("286","BLS48286","BLS48286","29","1",["1","1","0"],"NOT_SPECIAL","0","WEIERSTRASS","0","BLS48_CURVE","M_TYPE","POSITIVEX","20","17","128")
         pfcurve_selected=True
 
+    if x==pf+13:
+        curveset("158","BN158", "BN158", "28","1",["1", "1", "0"], "NOT_SPECIAL", "0", "WEIERSTRASS", "0","BN_CURVE","M_TYPE","NEGATIVEX","49","42","128")
+        pfcurve_selected=True
 # rsaset(big,ring,big_length_bytes,bit_bits_in_base,multiplier)
 # for each choice give distinct names for "big" and "ring".
 # Typically "big" is the length in bits of the underlying big number type
@@ -892,26 +910,26 @@ while ptr<max:
 # multiplier is 2^m (see above)
 
 # There are choices here, different ways of getting the same result, but some faster than others
-    if x==pf+13:
+    if x==pf+14:
         #256 is slower but may allow reuse of 256-bit BIGs used for elliptic curve
         #512 is faster.. but best is 1024
         #rsaset("1024","RSA2048","28","2")
         #rsaset("512","RSA2048","29","4")
         rsaset("256","RSA2048","29","8")
         rsa_selected=True
-    if x==pf+14:
+    if x==pf+15:
         rsaset("384","RSA3072","28","8")
         rsa_selected=True
-    if x==pf+15:
+    if x==pf+16:
         rsaset("256","RSA4096","29","16")
         #rsaset("512","RSA4096","29","8")
         rsa_selected=True
 
-    if x==pf+16:
-        nhs_selected=True
     if x==pf+17:
-        dlthm_selected=True
+        nhs_selected=True
     if x==pf+18:
+        dlthm_selected=True
+    if x==pf+19:
         kyber_selected=True
 
 
@@ -923,6 +941,7 @@ os.system(deltext+" big.*")
 os.system(deltext+" fp.*")
 os.system(deltext+" ecp.*")
 os.system(deltext+" ecdh.*")
+os.system(deltext+" eddsa.*")
 os.system(deltext+" hpke.*")
 os.system(deltext+" ff.*")
 os.system(deltext+" rsa.*")
@@ -1023,10 +1042,10 @@ os.system(deltext+" client.cpp")
 # os.system(deltext+ " ECC*.* ")
 #
 # using miracl + ECC608a hardware
-# os.system(copytext+" tls_sal_mh.xpp "+"tls_sal.cpp")
+os.system(copytext+" tls_sal_mh.xpp "+"tls_sal.cpp")
 #
 # or.. $*$*$*$*
-os.system(copytext+" tls_sal_mhp.xpp "+"tls_sal.cpp")
+# os.system(copytext+" tls_sal_mhp.xpp "+"tls_sal.cpp")
 # ..and copy x25519.S into project from  https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
 #
 
@@ -1037,7 +1056,7 @@ os.system(deltext+" testx509.cpp")
 if not selected(selection,1,ptr) and not selected(selection,2,ptr) and not selected(selection,19,ptr):
     os.system(deltext+" rom_field_F25519.cpp")
 if not selected(selection,1,ptr) :
-    os.system(deltext+" rom_curve_ED25519.cpp")
+    os.system(deltext+" rom_curve_Ed25519.cpp")
 if not selected(selection,2,ptr) :
     os.system(deltext+" rom_curve_C25519.cpp")
 if not selected(selection,3,ptr) :
@@ -1054,10 +1073,10 @@ if not selected(selection,6,ptr) :
     os.system(deltext+" rom_curve_HIFIVE.cpp")
 
 if not selected(selection,7,ptr) and not selected(selection,21,ptr):
-    os.system(deltext+" rom_field_GOLDILOCKS.cpp")
+    os.system(deltext+" rom_field_F448.cpp")
 
 if not selected(selection,7,ptr) :
-    os.system(deltext+" rom_curve_GOLDILOCKS.cpp")
+    os.system(deltext+" rom_curve_Ed448.cpp")
 if not selected(selection,8,ptr) :
     os.system(deltext+" rom_field_NIST384.cpp")
     os.system(deltext+" rom_curve_NIST384.cpp")
@@ -1171,6 +1190,11 @@ if not selected(selection,40,ptr) :
     os.system(deltext+" rom_field_BLS48286.cpp")
     os.system(deltext+" rom_curve_BLS48286.cpp")
 
+if not selected(selection,41,ptr) :
+    os.system(deltext+" rom_field_BN158.cpp")
+    os.system(deltext+" rom_curve_BN158.cpp")
+
+
     os.system(deltext+" testbls.cpp")
     os.system(deltext+" testecc.cpp")
     os.system(deltext+" testmpin.cpp")
@@ -1179,6 +1203,7 @@ if not selected(selection,40,ptr) :
     os.system(deltext+" testnhs.cpp")
     os.system(deltext+" testdlthm.cpp")
     os.system(deltext+" testkyber.cpp")
+    os.system(deltext+" testeddsa.cpp")
 
     os.system(deltext+" config*.py")
     os.system(deltext+" benchtest_all.cpp")

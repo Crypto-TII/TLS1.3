@@ -4,6 +4,7 @@
 
 #include "tls_protocol.h"
 #include "tls_wifi.h"
+#include "tls_logger.h"
 
 // for SAL testing and experimental IBE
 #include "tls_sal.h"
