@@ -415,7 +415,7 @@ int main(int argc, char const *argv[])
         }
         if (psk_type==PSK_IBE)	// Use IBE shared key
         {
-#if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL
+#if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL || CRYPTO_SETTING == EDDSA
             log(IO_PROTOCOL,(char *)"Using Pairing-Based IBE\n",NULL,0,NULL);
             SAL_randomOctad(32,&R32);
             octet MC_R32=octad_to_octet(&R32);

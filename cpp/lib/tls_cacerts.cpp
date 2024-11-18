@@ -7,6 +7,9 @@
 
 // Root Certificate Store begins here
 
+
+// Note that in the TYPICAL setting, the server sends a self-signed certificate, so no associated root CA stored here 
+
 // First cert is our own experimental hybrid p256+DILITHIUM2 root certificate, then a DILITHIUM3 root certificate (Remove to save memory)
 // Third is our own secp256r1 root certificate
 // after that all globaly accepted CAs

@@ -28,11 +28,11 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define IO_WIRE 4           /**< print lots of debug information + protocol progress + application progress + bytes on the wire */
 
 // // Supported CRYPTO_SETTINGs
-#define TINY_ECC 1          /**< ECC keys only */
-#define TYPICAL 2           /**< Mixture of RSA and ECC - for use with most standard web servers */
+#define TINY_ECC 0          /**< ECC keys only */
+#define TYPICAL 1           /**< Mixture of RSA and ECC - for use with most standard web servers */
 #define POST_QUANTUM 3      /**< Post quantum (Dilithium+Kyber?) */   
 #define HYBRID 4            /**< Hybrid, Kyber/Dilithium + X25519 */
-#define EDDSA 0             /**< experimental EDDSA certificate chain used */
+#define EDDSA 2             /**< experimental EDDSA certificate chain used */
 
 // Client Certificate Chain + Key
 #define NOCERT 0  /**< Don't have a Client Cert */
@@ -104,7 +104,24 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // Max Frag length must be less than TLS_MAX_IBUFF_SIZE
 #define TLS_MAX_FRAG 2                   /**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
 
-#if CRYPTO_SETTING==TYPICAL
+#if CRYPTO_SETTING==TINY_ECC
+ #define TLS_MAX_IBUFF_SIZE (4096+256)   /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
+ #define TLS_MAX_PLAIN_FRAG 4096         /**< Max Plaintext Fragment size */
+ #define TLS_MAX_CIPHER_FRAG (4096+256)  /**< Max Ciphertext Fragment size */
+
+ #define TLS_MAX_CERT_SIZE 2048      /**< I checked - current max for root CAs is 2016 */
+ #define TLS_MAX_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
+ #define TLS_MAX_HELLO 1024          /**< Max client hello size (less extensions) KEX public key is largest component */
+
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 133        /**< Max signature public key size in bytes        ECC */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE 66      /**< Max signature private key size in bytes       ECC */
+ #define TLS_MAX_SIGNATURE_SIZE 132          /**< Max signature size in bytes                   ECC */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes        ECC */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        ECC */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    ECC */
+#endif
+
+#if CRYPTO_SETTING==TYPICAL  || CRYPTO_SETTING==EDDSA
  #define TLS_MAX_IBUFF_SIZE (16384+256)  /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 16384        /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (16384+256) /**< Max Ciphertext Fragment size */
@@ -159,23 +176,6 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400+32      /**< Max key exchange private key size in bytes KYBER768+X25519   */
 #endif
 
-
-#if CRYPTO_SETTING==TINY_ECC || CRYPTO_SETTING==EDDSA
- #define TLS_MAX_IBUFF_SIZE (4096+256)   /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
- #define TLS_MAX_PLAIN_FRAG 4096         /**< Max Plaintext Fragment size */
- #define TLS_MAX_CIPHER_FRAG (4096+256)  /**< Max Ciphertext Fragment size */
-
- #define TLS_MAX_CERT_SIZE 2048      /**< I checked - current max for root CAs is 2016 */
- #define TLS_MAX_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
- #define TLS_MAX_HELLO 1024          /**< Max client hello size (less extensions) KEX public key is largest component */
-
- #define TLS_MAX_SIG_PUB_KEY_SIZE 133        /**< Max signature public key size in bytes        ECC */
- #define TLS_MAX_SIG_SECRET_KEY_SIZE 66      /**< Max signature private key size in bytes       ECC */
- #define TLS_MAX_SIGNATURE_SIZE 132          /**< Max signature size in bytes                   ECC */
- #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes        ECC */
- #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        ECC */
- #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    ECC */
-#endif
 
 // Certificate size limits
 #define TLS_MAX_SERVER_CHAIN_LEN 2             /**< Maximum Server Certificate chain length - omitting root CA */

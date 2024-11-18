@@ -35,7 +35,7 @@ To use a SAL which includes some functionality from the well known sodium crypto
 
 ## Miracl + TLSECC
 
-To use a SAL with much faster elliptic curve cryptography, we can use the TLSECC library https://github.com/mcarrickscott/TLSECC
+For a SAL with much faster elliptic curve cryptography, use the TLSECC library https://github.com/mcarrickscott/TLSECC. Recommended.
 
 	bash ./scripts/build.sh -3
 

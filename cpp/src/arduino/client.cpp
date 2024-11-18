@@ -221,7 +221,7 @@ void testTLSconnect(Socket *client,char *hostname,int port)
 
 #ifdef HAVE_PSK
         strcpy(myhostname, "localhost"); // for now assume its only for use with localhost
-#if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL
+#if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL || CRYPTO_SETTING == EDDSA
         log(IO_PROTOCOL,(char *)"Using Pairing-Based IBE\n",NULL,0,NULL);
         SAL_randomOctad(32,&R32);
         octet MC_R32=octad_to_octet(&R32);
