@@ -33,11 +33,16 @@ The key exchange secret is generated in Slot 1. Slot 9 is used for the HMAC calc
 15.	Enter URL (e.g. www.bbc.co.uk) when prompted, and press return. A full TLS1.3 handshake followed by a resumption is attempted.
 16.	Click on Clear Output and Send to repeat for a different URL (or click Send again to see SAL capabilities).
 
-or before executing step 10, search for $\*$\*$\*$\* in config.py (around line 1020) and make changes as indicated. 
+or before executing step 10, search for !!!!!!!! in config.py (around line 1020) and make changes as indicated. 
 If using miracl alone, without hardware support, option 3 must be selected as well.
 If using assembly language code for X25519, copy x25519.S from https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
 into working directory and remove option 2. This creates the SAL (in this case using miracl + ECC608A hardware + Pornin's x25519).
 If experimenting with post-quantum primitives, also select options 46 and 47, for Dilithium and Kyber support.
+
+or copy into the project all from c32 and include32 directories of https://github.com/mcarrickscott/TLSECC, edit config.py at !!!!!!!!!
+to use faster elliptic curve code from TLSECC project, and select only options 31, 42 and 44 
+
+(Sometimes the wifi works better from wifiNINA.h rather than wifi.h)
 
 The example TLS1.3 client code first connects to the wireless network, and after that it should connect to standard websites, as
 long as they support TLS1.3. The example program first makes a full TLS handshake, and exits after receiving some HTML from the server.

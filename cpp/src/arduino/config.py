@@ -1044,10 +1044,13 @@ os.system(deltext+" client.cpp")
 # using miracl + ECC608a hardware
 os.system(copytext+" tls_sal_mh.xpp "+"tls_sal.cpp")
 #
-# or.. $*$*$*$*
+# or.. !!!!!!!!
 # os.system(copytext+" tls_sal_mhp.xpp "+"tls_sal.cpp")
 # ..and copy x25519.S into project from  https://github.com/pornin/x25519-cm0/blob/main/src/x25519-cm0.S
 #
+# or using miracl+TLSECC
+# os.system(copytext+" tls_sal_mt.xpp "+"tls_sal.cpp")
+# .. and copy code into project from c32 and include32 directories of http://github.com/mcarrickscott/TLSECC/
 
 os.system(deltext+" *.md")
 os.system(deltext+" *.xpp")
