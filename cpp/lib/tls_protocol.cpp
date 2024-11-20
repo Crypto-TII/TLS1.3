@@ -990,7 +990,6 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
 // send a message post-handshake
 void TLS13_send(TLS_session *state,octad *GET)
 {
-    log(IO_APPLICATION,(char *)"Sending Application Message\n\n",GET->val,0,NULL);
     sendClientMessage(state,APPLICATION,TLS1_2,GET,NULL,true);
 }
 
@@ -1015,7 +1014,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
     session->ptr=0;
     nticks=0;        // number of tickets received
     OCT_kill(REC);
-    log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Waiting for Server response \n",NULL,0,NULL);
     while (1)
     {
         //log(IO_PROTOCOL,(char *)"Waiting for Server input \n",NULL,0,NULL);

@@ -2159,7 +2159,7 @@ impl SESSION {
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];  // transcript hash
         let mut cpk: [u8; MAX_SIG_PUBLIC_KEY]=[0;MAX_SIG_PUBLIC_KEY];       // client public key
         let mut cpklen=0;
-        log(IO_PROTOCOL,"Waiting for Client input\n",-1,None);
+        log(IO_PROTOCOL,"Waiting for Client response\n",-1,None);
         loop {
             //log(IO_PROTOCOL,"Waiting for Client input\n",-1,None);
             self.clean_io();

@@ -103,27 +103,31 @@ fn handle_client(stream: TcpStream,port: u16) {
 
 // Server should only exit after it receives error or close-notify from client or times-out
         if mslen>0 { 
-            log(IO_APPLICATION,"Received client message as early data\n",-1,Some(&mess[0..mslen as usize]));
+            log(IO_APPLICATION,"Received Message as early data: ",-1,Some(&mess[0..mslen as usize]));
         } else { // wait for a message from client, absorb any post-handshake handshake messages
             mslen=session.recv(&mut mess);
             if mslen>0 {
-                log(IO_APPLICATION,"Received client message\n",-1,Some(&mess[0..mslen as usize]));
+                log(IO_APPLICATION,"Received Message: ",-1,Some(&mess[0..mslen as usize]));
             } else { // got alert from client - or timed out. Just exit
                 return;
             }
         }
 
-        log(IO_APPLICATION,"Sending Application Response (truncated HTML) = ",0,Some(&post[0..40]));
+        log(IO_APPLICATION,"Sending Initial Application Response\n",-1,None);
         session.send(&post[0..ptlen]);
 
 // ... still open to receiving stuff
 // keep listening until I get a close notify from the other side, or time out
 // Each party MUST send a close notify before it stops sending
-
+	    let response="Hello Client".as_bytes();
         loop { // ignore messages
             mslen=session.recv(&mut mess);
             if mslen<=0 { // should be close notify alert, or time-out
                 break;
+            } else {
+            	log(IO_APPLICATION,"Received message: ",-1,Some(&mess[0..mslen as usize]));
+            	log(IO_APPLICATION,"Sending message:  ",-1,Some(&response));
+            	session.send(&response);  // echo it
             }
         }
     } 
