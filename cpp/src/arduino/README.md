@@ -40,9 +40,10 @@ into working directory and remove option 2. This creates the SAL (in this case u
 If experimenting with post-quantum primitives, also select options 46 and 47, for Dilithium and Kyber support.
 
 or copy into the project all from c32 and include32 directories of https://github.com/mcarrickscott/TLSECC, edit config.py at !!!!!!!!!
-to use faster elliptic curve code from TLSECC project, and select only options 31, 42 and 44 
+to use faster elliptic curve code from TLSECC project, and select only options 31, 42 and 44. This method works well with the Raspberry Pi
+Pico 2 W device, which does not support ECC608A hardware.
 
-(Sometimes the wifi works better from wifiNINA.h rather than wifi.h)
+(Sometimes the wifi works better from wifiNINA.h rather than wifi.h. See tls_wifi.h)
 
 The example TLS1.3 client code first connects to the wireless network, and after that it should connect to standard websites, as
 long as they support TLS1.3. The example program first makes a full TLS handshake, and exits after receiving some HTML from the server.
