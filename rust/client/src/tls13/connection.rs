@@ -637,6 +637,10 @@ impl SESSION {
                 extlen=extensions::add_client_raw_public_key(ext,extlen);
             }
         }
+        if mode==1 { // BoringSSL needs this, for what I don't know...
+            extlen=extensions::add_supported_sigs(ext,extlen,nsa,&sig_algs);
+            extlen=extensions::add_supported_sigcerts(ext,extlen,nsac,&sig_alg_certs);               
+        }
         if mode==2 { // PSK, but client authentication may still be sought
             if PREFER_RAW_CLIENT_PUBLIC_KEY {
                 extlen=extensions::add_client_raw_public_key(ext,extlen);

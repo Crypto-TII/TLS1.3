@@ -108,6 +108,11 @@ static void buildExtensions(TLS_session *session,octad *EXT,octad *PK,ee_status 
         addClientRawPublicKey(EXT);
 #endif
     } 
+    if (mode==1)
+    { // BoringSSL needs this, for what I don't know...
+        addSigAlgsExt(EXT,nsa,sigAlgs);
+        addSigAlgsCertExt(EXT,nsac,sigAlgsCert);   	
+    }
     if (mode==2)
     { // // PSK, but client authentication may still be sought
 #ifdef PREFER_RAW_CLIENT_PUBLIC_KEY
