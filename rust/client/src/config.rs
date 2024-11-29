@@ -323,3 +323,4 @@ pub const NO_CERT_CHECKS:bool=false;       // don't check server certs
 pub const MERGE_MESSAGES: bool= true;      // allow merging of messages into single record
 pub const ENABLE_HEARTBEATS: bool= false;  // Enable heart-beats
 pub const PEER_CAN_HEARTBEAT: bool=true;   // allow peer to heartbeat
+pub const CHECK_NAME_IN_CERT: bool=true;   // Check name in cert matches hostname, and abort if it does not. May be disabled for testing

@@ -404,11 +404,14 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PU
             return rtn;
         }
     }
+
 // Confirm Identity - public key is associated with this hostname
     if (!checkHostnameInCert(&SERVER_CERT,hostname) && strcmp(hostname,"localhost")!=0)
     { // Check that certificate covers the server URL
         log(IO_PROTOCOL,(char *)"Hostname NOT found in certificate\n",NULL,0,NULL);
+#ifdef CHECK_NAME_IN_CERT
         return BAD_CERT_CHAIN;
+#endif
     }
 
     if (rtn==SELF_SIGNED_CERT) 

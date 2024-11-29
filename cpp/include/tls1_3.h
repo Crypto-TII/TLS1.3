@@ -84,6 +84,10 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // may need to undefine this for fuzzing 
 #define MERGE_MESSAGES           /**< allow merging of messages into single record */
 
+// may need to comment out for testing
+#define CHECK_NAME_IN_CERT      /**< check name in cert matches hostname, and abort if it does not */
+
+
 // *****************************************************************************
 
 
