@@ -220,8 +220,10 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define SECP384R1 0x0018                /**< NIST SECP384R1 elliptic curve key exchange */
 #define SECP521R1 0x0019                /**< NIST SECP521R1 elliptic curve key exchange */
 #define X448 0x001e                     /**< X448 elliptic curve key exchange */
-#define KYBER768 0x4242                 /**< Kyber PQ key exchange - NOTE I just made this up! Not generally recognised! */
-#define HYBRID_KX 0x421d                /**< Hybrid key exchange, Kyber+X25519 */
+#define KYBER512 0x0200                 /**< Kyber PQ key exchange */
+#define KYBER768 0x0201                 /**< Kyber PQ key exchange */
+#define KYBER1024 0x0202                 /**< Kyber PQ key exchange */
+#define HYBRID_KX 0x11ec                /**< Hybrid key exchange, Kyber+X25519 */
 
 // Signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 
@@ -235,9 +237,10 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define RSA_PKCS1_SHA512 0x0601         /**< Supported RSA Signature algorithm */
 #define ED25519 0x0807                  /**< Ed25519 EdDSA Signature algorithm */
 #define ED448 0x0808                    /**< Ed448 EdDSA Signature algorithm */
-#define DILITHIUM2 0x0902               /**< Dilithium2 Signature algorithm */
-#define DILITHIUM3 0x0903               /**< Dilithium3 Signature algorithm */
-#define DILITHIUM2_P256 0x09F2          /**< Dilithium2+SECP256R1 Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */
+#define DILITHIUM2 0x0904               /**< Dilithium Signature algorithms */
+#define DILITHIUM3 0x0905
+#define DILITHIUM5 0x0906      
+#define DILITHIUM2_P256 0x0907          /**< Dilithium2+SECP256R1 Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */

@@ -75,9 +75,9 @@ const RSASHA256:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b];
 const RSASHA384:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0];
 const RSASHA512:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d];
 //const DILITHIUM3:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05];
-//const MLDSA65:[u8;8]=[0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x12]; // official
-const MLDSA65:[u8;11]=[0x2B, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x0C, 0x06, 0x05]; // OQS
-const HYBRID:[u8;5]=[0x2B, 0xCE, 0x0F, 0x07, 0x01]; // MLDSA44 + P256 - OQS
+const MLDSA65:[u8;8]=[0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x12]; // official
+//const MLDSA65:[u8;11]=[0x2B, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x0C, 0x06, 0x05]; // OQS
+const HYBRID:[u8;12]=[0x60,0x86,0x48,0x01,0x86,0xFA,0x6B,0x50,0x08,0x01,0x01,0x18]; // MLDSA44 + P256 - OQS
 // Cert details
 
 pub const CN:[u8;3]=[0x55, 0x04, 0x06]; // countryName
@@ -276,7 +276,7 @@ pub fn ecdsa_sig_decode(c: &mut[u8]) -> FDTYPE {
 // For RSA octet = p|q|dp|dq|c where pk->len is multiple of 5
 // For ECC octet = k
 pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
-    let mut soid:[u8;12]=[0;12];
+    let mut soid:[u8;20]=[0;20];
     let mut ret=PKTYPE::new();
     let mut j=0 as usize;
     let pklen=pk.len();
@@ -650,7 +650,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
 //  Note that signature type is not provided here - its the type of the public key that
 //  is used to verify it that matters, and which determines for example the curve to be used!
 pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
-    let mut soid:[u8;12]=[0;12];
+    let mut soid:[u8;20]=[0;20];
     let mut ret=PKTYPE::new();
     let siglen=sig.len();
     let mut j=0 as usize;
@@ -1073,7 +1073,7 @@ pub fn find_public_key(c: &[u8],ptr: &mut usize) -> usize {
 
 // get Public details from ASN.1 description
 pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
-    let mut koid:[u8;12]=[0;12];
+    let mut koid:[u8;20]=[0;20];
     let mut ret=PKTYPE::new();
     let mut j=0;
     let keylen=key.len();

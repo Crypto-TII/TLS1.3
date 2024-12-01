@@ -89,16 +89,16 @@ static octad RSASHA512 = {9, sizeof(rsasha512), (char *)rsasha512};
 //static octad DILITHIUM3 = {11, sizeof(dilithium3), (char *)dilithium3};
 
 // MLDSA65 - official
-//static unsigned char mldsa65[8] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x12};
-//static octad MLDSA65 = {8, sizeof(mldsa65), (char *)mldsa65};
+static unsigned char mldsa65[8] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x12};
+static octad MLDSA65 = {8, sizeof(mldsa65), (char *)mldsa65};
 
 // MLDSA65 - OQS
-static unsigned char mldsa65[11] = {0x2B, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x0C, 0x06, 0x05};
-static octad MLDSA65 = {11, sizeof(mldsa65), (char *)mldsa65};
+//static unsigned char mldsa65[11] = {0x2B, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x0C, 0x06, 0x05};
+//static octad MLDSA65 = {11, sizeof(mldsa65), (char *)mldsa65};
 
-// MLDSA44 + P256 - OQS
-static unsigned char hybrid[5] = {0x2B, 0xCE, 0x0F, 0x07, 0x01};
-static octad HYBRID = {5,sizeof(hybrid), (char *)hybrid};
+// MLDSA44 + P256 
+static unsigned char hybrid[12]={0x60,0x86,0x48,0x01,0x86,0xFA,0x6B,0x50,0x08,0x01,0x01,0x18};
+static octad HYBRID = {12,sizeof(hybrid), (char *)hybrid};
 
 // Cert details
 // countryName
@@ -286,7 +286,7 @@ int ecdsa_sig_decode(octad *c) {
 pktype X509_extract_private_key(octad *c,octad *pk)
 {
     int i, j, k, fin, len, rlen, flen, tlen, tot, end;
-    char soid[12];
+    char soid[20];
     octad SOID = {0, sizeof(soid), soid};
     pktype ret;
 
@@ -564,7 +564,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
 pktype X509_extract_cert_sig(octad *sc, octad *sig)
 {
     int i, j, k, fin, len, rlen, slen, sj, ex, end, siglen;
-    char soid[12];
+    char soid[20];
     octad SOID = {0, sizeof(soid), soid};
     pktype ret;
 
@@ -945,7 +945,7 @@ int X509_find_public_key(octad *c,int *ptr)
 pktype X509_get_public_key(octad *c,octad *key) 
 {
     int i, j, fin, len, sj;
-    char koid[12];     /*****/
+    char koid[20];     /*****/
     octad KOID = {0, sizeof(koid), koid};
     pktype ret;
 
