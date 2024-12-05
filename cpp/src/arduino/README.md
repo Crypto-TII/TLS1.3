@@ -41,7 +41,8 @@ If experimenting with post-quantum primitives, also select options 46 and 47, fo
 
 or copy into the project all from c32 and include32 directories of https://github.com/mcarrickscott/TLSECC, edit config.py at !!!!!!!!!
 to use faster elliptic curve code from TLSECC project, and select only options 31, 42 and 44. This method works well with the Raspberry Pi
-Pico 2 W device, which does not support ECC608A hardware.
+Pico 2 W device, which does not support ECC608A hardware. We observe that on this device the crypto is about 1.5 times faster on the ARM core
+compared to the RISC-V core.
 
 (Sometimes the wifi works better from wifiNINA.h rather than wifi.h. See tls_wifi.h)
 
@@ -50,7 +51,8 @@ long as they support TLS1.3. The example program first makes a full TLS handshak
 Then after a few seconds, if it has received a resumption ticket, it attempts a resumption handshake.
 
 The client can also be run in conjunction with our Rust server. Make sure that the CRYPTO\_SETTING parameter is the same for both client 
-and server. In our experimental set-up, the rust server runs from Windows, looking for connections on port 4433. Run ipconfig to get the 
-IP address of the server on the local network, which might look something like 192.168.1.186. Then run the client from the Arduino IDE, 
-and when prompted enter for example 192.168.1.186:4433. The client should now connect to the server. 
+and server. In our experimental set-up, the rust server runs directly from Windows (not WSL), looking for connections on port 4433. Run 
+ipconfig to get the IP address of the server on the local network, which might look something like 192.168.1.186. Then run the client from 
+the Arduino IDE, and when prompted enter for example 192.168.1.186:4433. The client should now connect to the server. It may however be 
+necessary to undefine CHECK_NAME_IN_CERT in tls1_3.h
 
