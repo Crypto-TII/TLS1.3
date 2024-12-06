@@ -5,7 +5,7 @@ use zeroize::Zeroize;
 use crate::config::*;
 use crate::tls13::utils;
 use crate::sal_m::sal;
-use crate::tls13::servercert;
+//use crate::tls13::servercert;
 use crate::tls13::x509;
 //use crate::tls13::logger::log;
 
@@ -100,7 +100,7 @@ impl CRYPTO {
 
 /// Initialise for ticket encryption
 // using AES-128-GCM and TEK key
-    pub fn special_init(&mut self,iv: &[u8]) {
+    pub fn special_init(&mut self,iv: &[u8],stek:&[u8]) {
         self.active=true;
         self.suite=AES_128_GCM_SHA256;
         self.record=0;
@@ -109,7 +109,7 @@ impl CRYPTO {
             self.iv[i]=iv[i];
         }
         for  i in 0..16 {
-            self.k[i]=servercert::STEK[i];
+            self.k[i]=stek[i];
         }
     }
 /// Initialise cipher suite

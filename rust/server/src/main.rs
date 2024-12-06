@@ -78,15 +78,15 @@ fn make_server_message(get: &mut[u8]) -> usize {
     return ptr;
 }
 
-/// Handle a client connection
-fn handle_client(stream: TcpStream,port: u16) {
+/// Handle a client connection. Might need STEK to encrypt resumption tickets
+fn handle_client(stream: TcpStream,port: u16,stek: &[u8]) {
     let mut mess:[u8;MAX_EARLY_DATA]=[0;MAX_EARLY_DATA];
     let mut post:[u8;256]=[0;256];
     let ptlen=make_server_message(&mut post);
     let mut session=SESSION::new(stream,port);
     println!("Session commenced {}",port);
     let mut msize=0;
-    let rtn=session.connect(&mut mess,&mut msize);
+    let rtn=session.connect(&mut mess,&mut msize,stek);
     let mut mslen=msize as isize;
 
     if rtn==TLS_SUCCESS {
@@ -97,7 +97,7 @@ fn handle_client(stream: TcpStream,port: u16) {
             session.send_certificate_request(false); // will be bundled with resumption ticket
         }
         println!("Sending Resumption Ticket");  // maybe updated to reflect client authentication
-        session.send_ticket();
+        session.send_ticket(stek);
         //session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
         //session.send_zero_record();  // to bewilder the enemy
 
@@ -198,6 +198,10 @@ fn main() {
         log(IO_PROTOCOL,"SAL failed to start",-1,None);
         return;
     }
+    let mut stek:[u8;32]=[0;32];  // generate random STEK for as long as server is alive. Should be rotated after a while.
+    for i in 0..32 {
+    	stek[i]=sal::random_byte();
+    }
     let listener = TcpListener::bind("0.0.0.0:4433").unwrap();
     // accept connections and process them, spawning a new thread for each one
     println!("Server listening on port 4433");
@@ -231,12 +235,13 @@ fn main() {
                 println!("\nNew connection: {}", port);
                 thread::spawn(move|| {
                     // connection succeeded
-                    handle_client(stream,port)
+                    handle_client(stream,port,&stek)
                 });
             }
             Err(e) => {
                 println!("Error: {}", e);
             }
+            // TODO rotate STEK after 24 hours...
         }
     }
     // close the socket server

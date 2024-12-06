@@ -618,8 +618,8 @@ impl SESSION {
         log(IO_PROTOCOL,"KEY UPDATE REQUESTED\n",-1,None);
     }
 
-/// Send resumption ticket
-    pub fn send_ticket(&mut self) {
+/// Send resumption ticket, encrypted by STEK
+    pub fn send_ticket(&mut self,stek:&[u8]) {
         let mut tick:[u8;MAX_TICKET_SIZE]=[0;MAX_TICKET_SIZE];
         let mut nonce:[u8;32]=[0;32];
         for i in 0..32 {
@@ -657,7 +657,7 @@ impl SESSION {
         }
 // encrypt state with AES-128-GCM - using random IV and STEK key (see servercert.rs)
         let mut context=keys::CRYPTO::new();
-        context.special_init(&iv);
+        context.special_init(&iv,stek);
         sal::aead_encrypt(&context,&iv,&mut state[12..sptr],&mut tag);  // iv | state | tag
 
 // encrypt from 12..sptr+12 
@@ -1552,9 +1552,9 @@ impl SESSION {
         return r; 
     }
 
-/// Process resumption ticket and recover pre-shared key
+/// Process resumption ticket, decrypt using STEK, and recover pre-shared key
 // But is it a resumption ticket or a PSK label?
-    fn process_ticket(&mut self,psk: &mut [u8],psklen: &mut usize) -> RET {
+    fn process_ticket(&mut self,psk: &mut [u8],psklen: &mut usize,stek: &[u8]) -> RET {
         log(IO_DEBUG,"ticket= ",0,Some(&self.ticket[0..self.tklen]));
         let mut iv:[u8;12]=[0;12];
         let mut tag:[u8;16]=[0;16];
@@ -1623,7 +1623,7 @@ impl SESSION {
         let mut state=&mut self.ticket[12..self.tklen-16]; // extract prior crypto state
 
         let mut context=keys::CRYPTO::new();
-        context.special_init(&iv);
+        context.special_init(&iv,stek);
 
         if !sal::aead_decrypt(&context,&iv,&mut state,&tag) {
             r.err=AUTHENTICATION_FAILURE;
@@ -1738,7 +1738,7 @@ impl SESSION {
 
 // TLS1.3
 /// Connect with a client, and recover early data if any
-    pub fn connect(&mut self,early: &mut [u8],edlen: &mut usize) -> usize {
+    pub fn connect(&mut self,early: &mut [u8],edlen: &mut usize,stek: &[u8]) -> usize {
         let mut sh:[u8;MAX_HELLO]=[0;MAX_HELLO];
         let mut ext:[u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         let mut ss:[u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
@@ -1771,7 +1771,7 @@ impl SESSION {
             log(IO_PROTOCOL,"Attempting Resumption Handshake on port ",self.port as isize,None);
             let mut psk:[u8;MAX_HASH]=[0;MAX_HASH];
             let mut psklen=0;
-            let mut r=self.process_ticket(&mut psk,&mut psklen);
+            let mut r=self.process_ticket(&mut psk,&mut psklen,stek);
             if self.bad_response(&r) {
                 return TLS_FAILURE;
             }

@@ -56,3 +56,5 @@ ipconfig to get the IP address of the server on the local network, which might l
 the Arduino IDE, and when prompted enter for example 192.168.1.186:4433. The client should now connect to the server. It may however be 
 necessary to undefine CHECK_NAME_IN_CERT in tls1_3.h
 
+Note that some servers will reject a resumption handshake if the device's internal clock is not initialised to the current time.
+
