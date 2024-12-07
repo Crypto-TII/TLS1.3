@@ -5,7 +5,7 @@ use zeroize::Zeroize;
 use crate::config::*;
 use crate::tls13::utils;
 use crate::sal_m::sal;
-//use crate::tls13::servercert;
+use crate::tls13::servercert;
 use crate::tls13::x509;
 //use crate::tls13::logger::log;
 
@@ -109,7 +109,7 @@ impl CRYPTO {
             self.iv[i]=iv[i];
         }
         for  i in 0..16 {
-            self.k[i]=stek[i];
+            self.k[i]=servercert::STEK[i]^stek[i];
         }
     }
 /// Initialise cipher suite

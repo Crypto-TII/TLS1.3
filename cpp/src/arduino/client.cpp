@@ -1,6 +1,7 @@
 // Client side C/C++ program to demonstrate TLS1.3 
 // Arduino Version
 
+#include <time.h>
 
 #include "tls_protocol.h"
 #include "tls_wifi.h"
@@ -176,6 +177,21 @@ void setup()
     }
     Serial.print("\nWiFi connected with IP: ");
     Serial.println(WiFi.localIP());
+
+// Set up time to allow for certificate validation
+  NTP.begin("pool.ntp.org", "time.nist.gov"); // may need to be changed to local time server
+
+  Serial.print("Waiting for NTP time sync: ");
+  NTP.waitSet([]() {
+    Serial.print(".");
+  });
+  Serial.println("");
+
+  time_t now = time(nullptr);
+  struct tm timeinfo;
+  gmtime_r(&now, &timeinfo);
+  Serial.print("Epoch time: ");
+  Serial.println((long)now);
 
 #ifdef ESP32
     xTaskCreatePinnedToCore(
