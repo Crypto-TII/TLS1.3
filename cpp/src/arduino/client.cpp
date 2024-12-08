@@ -6,11 +6,13 @@
 #include "tls_protocol.h"
 #include "tls_wifi.h"
 #include "tls_logger.h"
-
 // for SAL testing and experimental IBE
 #include "tls_sal.h"
 #include "tls_bfibe.h"
 #include "tls_pqibe.h"
+
+#define STASSID "your-ssid"
+#define STAPSK "your-password"
 
 int readLine(char *line) {
   int i=0;
@@ -164,10 +166,9 @@ void myloop( void *pvParameters );
 
 void setup()
 {
-    char* ssid = (char *)"Shamus";
-    char* password =  (char *)"********";
-//    char* ssid = (char *)"TP-LINK_5B40F0";
-//    char* password =  (char *)"********";
+    char* ssid = (char *)STASSID;
+    char* password =  (char *)STAPSK;
+
     Serial.begin(115200); while (!Serial) ;
 // make WiFi connection
     WiFi.begin(ssid, password);
@@ -178,7 +179,7 @@ void setup()
     Serial.print("\nWiFi connected with IP: ");
     Serial.println(WiFi.localIP());
 
-// Set up time to allow for certificate validation
+// Set up time 
   NTP.begin("pool.ntp.org", "time.nist.gov"); // may need to be changed to local time server
 
   Serial.print("Waiting for NTP time sync: ");
@@ -190,7 +191,7 @@ void setup()
   time_t now = time(nullptr);
   struct tm timeinfo;
   gmtime_r(&now, &timeinfo);
-  Serial.print("Epoch time: ");
+  Serial.print("Epoch time in seconds: ");
   Serial.println((long)now);
 
 #ifdef ESP32
@@ -381,7 +382,7 @@ void loop() {
     len=readLine(hostname);
     Serial.println("");
     if (len==0)
-    {
+    { // print out some information
         int ns,iterations;
         int nt[20];
         Serial.print("\nCryptography by "); Serial.println(SAL_name());
@@ -446,6 +447,7 @@ void loop() {
         return;
     }
 
+// make a connection - get hostname
     bool contains_colon = false;
     len = strlen(hostname);
     for (i=0;i<len;++i)
