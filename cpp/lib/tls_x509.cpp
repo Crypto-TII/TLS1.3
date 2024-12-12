@@ -89,16 +89,16 @@ static octad RSASHA512 = {9, sizeof(rsasha512), (char *)rsasha512};
 //static octad DILITHIUM3 = {11, sizeof(dilithium3), (char *)dilithium3};
 
 // MLDSA65 - official
-static unsigned char mldsa65[8] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x12};
-static octad MLDSA65 = {8, sizeof(mldsa65), (char *)mldsa65};
+static unsigned char mldsa65[9] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12};
+static octad MLDSA65 = {9, sizeof(mldsa65), (char *)mldsa65};
 
 // MLDSA65 - OQS
 //static unsigned char mldsa65[11] = {0x2B, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x0C, 0x06, 0x05};
 //static octad MLDSA65 = {11, sizeof(mldsa65), (char *)mldsa65};
 
 // MLDSA44 + P256 
-static unsigned char hybrid[12]={0x60,0x86,0x48,0x01,0x86,0xFA,0x6B,0x50,0x08,0x01,0x01,0x18};
-static octad HYBRID = {12,sizeof(hybrid), (char *)hybrid};
+static unsigned char hybrid[11]={0x60,0x86,0x48,0x01,0x86,0xFA,0x6B,0x50,0x08,0x01,0x04};
+static octad HYBRID = {11,sizeof(hybrid), (char *)hybrid};
 
 // Cert details
 // countryName
