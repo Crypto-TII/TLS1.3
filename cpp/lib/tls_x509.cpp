@@ -97,8 +97,8 @@ static octad MLDSA65 = {9, sizeof(mldsa65), (char *)mldsa65};
 //static octad MLDSA65 = {11, sizeof(mldsa65), (char *)mldsa65};
 
 // MLDSA44 + P256 
-static unsigned char hybrid[11]={0x60,0x86,0x48,0x01,0x86,0xFA,0x6B,0x50,0x08,0x01,0x04};
-static octad HYBRID = {11,sizeof(hybrid), (char *)hybrid};
+static unsigned char hybrid[5]={0x2B,0xCE,0x0F,0x07,0x05};
+static octad HYBRID = {5,sizeof(hybrid), (char *)hybrid};
 
 // Cert details
 // countryName
