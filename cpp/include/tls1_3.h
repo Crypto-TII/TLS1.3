@@ -240,7 +240,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define DILITHIUM2 0x0904               /**< Dilithium Signature algorithms */
 #define DILITHIUM3 0x0905
 #define DILITHIUM5 0x0906      
-#define DILITHIUM2_P256 0x0907          /**< Dilithium2+SECP256R1 Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */
+#define DILITHIUM2_P256 0xFF06 //0x0907          /**< Dilithium2+SECP256R1 Hybrid Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */
