@@ -626,12 +626,14 @@ static bool RSA_PSS_RSAE_VERIFY(int sha,octad *MESS,octad *SIG,octad *PUBKEY)
 static bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 {
     int res;
+    char h[32];
 
     octet MC_CERT=octad_to_octet(CERT);
     octet MC_SIG=octad_to_octet(SIG);
     octet MC_PUBKEY=octad_to_octet(PUBKEY);
 
-    res=NIST256_VERIFY(MC_PUBKEY.val,MC_CERT.len,MC_CERT.val,MC_SIG.val);
+    NIST256_PREHASH(sha,MC_CERT.len,MC_CERT.val,h);
+    res=NIST256_VERIFY(MC_PUBKEY.val,h,MC_SIG.val);
     if (res!=1) return false;
     return true;
 }
@@ -641,12 +643,14 @@ static bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 static bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 {
     int res;
+    char h[48];
 
     octet MC_CERT=octad_to_octet(CERT);
     octet MC_SIG=octad_to_octet(SIG);
     octet MC_PUBKEY=octad_to_octet(PUBKEY);
 
-    res=NIST384_VERIFY(MC_PUBKEY.val,MC_CERT.len,MC_CERT.val,MC_SIG.val);
+    NIST384_PREHASH(sha,MC_CERT.len,MC_CERT.val,h);
+    res=NIST384_VERIFY(MC_PUBKEY.val,h,MC_SIG.val);
     if (res!=1) return false;
     return true;
 
@@ -708,10 +712,11 @@ static void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
     octet MC_MESS=octad_to_octet(MESS);
     octet MC_KEY=octad_to_octet(KEY);
     octet MC_SIG=octad_to_octet(SIG);
-    char ran[40];
+    char ran[40],h[32];
 
     for (int i=0;i<40;i++) ran[i]=SAL_randomByte();
-    NIST256_SIGN(MC_KEY.val,ran,MC_MESS.len,MC_MESS.val,MC_SIG.val);
+    NIST256_PREHASH(sha,MC_MESS.len,MC_MESS.val,h);
+    NIST256_SIGN(MC_KEY.val,ran,h,MC_SIG.val);
     MC_SIG.len=64;
 
     SIG->len=MC_SIG.len;
@@ -723,10 +728,11 @@ static void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
     octet MC_MESS=octad_to_octet(MESS);
     octet MC_KEY=octad_to_octet(KEY);
     octet MC_SIG=octad_to_octet(SIG);
-    char ran[56];
+    char ran[56],h[48];
 
     for (int i=0;i<56;i++) ran[i]=SAL_randomByte();
-    NIST384_SIGN(MC_KEY.val,ran,MC_MESS.len,MC_MESS.val,MC_SIG.val);
+    NIST384_PREHASH(sha,MC_MESS.len,MC_MESS.val,h);
+    NIST384_SIGN(MC_KEY.val,ran,h,MC_SIG.val);
     MC_SIG.len=96;
 
     SIG->len=MC_SIG.len;
