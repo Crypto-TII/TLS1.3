@@ -32,6 +32,7 @@ git clone https://github.com/mcarrickscott/TLSECC
 cd TLSECC
 cp c64/* .
 cp include64/* .
+cp include/* .
 gcc -O2 -c *.c
 ar rc tlsecc.a *.o
 
