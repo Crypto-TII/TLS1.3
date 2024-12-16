@@ -668,15 +668,17 @@ pub fn rsa_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) -> 
 }
 
 /// NIST secp256r1 curve signature verification
-pub fn secp256r1_ecdsa_verify(_hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+pub fn secp256r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use tlsecc::s256;
-    return s256::VERIFY(pubkey,cert,sig);
+    let h=s256::PREHASH(hlen,cert);
+    return s256::VERIFY(pubkey,&h,sig);
 }
 
 /// NIST secp384r1 curve signature verification
-pub fn secp384r1_ecdsa_verify(_hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+pub fn secp384r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     use tlsecc::s384;
-    return s384::VERIFY(pubkey,cert,sig);
+    let h=s384::PREHASH(hlen,cert);
+    return s384::VERIFY(pubkey,&h,sig);
 }
 
 pub fn ed25519_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
@@ -692,20 +694,22 @@ pub fn ed448_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
 }
 
 /// Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
-pub fn secp256r1_ecdsa_sign(_hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use tlsecc::s256;
     let mut r:[u8;40]=[0;40];
     random_bytes(40,&mut r);
-    s256::SIGN(key,&r,mess,sig);
+    let h=s256::PREHASH(hlen,mess);
+    s256::SIGN(key,&r,&h,sig);
     return 64;
 }
 
 /// Use Curve SECP384R1 ECDSA to digitally sign a message using a private key 
-pub fn secp384r1_ecdsa_sign(_hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+pub fn secp384r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use tlsecc::s384;
     let mut r:[u8;56]=[0;56];
     random_bytes(56,&mut r);
-    s384::SIGN(key,&r,mess,sig);
+    let h=s384::PREHASH(hlen,mess);
+    s384::SIGN(key,&r,&h,sig);
     return 96;
 
 }
