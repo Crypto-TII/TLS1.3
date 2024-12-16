@@ -711,7 +711,6 @@ pub fn secp384r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) ->
     let h=s384::PREHASH(hlen,mess);
     s384::SIGN(key,&r,&h,sig);
     return 96;
-
 }
 
 pub fn ed25519_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
