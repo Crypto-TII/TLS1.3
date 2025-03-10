@@ -44,11 +44,11 @@ For a SAL with much faster elliptic curve cryptography, use the TLSECC library h
 
 After the build complete successfully, the example executable *client* and the TiigerTLS library *libtiitls.a* are generated in the build directory.
 
-The client application can be modified and rebuilt from this directory at any time. For example if using the Miracl+TLSECC SAL, then
+The client application can be modified and rebuilt from this directory at any time unless changes are made that impact the SAL. For example if using the Miracl+TLSECC SAL, then
 
 	g++ -O2 client.cpp tls*.cpp libtiitls.a core.a tlsecc.a -o client
 
-For example edit the file *tls1_3.h* and set VERBOSITY to IO\_DEBUG, and re-compile as above.
+For example you can edit the file *tls1_3.h* and set VERBOSITY to IO\_DEBUG, and re-compile as above.
 
 To see the Security Abstraction Layer (SAL) capabilities, navigate to the build directory
 	
@@ -256,7 +256,7 @@ and connect via
 An important setting in *tls1_3.h* is CRYPTO\_SETTING. For the above tests is is assumed that this is set to the default TYPICAL, which allows 
 interaction with standard websites. However it may also be set to TINY\_ECC, POST\_QUANTUM and HYBRID. These last three support interaction 
 with our own rust server. This setting impacts code size and memory resource allocation. It also controls the type of the self-signed 
-certificate provided by the client if it is asked to authenticate.
+certificate provided by the client if it is asked to authenticate. Remember that any changes like this which impact the SAL requires a fresh build.
 
 The client choice of key exchange algorithms, and their preferred ordering, is set in the sal (*tls_sal.cpp*). The chosen CRYPTO\_SETTING
 impacts on this ordering. With the default setting the X25519 elliptic curve is preferred.

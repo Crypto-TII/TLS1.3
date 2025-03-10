@@ -165,16 +165,32 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
 }
 
 /// Provide list of supported key exchange groups
-// Note that ordering here does not matter
+// The order matters - favourites first
 pub fn groups(groups: &mut [u16]) -> usize {
-    let mut n=3;
-    groups[0]=config::X25519;
-    groups[1]=config::SECP256R1;
-    groups[2]=config::SECP384R1;
-    if config::CRYPTO_SETTING>=config::POST_QUANTUM {
-        groups[n]=config::KYBER768; n+=1;
-        groups[n]=config::HYBRID_KX; n+=1;
+    let mut n=0;
+
+    if config::CRYPTO_SETTING==config::TINY_ECC || config::CRYPTO_SETTING==config::EDDSA || config::CRYPTO_SETTING==config::TYPICAL {
+        n=3;
+        groups[0]=config::X25519;
+        groups[1]=config::SECP256R1;
+        groups[2]=config::SECP384R1;        
     }
+    if config::CRYPTO_SETTING==config::POST_QUANTUM {
+        n=4;
+        groups[0]=config::KYBER768;
+        groups[1]=config::X25519;
+        groups[2]=config::SECP256R1;
+        groups[3]=config::SECP384R1;
+    }
+    if config::CRYPTO_SETTING==config::HYBRID {
+        n=5;
+        groups[0]=config::HYBRID_KX;
+        groups[1]=config::KYBER768;
+        groups[2]=config::X25519;
+        groups[3]=config::SECP256R1;
+        groups[4]=config::SECP384R1;
+    }
+
     return n;
 }
 
