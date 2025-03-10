@@ -24,7 +24,7 @@ extern crate rand;
 
 /// Return SAL name
 pub fn name() -> &'static str {
-    return "MIRACL Core";
+    return "MIRACL Core and TII TLSECC";
 }
 
 /// Initialize SAL

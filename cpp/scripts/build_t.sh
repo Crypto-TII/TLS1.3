@@ -65,6 +65,7 @@ cp sal/miracl/core.a build/.
 cp sal/miracl/tlsecc.a build/.
 cp include/tls_*.h build/.
 cp include/tls1_3.h build/.
+cp lib/tls*.cpp build/.
 cp sal/miracl/includes/core.h build/.
 cp sal/miracl/includes/arch.h build/.
 cp src/desktop/client.cpp build/.
