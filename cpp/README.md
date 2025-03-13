@@ -20,6 +20,7 @@ stored in the file *tls_cacert.cpp*.
 When using secure hardware, the client private key may not be embedded in the source code, rather it exists in secure on-board memory.
 
 The installation process requires the *cmake* utility to be installed. Copy all files and subdirectories from this directory to a working directory.
+If necessary make configuration changes in *include/tls1_3.h*, in particular to select the CRYPTO\_SETTING. For now leave it unchanged as TYPICAL
 
 
 ## Miracl
