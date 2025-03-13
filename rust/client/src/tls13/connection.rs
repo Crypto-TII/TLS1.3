@@ -2053,7 +2053,7 @@ impl SESSION {
         let mut fin=false;
         let mut kind:isize;
         let mut mslen:isize;
-        log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
+        log(IO_PROTOCOL,"Waiting for Server response\n",-1,None);
         loop {
             //log(IO_PROTOCOL,"Waiting for Server input\n",-1,None);
             self.clean_io();

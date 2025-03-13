@@ -987,7 +987,10 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
     }
     
     if (!early_went && EARLY!=NULL)
+    {
+        log(IO_PROTOCOL,(char *)"Sending Application Message\n\n",EARLY->val,0,NULL);
         TLS13_send(session,EARLY);  // didn't go early, so send it now
+    }
     session->status=TLS13_CONNECTED;
     return true;   // exiting with live session, ready to receive fresh ticket
 }
