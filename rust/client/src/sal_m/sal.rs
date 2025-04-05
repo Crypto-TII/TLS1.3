@@ -433,14 +433,14 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
         x25519::KEY_PAIR(&csk[0..32],&mut pk[0..32]);
     }
     if group==config::SECP256R1 {
-        use tlsecc::s256;
+        use tlsecc::nist256;
         random_bytes(32,csk);
-        s256::KEY_PAIR(false,&csk[0..32], &mut pk[0..65]);
+        nist256::KEY_PAIR(false,&csk[0..32], &mut pk[0..65]);
     }
     if group==config::SECP384R1 {
-        use tlsecc::s384;
+        use tlsecc::nist384;
         random_bytes(48,csk);
-        s384::KEY_PAIR(false,&csk[0..48], &mut pk[0..97]);
+        nist384::KEY_PAIR(false,&csk[0..48], &mut pk[0..97]);
     }   
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {    
         if group==config::KYBER768 {
@@ -478,19 +478,19 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         csk.zeroize();
     }
     if group==config::SECP256R1 {
-        use tlsecc::s256;
+        use tlsecc::nist256;
         let mut csk:[u8;32]=[0;32];
         random_bytes(32,&mut csk);
-        s256::KEY_PAIR(false,&mut csk[0..32], &mut spk[0..65]);
-        success=s256::SHARED_SECRET(&csk[0..32],&cpk[0..65],&mut ss[0..32]);       
+        nist256::KEY_PAIR(false,&mut csk[0..32], &mut spk[0..65]);
+        success=nist256::SHARED_SECRET(&csk[0..32],&cpk[0..65],&mut ss[0..32]);       
         csk.zeroize();
     }
     if group==config::SECP384R1 {
-        use tlsecc::s384;
+        use tlsecc::nist384;
         let mut csk:[u8;48]=[0;48];
         random_bytes(48,&mut csk);
-        s384::KEY_PAIR(false,&mut csk[0..48], &mut spk[0..97]);
-        success=s384::SHARED_SECRET(&csk[0..48],&cpk[0..97],&mut ss[0..48]);
+        nist384::KEY_PAIR(false,&mut csk[0..48], &mut spk[0..97]);
+        success=nist384::SHARED_SECRET(&csk[0..48],&cpk[0..97],&mut ss[0..48]);
         csk.zeroize();
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {    
@@ -541,12 +541,12 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
     	success=x25519::SHARED_SECRET(&sk[0..32],&pk[0..32],&mut ss[0..32]);   	
     }
     if group==config::SECP256R1 {
-        use tlsecc::s256;
-        success=s256::SHARED_SECRET(&sk[0..32],&pk[0..65],&mut ss[0..32]);
+        use tlsecc::nist256;
+        success=nist256::SHARED_SECRET(&sk[0..32],&pk[0..65],&mut ss[0..32]);
     }
     if group==config::SECP384R1 {
-        use tlsecc::s384;
-        success=s384::SHARED_SECRET(&sk[0..48],&pk[0..97],&mut ss[0..48]);
+        use tlsecc::nist384;
+        success=nist384::SHARED_SECRET(&sk[0..48],&pk[0..97],&mut ss[0..48]);
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {    
         if group==config::KYBER768 {
@@ -685,59 +685,59 @@ pub fn rsa_pss_rsae_verify(hlen: usize,mess: &[u8],sig: &[u8],pubkey: &[u8]) -> 
 
 /// NIST secp256r1 curve signature verification
 pub fn secp256r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    use tlsecc::s256;
-    let h=s256::PREHASH(hlen,cert);
-    return s256::VERIFY(pubkey,&h,sig);
+    use tlsecc::nist256;
+    let h=nist256::PREHASH(hlen,cert);
+    return nist256::VERIFY(pubkey,&h,sig);
 }
 
 /// NIST secp384r1 curve signature verification
 pub fn secp384r1_ecdsa_verify(hlen: usize,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    use tlsecc::s384;
-    let h=s384::PREHASH(hlen,cert);
-    return s384::VERIFY(pubkey,&h,sig);
+    use tlsecc::nist384;
+    let h=nist384::PREHASH(hlen,cert);
+    return nist384::VERIFY(pubkey,&h,sig);
 }
 
 pub fn ed25519_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    use tlsecc::s25519;
-    return s25519::VERIFY(pubkey,cert,sig);
+    use tlsecc::ed25519;
+    return ed25519::VERIFY(pubkey,cert,sig);
     //use mcore::ed25519::eddsa;
     //return eddsa::verify(false,pubkey,None,cert,sig);
 }
 
 pub fn ed448_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
-    use tlsecc::s448;
-    return s448::VERIFY(pubkey,cert,sig);
+    use tlsecc::ed448;
+    return ed448::VERIFY(pubkey,cert,sig);
 }
 
 /// Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
-    use tlsecc::s256;
+    use tlsecc::nist256;
     let mut r:[u8;40]=[0;40];
     random_bytes(40,&mut r);
-    let h=s256::PREHASH(hlen,mess);
-    s256::SIGN(key,&r,&h,sig);
+    let h=nist256::PREHASH(hlen,mess);
+    nist256::SIGN(key,&r,&h,sig);
     return 64;
 }
 
 /// Use Curve SECP384R1 ECDSA to digitally sign a message using a private key 
 pub fn secp384r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
-    use tlsecc::s384;
+    use tlsecc::nist384;
     let mut r:[u8;56]=[0;56];
     random_bytes(56,&mut r);
-    let h=s384::PREHASH(hlen,mess);
-    s384::SIGN(key,&r,&h,sig);
+    let h=nist384::PREHASH(hlen,mess);
+    nist384::SIGN(key,&r,&h,sig);
     return 96;
 }
 
 pub fn ed25519_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
-    use tlsecc::s25519;
-    s25519::SIGN(key,None,mess,sig);
+    use tlsecc::ed25519;
+    ed25519::SIGN(key,None,mess,sig);
     return 64;
 }
 
 pub fn ed448_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
-    use tlsecc::s448;
-    s448::SIGN(key,None,mess,sig);
+    use tlsecc::ed448;
+    ed448::SIGN(key,None,mess,sig);
     return 114;
 }
 
