@@ -1237,6 +1237,9 @@ impl SESSION {
                     r.err=FORBIDDEN_EXTENSION;
                     return r;
                 },
+                SUPPORTED_GROUPS => {
+                    self.ptr +=tlen; // skip over it
+                },
                 _ => {
                     self.ptr +=tlen; // skip over it
                     unexp+=1;

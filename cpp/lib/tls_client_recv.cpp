@@ -510,6 +510,9 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
             session->ptr+=tlen; // skip over it
             r.err=FORBIDDEN_EXTENSION;
             return r;
+        case SUPPORTED_GROUPS: // ignore it
+            session->ptr+=tlen;
+            break; 
         default:    // ignore all other extensions
             session->ptr+=tlen; // skip over it
             unexp++;
