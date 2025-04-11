@@ -259,6 +259,8 @@ interaction with standard websites. However it may also be set to TINY\_ECC, POS
 with our own rust server. This setting impacts code size and memory resource allocation. It also controls the type of the self-signed 
 certificate provided by the client if it is asked to authenticate. Remember that any changes like this which impact the SAL requires a fresh build.
 
+Note that the HYBRID setting now works using X25519+MLKEM768 for key exchange with an OpenSSL server, and some online servers like www.cloudfare.com 
+
 The client choice of key exchange algorithms, and their preferred ordering, is set in the sal (*tls_sal.cpp*). The chosen CRYPTO\_SETTING
 impacts on this ordering. With the default setting the X25519 elliptic curve is preferred.
 

@@ -117,6 +117,8 @@ ourselves, to the root certificate store used by the client.
 For the client CRYPTO\_SETTING is used to control the preferred key exchange algorithm, which is X25519 for TYPICAL or TINY\_ECC, 
 and kyber768 for POST\_QUANTUM and HYBRID. The ordering of preferences can be changed by editing the SAL (that is the *sal.rs* file).
 
+Note that the HYBRID setting for the client now works using X25519+MLKEM768 for key exchange with an OpenSSL server, and some online servers like www.cloudfare.com 
+
 In most cases it is best to use the same setting for both client and server. If it is desired that the client should interoperate
 with standard websites rather than just our own rust server, then its CRYPTO\_SETTING should be set to use TYPICAL. 
 

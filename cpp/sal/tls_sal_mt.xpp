@@ -54,7 +54,6 @@ int SAL_ciphers(int *ciphers)
 int SAL_groups(int *groups)
 {
     int n=0;
-
 #if CRYPTO_SETTING==TINY_ECC || CRYPTO_SETTING==EDDSA || CRYPTO_SETTING==TYPICAL
     n=3;
     groups[0]=X25519;
