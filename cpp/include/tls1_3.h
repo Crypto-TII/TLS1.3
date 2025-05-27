@@ -51,7 +51,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // So best to place a popular group (such as X25519) at top of list in SAL
 
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
-#define THIS_YEAR 2025            /**< Set to this year - crudely used to deprecate old certificates */
+//#define THIS_YEAR 2025            /**< Set to this year - was crudely used to deprecate old certificates - no longer used */
 
 #define POST_HS_AUTH              /**< Willing to do post handshake authentication */
 #define CLIENT_CERT RSA_SS        /**< Indicate capability of authenticating with a cert plus signing key */

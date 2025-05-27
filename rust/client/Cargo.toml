@@ -22,4 +22,5 @@ overflow-checks = false
 mcore = { path = "../core/rust/mcore" }  # may need changing...
 tlsecc = { path = "../TLSECC/tlsecc" }
 zeroize = "1.5.4"
-rand = "0.8.5"
+rand = "0.9.1"
+chrono = "0.4.41"

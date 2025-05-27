@@ -189,8 +189,7 @@ void setup()
   Serial.println("");
 
   time_t now = time(nullptr);
-  struct tm timeinfo;
-  gmtime_r(&now, &timeinfo);
+
   Serial.print("Epoch time in seconds: ");
   Serial.println((long)now);
 

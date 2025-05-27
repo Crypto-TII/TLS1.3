@@ -4,6 +4,40 @@
 
 #include "tls_cert_chain.h"
 
+#include <sys/time.h>
+
+static unsigned long seconds()
+{
+    unsigned long seconds;
+    struct timeval stop_watch;
+    gettimeofday(&stop_watch, NULL);
+    seconds=stop_watch.tv_sec;
+    return seconds;
+}
+
+static int toint(char f,char s) {
+    return (int)(f-'0')*10+s-'0';
+}
+
+// create tm structure from extracted datetime
+static void mystrptime(char *c,struct tm* tms)
+{
+    int year,month,day,hour,minute,second;
+    tms->tm_year=100+toint(c[0],c[1]);
+    tms->tm_mon=toint(c[2],c[3])-1;
+    tms->tm_mday=toint(c[4],c[5]);
+    tms->tm_hour=toint(c[6],c[7]);
+    tms->tm_min=toint(c[8],c[9]);
+    tms->tm_sec=toint(c[10],c[11]);
+};
+
+static unsigned long epoch_seconds(char *certtime)
+{
+    struct tm tms{};
+    mystrptime(certtime,&tms);
+    return (unsigned long)mktime(&tms);
+}
+
 // extract Distinguished Name
 static void createFullName(octad *FN,octad *CERT,int ic,int len)
 {
@@ -53,14 +87,24 @@ static bool checkHostnameInCert(octad *CERT,char *hostname)
     return (bool)X509_find_alt_name(CERT,c,hostname);
 }
 
-// Crude check for certificate validity
+// Check for certificate validity
 static bool checkCertNotExpired(octad *CERT)
 {
+    unsigned long begin,end,now;
     int ic = X509_find_validity(CERT);
-    int c = X509_find_expiry_date(CERT, ic);
-    int year=2000+(CERT->val[c]-'0')*10 +CERT->val[c+1]-'0';
-    if (year<THIS_YEAR) return false;
-    return true;
+    int cs = X509_find_start_date(CERT, ic);
+    begin=epoch_seconds(&CERT->val[cs]);
+    int ce = X509_find_expiry_date(CERT, ic);
+    end=epoch_seconds(&CERT->val[ce]);
+    now=seconds();
+    //printf("cert time %lx %lx %lx\n",begin,end,now);
+    if (now>begin && now<end)
+        return true;
+    return false;
+
+    //int year=2000+(CERT->val[c]-'0')*10 +CERT->val[c+1]-'0';
+    //if (year<THIS_YEAR) return false;
+    //return true;
 }
 
 // given root issuer and public key type of signature, search through root CAs and return root public key

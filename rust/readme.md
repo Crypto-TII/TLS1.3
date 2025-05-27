@@ -10,7 +10,7 @@ Here find a TLS1.3 client and a TLS1.3 server. Both are written in Rust.
 Private keys, server/client certificate chains, and CA root stores are all fixed in the code.
 
 Typically keys chains and key stores would be kept in external files, but in an IoT setting there may not be a file system. 
-In this code the root certificate store is in the source code file *cacerts.rs*. 
+In this code the root certificate store is in the source code file *cacerts.rs*. The CA root code can be updated using the *convert.cpp* utility.
 
 For the client the private key and certificate are stored in the source code file *clientcert.rs*. 
 However in an IoT setting the private key may be stored in secure hardware.

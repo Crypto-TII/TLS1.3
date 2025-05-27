@@ -9,6 +9,20 @@ use crate::tls13::logger;
 use crate::tls13::logger::log;
 use crate::tls13::cacerts;
 
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::str;
+use chrono::NaiveDateTime;
+
+/// Get system time as milliseconds since epoch
+pub fn seconds() -> usize {
+    return SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_secs() as usize;    
+}
+
+pub fn epoch_seconds(certtime: &str) -> usize {
+    let dt = NaiveDateTime::parse_from_str(certtime,"%y%m%d%H%M%S").unwrap(); //               "250526131315","%y%m%d%H%M%S").unwrap();
+    return dt.and_utc().timestamp() as usize;
+}
+
 /// Certificate components
 pub struct CERT {
     pub sig:[u8;MAX_SIGNATURE_SIZE],
@@ -49,13 +63,16 @@ fn create_full_name(fullname: &mut [u8],cert: &[u8],ic: usize,len: usize) -> usi
 /// Just check year of issue
 fn check_cert_not_expired(cert:&[u8]) -> bool {
     let ic=x509::find_validity(cert);
-    let c=x509::find_expiry_date(cert,ic);
-    let oh = '0' as u8;
-    let year=2000+((cert[c]-oh)*10+cert[c+1]-oh) as usize;
-    if year<THIS_YEAR {
-        return false;
+    let cs=x509::find_start_date(cert,ic);
+    let begin=epoch_seconds(&str::from_utf8(&cert[cs..cs+12]).unwrap());
+    let ce=x509::find_expiry_date(cert,ic);
+    let end=epoch_seconds(&str::from_utf8(&cert[ce..ce+12]).unwrap());
+    let now=seconds();
+//println!("cert time= {} {} {}",begin,end,now);
+    if now>begin && now<end {
+        return true;
     }
-    return true;
+    return false;
 }
 
 /// Find root CA (if it exists) from database

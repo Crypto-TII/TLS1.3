@@ -12,7 +12,7 @@ The TLS library is designed to support crypto agility by allowing a mix of crypt
 Below are two examples to choose from. The SAL API documentation is provided in sal/sal.pdf, and guided by this it should be possible to create your own SAL.
 To build the client on an IoT node like the Arduino RP2040, see the readme file in the src/arduino directory.
 
-Private keys, server/client certificate chains, and CA root stores are all fixed in the code.
+Private keys, server/client certificate chains, and CA root stores are all fixed in the code. The CA root code can be updated using the convert.cpp utility.
 
 Ideally keys, chains and key stores should be kept in external files, but in an IoT setting there may not be a file system. 
 In this C++ code the client private key and certificate (only required for client-side authentication) are stored in the source code file *tls_client_cert.cpp*. The root certificate store is 
