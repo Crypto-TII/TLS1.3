@@ -776,6 +776,7 @@ impl SESSION {
     fn get_client_finished(&mut self,hfin: &mut [u8],hflen: &mut usize) -> RET {
         //let mut ptr=0;
         let mut r=self.parse_int_pull(1); // get message type
+        if r.err!=0 { return r;}
         let nb=r.val as u8;
         if nb != FINISHED {
             r.err=WRONG_MESSAGE;
