@@ -9,7 +9,7 @@ Note that these implementations are particularly suited for testing Post-Quantum
 
 ---
 
-Proceed to the cpp or rust directories to continue.
+Read the *overview.pdf* one-pager here and then proceed to the cpp or rust directories to continue.
 
 ---
 
