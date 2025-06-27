@@ -1,4 +1,4 @@
-# Create test certificate chain
+# Create a test certificate chain
 
 Example script for creating TLS-friendly 3-link certificate chain plus private keys, using Dilithium (ML-DSA) digital signature algorithm. Requires openssl version 3.5+
 
