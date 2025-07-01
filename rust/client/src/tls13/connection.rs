@@ -13,11 +13,12 @@ use crate::tls13::utils::EESTATUS;
 use crate::tls13::keys;
 use crate::tls13::extensions;
 use crate::tls13::certchain;
-use crate::tls13::clientcert;
+//use crate::tls13::clientcert;
 use crate::tls13::logger;
 use crate::tls13::logger::log;
 use crate::tls13::ticket;
 use crate::tls13::ticket::TICKET;
+use crate::tls13::clientcert::CREDENTIAL;
 
 /// TLS1.3 session structure
 pub struct SESSION {
@@ -52,10 +53,10 @@ pub struct SESSION {
 }
 
 /// check for overlap given server signature capabilities, and my client certificate
-fn overlap(server_sig_algs: &[u16],server_cert_sig_algs: &[u16]) -> bool {
-    let mut client_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
-    let nsreq=clientcert::get_sig_requirements(&mut client_cert_reqs); 
-
+fn overlap(server_sig_algs: &[u16],server_cert_sig_algs: &[u16],client_cert_reqs: &[u16]) -> bool {
+    //let mut client_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
+    //let nsreq=clientcert::get_sig_requirements(&mut client_cert_reqs); 
+    let nsreq=client_cert_reqs.len();
     for i in 0..nsreq {
         let mut itsthere=false;
         let sig=client_cert_reqs[i];
@@ -691,7 +692,7 @@ impl SESSION {
 
 /// Receive Certificate Request - the Server wants the client to supply a certificate chain
 // context is true if expecting a context
-    fn get_certificate_request(&mut self,context: bool) -> RET {
+    fn get_certificate_request(&mut self,context: bool,credential: Option<&CREDENTIAL>) -> RET {
         let mut unexp=0;
         let mut sigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let mut certsigalgs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
@@ -781,13 +782,20 @@ impl SESSION {
             r.err= MISSING_EXTENSIONS;
             return r;
         }
-
-        if !HAVE_CLIENT_CERT || !overlap(&sigalgs[0..nssa],&certsigalgs[0..nscsa]) {
-// just decline by sending NULL certificate, rather than an alert
+        if let Some(cred) = credential{
+            let mut nreqs=cred.nreqsraw; // is it a raw public key?
+            if self.client_cert_type==X509_CERT {
+                nreqs=cred.nreqs;  // No..
+            }
+            if !HAVE_CLIENT_CERT || !overlap(&sigalgs[0..nssa],&certsigalgs[0..nscsa],&cred.requirements[0..nreqs]) {
+    // just decline by sending NULL certificate, rather than an alert
+                r.val=0;  // signals that either I don't have a certificate, or what I have isn't suitable given server's capabilities
+                //log(IO_DEBUG,"Server cannot verify client certificate\n",-1,None);
+                //r.err=BAD_HANDSHAKE;
+                //return r;
+            }
+        } else {
             r.val=0;
-            //log(IO_DEBUG,"Server cannot verify client certificate\n",-1,None);
-            //r.err=BAD_HANDSHAKE;
-            //return r;
         }
         if unexp>0 {
             log(IO_DEBUG,"Unrecognized extensions received\n",-1,None);
@@ -1879,9 +1887,9 @@ impl SESSION {
     }
 
 /// Client proves trustworthyness to server, given servers list of acceptable signature types
-    fn client_trust(&mut self) {
-        let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
-        let mut client_certchain:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
+    fn client_trust(&mut self,credential: Option<&CREDENTIAL>) {
+        //let mut client_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
+        //let mut client_certchain:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
         let mut ccvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
 
         let hash_type=sal::hash_type(self.cipher_suite);
@@ -1889,35 +1897,56 @@ impl SESSION {
 // extract slice.. Depends on cipher suite
         let mut fh: [u8;MAX_HASH]=[0;MAX_HASH]; let fh_s=&mut fh[0..hlen];
         log(IO_PROTOCOL,"Client is authenticating\n",-1,None);
-        let mut cclen=0;
-        let mut cklen=0;
-        let kind=clientcert::get_client_credentials(&mut client_key,&mut cklen,self.client_cert_type,&mut client_certchain,&mut cclen);
-        if kind!=0 { // Yes, I can do that signature
-            let cc_s=&client_certchain[0..cclen];
-            let ck_s=&client_key[0..cklen];
-            self.send_client_certificate(Some(cc_s));
+
+
+        //let mut cclen=0;
+        //let mut cklen=0;
+        //let kind=clientcert::get_client_credentials(&mut client_key,&mut cklen,self.client_cert_type,&mut client_certchain,&mut cclen);
+        if let Some(cred) = credential {
+            let kind=cred.requirements[0];
+            
+            let cc_s=&cred.certchain[0..cred.certchain_len];
+            let cp_s=&cred.publickey[0..cred.publickey_len];
+            let ck_s=&cred.secretkey[0..cred.secretkey_len];
+            if self.client_cert_type==RAW_PUBLIC_KEY {
+                self.send_client_certificate(Some(cp_s));
+            } else {
+                self.send_client_certificate(Some(cc_s));
+            }
+            self.transcript_hash(fh_s);
+            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(fh_s)); 
+            let cclen=keys::create_client_cert_verifier(kind,fh_s,ck_s,&mut ccvsig);
+            log(IO_DEBUG,"Client Transcript Signature = ",0,Some(&ccvsig[0..cclen]));
+            self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
+        } else {
+            self.send_client_certificate(None);
+        }
+//        if kind!=0 { // Yes, I can do that signature
+//            let cc_s=&client_certchain[0..cclen];
+//            let ck_s=&client_key[0..cklen];
+//            self.send_client_certificate(Some(cc_s));
 //
 //
 //  {client Certificate} ---------------------------------------------------->
 //
 //
-            self.transcript_hash(fh_s);
-            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(fh_s)); 
-            cclen=keys::create_client_cert_verifier(kind,fh_s,ck_s,&mut ccvsig);
-            log(IO_DEBUG,"Client Transcript Signature = ",0,Some(&ccvsig[0..cclen]));
-            self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
+//            self.transcript_hash(fh_s);
+//            log(IO_DEBUG,"Transcript Hash (CH+SH+EE+CT) = ",0,Some(fh_s)); 
+//            cclen=keys::create_client_cert_verifier(kind,fh_s,ck_s,&mut ccvsig);
+//            log(IO_DEBUG,"Client Transcript Signature = ",0,Some(&ccvsig[0..cclen]));
+//            self.send_client_cert_verify(kind,&ccvsig[0..cclen]);
 //
 //
 //  {Certificate Verify} ---------------------------------------------------->
 //
 //
-        } else { // No, I can't - send a null cert
-            self.send_client_certificate(None);
-        }
+//        } else { // No, I can't - send a null cert
+//            self.send_client_certificate(None);
+//        }
     }
 
 /// TLS1.3 FULL handshake
-    pub fn tls_full(&mut self) -> usize {
+    pub fn tls_full(&mut self,credential: Option<&CREDENTIAL>) -> usize {
         let mut resumption_required=false;
 
 // exchange client/server hellos
@@ -1949,7 +1978,7 @@ impl SESSION {
         
         if rtn.val == CERT_REQUEST as usize { 
             gotacertrequest=true;
-            rtn=self.get_certificate_request(false);
+            rtn=self.get_certificate_request(false,credential);
             if rtn.val==CERT_REQUEST as usize {
                 have_suitable_cert=true;
             }
@@ -1978,7 +2007,7 @@ impl SESSION {
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
         if gotacertrequest { // Server wants a client certificate
             if have_suitable_cert { // do I have one?
-                self.client_trust();
+                self.client_trust(credential);
             } else {
                 self.send_client_certificate(None);
             }
@@ -2015,7 +2044,7 @@ impl SESSION {
     }
 
 /// Connect to server. First try resumption if session has a good ticket attached
-    pub fn connect(&mut self,early: Option<&[u8]>) -> bool {
+    pub fn connect(&mut self,early: Option<&[u8]>,credential: Option<&CREDENTIAL>) -> bool {
         let rtn:usize;
         let mut early_went=false;
         self.status=HANDSHAKING;
@@ -2026,7 +2055,7 @@ impl SESSION {
             }
         } else {
             log(IO_PROTOCOL,"Resumption Ticket not found or invalid\n",-1,None);
-            rtn=self.tls_full();
+            rtn=self.tls_full(credential);
         }
         self.t.clear(); // clear out any ticket
     
@@ -2052,7 +2081,7 @@ impl SESSION {
 // For example could include a ticket. Also receiving key K_recv might be updated.
 // returns +ve length of message, or negative error, or 0 for a time-out
 // Stay inside looping on Handshake messages. Exit on (a) received an application message, or (b) nothing to read 
-    pub fn recv(&mut self,mess: &mut [u8]) -> isize {
+    pub fn recv(&mut self,mess: &mut [u8],credential: Option<&CREDENTIAL>) -> isize {
         let mut fin=false;
         let mut kind:isize;
         let mut mslen:isize;
@@ -2136,7 +2165,7 @@ impl SESSION {
                                 return WRONG_MESSAGE;
                             }
                             let mut have_suitable_cert=false;
-                            r=self.get_certificate_request(true);  // 
+                            r=self.get_certificate_request(true,credential);  // 
                             if self.bad_response(&r) {
                                 self.send_alert(DECODE_ERROR);
                                 return BAD_MESSAGE;
@@ -2150,7 +2179,7 @@ impl SESSION {
                             let mut chf: [u8;MAX_HASH]=[0;MAX_HASH]; let chf_s=&mut chf[0..hlen];
 // send client credentials
                             if have_suitable_cert { // do I have one?
-                                self.client_trust();
+                                self.client_trust(credential);
                             } else {
                                 self.send_client_certificate(None);
                             }
@@ -2251,7 +2280,7 @@ impl SESSION {
 #[allow(dead_code)]
     pub fn recv_and_check(&mut self,mess: &mut [u8]) -> isize {
         self.send_heartbeat_request();
-        let r=self.recv(mess);
+        let r=self.recv(mess,None);
         if r!=0 { // its a regular response - return
             return r;
         }

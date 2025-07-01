@@ -197,6 +197,7 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
     if config::CRYPTO_SETTING==config::HYBRID {
         sig_algs[n]=config::DILITHIUM2; n+=1;
         sig_algs[n]=config::DILITHIUM2_P256; n+=1;  
+        sig_algs[n]=config::ECDSA_SECP256R1_SHA384; n+=1;
     }
     return n;
 }
@@ -221,7 +222,8 @@ pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
     }
     if config::CRYPTO_SETTING==config::HYBRID {
         sig_algs_cert[n]=config::DILITHIUM2; n+=1; 
-        sig_algs_cert[n]=config::DILITHIUM2_P256; n+=1;   
+        sig_algs_cert[n]=config::DILITHIUM2_P256; n+=1; 
+        sig_algs_cert[n]=config::ECDSA_SECP256R1_SHA384; n+=1;
     }
     return n;
 }

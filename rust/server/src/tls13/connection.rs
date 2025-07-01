@@ -20,6 +20,7 @@ use crate::tls13::logger;
 use crate::tls13::logger::log;
 use crate::tls13::utils;
 use crate::tls13::utils::RET;
+use crate::tls13::servercert::CREDENTIAL;
 
 use crate::sal_m::bfibe;
 use crate::sal_m::pqibe;
@@ -68,7 +69,7 @@ pub struct SESSION {
 
     pub expect_heartbeats: bool,    // Am I expecting heartbeats?
     pub allowed_to_heartbeat: bool, // Am I allowed to heartbeat?
-    pub heartbeat_req_in_flight: bool // timestamp on outstanding request, otherwise 0
+    pub heartbeat_req_in_flight: bool, // timestamp on outstanding request, otherwise 0
 }
 
 /// Do I support this group? Check with SAL..
@@ -96,17 +97,16 @@ fn cipher_support(alg: u16) -> bool {
 }
 
 /// check for overlap given client signature capabilities, and my server certificate
-fn overlap(client_sig_algs: &[u16],client_cert_sig_algs: &[u16]) -> bool {
-    let mut server_cert_reqs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];  
-    let nsreq=servercert::get_sig_requirements(&mut server_cert_reqs); 
+fn overlap(client_sig_algs: &[u16],client_cert_sig_algs: &[u16],server_cert_reqs: &[u16]) -> bool {
+    let nsreq=server_cert_reqs.len();
 /*
 println!("No of requirements = {}",nsreq);
 for i in 0..nsreq {
-    println!("{}",server_cert_reqs[i]);
+    println!("{:x}",server_cert_reqs[i]);
 }
 println!("No of client sig algs = {}",client_sig_algs.len());
 for i in 0..client_sig_algs.len() {
-    println!("{}",client_sig_algs[i]);
+    println!("{:x}",client_sig_algs[i]);
 }
 println!("No of client cert sig algs = {}",client_cert_sig_algs.len());
 */
@@ -943,7 +943,7 @@ impl SESSION {
 
     /// Get client hello. Output encrypted extensions, client public key, client signature algorithms.
     /// Put together Server Hello response. Also generate extensions that are to be encrypted
-    fn process_client_hello(&mut self,sh: &mut [u8],shlen: &mut usize,encext: &mut [u8],enclen: &mut usize,ss: &mut [u8],early_indication: &mut bool,is_retry: bool) -> RET {
+    fn process_client_hello(&mut self,sh: &mut [u8],shlen: &mut usize,encext: &mut [u8],enclen: &mut usize,ss: &mut [u8],early_indication: &mut bool,is_retry: bool,credential : &CREDENTIAL ) -> RET {
         let mut host:[u8;MAX_SERVER_NAME]=[0;MAX_SERVER_NAME];
         let mut alpn:[u8;32]=[0;32];
         let mut rn: [u8;32]=[0;32];
@@ -989,7 +989,7 @@ impl SESSION {
         r= self.parse_bytes_pull(&mut rn); if r.err!=0 {return r;}   // 32 random bytes
         left-=32;
 
-        log(IO_DEBUG,"CLient Random= ",0,Some(&rn[0..32]));
+        log(IO_DEBUG,"Client Random= ",0,Some(&rn[0..32]));
 
         //log(IO_PROTOCOL,"Fingerprint= ",0,Some(&rn[0..6]));
         r=self.parse_int_pull(1); let cilen=r.val; if r.err!=0 {return r;}  // cilen is length of legacy ID
@@ -1353,7 +1353,12 @@ impl SESSION {
                 r.err=MISSING_EXTENSIONS;
                 return r;
             }
-            if !overlap(&client_sig_algs[0..ncsa],&client_cert_sig_algs[0..nccsa]) { // check for overlap between TML requirements and client capabilities
+            let mut nreqs=credential.nreqsraw; // is it a raw public key?
+            if self.server_cert_type==X509_CERT {
+                nreqs=credential.nreqs;  // No..
+            }
+                
+            if !overlap(&client_sig_algs[0..ncsa],&client_cert_sig_algs[0..nccsa],&credential.requirements[0..nreqs]) { // check for overlap between TML requirements and client capabilities
                 log(IO_DEBUG,"No overlap in signature capabilities\n",-1,None);
                 r.err=BAD_HANDSHAKE;
                 return r;
@@ -1739,7 +1744,7 @@ impl SESSION {
 
 // TLS1.3
 /// Connect with a client, and recover early data if any
-    pub fn connect(&mut self,early: &mut [u8],edlen: &mut usize,stek: &[u8]) -> usize {
+    pub fn connect(&mut self,early: &mut [u8],edlen: &mut usize,credential: &CREDENTIAL) -> usize {
         let mut sh:[u8;MAX_HELLO]=[0;MAX_HELLO];
         let mut ext:[u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         let mut ss:[u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
@@ -1748,7 +1753,7 @@ impl SESSION {
         let mut shlen=0;
         let mut enclen=0;
         self.status=HANDSHAKING;
-        let mut rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut early_indication,false);
+        let mut rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut early_indication,false,credential);
         if self.bad_response(&rtn) {
             return TLS_FAILURE;
         }
@@ -1772,7 +1777,7 @@ impl SESSION {
             log(IO_PROTOCOL,"Attempting Resumption Handshake on port ",self.port as isize,None);
             let mut psk:[u8;MAX_HASH]=[0;MAX_HASH];
             let mut psklen=0;
-            let mut r=self.process_ticket(&mut psk,&mut psklen,stek);
+            let mut r=self.process_ticket(&mut psk,&mut psklen,&credential.stek);
             if self.bad_response(&r) {
                 return TLS_FAILURE;
             }
@@ -1885,7 +1890,7 @@ impl SESSION {
 //
 //   <---------------------------------------------------------- receive updated client Hello
 //
-                let rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut early_indication,true);
+                let rtn=self.process_client_hello(&mut sh,&mut shlen,&mut ext,&mut enclen,&mut ss,&mut early_indication,true,credential);
                 if self.bad_response(&rtn) {
                     return TLS_FAILURE;
                 }
@@ -1935,24 +1940,19 @@ impl SESSION {
 //
             }
 
-            let mut server_key:[u8;MAX_SIG_SECRET_KEY]=[0;MAX_SIG_SECRET_KEY];
-            let mut server_certchain:[u8;MAX_SERVER_CHAIN_SIZE]=[0;MAX_SERVER_CHAIN_SIZE];   // assume max chain length of 2
             let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
-            let mut sclen=0;
-            let mut sklen=0;
-            let kind=servercert::get_server_credentials(&mut server_key,&mut sklen,self.server_cert_type,&mut server_certchain,&mut sclen);
-            if kind==0 { // No, Client cannot verify this signature
-                self.send_alert(BAD_CERTIFICATE);
-                log(IO_PROTOCOL,"Handshake failed - client would be unable to verify signature\n",-1,None);
-                self.clean();
-                return TLS_FAILURE;
-            }
+            let kind=credential.requirements[0]; // get signature algorithm
 
             log(IO_PROTOCOL,"Server is authenticating\n",-1,None);
             logger::log_sig_alg(kind);
-            let sc_s=&server_certchain[0..sclen];
-            let sk_s=&server_key[0..sklen];
-            self.send_server_certificate(sc_s);
+            let sc_s=&credential.certchain[0..credential.certchain_len];
+            let sp_s=&credential.publickey[0..credential.publickey_len];
+            let sk_s=&credential.secretkey[0..credential.secretkey_len];
+            if self.server_cert_type==RAW_PUBLIC_KEY {
+                self.send_server_certificate(sp_s);
+            } else {
+                self.send_server_certificate(sc_s);
+            }
     //
     //
     //  {Server Certificate} ---------------------------------------------------->
@@ -1960,7 +1960,7 @@ impl SESSION {
     //
             log(IO_DEBUG,"Server is sending certificate verifier\n",-1,None);
             self.transcript_hash(th_s);
-            sclen=keys::create_server_cert_verifier(kind,th_s,sk_s,&mut scvsig);
+            let sclen=keys::create_server_cert_verifier(kind,th_s,sk_s,&mut scvsig);
             self.send_server_cert_verify(kind,&scvsig[0..sclen]);                           
             self.transcript_hash(th_s);
     //

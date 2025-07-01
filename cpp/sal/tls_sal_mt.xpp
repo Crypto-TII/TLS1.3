@@ -96,6 +96,7 @@ int SAL_sigs(int *sigAlgs)
 #if CRYPTO_SETTING==HYBRID
     sigAlgs[n]=DILITHIUM2; n++;
     sigAlgs[n]=DILITHIUM2_P256; n++;
+    sigAlgs[n]=ECDSA_SECP256R1_SHA384; n++;
 #endif
     return n;
 }
@@ -120,6 +121,7 @@ int SAL_sigCerts(int *sigAlgsCert)
 #if CRYPTO_SETTING==HYBRID
     sigAlgsCert[n]=DILITHIUM2; n++;
     sigAlgsCert[n]=DILITHIUM2_P256; n++;
+    sigAlgsCert[n]=ECDSA_SECP256R1_SHA384; n++;
 #endif
     return n;
 }

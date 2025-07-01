@@ -18,6 +18,7 @@ use sal_m::pqibe;
 use tls13::utils;
 use config::*;
 use std::env;
+use tls13::clientcert::*;
 
 use std::time::Instant;
 
@@ -337,6 +338,15 @@ fn main() {
     }
     let timeout = Duration::from_secs(5);
  
+    let mut credential=CREDENTIAL::new(); // holds processed client credentials
+
+// Could instead read in credentials from files certchain.pem and enduser.key
+    let supported=credential.set(&MY_PRIVATE,&MY_CERTCHAIN);
+    if !supported {
+        println!("Client signature algorithm not supported by SAL!");
+        return;
+    }
+
     match TcpStream::connect(&fullhost) {
         Ok(stream) => {
             println!("Local Port= {}",stream.local_addr().unwrap());
@@ -404,7 +414,7 @@ fn main() {
 
 // Make connection and send initial data
 // If resumption is possible it may go as "early data"
-            if !session.connect(Some(&mut get[0..gtlen])) {
+            if !session.connect(Some(&mut get[0..gtlen]),Some(&credential)) {
                 if have_ticket {
                     ticket_failed=true;
                     remove_ticket();
@@ -412,7 +422,7 @@ fn main() {
                     session.sockptr.shutdown(Shutdown::Both).unwrap();
                     session.sockptr=TcpStream::connect(&fullhost).unwrap();
                     session.sockptr.set_read_timeout(Some(timeout)).unwrap();
-                    if !session.connect(Some(&mut get[0..gtlen])) {
+                    if !session.connect(Some(&mut get[0..gtlen]),Some(&credential)) {
                         log(IO_APPLICATION,"TLS Handshake failed\n",-1,None);
                         session.stop();
                         session.sockptr.shutdown(Shutdown::Both).unwrap();
@@ -429,7 +439,7 @@ fn main() {
 
             //session.send_key_update(UPDATE_NOT_REQUESTED); // maybe?
             //session.send_zero_record();  // to bewilder the enemy
-            let rplen=session.recv(&mut resp);
+            let rplen=session.recv(&mut resp,Some(&credential));
             if rplen>0 {
                 log(IO_APPLICATION,"Receiving application data (truncated HTML) = ",0,Some(&resp[0..rplen as usize]));
                 session.stop(); // send close notify
