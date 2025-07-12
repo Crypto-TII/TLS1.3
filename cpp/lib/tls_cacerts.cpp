@@ -9,12 +9,32 @@
 
 
 // Note that in the TYPICAL setting, the server sends a self-signed certificate, so no associated root CA stored here 
-
-// First cert is our own experimental hybrid p256+DILITHIUM2 root certificate, then a DILITHIUM3 root certificate (Remove to save memory)
-// Third is our own secp256r1 root certificate
+// First cert is our own default root ca
+// Next is our own experimental hybrid p256+DILITHIUM2 root certificate, then a DILITHIUM3 root certificate (Remove to save memory)
+// then is our own secp256r1 root certificate
 // after that all globaly accepted CAs
 
 const char *cacerts=(char *)
+"-----BEGIN CERTIFICATE-----\n"
+"MIIDRTCCAi2gAwIBAgIUWLu0EMuh/gWm+UUWicWxHujrgLMwDQYJKoZIhvcNAQEL\n"
+"BQAwMjEjMCEGA1UEAwwaVGlpZ2VyVExTIGV4YW1wbGUgcm9vdCBDQSAxCzAJBgNV\n"
+"BAYTAkFFMB4XDTI1MDcxMDA4MDgwMFoXDTM1MDcwODA4MDgwMFowMjEjMCEGA1UE\n"
+"AwwaVGlpZ2VyVExTIGV4YW1wbGUgcm9vdCBDQSAxCzAJBgNVBAYTAkFFMIIBIjAN\n"
+"BgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsMrDpocgeXJ35CsSwtztNPzl6Dn+\n"
+"yU1HRvVuksnxXxSQ9LeYQVThNA9ascmX7oXND8HunDhvab1XVdfkeZyWi9bLHRzP\n"
+"eS6pTg2qckdVQD4kLJ2l2FyhItPjJtu3zTf/av9LCMfZ4jvaC551H8YVNgSQJfXT\n"
+"4q+V6lDNg7Mn/RwItoLBhl1DEpNS7ZnF3ZYMG7CB1oV7+AC1MvIpVqEBs7AzSikX\n"
+"EKguWDiR4W1WOSZKM9UaPxteVrYXxyYQHiwwHraJOLXd9vSFppm+CFOjxHJGw9KA\n"
+"UcAe4vZzrbBwDrhp4q9eO34/qdtGAq3S/6KfkMjirz4N7J89YEoUmwb1xwIDAQAB\n"
+"o1MwUTAdBgNVHQ4EFgQUTllQihXKHb9cNwTtGbDIMJAn8AowHwYDVR0jBBgwFoAU\n"
+"TllQihXKHb9cNwTtGbDIMJAn8AowDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0B\n"
+"AQsFAAOCAQEAVb21ALHVnIbw54r1TbGUWWaM6p3UEnh6YcvlgC8TSS+wpTM6Cug2\n"
+"wafJGc1xSyuyDe0OnhkiqWCp9OsKY4jmgQ2ZybCJMygUrVR6JFO2GxVm0yNxP/Ri\n"
+"fsB9Gp+Re+abbDmxmFBO+1XNXkTb/f++U1ub4g//rWlRscgwGJzzuuMc+HCj/4Bq\n"
+"m4ja/pe0lnNlGwsC886X7VntkE7hkZXIOkq9XjoY2Vgsy/cVZD0loWfyZqXptquh\n"
+"xKHy/+VSnPYc4BN3kPqhy9GefFiBlUqSM8S2wlRbNA1ENc7qBCcsgwpyXoCV9JaX\n"
+"UN7Gm7PuGQktbhU8zHpC5iphDU34POSdow==\n"
+"-----END CERTIFICATE-----\n"
 #if CRYPTO_SETTING == HYBRID   // expires december 2025
 
 "-----BEGIN CERTIFICATE-----\n"

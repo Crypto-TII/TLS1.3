@@ -787,7 +787,24 @@ impl SESSION {
             if self.client_cert_type==X509_CERT {
                 nreqs=cred.nreqs;  // No..
             }
-            if !HAVE_CLIENT_CERT || !overlap(&sigalgs[0..nssa],&certsigalgs[0..nscsa],&cred.requirements[0..nreqs]) {
+            
+  /*         
+        println!("nreqs={}",nreqs);
+        for i in 0..nreqs {
+        	println!("{:x}",cred.requirements[i]);    
+        }
+        println!("nssa={}",nssa);
+        for i in 0..nssa {
+        	println!("{:x}",sigalgs[i]);
+        }  
+        println!("nscsa={}",nscsa);
+        for i in 0..nscsa {
+        	println!("{:x}",certsigalgs[i]);
+        }    
+            
+      */      
+            
+            if CLIENT_CERT==NO_CERT || !overlap(&sigalgs[0..nssa],&certsigalgs[0..nscsa],&cred.requirements[0..nreqs]) {
     // just decline by sending NULL certificate, rather than an alert
                 r.val=0;  // signals that either I don't have a certificate, or what I have isn't suitable given server's capabilities
                 //log(IO_DEBUG,"Server cannot verify client certificate\n",-1,None);
@@ -1903,7 +1920,7 @@ impl SESSION {
         //let mut cklen=0;
         //let kind=clientcert::get_client_credentials(&mut client_key,&mut cklen,self.client_cert_type,&mut client_certchain,&mut cclen);
         if let Some(cred) = credential {
-            let kind=cred.requirements[0];
+            let kind=cred.sigalg;
             
             let cc_s=&cred.certchain[0..cred.certchain_len];
             let cp_s=&cred.publickey[0..cred.publickey_len];

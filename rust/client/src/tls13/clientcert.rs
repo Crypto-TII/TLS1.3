@@ -6,6 +6,9 @@ use crate::tls13::utils;
 use crate::tls13::x509;
 use crate::tls13::x509::*;
 use crate::sal_m::sal;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
 
 // ECC-SS self-signed keys 256 bit. Certificate expires Jan 2026
 
@@ -14,9 +17,7 @@ pub const MY_PRIVATE: &str =
 1v+BkVWYQZhNsNu/X8JPZzZgTd6hRANCAAQvn/UmTjXDk41r0ow6+LfsA3qdKV2K\
 1eRIv6axrsfEKds9poshRyvEgy4M8WYZlyOOchiVcO2jTyxvH1Xun/WH";
 
-pub const CHAINLEN:usize = 1;
-
-pub const MY_CERTCHAIN: [&str;CHAINLEN] = [ 
+pub const MY_CERTCHAIN: [&str;2] = [ 
 "MIICdDCCAhmgAwIBAgIUPDaj+Hv0/zO5MmUpKn2EvnrRJrEwCgYIKoZIzj0EAwIw\
 gY4xCzAJBgNVBAYTAklFMRAwDgYDVQQIDAdJcmVsYW5kMQ8wDQYDVQQHDAZEdWJs\
 aW4xDzANBgNVBAoMBlNoYW11czERMA8GA1UECwwIUmVzZWFyY2gxEzARBgNVBAMM\
@@ -30,27 +31,65 @@ IUcrxIMuDPFmGZcjjnIYlXDto08sbx9V7p/1h6NTMFEwHQYDVR0OBBYEFDOMT9fP\
 R8x88EC9TzUeTZ8Af4o7MB8GA1UdIwQYMBaAFDOMT9fPR8x88EC9TzUeTZ8Af4o7\
 MA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDSQAwRgIhAMjslzs/qSlwxY5q\
 PIj1zkn3Z7bknRV3ICsVzl9hhGJBAiEAkhUnhBuPHgTuGJ3c1xGIIEjNDKvW7Fhc\
-94BzAlOIACk="];
+94BzAlOIACk=",""];
+
+fn get_sigalg(pk: &x509::PKTYPE) -> u16 {
+    if pk.kind==x509::ECC {
+        if pk.curve==x509::USE_NIST256 {
+            return ECDSA_SECP256R1_SHA256; // as long as this is a client capability
+        }
+        if pk.curve==x509::USE_NIST384 {
+            return ECDSA_SECP384R1_SHA384;  // as long as this is a client capability
+        }
+    }
+    if pk.kind==x509::RSA {
+       return RSA_PSS_RSAE_SHA256;
+    }
+    if pk.kind==x509::PQ {
+        return DILITHIUM3;
+    }
+    if pk.kind==x509::HY {
+        return DILITHIUM2_P256;
+    }
+    if pk.kind==x509::ECD {
+        if pk.curve==x509::USE_ED25519 {
+            return ED25519;
+        }
+        if pk.curve==x509::USE_ED448 {
+            return ED448;
+        }
+    }            
+    return 0;    
+}
 
 // add X509 signature type to TLS signature capability requirements list
-fn add_sig_type(pk: &x509::PKTYPE,reqlen: usize,requirements: &mut [u16]) -> usize {
+fn add_cert_sig_type(pk: &x509::PKTYPE,reqlen: usize,requirements: &mut [u16]) -> usize {
     let mut len=reqlen;
     if pk.kind==x509::ECC {
         if pk.curve==x509::USE_NIST256 {
             requirements[len]=ECDSA_SECP256R1_SHA256; // as long as this is a client capability
             len+=1;
-            return len;
         }
         if pk.curve==x509::USE_NIST384 {
             requirements[len]=ECDSA_SECP384R1_SHA384;  // as long as this is a client capability
             len+=1;
-            return len;
         }
+        return len;
     }
     if pk.kind==x509::RSA {
-       requirements[len]=RSA_PSS_RSAE_SHA256;
-       len+=1;
-       return len;
+        if pk.hash==x509::H256 {
+            requirements[len]=RSA_PKCS1_SHA256;
+            len+=1;
+        }
+        if pk.hash==x509::H384 {
+            requirements[len]=RSA_PKCS1_SHA384;
+            len+=1;
+        }
+        if pk.hash==x509::H512 {
+            requirements[len]=RSA_PKCS1_SHA512;
+            len+=1;
+        }
+        return len;
     }
 
     if pk.kind==x509::PQ {
@@ -94,6 +133,7 @@ pub struct CREDENTIAL {
     pub requirements: [u16;16],    // signature algorithms that will be needed by the server
     pub nreqs: usize,
     pub nreqsraw: usize,
+    pub sigalg: u16,
 }
 
 impl CREDENTIAL {
@@ -105,25 +145,72 @@ impl CREDENTIAL {
             publickey_len: 0,
             secretkey: [0;MAX_SIG_SECRET_KEY],  // server secret key
             secretkey_len: 0,
-            requirements: [0;16],  // first element is secret key type, followed by types of signatures on certificates
+            requirements: [0;16],  // server requirements if they are to process my cert
             nreqs: 0,
-            nreqsraw: 0, // only one signature requirement for raw public key
+            nreqsraw: 0, // fewer signature requirements for raw public key
+            sigalg: 0, // my signature algorithm
         };
         return this;
     }
 
 // create credential structure from base64 inputs of the private key and the certificate chain
-    pub fn set(&mut self,privkey: &str,stored_chain: &[&str]) -> bool  {
+    pub fn set(&mut self) -> bool  {
         let mut sc:[u8;MAX_CERT_SIZE]=[0;MAX_CERT_SIZE]; // workspace
         let mut sig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
        
+       	let privkey:&str; let stored_chain:[&str;2];
+        let mut secret=String::from("");  
+        let mut certchain:[String;2]=[String::from(""),String::from("")];   
+        
+        if CLIENT_CERT==NO_CERT {
+            return false;
+        }
+        if CLIENT_CERT==FROM_ROM {       
+            privkey=MY_PRIVATE; stored_chain=MY_CERTCHAIN;       
+        } else {
+
+            let mut path = Path::new("../../../clientcert/client.key");
+            let mut display = path.display();
+
+            let mut file = match File::open(path) {
+                Err(why) => panic!("Must run from project src directory, couldn't find {}: {}", display, why),
+                Ok(file) => file,
+            };
+            let mut reader = BufReader::new(file);
+            for line in reader.lines() {
+                let next=line.unwrap();
+                let nextstr=next.as_str();
+                if nextstr.chars().nth(0).unwrap()=='-' {
+                    continue;
+                }
+                secret+=nextstr;
+            }   
+            privkey=secret.as_str();
+            path=Path::new("../../../clientcert/certchain.pem" );
+            display=path.display();
+            file = match File::open(path) {
+                Err(why) => panic!("Must run from project src directory, couldn't find {}: {}", display, why),
+                Ok(file) => file,
+            };
+            reader = BufReader::new(file);
+            let mut i=0;
+            for line in reader.lines().skip(1) {
+                let next=line.unwrap();
+                let nextstr=next.as_str();
+                if nextstr.chars().nth(0).unwrap()=='-' {
+                    i=1;
+                    continue;
+                }
+                certchain[i]+=nextstr;
+            }            
+            stored_chain=[certchain[0].as_str(),certchain[1].as_str()];
+        }         
         let mut sclen=utils::decode_b64(&privkey.as_bytes(),&mut sc);  // get secret key structure
         let mut pk=x509::extract_private_key(&sc[0..sclen],&mut self.secretkey);    // extract secret key
         self.secretkey_len=pk.len;
-
-        self.nreqs=add_sig_type(&pk,self.nreqs,&mut self.requirements); // at least one signature scheme must be supported
-
-        let kind=self.requirements[0]; // Client must implement algorithm to do signature - make sure its in the SAL!
+	let kind=get_sigalg(&pk); // Client must implement algorithm to do signature - make sure its in the SAL!
+	self.sigalg=kind;
+        
 //println!("kind= {:x}",kind);
         let mut sig_algs:[u16;MAX_SUPPORTED_SIGS]=[0;MAX_SUPPORTED_SIGS];
         let nsa=sal::sigs(&mut sig_algs);
@@ -137,7 +224,6 @@ impl CREDENTIAL {
         if !offered { return false; } 
 
  // chain length is 1 (self-signed) or 2 (server+intermediate - root is not transmitted)
-        let chlen=stored_chain.len();
        
         let mut b=stored_chain[0].as_bytes();
         sclen=utils::decode_b64(&b,&mut sc);
@@ -147,7 +233,7 @@ impl CREDENTIAL {
         self.certchain_len=utils::append_bytes(&mut self.certchain,self.certchain_len,&sc[0..sclen]);
         self.certchain_len=utils::append_int(&mut self.certchain,self.certchain_len,0,2);
         pk=extract_cert_sig(&sc[0..sclen],&mut sig);  // not interested in signature, only its type
-        self.nreqs=add_sig_type(&pk,self.nreqs,&mut self.requirements);
+        self.nreqs=add_cert_sig_type(&pk,self.nreqs,&mut self.requirements);
         self.nreqsraw=self.nreqs;
 
         let mut start=0;
@@ -158,95 +244,16 @@ impl CREDENTIAL {
         self.publickey_len=utils::append_int(&mut self.publickey,self.publickey_len,len,3);
         self.publickey_len=utils::append_bytes(&mut self.publickey,self.publickey_len,&pubk[0..len]);
    
-        for i in 1..chlen {
-            b=stored_chain[i].as_bytes();
+    	if stored_chain[1].len()>0 {
+            b=stored_chain[1].as_bytes();
             sclen=utils::decode_b64(&b,&mut sc);
             self.certchain_len=utils::append_int(&mut self.certchain,self.certchain_len,sclen,3);
             self.certchain_len=utils::append_bytes(&mut self.certchain,self.certchain_len,&sc[0..sclen]);
             self.certchain_len=utils::append_int(&mut self.certchain,self.certchain_len,0,2);
             pk=extract_cert_sig(&sc[0..sclen],&mut sig); // not interested in signature, only its type
-            self.nreqs=add_sig_type(&pk,self.nreqs,&mut self.requirements);
+            self.nreqs=add_cert_sig_type(&pk,self.nreqs,&mut self.requirements);
         }
         return true;
     }
 }
 
-
-
-/*
-// Report signature requirements for our certificate chain
-pub fn get_sig_requirements(sig_reqs:&mut [u16]) -> usize {
-    sig_reqs[0]=ECDSA_SECP256R1_SHA256;
-    return 1;
-}
-
-// extract certificate chain from stored base64 version. If a raw public key is being used, just extract the public key from the first certificate in the chain.
-// sc is workspace
-fn extract_chain(stored_chain: &[&str],cert_type: u8,sc: &mut [u8],certchain: &mut [u8]) -> usize {
-    let chlen=stored_chain.len();
-    let mut ptr=0;
-    if cert_type==RAW_PUBLIC_KEY { // RAW public key only is asked for
-        let b=stored_chain[0].as_bytes();
-        utils::decode_b64(&b,sc);
-        let mut start=0;
-        let mut len=x509::find_cert(sc,&mut start); // find start and length of first signed certificate
-        let cert=&sc[start..start+len]; // extract certificate
-        len=x509::find_public_key(cert,&mut start);
-        let pk=&cert[start..start+len]; // extract public key
-        ptr=utils::append_int(certchain,ptr,len,3);
-        ptr=utils::append_bytes(certchain,ptr,&pk[0..len]);
-
-    } else {
-        for i in 0..chlen {
-            let b=stored_chain[i].as_bytes();
-            let sclen=utils::decode_b64(&b,sc);
-            ptr=utils::append_int(certchain,ptr,sclen,3);
-            ptr=utils::append_bytes(certchain,ptr,&sc[0..sclen]);
-            ptr=utils::append_int(certchain,ptr,0,2); // add no certificate extensions
-        }
-    }
-    return ptr;
-}
-
-/// Get client credentials (cert+signing key) from clientcert.rs
-// Here we get the signature key type from the X.509 private key 
-pub fn get_client_credentials(privkey: &mut [u8],sklen: &mut usize,cert_type: u8,certchain: &mut [u8],cclen: &mut usize) -> u16 {
-    let mut sc:[u8;MAX_CLIENT_CHAIN_SIZE]=[0;MAX_CLIENT_CHAIN_SIZE];
-// first get certificate chain
-    let ptr=extract_chain(&MY_CERTCHAIN,cert_type,&mut sc,certchain);
-    *cclen=ptr;
-// next get secret key
-    let b=MY_PRIVATE.as_bytes();
-    let sclen=utils::decode_b64(&b,&mut sc);
-    let pk=x509::extract_private_key(&sc[0..sclen],privkey);
-    *sklen=pk.len;
-    let mut kind:u16=0;
-    if pk.kind==x509::ECC {
-        if pk.curve==x509::USE_NIST256 {
-            kind=ECDSA_SECP256R1_SHA256;  // as long as this is a client capability
-        }
-        if pk.curve==x509::USE_NIST384 {
-            kind=ECDSA_SECP384R1_SHA384;  // as long as this is a client capability
-        }
-    }
-    if pk.kind==x509::RSA {
-        kind=RSA_PSS_RSAE_SHA256;
-    }
-
-    if pk.kind==x509::PQ {
-        kind=DILITHIUM3;
-    }
-    if pk.kind==x509::HY {
-        kind=DILITHIUM2_P256;   
-    }
-    if pk.kind==x509::ECD {
-        if pk.curve==x509::USE_ED25519 {
-            kind=ED25519;
-        }
-        if pk.curve==x509::USE_ED448 {
-            kind=ED448;
-        }
-    }
-    return kind;
-}
-*/

@@ -233,7 +233,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tls13-client"
+name = "tls13-server"
 version = "0.1.0"
 dependencies = [
  "chrono",

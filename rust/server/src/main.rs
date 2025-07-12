@@ -81,14 +81,14 @@ fn make_server_message(get: &mut[u8]) -> usize {
 }
 
 /// Handle a client connection. Might need STEK to encrypt resumption tickets
-fn handle_client(stream: TcpStream,port: u16,credential: &CREDENTIAL) {
+fn handle_client(stream: TcpStream,port: u16,credential: &CREDENTIAL,stek:&[u8]) {
     let mut mess:[u8;MAX_EARLY_DATA]=[0;MAX_EARLY_DATA];
     let mut post:[u8;256]=[0;256];
     let ptlen=make_server_message(&mut post);
     let mut session=SESSION::new(stream,port,);
     println!("Session commenced {}",port);
     let mut msize=0;
-    let rtn=session.connect(&mut mess,&mut msize,&credential);
+    let rtn=session.connect(&mut mess,&mut msize,&credential,&stek);
     let mut mslen=msize as isize;
 
     if rtn==TLS_SUCCESS {
@@ -99,7 +99,7 @@ fn handle_client(stream: TcpStream,port: u16,credential: &CREDENTIAL) {
             session.send_certificate_request(false); // will be bundled with resumption ticket
         }
         println!("Sending Resumption Ticket");  // maybe updated to reflect client authentication
-        session.send_ticket(&credential.stek);
+        session.send_ticket(stek);
         //session.send_key_update(UPDATE_REQUESTED);  // UPDATE_REQUESTED can be used here instead
         //session.send_zero_record();  // to bewilder the enemy
 
@@ -200,39 +200,36 @@ fn main() {
         log(IO_PROTOCOL,"SAL failed to start",-1,None);
         return;
     }
-    //let mut stek:[u8;32]=[0;32];  // generate random STEK for as long as server is alive. Should be rotated after a while.
-    //for i in 0..32 {
-    //	stek[i]=sal::random_byte();
-    //}
+    let mut stek:[u8;32]=[0;32];  // generate random STEK for as long as server is alive. Should be rotated after a while.
+    for i in 0..32 {
+    	stek[i]=sal::random_byte();
+    }
     let listener = TcpListener::bind("0.0.0.0:4433").unwrap();
     // accept connections and process them, spawning a new thread for each one
     println!("Server listening on port 4433");
 
-    let mut credential=CREDENTIAL::new(); // processed server credentials, same for all sessions
-
-// Could instead read in credentials from files certchain.pem and enduser.key
-    let mut supported=false;
+ 
     if CRYPTO_SETTING==TYPICAL {
         println!("Configured for typical RSA/ECC TLS client connections");
-        supported=credential.set(&SS_PRIVATE,&SS_CERTCHAIN);
     }
     if CRYPTO_SETTING==TINY_ECC {
         println!("Configured for Small ECC TLS client connections");
-        supported=credential.set(&TE_PRIVATE,&TE_CERTCHAIN);
     }
     if CRYPTO_SETTING==EDDSA {
         println!("Configured also for EDDSA connections");
-        supported=credential.set(&ED_PRIVATE,&ED_CERTCHAIN);
     }
     if CRYPTO_SETTING==POST_QUANTUM {
         println!("Configured for Post Quantum TLS client connections");
-        supported=credential.set(&PQ_PRIVATE,&PQ_CERTCHAIN);
     }
     if CRYPTO_SETTING==HYBRID {
         println!("Configured for Hybrid Post Quantum TLS client connections");
-        supported=credential.set(&HY_PRIVATE,&HY_CERTCHAIN);
     }
 
+   let mut credential=CREDENTIAL::new(); // processed server credentials, same for all sessions
+
+// Could instead read in credentials from files certchain.pem and enduser.key
+
+    let supported=credential.set();
     if !supported {
         println!("Server signature algorithm not supported by SAL!");
         return;
@@ -252,7 +249,7 @@ fn main() {
                 println!("\nNew connection: {}", port);
                 thread::spawn(move|| {
                     // connection succeeded
-                    handle_client(stream,port,&credential)
+                    handle_client(stream,port,&credential,&stek)
                 });
             }
             Err(e) => {

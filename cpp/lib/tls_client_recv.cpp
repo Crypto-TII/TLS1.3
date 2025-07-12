@@ -534,11 +534,9 @@ ret getServerEncryptedExtensions(TLS_session *session,ee_status *enc_ext_expt,ee
 }
 
 // check for overlap given server signature capabilities, and my client certificate
-static bool overlap(int *serverSigAlgs,int nssa,int *serverCertSigAlgs,int nscsa) {
-    int clientCertReqs[TLS_MAX_SUPPORTED_SIGS];
-    int nsreq=getSigRequirements(clientCertReqs);
+static bool overlap(int *serverSigAlgs,int nssa,int *serverCertSigAlgs,int nscsa,int *clientCertReqs,int nreqs) {
 
-    for (int i=0;i<nsreq;i++) {
+    for (int i=0;i<nreqs;i++) {
         bool itsthere=false;
         int sig=clientCertReqs[i];
         for (int j=0;j<nssa;j++) {
@@ -559,7 +557,7 @@ static bool overlap(int *serverSigAlgs,int nssa,int *serverCertSigAlgs,int nscsa
 }
 
 // Receive a Certificate request
-ret getCertificateRequest(TLS_session *session,bool context)
+ret getCertificateRequest(TLS_session *session,bool context,credential *Credential)
 {
     ret r;
     int i,left,nb,ext,len,tlen,nssa,nscsa;//,ptr=0;
@@ -658,12 +656,32 @@ ret getCertificateRequest(TLS_session *session,bool context)
     r.val=0;
 #else
 // just decline by sending NULL certificate, rather than an alert
-    if (!overlap(sigalgs,nssa,certsigalgs,nscsa)) {
-        r.val=0;
-        //log(IO_DEBUG,(char *)"Server cannot verify client certificate\n",NULL,0,NULL);
-        //r.err=BAD_HANDSHAKE;
-        //return r;
+
+    if (Credential!=NULL) {
+        int nreqs=0;
+        int reqs[16];
+        nreqs=Credential->nreqs;
+        if (session->client_cert_type==RAW_PUBLIC_KEY) nreqs=Credential->nreqsraw;
+        for (int i=0;i<nreqs;i++) reqs[i]=Credential->requirements[i];
+ /*   
+printf("nreqs= %d\n",nreqs);
+for (int i=0;i<nreqs;i++)
+	printf("%x\n",reqs[i]);
+printf("nssa= %d\n",nssa);	
+for (int i=0;i<nssa;i++)
+	printf("%x\n",sigalgs[i]);
+printf("nscsa= %d\n",nscsa);	
+for (int i=0;i<nscsa;i++)
+	printf("%x\n",certsigalgs[i]);
+*/	     
+        if (!overlap(sigalgs,nssa,certsigalgs,nscsa,reqs,nreqs)) {
+            r.val=0;
+            log(IO_DEBUG,(char *)"No overlap between server capabilities and my signature\n",NULL,0,NULL);
+        }
+        //printf("r.val= %d\n",r.val);
     }
+    else 
+    	r.val=0;
 #endif
     if (unexp>0)    
         log(IO_DEBUG,(char *)"Unrecognized extensions received\n",NULL,0,NULL);

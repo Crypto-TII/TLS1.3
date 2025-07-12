@@ -239,6 +239,10 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
     let mut len=0;
     let mut islen=0;
     let ct=parse_cert(&signed_cert,&mut start,&mut len,&mut issuer,&mut islen);
+    
+    //println!("xxct.sgt.len= {}",ct.sgt.len);
+    //println!("xxct.sgt.curve= {}",ct.sgt.curve);
+    
     let cert=&signed_cert[start..start+len];  // slice certificate from signed certificate
     if ct.status!=0 {
         if ct.status==SELF_SIGNED_CERT {
@@ -249,6 +253,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
             return ct.status;
         }
     }
+    
 // Get good stuff from this certificate. First check hostname is correct
     let ic=x509::find_extensions(cert);
     let c=x509::find_extension(cert,&x509::AN,ic);
@@ -270,6 +275,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
     for i in 0..*idlen {
         identity[i]=ct.subject[i];
     }
+    
 // if self-signed, thats the end of the chain. And for development it may be acceptable
     if ct.status==SELF_SIGNED_CERT { 
         if ALLOW_SELF_SIGNED {
@@ -286,6 +292,9 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
     }
 
     r=utils::parse_int(chain,3,&mut ptr); len=r.val; if r.err!=0 {return r.err;}
+    if len==0 {
+        return EMPTY_CERT_CHAIN;
+    }    
     if ptr+len>chain.len() {
         return BAD_CERT_CHAIN;
     }
@@ -310,9 +319,17 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
     if ctn.status!=0 {
         return BAD_CERT_CHAIN;
     }
+    /*
+    println!("ct.sgt.len={}",ct.sgt.len);
+    println!("ctn.pkt.len={}",ctn.pkt.len);
+    println!("cert.len={}",cert.len());
+    println!("ct.sgt.kind= {:x}",ct.sgt.kind);
+    println!("ct.sgt.hash= {:x}",ct.sgt.hash);
+    println!("ct.sgt.curve= {:x}",ct.sgt.curve); 
+    */   
     if !check_cert_sig(&ct.sgt,&cert,&ct.sig[0..ct.sgt.len],&ctn.pk[0..ctn.pkt.len]) {
         log(IO_DEBUG,"Certificate sig is NOT OK\n",-1,None);
-        return BAD_CERT_CHAIN
+        return BAD_CERT_CHAIN;
     }
     log(IO_DEBUG,"Certificate sig is OK\n",-1,None);
     

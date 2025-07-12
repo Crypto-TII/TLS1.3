@@ -7,7 +7,6 @@
 #include "tls_tickets.h"
 #include "tls_logger.h"
 #include "tls_cert_chain.h"
-//#include "tls_certs.h"
 
 // for SAL testing and experimental IBE
 #include "tls_sal.h"
@@ -402,7 +401,7 @@ int main(int argc, char const *argv[])
     printf("Local Port= %d\n",client.getport());
 
     
-#if CLIENT_CERT!=NO_CERT
+#if CLIENT_CERT!=NOCERT
     credential Credential; // holds processed client credentials  
     credential *Cred=&Credential; 
     bool supported=setCredential(Cred);

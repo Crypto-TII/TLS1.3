@@ -239,7 +239,6 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
     let mut len=0;
     let mut islen=0;
     let ct=parse_cert(&signed_cert,&mut start,&mut len,&mut issuer,&mut islen);
-
     let cert=&signed_cert[start..start+len];  // slice certificate from signed certificate
     if ct.status!=0 {
         if ct.status==SELF_SIGNED_CERT {
@@ -256,7 +255,6 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
     let c=x509::find_extension(cert,&x509::AN,ic);
     if  let Some(host) = hostname {
         let found=x509::find_alt_name(cert,c.index,host);
-//println!("Host= {:?}",host);
         if !found && host!="localhost".as_bytes() {
             log(IO_PROTOCOL,"Hostname NOT found in certificate\n",-1,None);
             if CHECK_NAME_IN_CERT {
@@ -264,6 +262,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
             }
         }
     }
+    
 // get public key
     *pklen=ct.pkt.len; // make public key available externally
     for i in 0..*pklen {
@@ -284,10 +283,12 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
             return ct.status;
         }
     }
+    
     if ptr==chain.len() { // the chain ends here (?) 
         log(IO_DEBUG,"Non-self-signed Chain of length 1 ended unexpectedly\n",-1,None);
         return BAD_CERT_CHAIN;
     }
+    
     r=utils::parse_int(chain,3,&mut ptr); len=r.val; if r.err!=0 {return r.err;}
     if len==0 {
         return EMPTY_CERT_CHAIN;

@@ -15,11 +15,13 @@ extern const char *myprivate; /**< Client private key */
 extern const char *mycert;    /**< Client certificate */
 extern const char *cacerts;   /**< The Root Certificate store */
 
-/** @brief Get Client Certificate chain requirements
+using namespace std;
+
+/** @brief Extract certificate chain and secret key from client credentials (either stored or from file 
  *
-    @param sigReqs list of signature requirements
-    @return number of such requirements
+    @param Credential the client credential structure to be filled
+    @return false if client not equipped (via SAL) to implement signature 
  */
-extern int getSigRequirements(int *sigReqs);
+extern bool setCredential(credential *Credential);
 
 #endif

@@ -341,7 +341,7 @@ fn main() {
     let mut credential=CREDENTIAL::new(); // holds processed client credentials
 
 // Could instead read in credentials from files certchain.pem and enduser.key
-    let supported=credential.set(&MY_PRIVATE,&MY_CERTCHAIN);
+    let supported=credential.set();
     if !supported {
         println!("Client signature algorithm not supported by SAL!");
         return;

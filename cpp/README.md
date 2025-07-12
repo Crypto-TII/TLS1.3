@@ -9,18 +9,23 @@ of C++ that are used. Documentation can be found in the doxygen generated file d
 # Building
 
 The TLS library is designed to support crypto agility by allowing a mix of cryptographic providers. This functionality is provided by the SAL (Security Abstraction Layer). 
-Below are two examples to choose from. The SAL API documentation is provided in sal/sal.pdf, and guided by this it should be possible to create your own SAL.
+Below are three examples to choose from. The SAL API documentation is provided in sal/sal.pdf, and guided by this it should be possible to create your own SAL.
 To build the client on an IoT node like the Arduino RP2040, see the readme file in the src/arduino directory.
 
-Private keys, server/client certificate chains, and CA root stores are all fixed in the code. The CA root code can be updated using the convert.cpp utility.
+A Client private key and certificate chain (only required for client-side authentication) is either fixed in the code or read from 
+external files. To create your own, see *MAKECERTS.md*
 
-Ideally keys, chains and key stores should be kept in external files, but in an IoT setting there may not be a file system. 
-In this C++ code the client private key and certificate (only required for client-side authentication) are stored in the source code file *tls_client_cert.cpp*. The root certificate store is 
-stored in the file *tls_cacert.cpp*.
-When using secure hardware, the client private key may not be embedded in the source code, rather it exists in secure on-board memory.
+The long-term global store of Certificate Authority root certificates can be found in the source code file *tls_cacert.cpp*, created 
+using the *convert.cpp* utility.
 
-The installation process requires the *cmake* utility to be installed. Copy all files and subdirectories from this directory to a working directory.
-If necessary make configuration changes in *include/tls1_3.h*, in particular to select the CRYPTO\_SETTING. For now leave it unchanged as TYPICAL
+Ideally keys, chains and key stores should all be kept in external files, but in an IoT setting there may not be a file system. 
+So in this C++ code the client private key and certificate can be stored directly in the 
+source code file *tls_client_cert.cpp*. When using secure hardware, the client private key may not be embedded in the source code, rather 
+it exists in secure on-board memory.
+
+The installation process requires the *cmake* utility to be installed. Copy all files and subdirectories from this directory to a working 
+directory. If necessary make configuration changes in *include/tls1_3.h*, in particular to select the CRYPTO\_SETTING. For now leave it 
+unchanged as TYPICAL
 
 
 ## Miracl

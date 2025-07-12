@@ -15,6 +15,7 @@ int main(int argc, char const *argv[])
     char mess[80];
     octad MESS={0,sizeof(mess),mess};
     OCT_append_string(&MESS,(char *)"Hello Server");
+    OCT_append_byte(&MESS,0,1);
 
     int port=4433;
     SocketType socketType = SocketType::SOCKET_TYPE_AF_INET;
@@ -35,7 +36,7 @@ int main(int argc, char const *argv[])
     TLS_session *session=&state;
 
 // Make TLS connection
-    if (!TLS13_connect(session,NULL))
+    if (!TLS13_connect(session,NULL,NULL))
     { 
         printf("TLS Handshake failed\n");
         TLS13_stop(session);
@@ -49,7 +50,7 @@ int main(int argc, char const *argv[])
     {
         printf("Sending Message:  %s",MESS.val); printf("\n");
         TLS13_send(session,&MESS);
-        int rtn=TLS13_recv(session,&RESP);
+        int rtn=TLS13_recv(session,&RESP,NULL);
         if (rtn>0) {
             printf("Received Message: %s",RESP.val); printf("\n");
         } else break;

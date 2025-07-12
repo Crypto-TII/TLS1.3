@@ -43,6 +43,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define HW_1 4    /**< RP2040 1 Hardware cert */
 #define HW_2 5    /**< RP2040 2 Hardware cert */
 #define EDD_SS 7  /**< self signed Ed25519 cert */
+#define FROM_FILE 8 /**< certificate comes from file */
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 
@@ -54,7 +55,8 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 //#define THIS_YEAR 2025            /**< Set to this year - was crudely used to deprecate old certificates - no longer used */
 
 #define POST_HS_AUTH              /**< Willing to do post handshake authentication */
-#define CLIENT_CERT RSA_SS        /**< Indicate capability of authenticating with a cert plus signing key */
+
+#define CLIENT_CERT NO_CERT        /**< Indicate capability of authenticating with a cert plus signing key (either built-in or from a file) */
 
 #define CRYPTO_SETTING TYPICAL    /**< Determine Cryptography settings */
 // Supported protocols    
@@ -398,6 +400,22 @@ typedef struct
     int suite;              /**< Cipher Suite */
     int taglen;             /**< Tag Length */
 } crypto;
+
+/**
+ * @brief credential structure */
+typedef struct
+{
+    char certchain[TLS_MAX_CLIENT_CHAIN_SIZE];
+    char publickey[TLS_MAX_SIG_PUB_KEY_SIZE];
+    char secretkey[TLS_MAX_SIG_SECRET_KEY_SIZE];
+    octad CERTCHAIN;
+    octad PUBLICKEY;
+    octad SECRETKEY;
+    uint16_t requirements[16];    // signature algorithms that will be needed by the server
+    int nreqs;
+    int nreqsraw;
+    int sigalg;              // signature algorithm I will use for TLS
+} credential;
 
 /**
  * @brief ticket context structure */

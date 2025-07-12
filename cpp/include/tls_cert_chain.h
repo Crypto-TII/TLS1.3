@@ -29,13 +29,4 @@ using namespace std;
  */
 extern int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PUBKEY,octad *SIG);  
 
-/** @brief Get Client private key and Certificate chain from .pem files
- *
-    @param PRIVKEY the Client's private  key
-    @param cert_type the certificate type (a certificate or a raw key)
-    @param CERTCHAIN the Client's certificate chain
-    @return type of private key, ECC or RSA
- */
-extern int getClientPrivateKeyandCertChain(octad *PRIVKEY,int cert_type,octad *CERTCHAIN);
-
 #endif

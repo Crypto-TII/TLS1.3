@@ -7,17 +7,15 @@ Here find a TLS1.3 client and a TLS1.3 server. Both are written in Rust.
 
 # Installation
 
-Private keys, server/client certificate chains, and CA root stores are all currently fixed in the code.
+Server and client private keys and certificate chains are either fixed in the code or read from 
+external files. To create your own, see *MAKECERTS.md*
 
-Typically keys chains and key stores would be kept in external files, but in an IoT setting there may not be a file system.
-(However private keys and certificate chains can now be read from files if so desired - see *main.rs*.)
-In this code the root certificate store is in the source code file *cacerts.rs*. The CA root code can be updated using 
-the *convert.cpp* utility.
+The long-term global store of Certificate Authority root certificates can be found in the source code files *cacerts.rs*, created 
+using the *convert.cpp* utility.
 
-For the client an example private key and certificate are stored in the source code file *clientcert.rs*. 
-In an IoT setting the private key may actually be stored in secure hardware.
-
-For the server some example private keys and certificate chains are stored in the source code file *servercert.rs*. 
+Ideally keys, chains and key stores should all be kept in external files, but in an IoT setting there may not be a file system. 
+So in this Rust code the server and client private keys and certificates can be stored directly in the 
+source code files *clientcert.rs* and *servercert.rs*
 
 Ensure that the latest version of Rust is installed on your machine. For later tests you will also need to install OpenSSL 3.5+. 
 First clone the repository and move to the *TLS13/rust* directory (where this README is)

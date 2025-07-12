@@ -472,36 +472,30 @@ static int TLS13_server_trust(TLS_session *session)
 
 // Phase 3 - client supplies trust to server, given servers list of acceptable signature types
 #if CLIENT_CERT != NOCERT
-static void TLS13_client_trust(TLS_session *session)
+static void TLS13_client_trust(TLS_session *session,credential *Credential)
 {
-#ifdef SHALLOW_STACK
-    octad CLIENT_KEY={0,TLS_MAX_SIG_SECRET_KEY_SIZE,(char *)malloc(TLS_MAX_SIG_SECRET_KEY_SIZE)};   // Client secret key
-    octad CLIENT_CERTCHAIN={0,TLS_MAX_CLIENT_CHAIN_SIZE,(char *)malloc(TLS_MAX_CLIENT_CHAIN_SIZE)};   // Client certificate chain
-    octad CCVSIG={0,TLS_MAX_SIGNATURE_SIZE,(char *)malloc(TLS_MAX_SIGNATURE_SIZE)}; 
-#else 
-    char client_key[TLS_MAX_SIG_SECRET_KEY_SIZE];           
-    octad CLIENT_KEY={0,sizeof(client_key),client_key};   // Client secret key
-    char client_certchain[TLS_MAX_CLIENT_CHAIN_SIZE];           
-    octad CLIENT_CERTCHAIN={0,sizeof(client_certchain),client_certchain};   // Client certificate chain
     char ccvsig[TLS_MAX_SIGNATURE_SIZE];
     octad CCVSIG={0,sizeof(ccvsig),ccvsig};           // Client's digital signature on transcript
-#endif
+
     char th[TLS_MAX_HASH];
     octad TH={0,sizeof(th),th};  // Transcript hash
 
-    int kind=getClientPrivateKeyandCertChain(&CLIENT_KEY,session->client_cert_type,&CLIENT_CERTCHAIN);
-
-    if (kind!=0)
+    if (Credential!=NULL)
     { // Yes, I can do that kind of signature
+    	int kind=Credential->sigalg;
         log(IO_PROTOCOL,(char *)"Client is authenticating\n",NULL,0,NULL);
-        sendClientCertificateChain(session,&CLIENT_CERTCHAIN);
+        if (session->client_cert_type==RAW_PUBLIC_KEY)
+            sendClientCertificateChain(session,&(Credential->PUBLICKEY));
+        else
+            sendClientCertificateChain(session,&(Credential->CERTCHAIN));
 //
 //
 //  {client Certificate} ---------------------------------------------------->
 //
 //
+        //printf("kind of signature= %x\n",kind);
         transcriptHash(session,&TH);
-        createClientCertVerifier(kind,&TH,&CLIENT_KEY,&CCVSIG);      
+        createClientCertVerifier(kind,&TH,&(Credential->SECRETKEY),&CCVSIG);      
         sendClientCertVerify(session,kind,&CCVSIG);
 //
 //
@@ -511,14 +505,11 @@ static void TLS13_client_trust(TLS_session *session)
     } else { // No, I can't - send a null cert, and no verifier
         sendClientCertificateChain(session,NULL);
     }
-#ifdef SHALLOW_STACK
-    free(CLIENT_KEY.val); free(CLIENT_CERTCHAIN.val); free(CCVSIG.val);
-#endif
 }
 #endif
 
 // TLS1.3 full handshake - connect to server
-static int TLS13_full(TLS_session *session)
+static int TLS13_full(TLS_session *session,credential *Credential)
 {
     ret rtn;
     int hashtype;
@@ -556,7 +547,7 @@ static int TLS13_full(TLS_session *session)
     if (rtn.val==CERT_REQUEST)
     { // optional certificate request received
         gotacertrequest=true;
-        rtn=getCertificateRequest(session,false);
+        rtn=getCertificateRequest(session,false,Credential);
 //
 //
 //  <---------------------------------------------------- {Certificate Request}
@@ -588,14 +579,18 @@ static int TLS13_full(TLS_session *session)
 // Send Certificate (if it was asked for, and if I have one) & Certificate Verify.
     OCT_kill(&session->IBUFF);
     session->ptr=0;
-
+	
     if (gotacertrequest)
     {
+#if CLIENT_CERT==NO_CERT
+	sendClientCertificateChain(session,NULL);
+#else    
         if (have_suitable_cert) {
-            TLS13_client_trust(session);
+            TLS13_client_trust(session,Credential);
         } else {
             sendClientCertificateChain(session,NULL);
         }
+#endif        
     } 
     transcriptHash(session,&TH);
 
@@ -965,7 +960,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 
 // connect to server
 // first try resumption if session has a good ticket attached
-bool TLS13_connect(TLS_session *session,octad *EARLY)
+bool TLS13_connect(TLS_session *session,octad *EARLY,credential *credential)
 {
     int rtn=0;
     bool early_went=false;
@@ -976,7 +971,7 @@ bool TLS13_connect(TLS_session *session,octad *EARLY)
         if (rtn==TLS_EARLY_DATA_ACCEPTED) early_went=true;
     } else {
         log(IO_PROTOCOL,(char *)"Resumption Ticket not found or invalid\n",NULL,0,NULL);
-        rtn=TLS13_full(session);
+        rtn=TLS13_full(session,credential);
     }
     initTicketContext(&session->T); // clear out any ticket
     
@@ -1006,7 +1001,7 @@ void TLS13_send(TLS_session *state,octad *GET)
 // could be more handshake data disguised as application data
 // For example could include a ticket. Or key update.
 // returns +ve length of message, or negative error, or 0 for a time-out
-int TLS13_recv(TLS_session *session,octad *REC)
+int TLS13_recv(TLS_session *session,octad *REC,credential *Credential)
 {
     ret r;
     int nb,len,type,nticks,kur,rtn;//,ptr=0;
@@ -1103,7 +1098,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
                     continue;
 #ifdef POST_HS_AUTH
                 case CERT_REQUEST:
-                    r=getCertificateRequest(session,true);
+                    r=getCertificateRequest(session,true,Credential);
                     if (badResponse(session,r)) {
                         return BAD_MESSAGE;
                     }
@@ -1112,11 +1107,15 @@ int TLS13_recv(TLS_session *session,octad *REC)
                         have_suitable_cert=true;
                     }
                     // send client credentials
+#if CLIENT_CERT==NOCERT
+                    sendClientCertificateChain(session,NULL);
+#else                    
                     if (have_suitable_cert) {
-                        TLS13_client_trust(session);
+                        TLS13_client_trust(session,Credential);
                     } else {
                         sendClientCertificateChain(session,NULL);
                     }
+#endif                    
                     transcriptHash(session,&FH);
 // create client verify data and send it to Server
                     deriveVeriferData(hashtype,&CHF,&session->CTS,&FH);  
@@ -1209,7 +1208,7 @@ int TLS13_recv(TLS_session *session,octad *REC)
 int TLS13_recv_and_check(TLS_session *session,octad *REC)
 {
     sendHeartbeatRequest(session);
-    int r=TLS13_recv(session,REC);
+    int r=TLS13_recv(session,REC,NULL);
     if (r!=0) { // its a regular response - line is alive, heartbeat response will come later and be ignored
             return r;
     }

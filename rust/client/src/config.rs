@@ -82,6 +82,14 @@ pub const HYBRID: usize = 4;
 /// EDDSA support
 pub const EDDSA: usize = 2;
 
+// supported CLIENT CERTIFICATE settings
+/// No client certificate
+pub const NO_CERT: usize = 0;
+/// Client certificate from ROM
+pub const FROM_ROM: usize = 1;
+///Client certificate from file
+pub const FROM_FILE:usize = 2;
+
 // These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
 pub const MAX_CERT_SIZE:usize = 6144;               // Max client private key/cert 
@@ -309,7 +317,7 @@ pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true;    // allow self-signed certs
 pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting -  determines group used for initial key exchange
 pub const POST_HS_AUTH:bool= true;         // Willing to do post handshake authentication
-pub const HAVE_CLIENT_CERT:bool= true;     // client-side authentication
+pub const CLIENT_CERT:usize= FROM_ROM;     // client-side authentication
 //pub const THIS_YEAR: usize = 2025;         // Set to this year - was crudely used to deprecate old certificates - no longer used 
 pub const TLS_PROTOCOL: bool=true;         // ALPN extension
 pub const APPLICATION_PROTOCOL:&str="http/1.1";

@@ -2,14 +2,12 @@
 // Client Certificate data stored here
 // My private key and my certificate
 //
-
+#include <stdlib.h>
 #include "tls_certs.h"
+#include "tls_x509.h"
+#include "tls_sal.h"
 
-
-// a preferred root CA
-// actually root CA of www.bbc.co.uk
-// const char *mysupportedca[1]={(char *)"MEwxIDAeBgNVBAsTF0dsb2JhbFNpZ24gUm9vdCBDQSAtIFIzMRMwEQYDVQQKEwpHbG9iYWxTaWduMRMwEQYDVQQDEwpHbG9iYWxTaWdu"};
-
+#if CLIENT_CERT!=NO_CERT
 
 #if CLIENT_CERT == ECC_SS
 
@@ -40,11 +38,6 @@ const char *mycert=(char *)
 "94BzAlOIACk=\n"
 "-----END CERTIFICATE-----\n";
 
-// Report signature requirements for our certificate chain
-int getSigRequirements(int *sigReqs) {
-    sigReqs[0]=ECDSA_SECP256R1_SHA256;
-    return 1;
-}
 
 #endif
 
@@ -73,19 +66,13 @@ const char *mycert=(char *)
 "2ij1QxL+kyyx5x/7lTJZZin8I036tLR739JOW05uwtjq+im49QQE\n"
 "-----END CERTIFICATE-----\n";
 
-// Report signature requirements for our certificate chain
-int getSigRequirements(int *sigReqs) {
-    sigReqs[0]=ED25519;
-    return 1;
-}
-
 #endif
 
 
 #if CLIENT_CERT == HW_1
 // My first Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0. Expires November 2026
 const char *myprivate=NULL;
-
+const int hwsigalg=ECDSA_SECP256R1_SHA256;
 const char *mycert=(char *) 
 "-----BEGIN CERTIFICATE-----\n"
 "MIIBKzCB0aADAgECAgEBMAoGCCqGSM49BAMCMB0xGzAZBgNVBAMTEjAxMjM0NjI0QjIwMjYwRDdF\n"
@@ -96,18 +83,12 @@ const char *mycert=(char *)
 "pSR9RRnuwo810km81P4S56/m\n"
 "-----END CERTIFICATE-----\n";
 
-// Report signature requirements for our certificate chain
-int getSigRequirements(int *sigReqs) {
-    sigReqs[0]=ECDSA_SECP256R1_SHA256;
-    return 1;
-}
-
 #endif
 
 #if CLIENT_CERT == HW_2
 // My second Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0. Expires December 2026
 const char *myprivate=NULL;
-
+const int hwsigalg=ECDSA_SECP256R1_SHA256;
 const char *mycert=(char *) 
 "-----BEGIN CERTIFICATE-----\n"
 "MIIBKzCB0aADAgECAgEBMAoGCCqGSM49BAMCMB0xGzAZBgNVBAMTEjAxMjM2RDlBNkNDRUQ5RUNF\n"
@@ -117,14 +98,7 @@ const char *mycert=(char *)
 "A0kAMEYCIQDgqosqLRntTyehtDCuWcY6WP41sfwx1k78W6EkLpoDyQIhAPzxQawMjI9mLeePF6Kk\n"
 "BzPRSurX7+nLFDC6u3pfmEY8\n"
 "-----END CERTIFICATE-----\n";
-
-// Report signature requirements for our certificate chain
-int getSigRequirements(int *sigReqs) {
-    sigReqs[0]=ECDSA_SECP256R1_SHA256;
-    return 1;
-}
 #endif
-
 /*
 // My Arduino Nano 33 IoT self-signed Cert. Private key is on the board slot 0. Expires July 2031
 const char *myprivate=NULL;
@@ -201,12 +175,6 @@ const char *mycert=(char *)
 "Y3ErhHcLL7Z4dRk=\n"
 "-----END CERTIFICATE-----\n";
 
-// Report signature requirements for our certificate chain
-int getSigRequirements(int *sigReqs) {
-    //sigReqs[0]=RSA_PSS_RSAE_SHA256;
-    sigReqs[0]=RSA_PKCS1_SHA256;
-    return 1;
-}
 
 #endif
 
@@ -392,12 +360,6 @@ const char *mycert=(char *)
 "AAAAAAAAAAAADRcjJw==\n"
 "-----END CERTIFICATE-----\n";
 
-// Report signature requirements for our certificate chain
-int getSigRequirements(int *sigReqs) {
-    sigReqs[0]=ECDSA_SECP256R1_SHA256;
-    sigReqs[1]=DILITHIUM2;
-    return 2;
-}
 
 #endif
 
@@ -653,9 +615,287 @@ const char *mycert=(char *)
 "LUGfu9IAAAAAAAAAAAAAAAAAAAAAAAAAAwkSGh8k\n"
 "-----END CERTIFICATE-----\n";
 
-// Report signature requirements for our certificate chain
-int getSigRequirements(int *sigReqs) {
-    sigReqs[0]=DILITHIUM3;
-    return 1;
+#endif
+
+static int get_sigalg(pktype *pk) {
+    if (pk->type==X509_ECC) {
+        if (pk->curve==USE_NIST256) {
+            return ECDSA_SECP256R1_SHA256; // as long as this is a client capability
+        }
+        if (pk->curve==USE_NIST384) {
+            return ECDSA_SECP384R1_SHA384;  // as long as this is a client capability
+        }
+    }
+    if (pk->type==X509_RSA) {
+       return RSA_PSS_RSAE_SHA256;
+    }
+    if (pk->type==X509_PQ) {
+        return DILITHIUM3;
+    }
+    if (pk->type==X509_HY) {
+        return DILITHIUM2_P256;
+    }
+    if (pk->type==X509_ECD) {
+        if (pk->curve==USE_ED25519) {
+            return ED25519;
+        }
+        if (pk->curve==USE_ED448) {
+            return ED448;
+        }
+    }            
+    return 0;    
+}
+
+static int add_cert_sig_type(pktype *pk,int reqlen,uint16_t *requirements) 
+{
+    int len=reqlen;
+    if (pk->type==X509_ECC) {
+        if (pk->curve==USE_NIST256) {
+            requirements[len]=ECDSA_SECP256R1_SHA256; // as long as this is a client capability
+            len+=1;
+        }
+        if (pk->curve==USE_NIST384) {
+            requirements[len]=ECDSA_SECP384R1_SHA384;  // as long as this is a client capability
+            len+=1;
+        }
+        return len;
+    }
+    if (pk->type==X509_RSA) {
+       if (pk->hash==X509_H256) {
+           requirements[len]=RSA_PKCS1_SHA256;
+           len+=1;
+       }
+       if (pk->hash==X509_H384) {
+           requirements[len]=RSA_PKCS1_SHA384;
+           len+=1;
+       }
+       if (pk->hash==X509_H512) {
+           requirements[len]=RSA_PKCS1_SHA512;
+           len+=1;
+       }       
+       return len;
+    }
+
+    if (pk->type==X509_PQ) {
+        requirements[len]=DILITHIUM3;
+        len+=1;
+        return len;
+    }
+    if (pk->type==X509_HY) {
+        requirements[len]=DILITHIUM2_P256;
+        len+=1;
+        requirements[len]=DILITHIUM2;
+        len+=1;
+        requirements[len]=ECDSA_SECP256R1_SHA384;
+        len+=1;
+        return len;  // *** also need to check that secp256r1 is supported - kind indicates that both signature keys are in privkey
+    }
+    if (pk->type==X509_ECD) {
+        if (pk->curve==USE_ED25519) {
+            requirements[len]=ED25519;
+            len+=1;
+            return len;
+        }
+        if (pk->curve==USE_ED448) {
+            requirements[len]=ED448;
+            len+=1;
+            return len;
+        }
+    }
+    return len;  
+}
+
+static void initCredential(credential *C) 
+{
+    C->CERTCHAIN.len=0;
+    C->CERTCHAIN.max=TLS_MAX_CLIENT_CHAIN_SIZE;
+    C->CERTCHAIN.val=C->certchain;
+    
+    C->PUBLICKEY.len=0;
+    C->PUBLICKEY.max=TLS_MAX_SIG_PUB_KEY_SIZE;
+    C->PUBLICKEY.val=C->publickey;    
+    
+    C->SECRETKEY.len=0;
+    C->SECRETKEY.max=TLS_MAX_SIG_SECRET_KEY_SIZE;
+    C->SECRETKEY.val=C->secretkey;  
+    
+    C->nreqs=0;
+    C->nreqsraw=0;  
+    C->sigalg=0;   
+}
+
+
+// read a line of base64
+
+
+#if CLIENT_CERT == FROM_FILE
+static int readaline(char *line,FILE *fp)
+{
+    int i=0;
+    if (!fgets(line,80,fp)) return 0;
+    while (line[i]!=0) i++;
+    i--;
+    line[i]=0;
+    return i;
+}
+
+#else
+static int readaline(char *line,const char *rom,int &ptr)
+{
+    int i=0;
+    if (rom[ptr]==0) return 0;
+    while (rom[ptr]!='\n')
+    {
+        line[i++]=rom[ptr++];
+    }
+    ptr++; // jump over CR
+    line[i]=0;
+    return i;
 }
 #endif
+
+// process certchain and private key from OpenSSL format
+bool setCredential(credential *C)
+{
+    int i,ptr,pkptr,len;
+    int kind;
+    pktype pk;
+#ifdef SHALLOW_STACK
+    char *b=(char *)malloc(TLS_MAX_CERT_B64);
+    octad SC={0,TLS_MAX_CERT_B64,b};       // optimization - share memory - can convert from base64 to binary in place
+#else
+    char b[TLS_MAX_CERT_B64];    // maximum size key/cert
+    octad SC={0,sizeof(b),b};    // share memory - can convert from base64 to binary in place
+#endif
+    char sig[TLS_MAX_SIGNATURE_SIZE];
+    octad SIG={0,sizeof(sig),sig};
+    int sigAlgs[TLS_MAX_SUPPORTED_SIGS];
+    char line[80]; 
+    
+    initCredential(C);
+    bool offered=false; // if not in hardware or software
+    
+#if CLIENT_CERT == HW_1 || CLIENTCERT == HW_2
+    C->sigalg=hwsigalg;
+    offered=true;
+#else   
+// unless signing with private key takes place in protected hardware, SAL should have it in software
+#if CLIENT_CERT==FROM_FILE 
+    FILE *fp=fopen("../../clientcert/client.key","r");
+    if (fp==NULL) return false;
+    if (!readaline(line,fp)) return false;
+#else    
+    ptr=0; 
+    readaline(line,myprivate,ptr);
+#endif
+    for (i=0;;)
+    {
+#if CLIENT_CERT==FROM_FILE 
+        readaline(line,fp);
+#else    
+        readaline(line,myprivate,ptr);
+#endif        
+        if (line[0]=='-') break; 
+        for (int j=0;line[j]!=0;j++)
+            b[i++]=line[j];
+    }
+    b[i]=0;  
+//puts(b);        
+    OCT_from_base64(&SC,b);
+    pk=X509_extract_private_key(&SC, &(C->SECRETKEY)); // returns signature type
+    kind=get_sigalg(&pk); // Client must implement algorithm to do signature - make sure its in the SAL!
+    C->sigalg=kind;
+    
+    //printf("len= %d kind=%x\n",C->SECRETKEY.len,kind);
+    
+    int nsa=SAL_sigs(sigAlgs);
+ 
+    for (int i=0;i<nsa;i++) {
+        if (kind==sigAlgs[i]) offered=true;
+    } 
+#endif
+  
+// get first cert    
+// chain length is 1 (self-signed) or 2 (server+intermediate - root is not transmitted)
+
+#if CLIENT_CERT==FROM_FILE
+    fclose(fp); 
+    fp=fopen("../../clientcert/certchain.pem","r");
+    if (fp==NULL) return false;
+    if (!readaline(line,fp)) return false;
+#else    
+    ptr=0; 
+    readaline(line,mycert,ptr);
+#endif
+    for (i=0;;)
+    {
+#if CLIENT_CERT==FROM_FILE 
+        readaline(line,fp);
+#else    
+        readaline(line,mycert,ptr);
+#endif
+        if (line[0]=='-') break;
+        for (int j=0;line[j]!=0;j++)
+            b[i++]=line[j];
+    }
+    b[i]=0;
+  //puts(b);  
+    OCT_from_base64(&SC,b);
+// add to certchain   
+    OCT_append_int(&(C->CERTCHAIN),SC.len,3);
+    OCT_append_octad(&(C->CERTCHAIN),&SC);
+    OCT_append_int(&(C->CERTCHAIN),0,2);  // add no certificate extensions
+         
+    pk=X509_extract_cert_sig(&SC,&SIG);
+    C->nreqs=add_cert_sig_type(&pk,C->nreqs,C->requirements);   
+    C->nreqsraw=C->nreqs;   
+  
+ // extract its public key (for possible RAW public key use)   
+    X509_extract_cert(&SC,&SC);
+    len=X509_find_public_key(&SC,&pkptr);
+    octad PK={len,len,&SC.val[pkptr]};
+    OCT_append_int(&(C->PUBLICKEY),len,3);
+    OCT_append_octad(&(C->PUBLICKEY),&PK);
+#if CLIENT_CERT==FROM_FILE    
+    if (readaline(line,fp)) {
+#else
+    if (readaline(line,mycert,ptr)) { // there is an intermediate cert
+#endif   
+        for (i=0;;)
+        {
+#if CLIENT_CERT==FROM_FILE 
+            readaline(line,fp);
+#else    
+            readaline(line,mycert,ptr);
+#endif
+            if (line[0]=='-') break;
+            for (int j=0;line[j]!=0;j++)
+                b[i++]=line[j];
+        } 
+        b[i]=0;
+    //puts(b);    
+        OCT_from_base64(&SC,b);       	
+       
+// add to certchain   
+    	OCT_append_int(&(C->CERTCHAIN),SC.len,3);
+    	OCT_append_octad(&(C->CERTCHAIN),&SC);
+    	OCT_append_int(&(C->CERTCHAIN),0,2);  // add no certificate extensions
+    	pk=X509_extract_cert_sig(&SC,&SIG);
+    	C->nreqs=add_cert_sig_type(&pk,C->nreqs,C->requirements); 
+    }
+#if CLIENT_CERT==FROM_FILE  
+    fclose(fp);
+#endif    
+#ifdef SHALLOW_STACK
+    free(b);
+#endif   
+    if (!offered) return false;    
+    return true;  
+}
+
+#endif
+
+
+
+
+

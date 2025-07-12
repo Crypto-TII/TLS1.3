@@ -1744,7 +1744,7 @@ impl SESSION {
 
 // TLS1.3
 /// Connect with a client, and recover early data if any
-    pub fn connect(&mut self,early: &mut [u8],edlen: &mut usize,credential: &CREDENTIAL) -> usize {
+    pub fn connect(&mut self,early: &mut [u8],edlen: &mut usize,credential: &CREDENTIAL,stek: &[u8]) -> usize {
         let mut sh:[u8;MAX_HELLO]=[0;MAX_HELLO];
         let mut ext:[u8;MAX_EXTENSIONS]=[0;MAX_EXTENSIONS];
         let mut ss:[u8;MAX_SHARED_SECRET_SIZE]=[0;MAX_SHARED_SECRET_SIZE];
@@ -1777,7 +1777,7 @@ impl SESSION {
             log(IO_PROTOCOL,"Attempting Resumption Handshake on port ",self.port as isize,None);
             let mut psk:[u8;MAX_HASH]=[0;MAX_HASH];
             let mut psklen=0;
-            let mut r=self.process_ticket(&mut psk,&mut psklen,&credential.stek);
+            let mut r=self.process_ticket(&mut psk,&mut psklen,&stek);
             if self.bad_response(&r) {
                 return TLS_FAILURE;
             }
@@ -1941,7 +1941,7 @@ impl SESSION {
             }
 
             let mut scvsig:[u8;MAX_SIGNATURE_SIZE]=[0;MAX_SIGNATURE_SIZE];
-            let kind=credential.requirements[0]; // get signature algorithm
+            let kind=credential.sigalg; // get signature algorithm
 
             log(IO_PROTOCOL,"Server is authenticating\n",-1,None);
             logger::log_sig_alg(kind);

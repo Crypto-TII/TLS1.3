@@ -79,6 +79,13 @@ pub const HYBRID: usize = 4;
 /// EDDSA support
 pub const EDDSA: usize = 2;
 
+// supported SERVER CERTIFICATE settings
+/// Client certificate from ROM
+pub const FROM_ROM: usize = 1;
+///Client certificate from file
+pub const FROM_FILE:usize = 2;
+
+
 // These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
 pub const MAX_CERT_SIZE:usize = 6144;               // Max cert size 
@@ -311,6 +318,7 @@ pub const ALLOW_SELF_SIGNED:bool= true;     // allow self-signed certs
 pub const CRYPTO_SETTING: usize = TYPICAL;  // Decide on crypto setting - determines certificate chain
 //pub const THIS_YEAR: usize = 2025;          // Set to this year - was crudely used to deprecate old certificates - no longer used       
 pub const APPLICATION_PROTOCOL:&str="http/1.1";  // ALPN extension
+pub const SERVER_CERT:usize= FROM_ROM;     // client-side authentication
 pub const CERTIFICATE_REQUEST: bool=false;  // Does server require client authentication?
 pub const TICKET_LIFETIME: u32 = 86400;     // 86400 seconds in a day
 pub const MAX_EARLY_DATA: usize = 1024;     // maximum amount of early data a client can send 

@@ -1,11 +1,16 @@
 //! Create and manage cryptographic keys
 
+/// Session Ticket Encryption Key
+// Generate a unique one for your own server - https://www.random.org/bytes/
+// Better idea - this is now XOREd with fresh random on start-up to create combined STEK
+pub const STEK:[u8;32]=[0x45,0xcd,0x4e,0x84,0x30,0x53,0x6c,0x68,0x6d,0x24,0x3f,0x13,0x0a,0x91,0xbd,0xb6,0xa5,0xf1,0xd1,0xbc,0x33,0xf1,0xf4,0xbb,0x70,0x26,0xfa,0xfb,0x74,0xf7,0x6a,0x69];
+
+
 use zeroize::Zeroize;
 
 use crate::config::*;
 use crate::tls13::utils;
 use crate::sal_m::sal;
-use crate::tls13::servercert;
 use crate::tls13::x509;
 //use crate::tls13::logger::log;
 
@@ -109,7 +114,7 @@ impl CRYPTO {
             self.iv[i]=iv[i];
         }
         for  i in 0..16 {
-            self.k[i]=servercert::STEK[i]^stek[i];
+            self.k[i]=STEK[i]^stek[i];
         }
     }
 /// Initialise cipher suite
