@@ -17,7 +17,8 @@ typedef int8_t sign8 ;          /**< 8-bit signed integer */
 typedef int16_t sign16;         /**< 16-bit signed integer */
 typedef int32_t sign32;         /**< 32-bit signed integer */
 typedef int64_t sign64;         /**< 64-bit signed integer */
-typedef uint32_t unsign32 ;     /**< 32-bit unsigned integer */
+typedef uint16_t unsign16;      /**< 16-bit unsigned integer */
+typedef uint32_t unsign32;      /**< 32-bit unsigned integer */
 typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 
 // Terminal Output
@@ -36,8 +37,8 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 
 // Client Certificate Chain + Key
 #define NO_CERT 1  /**< Don't have a Client Cert */
-#define FROM_FILE 2 /**< certificate comes from file */
-#define FROM_ROM 3 /**< certificate comes from rom */
+#define FROM_FILE 2 /**< certificate and key comes from files */
+#define FROM_ROM 3 /**< certificate and key comes from rom */
 
 // Client certificate kinds
 #define RSA_SS 1  /**< self signed RSA cert */
@@ -54,17 +55,20 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // If server does not support it, an expensive Handshake Retry will be required
 // So best to place a popular group (such as X25519) at top of list in SAL
 
+#define CRYPTO_SETTING TYPICAL    /**< Cryptography Setting */
+
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
 //#define THIS_YEAR 2025            /**< Set to this year - was crudely used to deprecate old certificates - no longer used */
 
-#define POST_HS_AUTH              /**< Willing to do post handshake authentication */
-
+// Client side authentication
 #define CLIENT_CERT FROM_ROM        /**< Indicate capability of authenticating with a cert plus signing key (either built-in or from a file) */
 #define CLIENT_CERT_KIND ECC_SS     /**< Choose a certificate - see tls_clientcert.cpp */
+#define POST_HS_AUTH              /**< Willing to do post handshake authentication */
 
-#define CRYPTO_SETTING TYPICAL    /**< Determine Cryptography settings */
 // Supported protocols    
 #define TLS_APPLICATION_PROTOCOL (char *)("http/1.1") /**< Support ALPN protocol */
+
+// self-signed certificate not be allowed in real deployments
 #define ALLOW_SELF_SIGNED         /**< allow self-signed server cert */
 //#define NO_CERT_CHECKS          /**< Don't do any checks on server certs - useful for Anvil testing */
 #define TRY_EARLY_DATA            /**< Try to send early data on resumptions */
@@ -415,7 +419,7 @@ typedef struct
     octad CERTCHAIN;
     octad PUBLICKEY;
     octad SECRETKEY;
-    uint16_t requirements[16];    // signature algorithms that will be needed by the server
+    unsign16 requirements[16];    // signature algorithms that will be needed by the server
     int nreqs;
     int nreqsraw;
     int sigalg;              // signature algorithm I will use for TLS

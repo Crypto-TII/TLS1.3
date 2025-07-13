@@ -655,7 +655,7 @@ static int get_sigalg(pktype *pk) {
     return 0;    
 }
 
-static int add_cert_sig_type(pktype *pk,int reqlen,uint16_t *requirements) 
+static int add_cert_sig_type(pktype *pk,int reqlen,unsign16 *requirements) 
 {
     int len=reqlen;
     if (pk->type==X509_ECC) {
