@@ -471,7 +471,7 @@ static int TLS13_server_trust(TLS_session *session)
 }
 
 // Phase 3 - client supplies trust to server, given servers list of acceptable signature types
-#if CLIENT_CERT != NOCERT
+#if CLIENT_CERT != NO_CERT
 static void TLS13_client_trust(TLS_session *session,credential *Credential)
 {
     char ccvsig[TLS_MAX_SIGNATURE_SIZE];
@@ -1107,7 +1107,7 @@ int TLS13_recv(TLS_session *session,octad *REC,credential *Credential)
                         have_suitable_cert=true;
                     }
                     // send client credentials
-#if CLIENT_CERT==NOCERT
+#if CLIENT_CERT==NO_CERT
                     sendClientCertificateChain(session,NULL);
 #else                    
                     if (have_suitable_cert) {

@@ -7,9 +7,11 @@
 #include "tls_x509.h"
 #include "tls_sal.h"
 
-#if CLIENT_CERT!=NO_CERT
+#if CLIENT_CERT != NO_CERT
 
-#if CLIENT_CERT == ECC_SS
+#if CLIENT_CERT == FROM_ROM
+
+#if CLIENT_CERT_KIND == ECC_SS
 
 // My personal ECDSA private key - Certificate expires Jan 2026
 const char *myprivate=(char *)
@@ -41,7 +43,7 @@ const char *mycert=(char *)
 
 #endif
 
-#if CLIENT_CERT == EDD_SS
+#if CLIENT_CERT_KIND == EDD_SS
 
 // My personal EDDSA private key - Certificate expires Jan 2026
 const char *myprivate=(char *)
@@ -69,7 +71,7 @@ const char *mycert=(char *)
 #endif
 
 
-#if CLIENT_CERT == HW_1
+#if CLIENT_CERT_KIND == HW_1
 // My first Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0. Expires November 2026
 const char *myprivate=NULL;
 const int hwsigalg=ECDSA_SECP256R1_SHA256;
@@ -85,7 +87,7 @@ const char *mycert=(char *)
 
 #endif
 
-#if CLIENT_CERT == HW_2
+#if CLIENT_CERT_KIND == HW_2
 // My second Arduino Nano RP2040 self-signed Cert. Private key is on the board slot 0. Expires December 2026
 const char *myprivate=NULL;
 const int hwsigalg=ECDSA_SECP256R1_SHA256;
@@ -115,7 +117,7 @@ const char *mycert=(char *)
 "-----END CERTIFICATE-----\n";
 */
 
-#if CLIENT_CERT == RSA_SS
+#if CLIENT_CERT_KIND == RSA_SS
 // My personal private key RSA 2048 bits - expires October 2025
 const char *myprivate=(char *)
 "-----BEGIN PRIVATE KEY-----\n"
@@ -178,7 +180,7 @@ const char *mycert=(char *)
 
 #endif
 
-#if CLIENT_CERT == HYB_SS
+#if CLIENT_CERT_KIND == HYB_SS
 
 const char *myprivate=(char *)
 "-----BEGIN PRIVATE KEY-----\n"
@@ -363,7 +365,7 @@ const char *mycert=(char *)
 
 #endif
 
-#if CLIENT_CERT == DLT_SS
+#if CLIENT_CERT_KIND == DLT_SS
 
 const char *myprivate=(char *)
 "-----BEGIN PRIVATE KEY-----\n"
@@ -617,6 +619,13 @@ const char *mycert=(char *)
 
 #endif
 
+#if CLIENT_CERT_KIND == HW_1 || CLIENT_CERT_KIND == HW_2
+#define HSM_SECRET
+#endif
+
+
+#endif
+
 static int get_sigalg(pktype *pk) {
     if (pk->type==X509_ECC) {
         if (pk->curve==USE_NIST256) {
@@ -775,7 +784,7 @@ bool setCredential(credential *C)
     initCredential(C);
     bool offered=false; // if not in hardware or software
     
-#if CLIENT_CERT == HW_1 || CLIENTCERT == HW_2
+#if HSM_SECRET
     C->sigalg=hwsigalg;
     offered=true;
 #else   

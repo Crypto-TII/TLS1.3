@@ -652,7 +652,7 @@ ret getCertificateRequest(TLS_session *session,bool context,credential *Credenti
         return r;
     } 
 
-#if CLIENT_CERT == NOCERT
+#if CLIENT_CERT == NO_CERT
     r.val=0;
 #else
 // just decline by sending NULL certificate, rather than an alert

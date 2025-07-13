@@ -114,7 +114,7 @@ pub const MAX_CLIENT_CHAIN_SIZE:usize = MAX_CLIENT_CHAIN_LEN*MAX_CERT_SIZE;
 pub const MAX_SERVER_NAME: usize = 128;             // Max server name size in bytes 
 pub const MAX_CIPHER_SUITES: usize = 5;
 pub const MAX_SUPPORTED_GROUPS: usize = 10;
-pub const MAX_SUPPORTED_SIGS: usize = 16;
+pub const MAX_SUPPORTED_SIGS: usize = 32;
 
 pub const MAX_COOKIE: usize = 128;               // Max Cookie size  
 pub const MAX_IV_SIZE: usize = 12;               // Max IV size in bytes 

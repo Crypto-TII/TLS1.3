@@ -35,15 +35,18 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define EDDSA 2             /**< experimental EDDSA certificate chain used */
 
 // Client Certificate Chain + Key
-#define NOCERT 0  /**< Don't have a Client Cert */
+#define NO_CERT 1  /**< Don't have a Client Cert */
+#define FROM_FILE 2 /**< certificate comes from file */
+#define FROM_ROM 3 /**< certificate comes from rom */
+
+// Client certificate kinds
 #define RSA_SS 1  /**< self signed RSA cert */
 #define ECC_SS 2  /**< self signed ECC cert */
 #define DLT_SS 3  /**< self signed Dilithium cert */
 #define HYB_SS 6  /**< self signed Hybrid cert (Dilithium+ECC) */
 #define HW_1 4    /**< RP2040 1 Hardware cert */
 #define HW_2 5    /**< RP2040 2 Hardware cert */
-#define EDD_SS 7  /**< self signed Ed25519 cert */
-#define FROM_FILE 8 /**< certificate comes from file */
+#define EDD_SS 7  /**< self signed Ed25519 cert */ 
 
 // THESE ARE IMPORTANT USER DEFINED SETTINGS ***********************************
 
@@ -56,7 +59,8 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 
 #define POST_HS_AUTH              /**< Willing to do post handshake authentication */
 
-#define CLIENT_CERT NO_CERT        /**< Indicate capability of authenticating with a cert plus signing key (either built-in or from a file) */
+#define CLIENT_CERT FROM_ROM        /**< Indicate capability of authenticating with a cert plus signing key (either built-in or from a file) */
+#define CLIENT_CERT_KIND ECC_SS     /**< Choose a certificate - see tls_clientcert.cpp */
 
 #define CRYPTO_SETTING TYPICAL    /**< Determine Cryptography settings */
 // Supported protocols    
@@ -205,7 +209,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 
 #define TLS_MAX_SERVER_NAME 128         /**< Max server name size in bytes */
 #define TLS_MAX_SUPPORTED_GROUPS 10     /**< Max number of supported crypto groups */
-#define TLS_MAX_SUPPORTED_SIGS 16       /**< Max number of supported signature schemes */    
+#define TLS_MAX_SUPPORTED_SIGS 32       /**< Max number of supported signature schemes */    
 #define TLS_MAX_PSK_MODES 2             /**< Max preshared key modes */
 #define TLS_MAX_CIPHER_SUITES 5         /**< Max number of supported cipher suites */
 
