@@ -2,7 +2,7 @@
 //! CA root certificate store
 
 // First cert is our own default root ca
-// Next is our own experimental hybrid p256+DILITHIUM2 root certificate, then a DILITHIUM3 root certificate (Remove to save memory)
+// Next is our own experimental hybrid p256+MLDSA44 root certificate, then a MLDSA65 root certificate (Remove to save memory)
 // then is our own secp256r1 root certificate, and our own ed448 root certificate
 // after that all globaly accepted CAs
 

@@ -74,7 +74,7 @@ const RSAPK:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01];
 const RSASHA256:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b];
 const RSASHA384:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0c];
 const RSASHA512:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d];
-//const DILITHIUM3:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05];
+//const MLDSA65:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05];
 
 const MLDSA65:[u8;9]=[0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12]; // official
 //const MLDSA65:[u8;11]=[0x2B, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x0C, 0x06, 0x05]; // OQS
@@ -377,7 +377,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
         ret.curve = USE_ED448;
     }
 /*
-    if DILITHIUM3 == soid[0..slen] {
+    if MLDSA65 == soid[0..slen] {
         len=getalen(OCT,c,j);
         if len==0 {
             return ret;
@@ -731,7 +731,7 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
         ret.kind=RSA;
         ret.hash=H512;
     }
-//    if DILITHIUM3 == soid[0..slen] {
+//    if MLDSA65 == soid[0..slen] {
 //        ret.kind=PQ;
 //        ret.hash=0; // hash type is implicit
 //    }
@@ -1124,7 +1124,7 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     if RSAPK == koid[0..slen] {
         ret.kind=RSA;
     }
-//    if DILITHIUM3 == koid[0..slen] {
+//    if MLDSA65 == koid[0..slen] {
 //        ret.kind=PQ;
 //    }
     if MLDSA65 == koid[0..slen] {

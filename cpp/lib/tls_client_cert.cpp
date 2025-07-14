@@ -639,10 +639,10 @@ static int get_sigalg(pktype *pk) {
        return RSA_PSS_RSAE_SHA256;
     }
     if (pk->type==X509_PQ) {
-        return DILITHIUM3;
+        return MLDSA65;
     }
     if (pk->type==X509_HY) {
-        return DILITHIUM2_P256;
+        return MLDSA44_P256;
     }
     if (pk->type==X509_ECD) {
         if (pk->curve==USE_ED25519) {
@@ -686,14 +686,14 @@ static int add_cert_sig_type(pktype *pk,int reqlen,unsign16 *requirements)
     }
 
     if (pk->type==X509_PQ) {
-        requirements[len]=DILITHIUM3;
+        requirements[len]=MLDSA65;
         len+=1;
         return len;
     }
     if (pk->type==X509_HY) {
-        requirements[len]=DILITHIUM2_P256;
+        requirements[len]=MLDSA44_P256;
         len+=1;
-        requirements[len]=DILITHIUM2;
+        requirements[len]=MLDSA44;
         len+=1;
         requirements[len]=ECDSA_SECP256R1_SHA384;
         len+=1;

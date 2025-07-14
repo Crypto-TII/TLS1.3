@@ -84,9 +84,9 @@ static octad RSASHA384 = {9, sizeof(rsasha384), (char *)rsasha384};
 static unsigned char rsasha512[9] = {0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d};
 static octad RSASHA512 = {9, sizeof(rsasha512), (char *)rsasha512};
 
-// DILITHIUM3
-//static unsigned char dilithium3[11] = {0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05};
-//static octad DILITHIUM3 = {11, sizeof(dilithium3), (char *)dilithium3};
+// MLDSA65
+//static unsigned char mldsa3[11] = {0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05};
+//static octad MLDSA65 = {11, sizeof(mldsa3), (char *)mldsa3};
 
 // MLDSA65 - official
 static unsigned char mldsa65[9] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12};
@@ -360,8 +360,8 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         ret.type = X509_ECD;
         ret.curve = USE_ED448;
     }
-/*    if (OCT_compare(&DILITHIUM3, &SOID))
-    { // Its a DILITHIUM3 key
+/*    if (OCT_compare(&MLDSA65, &SOID))
+    { // Its a MLDSA65 key
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
         j += skip(len);
@@ -395,7 +395,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         ret.curve=8*tlen;
     }
     if (OCT_compare(&HYBRID, &SOID))
-    { // Its a P256 key followed by a DILITHIUM2 key
+    { // Its a P256 key followed by a MLDSA44 key
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
         j += skip(len);
@@ -645,7 +645,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         ret.type = X509_RSA;
         ret.hash = X509_H512;
     }
-/*    if (OCT_compare(&DILITHIUM3, &SOID))
+/*    if (OCT_compare(&MLDSA65, &SOID))
     {
         ret.type = X509_PQ;
         ret.hash = 0; // hash type is implicit
@@ -987,7 +987,7 @@ pktype X509_get_public_key(octad *c,octad *key)
     if (OCT_compare(&EDPK25519, &KOID)) {ret.type = X509_ECD; ret.curve=USE_ED25519;}
     if (OCT_compare(&EDPK448, &KOID)) {ret.type = X509_ECD;  ret.curve=USE_ED448;}
     if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
-    //if (OCT_compare(&DILITHIUM3, &KOID)) ret.type = X509_PQ;
+    //if (OCT_compare(&MLDSA65, &KOID)) ret.type = X509_PQ;
     if (OCT_compare(&MLDSA65, &KOID)) ret.type = X509_PQ;
     if (OCT_compare(&HYBRID, &KOID)) ret.type = X509_HY;
 

@@ -174,7 +174,7 @@ fn name_group(group: u16) {
         X25519 => println!("X25519"),
         SECP256R1 => println!("SECP256R1"),   
         SECP384R1 => println!("SECP384R1"),   
-        KYBER768 => println!("KYBER768"),
+        MLKEM768 => println!("MLKEM768"),
         SIDH => println!("SIDH"),
         _ => println!("Non-standard")
     }
@@ -191,7 +191,7 @@ fn name_signature(sigalg: u16) {
         RSA_PKCS1_SHA384 => println!("RSA_PKCS1_SHA384"),
         RSA_PSS_RSAE_SHA512 => println!("RSA_PSS_RSAE_SHA512"),
         RSA_PKCS1_SHA512 => println!("RSA_PKCS1_SHA512"),
-        DILITHIUM3 => println!("DILITHIUM3"),
+        MLDSA65 => println!("MLDSA65"),
         ED25519 => println!("ED25519"),
         ED448 => println!("ED448"),
         _ => println!("Non-standard")        
@@ -388,7 +388,7 @@ fn main() {
                         sal::random_bytes(32,&mut r32);
                         pqibe::cca_encrypt(&myhost,&r32,&mut session.t.psk,&mut session.t.tick);
                         session.t.psklen=pqibe::KYLEN; session.t.tklen=pqibe::CTLEN;
-                        session.t.favourite_group=KYBER768;
+                        session.t.favourite_group=MLKEM768;
                     }
                     if CRYPTO_SETTING == HYBRID {
                         log(IO_PROTOCOL,"Using Hybrid Pairing based/Post Quantum IBE\n",-1,None);

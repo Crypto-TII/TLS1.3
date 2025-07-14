@@ -65,9 +65,9 @@ pub fn log_sig_alg(level: usize,sigalg: u16) {
         RSA_PKCS1_SHA384 => log(level,"RSA_PKCS1_SHA384\n",-1,None),
         RSA_PSS_RSAE_SHA512 => log(level,"RSA_PSS_RSAE_SHA512\n",-1,None),
         RSA_PKCS1_SHA512 => log(level,"RSA_PKCS1_SHA512\n",-1,None),
-        DILITHIUM3 => log(level,"DILITHIUM3\n",-1,None),
-        DILITHIUM2 => log(level,"DILITHIUM2\n",-1,None),
-        DILITHIUM2_P256 => log(level,"DILITHIUM2 + P256\n",-1,None),
+        MLDSA65 => log(level,"MLDSA65\n",-1,None),
+        MLDSA44 => log(level,"MLDSA44\n",-1,None),
+        MLDSA44_P256 => log(level,"MLDSA44 + P256\n",-1,None),
         ED25519 => log(level,"Ed25519\n",-1,None),
         ED448 => log(level,"Ed448\n",-1,None),
         _ => log(level,"Non-standard\n",-1,None)
@@ -81,8 +81,8 @@ pub fn log_key_exchange(level: usize,kex: u16) {
         X25519 => log(level,"X25519\n",-1,None),
         SECP256R1 => log(level,"SECP256R1\n",-1,None),
         SECP384R1 => log(level,"SECP384R1\n",-1,None),
-        KYBER768 => log(level,"KYBER768\n",-1,None),
-        HYBRID_KX => log(IO_PROTOCOL,"HYBRID KYBER+X25519\n",-1,None),
+        MLKEM768 => log(level,"MLKEM768\n",-1,None),
+        HYBRID_KX => log(IO_PROTOCOL,"HYBRID MLKEM+X25519\n",-1,None),
         SIDH => log(level,"SIDH\n",-1,None),
         _  => log(level,"Non-standard\n",-1,None)
     }

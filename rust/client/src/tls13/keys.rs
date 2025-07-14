@@ -180,12 +180,12 @@ pub fn create_client_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],ccvsig: &mut 
     ptr=utils::append_byte(&mut ccv,ptr,0,1); 
     ptr=utils::append_bytes(&mut ccv,ptr,h);
 
-// *** if sigalg==DILITHIUM2_P256, extract both signing keys, create two signatures, and concatenate them
-    if sigalg==DILITHIUM2_P256 {
+// *** if sigalg==MLDSA44_P256, extract both signing keys, create two signatures, and concatenate them
+    if sigalg==MLDSA44_P256 {
         // whats private key look like?
         let siglen=sal::tls_signature(ECDSA_SECP256R1_SHA384,&key[0..32],&ccv[0..ptr],ccvsig);
         let mut cclen=x509::ecdsa_sig_encode(siglen,ccvsig);
-        cclen+=sal::tls_signature(DILITHIUM2,&key[32..],&ccv[0..ptr],&mut ccvsig[cclen..]); // append PQ sig
+        cclen+=sal::tls_signature(MLDSA44,&key[32..],&ccv[0..ptr],&mut ccvsig[cclen..]); // append PQ sig
         return cclen;
     }
 
@@ -206,7 +206,7 @@ pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk:
     ptr=utils::append_byte(&mut scv,ptr,0,1);   // add 0
     ptr=utils::append_bytes(&mut scv,ptr,h);    // add transcript hash
 
-    if sigalg==DILITHIUM2_P256 {
+    if sigalg==MLDSA44_P256 {
         let pub1=&certpk[0..65];
         let pub2=&certpk[65..];
         let ret=x509::ecdsa_sig_decode(scvsig);
@@ -215,7 +215,7 @@ pub fn check_server_cert_verifier(sigalg: u16,scvsig: &mut [u8],h: &[u8],certpk:
             return false;
         }   
         let index=ret.index;
-        return sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,&scv[0..ptr],&scvsig[0..siglen],pub1) && sal::tls_signature_verify(DILITHIUM2,&scv[0..ptr],&scvsig[index..],pub2);
+        return sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,&scv[0..ptr],&scvsig[0..siglen],pub1) && sal::tls_signature_verify(MLDSA44,&scv[0..ptr],&scvsig[index..],pub2);
     }
 
     let mut siglen=scvsig.len();

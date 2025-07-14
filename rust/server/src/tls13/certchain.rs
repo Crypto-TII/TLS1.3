@@ -128,14 +128,14 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
         return sal::tls_signature_verify(RSA_PKCS1_SHA512,cert,sig,pubkey);
     }
     if st.kind==x509::PQ {
-        return sal::tls_signature_verify(DILITHIUM3,cert,sig,pubkey);
+        return sal::tls_signature_verify(MLDSA65,cert,sig,pubkey);
     }
     if st.kind==x509::HY {
         let sig1=&sig[0..64];
         let sig2=&sig[64..]; 
         let pub1=&pubkey[0..65];
         let pub2=&pubkey[65..];
-        if sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,cert,sig1,pub1) && sal::tls_signature_verify(DILITHIUM2,cert,sig2,pub2) {
+        if sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,cert,sig1,pub1) && sal::tls_signature_verify(MLDSA44,cert,sig2,pub2) {
             return true;
         }
         return false;

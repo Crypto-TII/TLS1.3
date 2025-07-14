@@ -64,7 +64,7 @@ pub fn secret_key_size(group: u16) -> usize {
         return 48;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
-        if group==config::KYBER768 {
+        if group==config::MLKEM768 {
             return mcore::kyber::SECRET_CCA_SIZE_768;
             //let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
             //return kem.length_secret_key();
@@ -90,7 +90,7 @@ pub fn client_public_key_size(group: u16) -> usize {
         return 97;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
-        if group==config::KYBER768 {
+        if group==config::MLKEM768 {
             return mcore::kyber::PUBLIC_SIZE_768;
             //let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
             //return kem.length_public_key();              
@@ -116,7 +116,7 @@ pub fn server_public_key_size(group: u16) -> usize {
         return 97;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
-        if group==config::KYBER768 {
+        if group==config::MLKEM768 {
             return mcore::kyber::CIPHERTEXT_SIZE_768;
             //let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
             //return kem.length_ciphertext(); 
@@ -142,7 +142,7 @@ pub fn shared_secret_size(group: u16) -> usize {
         return 48;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
-        if group==config::KYBER768 {
+        if group==config::MLKEM768 {
             return mcore::kyber::SHARED_SECRET_768;
             //let kem = kem::Kem::new(kem::Algorithm::Kyber768).unwrap();
             //return kem.length_shared_secret(); 
@@ -172,7 +172,7 @@ pub fn groups(groups: &mut [u16]) -> usize {
     groups[1]=config::SECP256R1;
     groups[2]=config::SECP384R1;
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
-        groups[n]=config::KYBER768; n+=1;
+        groups[n]=config::MLKEM768; n+=1;
         groups[n]=config::HYBRID_KX; n+=1;
     }
     return n;
@@ -192,11 +192,11 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
         sig_algs[n]=config::ED448; n+=1;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
-        sig_algs[n]=config::DILITHIUM3; n+=1;
+        sig_algs[n]=config::MLDSA65; n+=1;
     }
     if config::CRYPTO_SETTING==config::HYBRID {
-        sig_algs[n]=config::DILITHIUM2; n+=1;
-        sig_algs[n]=config::DILITHIUM2_P256; n+=1;  
+        sig_algs[n]=config::MLDSA44; n+=1;
+        sig_algs[n]=config::MLDSA44_P256; n+=1;  
         sig_algs[n]=config::ECDSA_SECP256R1_SHA384; n+=1;
     }
     return n;
@@ -218,11 +218,11 @@ pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
         sig_algs_cert[n]=config::ED448; n+=1;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
-        sig_algs_cert[n]=config::DILITHIUM3; n+=1;   
+        sig_algs_cert[n]=config::MLDSA65; n+=1;   
     }
     if config::CRYPTO_SETTING==config::HYBRID {
-        sig_algs_cert[n]=config::DILITHIUM2; n+=1; 
-        sig_algs_cert[n]=config::DILITHIUM2_P256; n+=1; 
+        sig_algs_cert[n]=config::MLDSA44; n+=1; 
+        sig_algs_cert[n]=config::MLDSA44_P256; n+=1; 
         sig_algs_cert[n]=config::ECDSA_SECP256R1_SHA384; n+=1;
     }
     return n;
@@ -429,7 +429,7 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
         nist384::KEY_PAIR(false,&csk[0..48], &mut pk[0..97]);
     }    
     if config::CRYPTO_SETTING>=config::POST_QUANTUM { 
-        if group==config::KYBER768 {
+        if group==config::MLKEM768 {
             use mcore::kyber;
             let mut r64: [u8;64]=[0;64];
             random_bytes(64,&mut r64);
@@ -443,8 +443,8 @@ pub fn generate_key_pair(group: u16,csk: &mut [u8],pk: &mut [u8]) {
             kyber::keypair_768(&r64,&mut csk[0..kyber::SECRET_CCA_SIZE_768],&mut pk[0..kyber::PUBLIC_SIZE_768]);
 
             use tlsecc::x25519;// append an X25519
-            let startsk=secret_key_size(config::KYBER768);
-            let startpk=client_public_key_size(config::KYBER768);
+            let startsk=secret_key_size(config::MLKEM768);
+            let startpk=client_public_key_size(config::MLKEM768);
             random_bytes(32,&mut csk[startsk..startsk+32]);
             x25519::KEY_PAIR(&csk[startsk..startsk+32], &mut pk[startpk..startpk+32]);
         }
@@ -480,7 +480,7 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
         csk.zeroize();
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM { 
-        if group==config::KYBER768 {
+        if group==config::MLKEM768 {
             use mcore::kyber;
             let mut r32: [u8;32]=[0;32];
             random_bytes(32,&mut r32);
@@ -496,9 +496,9 @@ pub fn server_shared_secret(group: u16,cpk: &[u8],spk: &mut [u8],ss: &mut [u8]) 
             r32.zeroize();
 
             use tlsecc::x25519; // append an X25519
-            let startct=server_public_key_size(config::KYBER768);
-            let startpk=client_public_key_size(config::KYBER768);
-            let startss=shared_secret_size(config::KYBER768);
+            let startct=server_public_key_size(config::MLKEM768);
+            let startpk=client_public_key_size(config::MLKEM768);
+            let startss=shared_secret_size(config::MLKEM768);
 
             let mut csk:[u8;32]=[0;32];
             random_bytes(32,&mut csk);
@@ -535,7 +535,7 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
         success=nist384::SHARED_SECRET(&sk[0..48],&pk[0..97],&mut ss[0..48]);
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM { 
-        if group==config::KYBER768 {
+        if group==config::MLKEM768 {
             use mcore::kyber;
             kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
             success=true;
@@ -544,9 +544,9 @@ pub fn generate_shared_secret(group: u16,sk: &[u8],pk: &[u8],ss: &mut [u8]) -> b
             use mcore::kyber;
             kyber::decrypt_768(&sk[0..kyber::SECRET_CCA_SIZE_768],&pk[0..kyber::CIPHERTEXT_SIZE_768],&mut ss[0..kyber::SHARED_SECRET_768]);
             use tlsecc::x25519;
-            let startsk=secret_key_size(config::KYBER768);
-            let startct=server_public_key_size(config::KYBER768);
-            let startss=shared_secret_size(config::KYBER768);
+            let startsk=secret_key_size(config::MLKEM768);
+            let startct=server_public_key_size(config::MLKEM768);
+            let startss=shared_secret_size(config::MLKEM768);
             success=x25519::SHARED_SECRET(&sk[startsk..startsk+32],&pk[startct..startct+32],&mut ss[startss..startss+32]);      
         }
     }
@@ -814,8 +814,8 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
 
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {   
         match sigalg {  
-            config::DILITHIUM3 => {return dilithium3_verify(buff,sig,pubkey);},
-            config::DILITHIUM2 => {return dilithium2_verify(buff,sig,pubkey);},
+            config::MLDSA65 => {return dilithium3_verify(buff,sig,pubkey);},
+            config::MLDSA44 => {return dilithium2_verify(buff,sig,pubkey);},
             _ => {}
         }
     }
@@ -845,8 +845,8 @@ pub fn tls_signature(sigalg: u16,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usiz
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {  
         match sigalg {  
-            config:: DILITHIUM3 => {return dilithium3_sign(key,trans,sig);},
-            config:: DILITHIUM2 => {return dilithium2_sign(key,trans,sig);},
+            config:: MLDSA65 => {return dilithium3_sign(key,trans,sig);},
+            config:: MLDSA44 => {return dilithium2_sign(key,trans,sig);},
             _ => {}
         }
     }

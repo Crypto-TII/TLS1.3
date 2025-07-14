@@ -122,11 +122,11 @@ static void nameGroup(int kex)
     case SECP384R1:
         printf("SECP384R1\n");   
         break;
-    case KYBER768:
-        printf("KYBER768\n");   
+    case MLKEM768:
+        printf("MLKEM768\n");   
         break;
     case HYBRID_KX:
-        printf("KYBER768+X25519\n");   
+        printf("MLKEM768+X25519\n");   
         break;
     default:
         printf("Non-standard\n");   
@@ -187,14 +187,14 @@ static void nameSigAlg(int sigAlg)
     case ED448:
         printf("ED448\n");   
         break;
-    case DILITHIUM2:
-        printf("DILITHIUM2\n");   
+    case MLDSA44:
+        printf("MLDSA44\n");   
         break;
-    case DILITHIUM3:
-        printf("DILITHIUM3\n");   
+    case MLDSA65:
+        printf("MLDSA65\n");   
         break;
-    case DILITHIUM2_P256:
-        printf("DILITHIUM2 + P256\n");   
+    case MLDSA44_P256:
+        printf("MLDSA44 + P256\n");   
         break;
     default:
         printf("Non-standard\n");   
@@ -450,7 +450,7 @@ int main(int argc, char const *argv[])
             PQIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
             session->T.PSK.len=MC_PSK.len;
             session->T.TICK.len=MC_TICK.len;
-            session->T.favourite_group=KYBER768;
+            session->T.favourite_group=MLKEM768;
 #endif
 #if CRYPTO_SETTING == HYBRID
             log(IO_PROTOCOL,(char *)"Using Hybrid Pairing based/Post Quantum IBE\n",NULL,0,NULL);

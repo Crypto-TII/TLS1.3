@@ -386,14 +386,14 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     OCT_append_byte(&CCV,0,1);   // add 0 character
     OCT_append_octad(&CCV,H);    // add Transcript Hash 
 
-    if (sigAlg==DILITHIUM2_P256)
+    if (sigAlg==MLDSA44_P256)
     {
         octad FKEY={32,32,KEY->val};
         octad SKEY={KEY->len-32,KEY->len-32,&KEY->val[32]};
         SAL_tlsSignature(ECDSA_SECP256R1_SHA384,&FKEY,&CCV,CCVSIG);
         ecdsa_sig_encode(CCVSIG);  // ASN.1 encode it - it grows
         octad SSIG={0,TLS_MAX_SIGNATURE_SIZE-32,&CCVSIG->val[CCVSIG->len]};
-        SAL_tlsSignature(DILITHIUM2,&SKEY,&CCV,&SSIG); // append PQ sig
+        SAL_tlsSignature(MLDSA44,&SKEY,&CCV,&SSIG); // append PQ sig
         CCVSIG->len += SSIG.len;
         return;
     }
@@ -421,7 +421,7 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
     OCT_append_byte(&SCV,0,1);   // add 0 character
     OCT_append_octad(&SCV,H);    // add Transcript Hash 
 
-    if (sigAlg==DILITHIUM2_P256)
+    if (sigAlg==MLDSA44_P256)
     {
         octad FPUB={65,65,CERTPK->val};
         octad SPUB={CERTPK->len-65,CERTPK->len-65,&CERTPK->val[65]};
@@ -431,7 +431,7 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
         int mlen=SCVSIG->len;               // modified length
         octad FSIG={mlen,mlen,SCVSIG->val};
         octad SSIG={len-index,len-index,&SCVSIG->val[index]};
-        return SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA384,&SCV,&FSIG,&FPUB) && SAL_tlsSignatureVerify(DILITHIUM2,&SCV,&SSIG,&SPUB);
+        return SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA384,&SCV,&FSIG,&FPUB) && SAL_tlsSignatureVerify(MLDSA44,&SCV,&SSIG,&SPUB);
     }
 
 // Special case processing required here for ECDSA signatures -  SCVSIG is modified

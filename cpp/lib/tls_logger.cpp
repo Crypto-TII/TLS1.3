@@ -100,11 +100,11 @@ static void nameKeyExchange(int kex)
     case SECP384R1:
         myprintf((char *)"SECP384R1\n");   
         break;
-    case KYBER768:
-        myprintf((char *)"KYBER768\n");
+    case MLKEM768:
+        myprintf((char *)"MLKEM768\n");
         break;
     case HYBRID_KX:
-        myprintf((char *)"KYBER + X25519\n");
+        myprintf((char *)"MLKEM + X25519\n");
         break;
     default:
         myprintf((char *)"Non-standard\n");   
@@ -151,14 +151,14 @@ static void nameSigAlg(int sigAlg)
     case ED25519:
         myprintf((char *)"ED25519\n");   
         break;
-    case DILITHIUM2:
-        myprintf((char *)"DILITHIUM2\n");   
+    case MLDSA44:
+        myprintf((char *)"MLDSA44\n");   
         break;
-    case DILITHIUM3:
-        myprintf((char *)"DILITHIUM3\n");   
+    case MLDSA65:
+        myprintf((char *)"MLDSA65\n");   
         break;
-    case DILITHIUM2_P256:
-        myprintf((char *)"DILITHIUM2 + P256\n");   
+    case MLDSA44_P256:
+        myprintf((char *)"MLDSA44 + P256\n");   
         break;
     default:
         myprintf((char *)"Non-standard\n");   

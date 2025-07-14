@@ -62,11 +62,11 @@ static void nameGroup(int kex)
     case SECP384R1:
         Serial.println("SECP384R1");   
         break;
-    case KYBER768:
-        Serial.println("KYBER768");   
+    case MLKEM768:
+        Serial.println("MLKEM768");   
         break;
     case HYBRID_KX:
-        Serial.println("KYBER768+X25519");   
+        Serial.println("MLKEM768+X25519");   
         break;
     default:
         Serial.println("Non-standard");   
@@ -127,14 +127,14 @@ static void nameSigAlg(int sigAlg)
     case ED448:
         Serial.println("ED448");   
         break;
-    case DILITHIUM2:
-        Serial.println("DILITHIUM2");   
+    case MLDSA44:
+        Serial.println("MLDSA44");   
         break;
-    case DILITHIUM3:
-        Serial.println("DILITHIUM3");   
+    case MLDSA65:
+        Serial.println("MLDSA65");   
         break;
-    case DILITHIUM2_P256:
-        Serial.println("DILITHIUM2 + P256");   
+    case MLDSA44_P256:
+        Serial.println("MLDSA44 + P256");   
         break;
     default:
         Serial.println("Non-standard");   
@@ -257,7 +257,7 @@ void testTLSconnect(Socket *client,char *hostname,int port)
         PQIBE_CCA_ENCRYPT(myhostname,&MC_R32,&MC_PSK,&MC_TICK);
         session->T.PSK.len=MC_PSK.len;
         session->T.TICK.len=MC_TICK.len;
-        session->T.favourite_group=KYBER768;
+        session->T.favourite_group=MLKEM768;
 #endif
 #if CRYPTO_SETTING == HYBRID
         log(IO_PROTOCOL,(char *)"Using Hybrid Pairing based/Post Quantum IBE\n",NULL,0,NULL);

@@ -215,9 +215,9 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
     if (st.type== X509_RSA && st.hash==X509_H512)
         res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA512,CERT,SIG,PUBKEY);
     if (st.type== X509_PQ)
-        res=SAL_tlsSignatureVerify(DILITHIUM3,CERT,SIG,PUBKEY);
+        res=SAL_tlsSignatureVerify(MLDSA65,CERT,SIG,PUBKEY);
 
-// probably deepest into the stack at this stage.... (especially for Dilithium)
+// probably deepest into the stack at this stage.... (especially for MLDSA)
 
     if (st.type==X509_HY)
     {
@@ -225,7 +225,7 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
         octad SPUB={PUBKEY->len-65,PUBKEY->len-65,&PUBKEY->val[65]};
         octad FSIG={64,64,SIG->val};
         octad SSIG={SIG->len-64,SIG->len-64,&SIG->val[64]};
-        res = SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA384,CERT,&FSIG,&FPUB) && SAL_tlsSignatureVerify(DILITHIUM2,CERT,&SSIG,&SPUB);
+        res = SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA384,CERT,&FSIG,&FPUB) && SAL_tlsSignatureVerify(MLDSA44,CERT,&SSIG,&SPUB);
     }
 
     if (res)

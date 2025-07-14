@@ -31,8 +31,8 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // // Supported CRYPTO_SETTINGs
 #define TINY_ECC 0          /**< ECC keys only */
 #define TYPICAL 1           /**< Mixture of RSA and ECC - for use with most standard web servers */
-#define POST_QUANTUM 3      /**< Post quantum (Dilithium+Kyber?) */   
-#define HYBRID 4            /**< Hybrid, Kyber/Dilithium + X25519 */
+#define POST_QUANTUM 3      /**< Post quantum (MLDSA and MLKEM?) */   
+#define HYBRID 4            /**< Hybrid, MLKEM/MLDSA + X25519 */
 #define EDDSA 2             /**< experimental EDDSA certificate chain used */
 
 // Client Certificate Chain + Key
@@ -43,8 +43,8 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // Client certificate kinds
 #define RSA_SS 1  /**< self signed RSA cert */
 #define ECC_SS 2  /**< self signed ECC cert */
-#define DLT_SS 3  /**< self signed Dilithium cert */
-#define HYB_SS 6  /**< self signed Hybrid cert (Dilithium+ECC) */
+#define DLT_SS 3  /**< self signed MLDSA cert */
+#define HYB_SS 6  /**< self signed Hybrid cert (MLDSA+ECC) */
 #define HW_1 4    /**< RP2040 1 Hardware cert */
 #define HW_2 5    /**< RP2040 2 Hardware cert */
 #define EDD_SS 7  /**< self signed Ed25519 cert */ 
@@ -158,17 +158,17 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
  #define TLS_MAX_PLAIN_FRAG 16384            /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (16384+256)     /**< Max Ciphertext Fragment size */
 
- #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for Dilithium!*/
+ #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for MLDSA!*/
  #define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
 
 // These all blow up post quantum
- #define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max signature public key size in bytes     DILITHIUM3 */
- #define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max signature private key size in bytes    DILITHIUM3 (maybe includes the public key?) */
- #define TLS_MAX_SIGNATURE_SIZE 3309          /**< Max signature size in bytes                DILITHIUM3 */
- #define TLS_MAX_KEX_PUB_KEY_SIZE 1184        /**< Max key exchange public key size in bytes  KYBER768   */
- #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088     /**< Max key exchange (KEM) ciphertext size     KYBER768   */
- #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes KYBER768   */
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max signature public key size in bytes     MLDSA65 */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max signature private key size in bytes    MLDSA65 (maybe includes the public key?) */
+ #define TLS_MAX_SIGNATURE_SIZE 3309          /**< Max signature size in bytes                MLDSA65 */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 1184        /**< Max key exchange public key size in bytes  MLKEM768   */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088     /**< Max key exchange (KEM) ciphertext size     MLKEM768   */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes MLKEM768   */
 #endif
 
 #if CRYPTO_SETTING == HYBRID
@@ -177,17 +177,17 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
  #define TLS_MAX_PLAIN_FRAG 16384         /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (16384+256)  /**< Max Ciphertext Fragment size */
 
- #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for Dilithium!*/
+ #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for MLDSA!*/
  #define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
 
 // These all blow up post quantum
- #define TLS_MAX_SIG_PUB_KEY_SIZE 1312+65         /**< Max signature public key size in bytes     DILITHIUM2 + P256 */
- #define TLS_MAX_SIG_SECRET_KEY_SIZE 2528+200     /**< Max signature private key size in bytes    DILITHIUM2 + P256 (maybe includes the public key?) */
- #define TLS_MAX_SIGNATURE_SIZE 2420+100          /**< Max signature size in bytes                DILITHIUM2 + P256 (DER encoding for ECC sig) */
- #define TLS_MAX_KEX_PUB_KEY_SIZE 1184+32         /**< Max key exchange public key size in bytes  KYBER768+X25519   */
- #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088+32      /**< Max key exchange (KEM) ciphertext size     KYBER768+X25519   */
- #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400+32      /**< Max key exchange private key size in bytes KYBER768+X25519   */
+ #define TLS_MAX_SIG_PUB_KEY_SIZE 1312+65         /**< Max signature public key size in bytes     MLDSA44 + P256 */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE 2528+200     /**< Max signature private key size in bytes    MLDSA44 + P256 (maybe includes the public key?) */
+ #define TLS_MAX_SIGNATURE_SIZE 2420+100          /**< Max signature size in bytes                MLDSA44 + P256 (DER encoding for ECC sig) */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 1184+32         /**< Max key exchange public key size in bytes  MLKEM768+X25519   */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088+32      /**< Max key exchange (KEM) ciphertext size     MLKEM768+X25519   */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400+32      /**< Max key exchange private key size in bytes MLKEM768+X25519   */
 #endif
 
 
@@ -230,10 +230,10 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define SECP384R1 0x0018                /**< NIST SECP384R1 elliptic curve key exchange */
 #define SECP521R1 0x0019                /**< NIST SECP521R1 elliptic curve key exchange */
 #define X448 0x001e                     /**< X448 elliptic curve key exchange */
-#define KYBER512 0x0200                 /**< Kyber PQ key exchange */
-#define KYBER768 0x0201                 /**< Kyber PQ key exchange */
-#define KYBER1024 0x0202                 /**< Kyber PQ key exchange */
-#define HYBRID_KX 0x11ec                /**< Hybrid key exchange, Kyber+X25519 */
+#define MLKEM512 0x0200                 /**< MLKEM PQ512 key exchange */
+#define MLKEM768 0x0201                 /**< MLKEM PQ768 key exchange */
+#define MLKEM1024 0x0202                 /**< MLKEM1024 PQ key exchange */
+#define HYBRID_KX 0x11ec                /**< Hybrid key exchange, MLKEM768+X25519 */
 
 // Signature algorithms for TLS1.3 and Certs that we can handle 
 #define ECDSA_SECP256R1_SHA256 0x0403   /**< Supported ECDSA Signature algorithm */ 
@@ -247,10 +247,10 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define RSA_PKCS1_SHA512 0x0601         /**< Supported RSA Signature algorithm */
 #define ED25519 0x0807                  /**< Ed25519 EdDSA Signature algorithm */
 #define ED448 0x0808                    /**< Ed448 EdDSA Signature algorithm */
-#define DILITHIUM2 0x0904               /**< Dilithium Signature algorithms */
-#define DILITHIUM3 0x0905
-#define DILITHIUM5 0x0906      
-#define DILITHIUM2_P256 0xFF06 //0x0907          /**< Dilithium2+SECP256R1 Hybrid Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */
+#define MLDSA44 0x0904                   /**< MLDSA Signature algorithms */
+#define MLDSA65 0x0905
+#define MLDSA87 0x0906      
+#define MLDSA44_P256 0xFF06 //0x0907          /**< MLDSA44+SECP256R1 Hybrid Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */

@@ -201,12 +201,12 @@ pub fn create_server_cert_verifier(sigalg: u16,h: &[u8],key: &[u8],scvsig: &mut 
     ptr=utils::append_byte(&mut scv,ptr,0,1); 
     ptr=utils::append_bytes(&mut scv,ptr,h);
 
-// *** if sigalg==DILITHIUM2_P256, extract both signing keys, create two signatures, and concatenate them
-    if sigalg==DILITHIUM2_P256 {
+// *** if sigalg==MLDSA44_P256, extract both signing keys, create two signatures, and concatenate them
+    if sigalg==MLDSA44_P256 {
         // whats private key look like?
         let siglen=sal::tls_signature(ECDSA_SECP256R1_SHA384,&key[0..32],&scv[0..ptr],scvsig);
         let mut sclen=x509::ecdsa_sig_encode(siglen,scvsig);
-        sclen+=sal::tls_signature(DILITHIUM2,&key[32..],&scv[0..ptr],&mut scvsig[sclen..]); // append PQ sig
+        sclen+=sal::tls_signature(MLDSA44,&key[32..],&scv[0..ptr],&mut scvsig[sclen..]); // append PQ sig
         return sclen;
     }
 
@@ -227,8 +227,8 @@ pub fn check_client_cert_verifier(sigalg: u16,ccvsig: &mut [u8],h: &[u8],certpk:
     ptr=utils::append_byte(&mut ccv,ptr,0,1);   // add 0
     ptr=utils::append_bytes(&mut ccv,ptr,h);    // add transcript hash
 
-// *** if sigalg==DILITHIUM2_P256, extract two signatures, and verify them separately
-    if sigalg==DILITHIUM2_P256 {
+// *** if sigalg==MLDSA44_P256, extract two signatures, and verify them separately
+    if sigalg==MLDSA44_P256 {
         let pub1=&certpk[0..65];
         let pub2=&certpk[65..];
         let ret=x509::ecdsa_sig_decode(ccvsig);
@@ -237,7 +237,7 @@ pub fn check_client_cert_verifier(sigalg: u16,ccvsig: &mut [u8],h: &[u8],certpk:
             return false;
         }   
         let index=ret.index;
-        return sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,&ccv[0..ptr],&ccvsig[0..siglen],pub1) && sal::tls_signature_verify(DILITHIUM2,&ccv[0..ptr],&ccvsig[index..],pub2);
+        return sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,&ccv[0..ptr],&ccvsig[0..siglen],pub1) && sal::tls_signature_verify(MLDSA44,&ccv[0..ptr],&ccvsig[index..],pub2);
     }
 
     let mut siglen=ccvsig.len();

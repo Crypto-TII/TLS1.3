@@ -35,13 +35,13 @@ pub const RSA_PKCS1_SHA384: u16 = 0x0501;
 /// Supported RSA Signature algorithm
 pub const RSA_PKCS1_SHA512: u16 = 0x0601;  
 /// Dilithium3 Signature algorithm
-pub const DILITHIUM3: u16 = 0x0905;  
+pub const MLDSA65: u16 = 0x0905;  
 /// Dilithium2 Signature algorithm
-pub const DILITHIUM2: u16 = 0x0904; 
+pub const MLDSA44: u16 = 0x0904; 
 /// Non-standard - used in hybrid schemes 
 pub const ECDSA_SECP256R1_SHA384: u16 = 0x0413; 
 /// Dilithium2 Hybrid Signature algorithm 
-pub const DILITHIUM2_P256: u16 = 0xFF06; //0x0907; // this type can be negotiated, but always implemented seperately by SAL
+pub const MLDSA44_P256: u16 = 0xFF06; //0x0907; // this type can be negotiated, but always implemented seperately by SAL
 // Ed25519 EdDSA Signature algorithm
 pub const ED25519: u16 = 0x0807;                   
 // Ed448 EdDSA Signature algorithm
@@ -150,7 +150,7 @@ pub const UPDATE_REQUESTED: usize=1;
 pub const X25519: u16 = 0x001d;
 pub const SECP256R1: u16 = 0x0017;
 pub const SECP384R1: u16 = 0x0018;
-pub const KYBER768: u16 = 0x0201;
+pub const MLKEM768: u16 = 0x0201;
 pub const SIDH: u16 = 0x4243;
 pub const HYBRID_KX: u16 = 0x11ec;
 //pub const SECP521R1: u16 = 0x0019;

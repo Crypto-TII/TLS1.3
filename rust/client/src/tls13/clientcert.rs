@@ -46,10 +46,10 @@ fn get_sigalg(pk: &x509::PKTYPE) -> u16 {
        return RSA_PSS_RSAE_SHA256;
     }
     if pk.kind==x509::PQ {
-        return DILITHIUM3;
+        return MLDSA65;
     }
     if pk.kind==x509::HY {
-        return DILITHIUM2_P256;
+        return MLDSA44_P256;
     }
     if pk.kind==x509::ECD {
         if pk.curve==x509::USE_ED25519 {
@@ -93,14 +93,14 @@ fn add_cert_sig_type(pk: &x509::PKTYPE,reqlen: usize,requirements: &mut [u16]) -
     }
 
     if pk.kind==x509::PQ {
-        requirements[len]=DILITHIUM3;
+        requirements[len]=MLDSA65;
         len+=1;
         return len;
     }
     if pk.kind==x509::HY {
-        requirements[len]=DILITHIUM2_P256;
+        requirements[len]=MLDSA44_P256;
         len+=1;
-        requirements[len]=DILITHIUM2;
+        requirements[len]=MLDSA44;
         len+=1;
         requirements[len]=ECDSA_SECP256R1_SHA384;
         len+=1;

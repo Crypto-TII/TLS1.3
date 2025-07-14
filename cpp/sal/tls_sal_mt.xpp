@@ -62,7 +62,7 @@ int SAL_groups(int *groups)
 #endif
 #if CRYPTO_SETTING==POST_QUANTUM
     n=4;
-    groups[0]=KYBER768;
+    groups[0]=MLKEM768;
     groups[1]=X25519;
     groups[2]=SECP256R1;
     groups[3]=SECP384R1;
@@ -70,7 +70,7 @@ int SAL_groups(int *groups)
 #if CRYPTO_SETTING==HYBRID
     n=5;
     groups[0]=HYBRID_KX;
-    groups[1]=KYBER768;
+    groups[1]=MLKEM768;
     groups[2]=X25519;
     groups[3]=SECP256R1;
     groups[4]=SECP384R1;
@@ -91,11 +91,11 @@ int SAL_sigs(int *sigAlgs)
     sigAlgs[n]=ED448; n++;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
-    sigAlgs[n]=DILITHIUM3; n++;
+    sigAlgs[n]=MLDSA65; n++;
 #endif
 #if CRYPTO_SETTING==HYBRID
-    sigAlgs[n]=DILITHIUM2; n++;
-    sigAlgs[n]=DILITHIUM2_P256; n++;
+    sigAlgs[n]=MLDSA44; n++;
+    sigAlgs[n]=MLDSA44_P256; n++;
     sigAlgs[n]=ECDSA_SECP256R1_SHA384; n++;
 #endif
     return n;
@@ -116,11 +116,11 @@ int SAL_sigCerts(int *sigAlgsCert)
     sigAlgsCert[n]=ED448; n++;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
-    sigAlgsCert[n]=DILITHIUM3; n++;
+    sigAlgsCert[n]=MLDSA65; n++;
 #endif
 #if CRYPTO_SETTING==HYBRID
-    sigAlgsCert[n]=DILITHIUM2; n++;
-    sigAlgsCert[n]=DILITHIUM2_P256; n++;
+    sigAlgsCert[n]=MLDSA44; n++;
+    sigAlgsCert[n]=MLDSA44_P256; n++;
     sigAlgsCert[n]=ECDSA_SECP256R1_SHA384; n++;
 #endif
     return n;
@@ -379,19 +379,19 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         NIST384_KEY_PAIR(false, MC_SK.val, MC_PK.val);
     }
 #if CRYPTO_SETTING>=POST_QUANTUM
-    if (group==KYBER768)
+    if (group==MLKEM768)
     {
         byte r64[64];
         for (int i=0;i<64;i++)
             r64[i]=SAL_randomByte();
-        KYBER768_keypair(r64,&MC_SK,&MC_PK);
+        MLKEM768_keypair(r64,&MC_SK,&MC_PK);
     }
     if (group==HYBRID_KX)
     {
         byte r64[64];
         for (int i=0;i<64;i++)
             r64[i]=SAL_randomByte();
-        KYBER768_keypair(r64,&MC_SK,&MC_PK);
+        MLKEM768_keypair(r64,&MC_SK,&MC_PK);
 
         char mysk[32],mypk[32];
         octet MYSK={0,sizeof(mysk),mysk};
@@ -437,8 +437,8 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         if (res==0) error=true;
     }
 #if CRYPTO_SETTING>=POST_QUANTUM
-    if (group==KYBER768) {
-        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
+    if (group==MLKEM768) {
+        MLKEM768_decrypt(&MC_SK,&MC_PK,&MC_SS);
     }
     if (group==HYBRID_KX) {
         char mysk[32],mypk[32],myss[32];
@@ -447,7 +447,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         octet MYSS={0,sizeof(myss),myss};
         OCT_chop(&MC_SK,&MYSK,MC_SK.len-32);
         OCT_chop(&MC_PK,&MYPK,MC_PK.len-32);
-        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
+        MLKEM768_decrypt(&MC_SK,&MC_PK,&MC_SS);
 
     	res=X25519_SHARED_SECRET(MYSK.val,MYPK.val,MYSS.val);
     	MYSS.len=32;
@@ -472,7 +472,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
 }
 
 #if CRYPTO_SETTING>=POST_QUANTUM
-static bool DILITHIUM3_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+static bool MLDSA65_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 {
     octet MC_CERT=octad_to_octet(CERT);
     octet MC_SIG=octad_to_octet(SIG);
@@ -480,7 +480,7 @@ static bool DILITHIUM3_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
     return DLTHM_verify_3(false,&MC_PUBKEY,NULL,&MC_CERT,&MC_SIG);    
 }
 
-static void DILITHIUM3_SIGN(octad *KEY,octad *MESS,octad *SIG)
+static void MLDSA65_SIGN(octad *KEY,octad *MESS,octad *SIG)
 {
     octet MC_MESS=octad_to_octet(MESS);
     octet MC_KEY=octad_to_octet(KEY);
@@ -490,7 +490,7 @@ static void DILITHIUM3_SIGN(octad *KEY,octad *MESS,octad *SIG)
     SIG->len=MC_SIG.len;
 }
 
-static bool DILITHIUM2_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+static bool MLDSA44_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 {
     octet MC_CERT=octad_to_octet(CERT);
     octet MC_SIG=octad_to_octet(SIG);
@@ -498,7 +498,7 @@ static bool DILITHIUM2_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
     return DLTHM_verify_2(false,&MC_PUBKEY,NULL,&MC_CERT,&MC_SIG);    
 }
 
-static void DILITHIUM2_SIGN(octad *KEY,octad *MESS,octad *SIG)
+static void MLDSA44_SIGN(octad *KEY,octad *MESS,octad *SIG)
 {
     octet MC_MESS=octad_to_octet(MESS);
     octet MC_KEY=octad_to_octet(KEY);
@@ -866,11 +866,11 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
             break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
-        case DILITHIUM3:
-            result= DILITHIUM3_VERIFY(BUFF,SIG,PUBKEY);
+        case MLDSA65:
+            result= MLDSA65_VERIFY(BUFF,SIG,PUBKEY);
             break;
-        case DILITHIUM2:
-            result= DILITHIUM2_VERIFY(BUFF,SIG,PUBKEY);
+        case MLDSA44:
+            result= MLDSA44_VERIFY(BUFF,SIG,PUBKEY);
             break;
 #endif
         default:
@@ -912,11 +912,11 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
         break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
-    case DILITHIUM3:
-        DILITHIUM3_SIGN(KEY,TRANS,SIG);
+    case MLDSA65:
+        MLDSA65_SIGN(KEY,TRANS,SIG);
         break;
-    case DILITHIUM2:
-        DILITHIUM2_SIGN(KEY,TRANS,SIG);
+    case MLDSA44:
+        MLDSA44_SIGN(KEY,TRANS,SIG);
 #endif
     }
 //    elapsed=(millis()-start);
