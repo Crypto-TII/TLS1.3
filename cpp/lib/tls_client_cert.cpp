@@ -791,8 +791,13 @@ bool setCredential(credential *C)
 // unless signing with private key takes place in protected hardware, SAL should have it in software
 #if CLIENT_CERT==FROM_FILE 
     FILE *fp=fopen("../../clientcert/client.key","r");
-    if (fp==NULL) return false;
-    if (!readaline(line,fp)) return false;
+    if (fp==NULL) {
+#ifdef SHALLOW_STACK
+        free(b);
+#endif
+        return false;
+    }
+    readaline(line,fp);
 #else    
     ptr=0; 
     readaline(line,myprivate,ptr);
@@ -830,8 +835,13 @@ bool setCredential(credential *C)
 #if CLIENT_CERT==FROM_FILE
     fclose(fp); 
     fp=fopen("../../clientcert/certchain.pem","r");
-    if (fp==NULL) return false;
-    if (!readaline(line,fp)) return false;
+    if (fp==NULL) {
+#ifdef SHALLOW_STACK
+        free(b);
+#endif
+        return false;
+    }
+    readaline(line,fp);
 #else    
     ptr=0; 
     readaline(line,mycert,ptr);
