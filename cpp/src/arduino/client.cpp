@@ -303,9 +303,9 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     }
     int rtn;
     start = millis();
-    bool success=TLS13_connect(session,&GET);  // FULL handshake and connection to server
+    bool success=TLS13_connect(session,&GET,NULL);  // FULL handshake and connection to server
     if (success) {
-        rtn=TLS13_recv(session,&RESP);    // Server response + ticket
+        rtn=TLS13_recv(session,&RESP,NULL);    // Server response + ticket
         if (rtn>0) {
             log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
             TLS13_stop(session);
@@ -330,9 +330,9 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     }
 
     start = millis();
-    success=TLS13_connect(session,&GET);  // Resumption handshake and connection to server
+    success=TLS13_connect(session,&GET,NULL);  // Resumption handshake and connection to server
     if (success) {
-        rtn=TLS13_recv(session,&RESP);    // Server response + ticket
+        rtn=TLS13_recv(session,&RESP,NULL);    // Server response + ticket
         if (rtn>0) {
             log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
             TLS13_stop(session);

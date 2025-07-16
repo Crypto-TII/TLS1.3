@@ -34,7 +34,7 @@ typedef WiFiClient Socket;
 
 #ifndef PARTICULAR_BOARD
 // any other board
-#include <WiFiNINA.h>
+#include <WiFi.h> // or maybe WifiNINA?
 typedef WiFiClient Socket;
 
 #endif

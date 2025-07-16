@@ -39,10 +39,10 @@ If using assembly language code for X25519, copy x25519.S from https://github.co
 into working directory and remove option 2. This creates the SAL (in this case using miracl + ECC608A hardware + Pornin's x25519).
 If experimenting with post-quantum primitives, also select options 46 and 47, for Dilithium and Kyber support.
 
-or copy into the project all from c32 and include32 directories of https://github.com/mcarrickscott/TLSECC, edit config.py at !!!!!!!!!
-to use faster elliptic curve code from TLSECC project, and select only options 31, 42 and 44. This method works well with the Raspberry Pi
-Pico 2 W device, which does not support ECC608A hardware. We observe that on this device the crypto is about 1.5 times faster on the ARM core
-compared to the RISC-V core.
+or before executing step 10, copy into the project all from c32, include and include32 directories of https://github.com/mcarrickscott/TLSECC, 
+edit config.py at !!!!!!!!! to use faster elliptic curve code from TLSECC project, and select only options 31, 42 and 44. This method works 
+well with the Raspberry Pi Pico 2 W device, which does not support ECC608A hardware. We observe that on this device the crypto is about 
+1.5 times faster on the ARM core compared to the RISC-V core.
 
 (Sometimes the wifi works better from wifiNINA.h rather than wifi.h. See tls_wifi.h)
 
