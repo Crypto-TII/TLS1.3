@@ -181,7 +181,7 @@ extern int cipherSuites(octad *CS,int ncs,int *ciphers);
     @param rectype the record type
     @param version TLS version indication
     @param DATA the record (message fragment) to be trasnsmitted
-    @return flush is true if record is to be sent immediately
+    @param flush is true if record is to be sent immediately
  */
 extern void sendRecord(TLS_session *session,int rectype,int version,octad *DATA,bool flush);
 

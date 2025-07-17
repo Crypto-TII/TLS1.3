@@ -247,10 +247,10 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define RSA_PKCS1_SHA512 0x0601         /**< Supported RSA Signature algorithm */
 #define ED25519 0x0807                  /**< Ed25519 EdDSA Signature algorithm */
 #define ED448 0x0808                    /**< Ed448 EdDSA Signature algorithm */
-#define MLDSA44 0x0904                   /**< MLDSA Signature algorithms */
-#define MLDSA65 0x0905
-#define MLDSA87 0x0906      
-#define MLDSA44_P256 0xFF06 //0x0907          /**< MLDSA44+SECP256R1 Hybrid Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */
+#define MLDSA44 0x0904                  /**< MLDSA44 Signature algorithm */
+#define MLDSA65 0x0905                  /**< MLDSA65 Signature algorithm */
+#define MLDSA87 0x0906                  /**< MLDSA87 Signature algorithm */
+#define MLDSA44_P256 0xFF06             /**< MLDSA44+SECP256R1 Hybrid Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */  //0x0907
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */
@@ -410,19 +410,19 @@ typedef struct
 } crypto;
 
 /**
- * @brief credential structure */
+ * @brief client credential structure */
 typedef struct
 {
-    char certchain[TLS_MAX_CLIENT_CHAIN_SIZE];
-    char publickey[TLS_MAX_SIG_PUB_KEY_SIZE];
-    char secretkey[TLS_MAX_SIG_SECRET_KEY_SIZE];
-    octad CERTCHAIN;
-    octad PUBLICKEY;
-    octad SECRETKEY;
-    unsign16 requirements[16];    // signature algorithms that will be needed by the server
-    int nreqs;
-    int nreqsraw;
-    int sigalg;              // signature algorithm I will use for TLS
+    char certchain[TLS_MAX_CLIENT_CHAIN_SIZE];   /**< Client 1 or 2-link Certificate chain */
+    char publickey[TLS_MAX_SIG_PUB_KEY_SIZE];    /**< Client public key extracted from certificate chain */
+    char secretkey[TLS_MAX_SIG_SECRET_KEY_SIZE]; /**< Client private key */
+    octad CERTCHAIN;                             /**< certchain as octad */
+    octad PUBLICKEY;                             /**< public key as octad */
+    octad SECRETKEY;                             /**< private key as octad */
+    unsign16 requirements[16];                   /**< signature verification algorithms that will be needed by the server */
+    int nreqs;                                   /**< Number of such verification algorithms required */
+    int nreqsraw;                                /**< Number required if using raw public keys */
+    int sigalg;                                  /**< signature algorithm client will use to sign TLS1.3 transcript */
 } credential;
 
 /**

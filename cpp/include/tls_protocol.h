@@ -38,7 +38,7 @@ extern void TLS13_stop(TLS_session *session);
  *
     @param session an initialised TLS session structure
     @param EARLY some early data to be transmitted
-    @param client credential    
+    @param Credential client credential    
     @return false for failure, true for success
  */
 extern bool TLS13_connect(TLS_session *session,octad *EARLY,credential *Credential);
@@ -54,7 +54,7 @@ extern void TLS13_send(TLS_session *session,octad *DATA);
  *
     @param session an initialised TLS session structure
     @param DATA that has been received
-    @param client credential    
+    @param Credential client credential    
     @return 0 for time-out, negative for error, or length of data successfully received
  */
 extern int TLS13_recv(TLS_session *session,octad *DATA,credential *Credential);
