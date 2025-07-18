@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "tls_protocol.h"
+#include "tls_certs.h"
 #include "tls_wifi.h"
 #include "tls_logger.h"
 // for SAL testing and experimental IBE
@@ -230,6 +231,18 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     octad R32={0,sizeof(r32),r32};
     char myhostname[TLS_MAX_SERVER_NAME];
 
+#if CLIENT_CERT!=NO_CERT
+    credential Credential; // holds processed client credentials  
+    credential *Cred=&Credential; 
+    bool supported=setCredential(Cred);
+    if (!supported) {
+    	printf("Client signature algorithm not supported by SAL!\n");
+    	return;
+    }
+#else
+    credential *Cred=NULL;
+#endif
+
     int start,elapsed;
     TLS_session state=TLS13_start(client,hostname);
     TLS_session *session=&state;
@@ -303,9 +316,9 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     }
     int rtn;
     start = millis();
-    bool success=TLS13_connect(session,&GET,NULL);  // FULL handshake and connection to server
+    bool success=TLS13_connect(session,&GET,Cred);  // FULL handshake and connection to server
     if (success) {
-        rtn=TLS13_recv(session,&RESP,NULL);    // Server response + ticket
+        rtn=TLS13_recv(session,&RESP,Cred);    // Server response + ticket
         if (rtn>0) {
             log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
             TLS13_stop(session);
@@ -330,9 +343,9 @@ void testTLSconnect(Socket *client,char *hostname,int port)
     }
 
     start = millis();
-    success=TLS13_connect(session,&GET,NULL);  // Resumption handshake and connection to server
+    success=TLS13_connect(session,&GET,Cred);  // Resumption handshake and connection to server
     if (success) {
-        rtn=TLS13_recv(session,&RESP,NULL);    // Server response + ticket
+        rtn=TLS13_recv(session,&RESP,Cred);    // Server response + ticket
         if (rtn>0) {
             log(IO_APPLICATION,(char *)"Receiving application data (truncated HTML) = ",NULL,0,&RESP);
             TLS13_stop(session);
