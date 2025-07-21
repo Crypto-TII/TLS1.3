@@ -22,7 +22,7 @@ exposed, but typically has a much shorter lifetime. It must be available 24/7 fo
 
 We do not control a global Certificate authority. But in a closed-world setting we can create our own. In the *servercert* directory 
 there is
-an *server* directory, inside of which there is an *intermediate* directory, inside of which there is a *root* directory. In each of 
+a *server* directory, inside of which there is an *intermediate* directory, inside of which there is a *root* directory. In each of 
 these is a Python script which can generate a suitable certificate. To create a full chain in a closed world setting, start from 
 the *root* directory and work back. Measures should be taken to further protect the associated secret keys as suggested above.
 

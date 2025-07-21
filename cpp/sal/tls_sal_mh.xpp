@@ -461,14 +461,14 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         byte r64[64];
         for (int i=0;i<64;i++)
             r64[i]=SAL_randomByte();
-        MLKEM768_keypair(r64,&MC_SK,&MC_PK);
+        KYBER768_keypair(r64,&MC_SK,&MC_PK);
     }
     if (group==HYBRID_KX)
     {
         byte r64[64];
         for (int i=0;i<64;i++)
             r64[i]=SAL_randomByte();
-        MLKEM768_keypair(r64,&MC_SK,&MC_PK);
+        KYBER768_keypair(r64,&MC_SK,&MC_PK);
 
         char mysk[32],mypk[32];
         octet MYSK={0,sizeof(mysk),mysk};
@@ -518,7 +518,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
     }
 #if CRYPTO_SETTING>=POST_QUANTUM
     if (group==MLKEM768) {
-        MLKEM768_decrypt(&MC_SK,&MC_PK,&MC_SS);
+        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
     }
     if (group==HYBRID_KX) {
         char mysk[32],mypk[32],myss[32];
@@ -527,7 +527,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         octet MYSS={0,sizeof(myss),myss};
         OCT_chop(&MC_SK,&MYSK,MC_SK.len-32);
         OCT_chop(&MC_PK,&MYPK,MC_PK.len-32);
-        MLKEM768_decrypt(&MC_SK,&MC_PK,&MC_SS);
+        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
 
         OCT_reverse(&MYPK); // to big endian
         res=C25519::ECP_SVDP_DH(&MYSK, &MYPK, &MYSS,0);
