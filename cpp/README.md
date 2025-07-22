@@ -53,7 +53,7 @@ For a SAL with much faster elliptic curve cryptography, use the TLSECC library h
 After the build complete successfully, the example executable *client* and the TiigerTLS library *libtiitls.a* are generated in the 
 build directory.
 
-The client application can be modified and rebuilt from this directory at any time unless changes are made that impact the SAL. For 
+The client application can be modified and rebuilt from this directory at any time. For 
 example if using the Miracl+TLSECC SAL, then
 
 	g++ -O2 client.cpp tls*.cpp libtiitls.a core.a tlsecc.a -o client

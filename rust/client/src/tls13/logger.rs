@@ -82,7 +82,7 @@ pub fn log_key_exchange(level: usize,kex: u16) {
         SECP256R1 => log(level,"SECP256R1\n",-1,None),
         SECP384R1 => log(level,"SECP384R1\n",-1,None),
         MLKEM768 => log(level,"MLKEM768\n",-1,None),
-        HYBRID_KX => log(IO_PROTOCOL,"HYBRID MLKEM+X25519\n",-1,None),
+        HYBRID_KX => log(IO_PROTOCOL,"HYBRID MLKEM768+X25519\n",-1,None),
         SIDH => log(level,"SIDH\n",-1,None),
         _  => log(level,"Non-standard\n",-1,None)
     }

@@ -104,7 +104,7 @@ static void nameKeyExchange(int kex)
         myprintf((char *)"MLKEM768\n");
         break;
     case HYBRID_KX:
-        myprintf((char *)"MLKEM + X25519\n");
+        myprintf((char *)"MLKEM768 + X25519\n");
         break;
     default:
         myprintf((char *)"Non-standard\n");   
