@@ -252,6 +252,12 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define MLDSA87 0x0906                  /**< MLDSA87 Signature algorithm */
 #define MLDSA44_P256 0xFF06             /**< MLDSA44+SECP256R1 Hybrid Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */  //0x0907
 
+// Key pair algorithms
+#define RSA_KP 1
+#define ECDSA_KP 2
+#define EDDSA_KP 3
+#define MLDSA_KP 4
+
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */
 #define PSKWECDHE 0x01                  /**< Preshared Key with Diffie-Hellman key exchange mode */

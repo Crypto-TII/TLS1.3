@@ -221,5 +221,12 @@ extern bool SAL_tlsSignatureVerify(int sigAlg,octad *TRANS,octad *SIG,octad *PUB
  */
 extern void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG);
 
+/** @brief Generate generic TLS keypair for signature
+ *
+    @param keyAlg the type of the keys (RSA,ECC..)
+    @param SECRET_KEY the private key 
+    @param PUBLIC_KEY the public key (RSA key size is passed in PUBLIC_KEY.len)
+ */
+extern void SAL_tlsKeypair(int keyAlg,octad *SECRET_KEY,octad *PUBLIC_KEY);
 
 #endif

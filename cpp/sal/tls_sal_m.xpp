@@ -495,6 +495,18 @@ static void MLDSA65_SIGN(octad *KEY,octad *MESS,octad *SIG)
     SIG->len=MC_SIG.len;
 }
 
+static void MLDSA65_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    byte tau[32];
+    for (int i=0;i<32;i++)
+        tau[i]=SAL_randomByte();
+    DLTHM_keypair_3(tau,&MC_SECRET,&MC_PUBLIC);
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
+}
+
 static bool MLDSA44_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 {
     octet MC_CERT=octad_to_octet(CERT);
@@ -512,9 +524,93 @@ static void MLDSA44_SIGN(octad *KEY,octad *MESS,octad *SIG)
     DLTHM_signature_2(false,NULL,&MC_KEY,NULL,&MC_MESS,&MC_SIG); 
     SIG->len=MC_SIG.len;
 }
+
+static void MLDSA44_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    byte tau[32];
+    for (int i=0;i<32;i++)
+        tau[i]=SAL_randomByte();
+    DLTHM_keypair_2(tau,&MC_SECRET,&MC_PUBLIC);
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
+}
+
 #endif
 
 #if CRYPTO_SETTING>=TYPICAL
+
+static void RSA_2048_PKCS15_SIGN(int sha,octad *KEY,octad *CERT,octad *SIG)
+{
+    int len=KEY->len/5;   // length of p and q
+    printf("Key len= %d len=%d\n",KEY->len,len);
+    if (len!=128 || SIG->len!=2*len) return;
+    char p[128];
+    octet P={len,sizeof(p),p};
+    char q[128];
+    octet Q={len,sizeof(q),q};
+    char dp[128];
+    octet DP={len,sizeof(dp),dp};
+    char dq[128];
+    octet DQ={len,sizeof(dq),dq};
+    char c[128];
+    octet C={len,sizeof(c),c}; 
+    char s[RFS_RSA2048];
+    octet S={RFS_RSA2048,sizeof(s),s}; // to be signed
+    octet MC_CERT=octad_to_octet(CERT);
+    octet MC_SIG=octad_to_octet(SIG);
+    octet MC_KEY=octad_to_octet(KEY);
+    for (int i=0;i<len;i++)
+    {
+        p[i]=MC_KEY.val[i];
+        q[i]=MC_KEY.val[i+len];
+        dp[i]=MC_KEY.val[i+2*len];
+        dq[i]=MC_KEY.val[i+3*len];
+        c[i]=MC_KEY.val[i+4*len];
+    }
+    RSA2048::rsa_private_key SK;
+    RSA2048::RSA_PRIVATE_KEY_FROM_OPENSSL(&P,&Q,&DP,&DQ,&C,&SK);
+
+    PKCS15(sha, &MC_CERT, &S);
+    RSA2048::RSA_DECRYPT(&SK, &S, &MC_SIG); // create signature
+    SIG->len=MC_SIG.len;
+}
+
+static void RSA_4096_PKCS15_SIGN(int sha,octad *KEY,octad *CERT,octad *SIG)
+{
+    int len=KEY->len/5;   // length of p and q
+    if (len!=256 || SIG->len!=2*len) return;
+    char p[256];
+    octet P={len,sizeof(p),p};
+    char q[256];
+    octet Q={len,sizeof(q),q};
+    char dp[256];
+    octet DP={len,sizeof(dp),dp};
+    char dq[256];
+    octet DQ={len,sizeof(dq),dq};
+    char c[256];
+    octet C={len,sizeof(c),c}; 
+    char s[RFS_RSA4096];
+    octet S={RFS_RSA4096,sizeof(s),s};
+    octet MC_CERT=octad_to_octet(CERT);
+    octet MC_SIG=octad_to_octet(SIG);
+    octet MC_KEY=octad_to_octet(KEY);
+    for (int i=0;i<len;i++)
+    {
+        p[i]=MC_KEY.val[i];
+        q[i]=MC_KEY.val[i+len];
+        dp[i]=MC_KEY.val[i+2*len];
+        dq[i]=MC_KEY.val[i+3*len];
+        c[i]=MC_KEY.val[i+4*len];
+    }
+    RSA4096::rsa_private_key SK;
+    RSA4096::RSA_PRIVATE_KEY_FROM_OPENSSL(&P,&Q,&DP,&DQ,&C,&SK);
+
+    PKCS15(sha, &MC_CERT, &S);
+    RSA4096::RSA_DECRYPT(&SK, &S, &MC_SIG); // create signature
+    SIG->len=MC_SIG.len;
+}
 
 // RSA 2048-bit PKCS1.5 signature verification
 static bool RSA_2048_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
@@ -568,6 +664,18 @@ static bool RSA_4096_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
         res=OCT_comp(&P1, &P2);
     }
     return res;
+}
+
+static void RSA_PKCS15_SIGN(int sha,octad *KEY,octad *CERT,octad *SIG)
+{
+    
+    if (SIG->len==RFS_RSA2048)
+    {
+        printf("Into pkcs %d\n",KEY->len);
+        RSA_2048_PKCS15_SIGN(sha,KEY,CERT,SIG);
+    }
+    if (SIG->len==RFS_RSA4096)
+        RSA_4096_PKCS15_SIGN(sha,KEY,CERT,SIG);
 }
 
 static bool RSA_PKCS15_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
@@ -688,6 +796,23 @@ static bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 }
 
 #if CRYPTO_SETTING>=EDDSA
+static void Ed25519_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    Ed25519::EDDSA_KEY_PAIR_GENERATE(&RNG,&MC_SECRET,&MC_PUBLIC);
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
+}
+
+static void Ed448_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    Ed448::EDDSA_KEY_PAIR_GENERATE(&RNG,&MC_SECRET,&MC_PUBLIC);
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
+}
 
 static bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 { 
@@ -724,6 +849,24 @@ static void Ed448_SIGN(octad *KEY,octad *MESS,octad *SIG)
 }
 
 #endif
+
+static void SECP256R1_ECDSA_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    NIST256::ECP_KEY_PAIR_GENERATE(&RNG,&MC_SECRET,&MC_PUBLIC);
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
+}
+
+static void SECP384R1_ECDSA_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    NIST384::ECP_KEY_PAIR_GENERATE(&RNG,&MC_SECRET,&MC_PUBLIC);
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
+}
 
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 static void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
@@ -766,6 +909,37 @@ static void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 }
 
 #if CRYPTO_SETTING>=TYPICAL
+
+static void RSA_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    RSA2048::rsa_public_key pub;
+    RSA2048::rsa_private_key priv;
+    int len=(PUBLIC_KEY->len)/2;
+    char p[512];
+    octet P={0,sizeof(p),p};
+//printf("Test 1\n");
+    RSA2048::RSA_KEY_PAIR(&RNG, 65537, &priv, &pub, NULL, NULL);
+//printf("Test 2\n");
+    MC_SECRET.len=0;
+    RSA2048::FF_toOctet(&P, priv.q, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);
+    RSA2048::FF_toOctet(&P, priv.p, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);
+    RSA2048::FF_toOctet(&P, priv.dq, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);  
+    RSA2048::FF_toOctet(&P, priv.dp, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);  
+    RSA2048::FF_toOctet(&P, priv.c, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);
+    //MC_PUBLIC.len=0;
+//printf("Test 3 %d %d %d\n",2*len,MC_PUBLIC.len,FFLEN_RSA2048);
+    RSA2048::FF_toOctet(&MC_PUBLIC, pub.n, FFLEN_RSA2048);
+//printf("Test 4\n");
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
+}
 
 // Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
 static void RSA_2048_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
@@ -925,6 +1099,16 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
         SECP384R1_ECDSA_SIGN(48,KEY,TRANS,SIG);
         break;
 #if CRYPTO_SETTING>=TYPICAL
+    case RSA_PKCS1_SHA256 :
+    printf("Ready to sign %d\n",KEY->len);
+        RSA_PKCS15_SIGN(32,KEY,TRANS,SIG);
+        break;
+    case RSA_PKCS1_SHA384 :
+        RSA_PKCS15_SIGN(48,KEY,TRANS,SIG);
+        break;      
+    case RSA_PKCS1_SHA512 :
+        RSA_PKCS15_SIGN(64,KEY,TRANS,SIG);
+        break;  
     case RSA_PSS_RSAE_SHA256:
         RSA_PSS_RSAE_SIGN(32,KEY,TRANS,SIG);
         break;
@@ -948,4 +1132,46 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
 //    elapsed=(millis()-start);
 //    Serial.print("        Signature= "); Serial.println(elapsed);
 }
+
+// Generate Key pair 
+void SAL_tlsKeypair(int sigAlg,octad *SECRET_KEY,octad *PUBLIC_KEY)
+{ // probably need to support more cases
+    //int start,elapsed;
+    //start = millis();
+        //printf("In here help %x\n",sigAlg);
+    switch (sigAlg)
+    {
+    case ECDSA_KP:
+        if (PUBLIC_KEY->len==65)
+            SECP256R1_ECDSA_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        if (PUBLIC_KEY->len==97)
+            SECP384R1_ECDSA_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        break;
+
+#if CRYPTO_SETTING>=TYPICAL
+    case RSA_KP :
+        RSA_KEYPAIR(SECRET_KEY,PUBLIC_KEY);  // size of 2048 or 4096 is indicated in PUBLIC_KEY->len
+        break;
+#endif
+#if CRYPTO_SETTING>=EDDSA
+    case EDDSA_KP:
+        if (PUBLIC_KEY->len==32)
+            Ed25519_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        if (PUBLIC_KEY->len==57)
+            Ed448_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        break;
+#endif
+#if CRYPTO_SETTING>=POST_QUANTUM
+    case MLDSA_KP :
+        if (PUBLIC_KEY->len==DL_PK_SIZE_3)
+            MLDSA65_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        if (PUBLIC_KEY->len==DL_PK_SIZE_2)
+            MLDSA44_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        break;
+#endif
+    }
+//    elapsed=(millis()-start);
+//    Serial.print("        Signature= "); Serial.println(elapsed);
+}
+
 

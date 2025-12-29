@@ -1,5 +1,7 @@
 # Certificate generation
 
+(for a method to create Certificate Chains without using OpenSSL see *makecertchain* directory)
+
 Python scripts are provided to use the OpenSSL tool (V3.5+) to generate Certificate Chains for use by TiigerTLS
 
 A TLS-friendly certificate chain consists of 3 links, the end-user certificate, the intermediate certificate and the root certificate. 
@@ -34,7 +36,7 @@ getting that certificate signed by the intermediate authority.
 After a chain has been created the *servercert* directory should contain the files *certchain.pem*, and *server.key* to be picked up by 
 the TLS
 server, and the root certificate *root.crt* which must then be added to the TLS client's store of recognised Certificate Authority's 
-self-signed certificates, if it is not there already.
+self-signed certificates, if it is not there already (see *tls_cacerts.cpp*, *cacert.rs*)
 
 # The scripts
 
