@@ -78,8 +78,6 @@ static unsigned char pk_oid[5]= {0x2B, 0x81, 0x04, 0x00, 0x22};
 #define PK_TYPE ECDSA_KP
 #endif
 
-2A 86 48 86 F7 0D 01 01 01
-
 #if PKTYPE==RSA_PK
 static unsigned char pk_oid[9] = {0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01};
 #define SB_SK_SIZE (RSA_SB_KEYLEN/2)*5
