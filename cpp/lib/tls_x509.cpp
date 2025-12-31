@@ -382,6 +382,15 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
         j += skip(len);
+
+        len=getalen(SEQ,c->val,j);
+        if (len < 0) return ret;     
+        j += skip(len);       
+        
+        len = getalen(OCT, c->val, j);
+        if (len < 0) return ret;     
+        j += skip(len)+len;  
+
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
         j += skip(len);
