@@ -544,7 +544,6 @@ static void MLDSA44_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
 static void RSA_2048_PKCS15_SIGN(int sha,octad *KEY,octad *CERT,octad *SIG)
 {
     int len=KEY->len/5;   // length of p and q
-    printf("Key len= %d len=%d\n",KEY->len,len);
     if (len!=128 || SIG->len!=2*len) return;
     char p[128];
     octet P={len,sizeof(p),p};
@@ -670,10 +669,8 @@ static void RSA_PKCS15_SIGN(int sha,octad *KEY,octad *CERT,octad *SIG)
 {
     
     if (SIG->len==RFS_RSA2048)
-    {
-        printf("Into pkcs %d\n",KEY->len);
         RSA_2048_PKCS15_SIGN(sha,KEY,CERT,SIG);
-    }
+    
     if (SIG->len==RFS_RSA4096)
         RSA_4096_PKCS15_SIGN(sha,KEY,CERT,SIG);
 }
@@ -919,9 +916,9 @@ static void RSA_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
     int len=(PUBLIC_KEY->len)/2;
     char p[512];
     octet P={0,sizeof(p),p};
-//printf("Test 1\n");
+
     RSA2048::RSA_KEY_PAIR(&RNG, 65537, &priv, &pub, NULL, NULL);
-//printf("Test 2\n");
+
     MC_SECRET.len=0;
     RSA2048::FF_toOctet(&P, priv.q, HFLEN_RSA2048);
     OCT_joctet(&MC_SECRET,&P);
@@ -933,10 +930,7 @@ static void RSA_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
     OCT_joctet(&MC_SECRET,&P);  
     RSA2048::FF_toOctet(&P, priv.c, HFLEN_RSA2048);
     OCT_joctet(&MC_SECRET,&P);
-    //MC_PUBLIC.len=0;
-//printf("Test 3 %d %d %d\n",2*len,MC_PUBLIC.len,FFLEN_RSA2048);
     RSA2048::FF_toOctet(&MC_PUBLIC, pub.n, FFLEN_RSA2048);
-//printf("Test 4\n");
     SECRET_KEY->len=MC_SECRET.len;
     PUBLIC_KEY->len=MC_PUBLIC.len;
 }
@@ -1031,8 +1025,6 @@ static void RSA_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
 {
     bool result;
-    //int start,elapsed;
-    //start = millis();
     switch (sigAlg) {
         case ECDSA_SECP256R1_SHA256 :
             result= SECP256R1_ECDSA_VERIFY(32,BUFF,SIG,PUBKEY); 
@@ -1076,16 +1068,14 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
         default:
             result=false;
     }
-//    elapsed=(millis()-start);
-//    Serial.print("        Verification= "); Serial.println(elapsed);
+
     return result;
 }
 
 // Form Transcript Signature 
 void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
 { // probably need to support more cases
-    //int start,elapsed;
-    //start = millis();
+
     switch (sigAlg)
     {
 
@@ -1100,7 +1090,6 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
         break;
 #if CRYPTO_SETTING>=TYPICAL
     case RSA_PKCS1_SHA256 :
-    printf("Ready to sign %d\n",KEY->len);
         RSA_PKCS15_SIGN(32,KEY,TRANS,SIG);
         break;
     case RSA_PKCS1_SHA384 :
@@ -1129,16 +1118,13 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
         MLDSA44_SIGN(KEY,TRANS,SIG);
 #endif
     }
-//    elapsed=(millis()-start);
-//    Serial.print("        Signature= "); Serial.println(elapsed);
+
 }
 
 // Generate Key pair 
 void SAL_tlsKeypair(int sigAlg,octad *SECRET_KEY,octad *PUBLIC_KEY)
 { // probably need to support more cases
-    //int start,elapsed;
-    //start = millis();
-        //printf("In here help %x\n",sigAlg);
+
     switch (sigAlg)
     {
     case ECDSA_KP:
@@ -1170,8 +1156,7 @@ void SAL_tlsKeypair(int sigAlg,octad *SECRET_KEY,octad *PUBLIC_KEY)
         break;
 #endif
     }
-//    elapsed=(millis()-start);
-//    Serial.print("        Signature= "); Serial.println(elapsed);
+
 }
 
 
