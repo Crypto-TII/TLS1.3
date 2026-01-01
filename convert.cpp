@@ -1,7 +1,7 @@
-// Utility to convert a Linux ca-certificates.crt file to a form suitable for inclusion in the C++ and Rust code
-// Input: ca-certificates.crt
-// Output: ca-certificates.cpp (for inclusion in cpp/lib/tls_cacerts.cpp)
-//         ca-certificates.rs (for inclusion in rust/client/src/cacerts.rs and rust/server/src/cacerts.rs)
+// Utility to, for example, convert a Linux ca-certificates.crt file to a form suitable for inclusion in the C++ and Rust code
+// Input: file.crt
+// Output: file.cpp (for inclusion in cpp/lib/tls_cacerts.cpp)
+//         file.rs (for inclusion in rust/client/src/tls13/cacerts.rs and rust/server/src/tls13/cacerts.rs)
 //
 // g++ -O2 convert.cpp -o convert
 
@@ -11,11 +11,23 @@
 
 using namespace std;
 
-int main()
+int main(int argc,char **argv)
 {
-    ifstream cacerts("ca-certificates.crt"); 
-    ofstream cpp("ca-certificates.cpp");
-    ofstream rust("ca-certificates.rs");
+    argv++; argc--;
+    if (argc!=1)
+    {
+        cout << "Incorrect Usage" << endl;
+        cout << "convert file.crt" << endl;
+        cout << "Outputs file.cpp and file.rs" << endl;
+        return 0;
+    }
+    string filename=argv[0];
+    ifstream cacerts(filename.c_str()); 
+    string file=filename.substr(0,filename.find('.'));
+    string filecpp=file+".cpp";
+    string filers=file+".rs";
+    ofstream cpp(filecpp.c_str());
+    ofstream rust(filers.c_str());
     string line;
     string start="-----BEGIN CERTIFICATE-----";
     string end="-----END CERTIFICATE-----";
@@ -27,7 +39,7 @@ int main()
     cpp << ";" << endl;
 
     cacerts.close();
-    cacerts.open("ca-certificates.crt");
+    cacerts.open(filename.c_str());
 
 // Rust
     bool finished=true;
