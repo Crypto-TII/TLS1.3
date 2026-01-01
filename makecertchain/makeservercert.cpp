@@ -436,7 +436,7 @@ static void add_extension_bc(octad *EXTENSIONS)
 // alternative name extension - indicates server web address
 static void add_extension_an(octad *EXTENSIONS,char *alt_name)
 {
-    char buff[1000];
+//    char buff[1000];
     unsigned char an[100];
     octad AN={0,100,(char *)an};
     unsigned char name[80];
@@ -450,14 +450,14 @@ static void add_extension_an(octad *EXTENSIONS,char *alt_name)
 
     OCT_append_octad(EXTENSIONS,&AN);
 
-    OCT_output_hex(&AN,1000,buff);
-    printf("an= %s\n",buff);
+//    OCT_output_hex(&AN,1000,buff);
+//    printf("an= %s\n",buff);
 }
 
 // generate random serial number
 static void add_serial_number(octad *TOTAL)
 {
-    char buff[1000];
+//    char buff[1000];
     unsigned char sn[20];
     octad SN={0,20,(char *)sn};
     setolen(INT,16,&SN);
@@ -470,8 +470,8 @@ static void add_serial_number(octad *TOTAL)
     }
     OCT_append_octad(TOTAL,&SN);
 
-    OCT_output_hex(&SN,1000,buff);
-    printf("serial number= %s\n",buff);
+//    OCT_output_hex(&SN,1000,buff);
+//    printf("serial number= %s\n",buff);
 }
 
 static void add_version(octad *TOTAL) 
@@ -544,7 +544,7 @@ static void add_organisation(octad *ENTITY,char *org_name)
 // append digital signature to certificate
 static void add_cert_signature(octad *CERT,octad *SIGNATURE)
 {
-    char buff[10000];
+//    char buff[10000];
     unsigned char certsig[20000];
     octad CERTSIG={0,20000,(char *)certsig};
 
@@ -570,8 +570,8 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE)
 #endif
     OCT_append_octad(CERT,&CERTSIG);
 
-    OCT_output_hex(&CERTSIG,10000,buff);
-    printf("CERTSIG= %s\n",buff);
+//    OCT_output_hex(&CERTSIG,10000,buff);
+//    printf("CERTSIG= %s\n",buff);
 }
 
 // convert raw private key to X.509 format
@@ -698,8 +698,8 @@ int main() {
     OCT_from_base64(&CERT, buff);
     X509_extract_private_key(&CERT,&INTERKEY);
 
-    OCT_output_hex(&INTERKEY,20000,buff);
-    printf("SECRET= %s\n",buff);
+    //OCT_output_hex(&INTERKEY,20000,buff);
+    //printf("SECRET= %s\n",buff);
 
     srand(time(NULL));
 // build certificate
@@ -741,14 +741,14 @@ int main() {
 
     wrap(SEQ,&CERT);  // ready to be signed
 
-    OCT_output_hex(&SECRET,20000,buff);
-    printf("SECRET= %s\n",buff);
-    printf("SK size= %d\n",SK_SIZE);
+    //OCT_output_hex(&SECRET,20000,buff);
+    //printf("SECRET= %s\n",buff);
+    //printf("SK size= %d\n",SK_SIZE);
 
     SAL_tlsSignature(SIG_TYPE,&INTERKEY,&CERT,&SIGNATURE);   // sign tbscert
 
-    OCT_output_hex(&SIGNATURE,20000,buff);
-    printf("SIGNATURE= %s\n",buff);
+    //OCT_output_hex(&SIGNATURE,20000,buff);
+    //printf("SIGNATURE= %s\n",buff);
 
 // add signature oid (again)
     add_signature(&CERT);

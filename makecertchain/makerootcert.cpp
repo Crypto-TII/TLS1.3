@@ -326,10 +326,6 @@ static void add_validity(octad *TOTAL, unsigned char *start_date,unsigned char *
 
     OCT_append_octad(TOTAL,&VALIDITY);
 
-//    char buff[10000];
-//    OCT_output_hex(&VALIDITY,10000,buff);
-
-//    printf("validity= %s\n",buff);
 }
 
 static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY)
@@ -424,7 +420,7 @@ static void add_extension_bc(octad *EXTENSIONS)
 // generate random serial number
 static void add_serial_number(octad *TOTAL)
 {
-    char buff[1000];
+//    char buff[1000];
     unsigned char sn[20];
     octad SN={0,20,(char *)sn};
     setolen(INT,16,&SN);
@@ -437,8 +433,8 @@ static void add_serial_number(octad *TOTAL)
     }
     OCT_append_octad(TOTAL,&SN);
 
-    OCT_output_hex(&SN,1000,buff);
-    printf("serial number= %s\n",buff);
+//    OCT_output_hex(&SN,1000,buff);
+//    printf("serial number= %s\n",buff);
 }
 
 static void add_version(octad *TOTAL) 
@@ -511,7 +507,7 @@ static void add_organisation(octad *ENTITY,char *org_name)
 // append digital signature to certificate
 static void add_cert_signature(octad *CERT,octad *SIGNATURE)
 {
-    char buff[10000];
+//    char buff[10000];
     unsigned char certsig[20000];
     octad CERTSIG={0,20000,(char *)certsig};
 
@@ -537,8 +533,8 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE)
 #endif
     OCT_append_octad(CERT,&CERTSIG);
 
-    OCT_output_hex(&CERTSIG,10000,buff);
-    printf("CERTSIG= %s\n",buff);
+//    OCT_output_hex(&CERTSIG,10000,buff);
+//    printf("CERTSIG= %s\n",buff);
 }
 
 // convert raw private key to X.509 format
@@ -692,12 +688,12 @@ int main() {
     wrap(SEQ,&CERT);  // ready to be signed
 
     OCT_output_hex(&SECRET,20000,buff);
-    printf("SECRET= %s\n",buff);
-    printf("SK size= %d\n",SK_SIZE);
+    //printf("SECRET= %s\n",buff);
+    //printf("SK size= %d\n",SK_SIZE);
 
     SAL_tlsSignature(SIG_TYPE,&SECRET,&CERT,&SIGNATURE);
-    OCT_output_hex(&SIGNATURE,20000,buff);
-    printf("SIGNATURE= %s\n",buff);
+    //OCT_output_hex(&SIGNATURE,20000,buff);
+    //printf("SIGNATURE= %s\n",buff);
 
 // add signature oid (again)
     add_signature(&CERT);
