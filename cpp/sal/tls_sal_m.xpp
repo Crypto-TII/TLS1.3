@@ -1122,10 +1122,10 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
 }
 
 // Generate Key pair 
-void SAL_tlsKeypair(int sigAlg,octad *SECRET_KEY,octad *PUBLIC_KEY)
+void SAL_tlsKeypair(int keyAlg,octad *SECRET_KEY,octad *PUBLIC_KEY)
 { // probably need to support more cases
 
-    switch (sigAlg)
+    switch (keyAlg)
     {
     case ECDSA_KP:
         if (PUBLIC_KEY->len==65)

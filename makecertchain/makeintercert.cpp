@@ -681,7 +681,53 @@ int main() {
  
     OCT_from_base64(&CERT, buff);
 
-    X509_extract_private_key(&CERT,&ROOTKEY);
+    pktype ret=X509_extract_private_key(&CERT,&ROOTKEY);
+    bool valid=false;
+    switch (ret.type) {
+        case X509_ECC :
+            if (ret.curve==USE_NIST256)
+            {
+                if (SIGTYPE==ECCSHA256_SIG)
+                    valid=true;
+            }
+            if (ret.curve==USE_NIST384)
+            {
+                if (SIGTYPE==ECCSHA384_SIG)
+                    valid=true;
+            }
+            break;
+        case X509_ECD :
+            if (ret.curve==USE_ED25519)
+            {
+                if (SIGTYPE==ED25519_SIG)
+                    valid=true;
+            }
+            if (ret.curve==USE_ED448)
+            {
+                if (SIGTYPE==ECCSHA384_SIG)
+                    valid=true;
+            }
+            break;
+        case X509_RSA :
+            if (SIGTYPE==RSASHA256_SIG || SIGTYPE==RSASHA384_SIG || SIGTYPE==RSASHA512_SIG)
+            {
+                if ((SK_SIZE/5)*16==ret.curve) valid=true;
+            }
+            break;
+        case X509_PQ :
+            if (SIGTYPE==MLDSA65_SIG)
+            {
+                if (SK_SIZE*8==ret.curve) valid=true;
+            }
+            break;
+        default:
+            break;
+    }
+    if (!valid)
+    {
+        printf("Secret key type or length do not match required signature\n");
+        return 0;
+    }
 
     srand(time(NULL));
 
