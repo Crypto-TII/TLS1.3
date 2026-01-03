@@ -704,7 +704,7 @@ int main() {
             }
             if (ret.curve==USE_ED448)
             {
-                if (SIGTYPE==ECCSHA384_SIG)
+                if (SIGTYPE==ED448_SIG)
                     valid=true;
             }
             break;
