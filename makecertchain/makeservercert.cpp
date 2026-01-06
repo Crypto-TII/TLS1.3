@@ -39,6 +39,7 @@ using namespace core;
 #define ED25519_PK 7
 #define ED448_PK 8
 #define MLDSA65_PK 10
+#define NIST256_MLDSA44_PK 11  // Hybrid
 
 #define ECCSHA256_SIG 1
 #define ECCSHA384_SIG 2
@@ -48,6 +49,7 @@ using namespace core;
 #define ED25519_SIG 7
 #define ED448_SIG 8
 #define MLDSA65_SIG 10
+#define ECC256SHA384_MLDSA44_SIG 11
 
 // BEGIN USER EDITABLE AREA *******************
 #define DAYS 365
@@ -108,6 +110,16 @@ static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0
 #define PK_SIZE DL_PK_SIZE_3
 #define PK_TYPE MLDSA_KP
 #endif
+#if PKTYPE==NIST256_MLDSA44_PK
+static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
+#define SB_SK_SIZE_1 32
+#define SB_SK_SIZE_2 DL_SK_SIZE_2
+#define PK_SIZE_1 65
+#define PK_SIZE_2 DL_PK_SIZE_2
+#define PK_TYPE_1 ECDSA_KP 
+#define PK_TYPE_2 MLDSA_KP
+#endif
+
 
 #if SIGTYPE==ECCSHA256_SIG
 static unsigned char sig_oid[10] = {OID,0x08,0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02};
@@ -156,6 +168,15 @@ static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,
 #define SK_SIZE DL_SK_SIZE_3
 #define SIG_SIZE DL_SIG_SIZE_3
 #define SIG_TYPE MLDSA65
+#endif
+#if SIGTYPE==ECC256SHA384_MLDSA44_SIG
+static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
+#define SK_SIZE_1 32
+#define SK_SIZE_2 DL_SK_SIZE_2
+#define SIG_SIZE_1 64
+#define SIG_SIZE_2 DL_SIG_SIZE_2
+#define SIG_TYPE_1 ECDSA_SECP256R1_SHA384
+#define SIG_TYPE_2 MLDSA44
 #endif
 
 static octad PK_OID = {sizeof(pk_oid), sizeof(pk_oid), (char *)pk_oid};
@@ -221,15 +242,41 @@ static char *subject_org=(char *)SUBJECT_ORG;
 static char *subject_country=(char *)SUBJECT_COUNTRY;
 static char *server_address=(char *)SERVER_ADDRESS;
       
-static char interkey[SK_SIZE];                               
+#if PKTYPE==NIST256_MLDSA44_PK
+static char secret[SB_SK_SIZE_1];
+static char secret2[SB_SK_SIZE_2];
+static char publickey[PK_SIZE_1];
+static char publickey2[PK_SIZE_2];
+static octad SECRET={SB_SK_SIZE_1,sizeof(secret),(char *)secret};
+static octad SECRET2={SB_SK_SIZE_2,sizeof(secret2),(char *)secret2};
+static octad PUBLICKEY={PK_SIZE_1,sizeof(publickey),(char *)publickey};
+static octad PUBLICKEY2={PK_SIZE_2,sizeof(publickey2),(char *)publickey2};
+#else
 static char secret[SB_SK_SIZE];
-static char publickey[PK_SIZE];
-static char signature[SIG_SIZE];
-
-static octad INTERKEY={SK_SIZE,sizeof(interkey),(char *)interkey};
 static octad SECRET={SB_SK_SIZE,sizeof(secret),(char *)secret};
+static char publickey[PK_SIZE];
 static octad PUBLICKEY={PK_SIZE,sizeof(publickey),(char *)publickey};
+static octad SECRET2={0,0,NULL};
+static octad PUBLICKEY2={0,0,NULL};
+#endif
+
+#if SIGTYPE==ECC256SHA384_MLDSA44_SIG
+static char signature[SIG_SIZE_1];
+static char signature2[SIG_SIZE_2];
+static octad SIGNATURE={SIG_SIZE_1,sizeof(signature),(char *)signature};
+static octad SIGNATURE2={SIG_SIZE_2,sizeof(signature2),(char *)signature2};
+static char interkey[SK_SIZE_1];
+static octad INTERKEY={SK_SIZE_1,sizeof(interkey),(char *)interkey};
+static char interkey2[SK_SIZE_2];
+static octad INTERKEY2={SK_SIZE_2,sizeof(interkey2),(char *)interkey2};
+#else
+static char signature[SIG_SIZE];
 static octad SIGNATURE={SIG_SIZE,sizeof(signature),(char *)signature};
+static octad SIGNATURE2={0,0,NULL};
+static char interkey[SK_SIZE];  
+static octad INTERKEY={SK_SIZE,sizeof(interkey),(char *)interkey};
+static octad INTERKEY2={0,0,NULL};
+#endif
 
 // Certificate will be valid from now to now+days
 static void validity(int days,unsigned char *start,unsigned char* expiry)
@@ -344,7 +391,7 @@ static void add_validity(octad *TOTAL, unsigned char *start_date,unsigned char *
 //    printf("validity= %s\n",buff);
 }
 
-static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY)
+static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
 {
 //    char buff[10000];
     unsigned char pk[10000];
@@ -372,6 +419,18 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY)
     wrap(SEQ,&PKINFO);
 
     makeclause(BIT,PUBLIC_KEY->len,(unsigned char*)PUBLIC_KEY->val,&PK);
+    OCT_append_octad(&PKINFO,&PK);
+    wrap(SEQ,&PKINFO);
+#endif
+
+#if PKTYPE==NIST256_MLDSA44_PK
+    OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
+    wrap(SEQ,&PKINFO);
+
+    OCT_append_octad(&PK,PUBLIC_KEY); OCT_append_octad(&PK,PUBLIC_KEY2);
+    insertbyte(&PK,0x41); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x41=65 = length of EC public key    
+    wrap(BIT,&PK);
+
     OCT_append_octad(&PKINFO,&PK);
     wrap(SEQ,&PKINFO);
 #endif
@@ -542,11 +601,32 @@ static void add_organisation(octad *ENTITY,char *org_name)
 }
 
 // append digital signature to certificate
-static void add_cert_signature(octad *CERT,octad *SIGNATURE)
+static void add_cert_signature(octad *CERT,octad *SIGNATURE,octad *SIGNATURE2)
 {
 //    char buff[10000];
     unsigned char certsig[20000];
     octad CERTSIG={0,20000,(char *)certsig};
+
+#if SIGTYPE==ECC256SHA384_MLDSA44_SIG
+    unsigned char second[100];
+    octad SECOND={0,100,(char *)second};
+    int half=SIG_SIZE_1/2;
+
+    makeclause(INT,half,(unsigned char *)&SIGNATURE->val[0],&CERTSIG);
+    makeclause(INT,half,(unsigned char *)&SIGNATURE->val[half],&SECOND);
+
+    OCT_append_octad(&CERTSIG,&SECOND); 
+    wrap(SEQ,&CERTSIG);
+    wrap(ANY,&CERTSIG);
+    insertbyte(&CERTSIG,0x00); insertbyte(&CERTSIG,0x00); insertbyte(&CERTSIG,0x00); // 0x47 = length of wrapped EC signature
+
+    OCT_append_octad(&CERTSIG,SIGNATURE2);
+    wrap(BIT,&CERTSIG);
+
+    OCT_append_octad(CERT,&CERTSIG);
+    return;
+
+#endif
 
 #if SIGTYPE==ECCSHA256_SIG || SIGTYPE==ECCSHA384_SIG
     unsigned char second[100];
@@ -556,10 +636,6 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE)
     makeclause(INT,half,(unsigned char *)&SIGNATURE->val[0],&CERTSIG);
     makeclause(INT,half,(unsigned char *)&SIGNATURE->val[half],&SECOND);
 
-    //int extra=checksign(SIGNATURE->val[0]);
-    //setolen(INT,half+extra,&CERTSIG); if (extra) OCT_append_byte(&CERTSIG,0x00,1); OCT_append_bytes(&CERTSIG,&SIGNATURE->val[0],half);
-    //extra=checksign(SIGNATURE->val[half]);
-    //setolen(INT,half+extra,&SECOND); if (extra) OCT_append_byte(&SECOND,0x00,1); OCT_append_bytes(&SECOND,&SIGNATURE->val[half],half);
     OCT_append_octad(&CERTSIG,&SECOND);
     wrap(SEQ,&CERTSIG);
     insertbyte(&CERTSIG,0x00);
@@ -575,7 +651,7 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE)
 }
 
 // convert raw private key to X.509 format
-void create_private(octad *PRIVATE,octad *RAWPRIVATE) {
+void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
     int i,off,extra;
     unsigned char anoid[30];
     octad ANOID={0,30,(char *)anoid};
@@ -583,8 +659,7 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE) {
     octad NUMBERS={0,5000,(char *)numbers};
     unsigned char param[300];
     octad PARAM={0,300,(char *)param};    
-    if (PKTYPE==NIST256_PK || PKTYPE==NIST384_PK)
-    {
+#if (PKTYPE==NIST256_PK || PKTYPE==NIST384_PK)
         OCT_append_octad(&ANOID,&EC_OID); OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&PARAM);
@@ -596,10 +671,8 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE) {
         OCT_append_octad(PRIVATE,&ANOID);
         OCT_append_octad(PRIVATE,&NUMBERS);
         wrap(SEQ,PRIVATE);
-        return;
-    }
-    if (PKTYPE==ED25519_PK || PKTYPE==ED448_PK)
-    {
+#endif
+#if (PKTYPE==ED25519_PK || PKTYPE==ED448_PK)
         OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
         OCT_append_octad(&NUMBERS,RAWPRIVATE);
@@ -609,10 +682,32 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE) {
         OCT_append_octad(PRIVATE,&ANOID);
         OCT_append_octad(PRIVATE,&NUMBERS);
         wrap(SEQ,PRIVATE);
-        return;
-    }
-    if (PKTYPE==MLDSA65_PK)
-    {
+#endif
+
+#if (PKTYPE==NIST256_MLDSA44_PK)
+        unsigned char pk[5000];
+        octad PK={0,5000,(char *)pk};
+        unsigned char ecc[100];
+        octad ECC={0,100,(char *)ecc};
+        OCT_append_octad(&ANOID,&PK_OID);
+        wrap(SEQ,&ANOID);
+
+        OCT_append_octad(&PK,&ONE);
+        makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&ECC);
+        OCT_append_octad(&PK,&ECC);
+        wrap(SEQ,&PK);
+        wrap(ANY,&PK);
+        insertbyte(&PK,0x00); insertbyte(&PK,0x00);
+        OCT_append_octad(&PK,RAWPRIVATE2);
+        wrap(OCT,&PK);
+        wrap(OCT,&PK);
+        OCT_append_octad(PRIVATE,&ZERO);
+        OCT_append_octad(PRIVATE,&ANOID);
+        OCT_append_octad(PRIVATE,&PK);
+        wrap(SEQ,PRIVATE);
+#endif
+
+#if (PKTYPE==MLDSA65_PK)
         unsigned char pk[5000];
         octad PK={0,5000,(char *)pk};
         OCT_append_octad(&ANOID,&PK_OID);
@@ -627,13 +722,8 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE) {
         OCT_append_octad(PRIVATE,&ANOID);
         OCT_append_octad(PRIVATE,&PK);
         wrap(SEQ,PRIVATE);
-
-        return;
-    }
-    if (PKTYPE==RSA_PK)
-    {
-        unsigned char param[300];
-        octad PARAM={0,300,(char *)param};
+#endif
+#if (PKTYPE==RSA_PK)
         int len=SB_SK_SIZE/5;
         OCT_append_octad(&ANOID,&PK_OID); OCT_append_octad(&ANOID,&NILL);
         OCT_append_octad(&NUMBERS,&ZERO);
@@ -653,9 +743,7 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE) {
         OCT_append_octad(PRIVATE,&ANOID);
         OCT_append_octad(PRIVATE,&NUMBERS);
         wrap(SEQ,PRIVATE);
-        return;
-    }
-    return;
+#endif
 }
 
 int main() {
@@ -667,16 +755,22 @@ int main() {
     octad ENTITY={0,500,(char *)entity};
     unsigned char cert[20000];
     octad CERT={0,20000,(char *)cert};
+    unsigned char rawkey[20000];
+    octad RAWKEY={0,20000,(char *)cert};
 
     unsigned char extensions[500];
     octad EXTENSIONS={0,500,(char *)extensions};
 
     validity(DAYS,start_date,expiry_date);
 
-    SAL_initLib();
+    SAL_initLib();  // SHOULD IMPLEMENT TRUE RNG - edit tls_sal_m.xpp
 // generate public/private key pair!
-    SAL_tlsKeypair(PK_TYPE,&SECRET,&PUBLICKEY);
-
+#if (PKTYPE==NIST256_MLDSA44_PK)
+    SAL_tlsKeypair(PK_TYPE_1,&SECRET,&PUBLICKEY);
+    SAL_tlsKeypair(PK_TYPE_2,&SECRET2,&PUBLICKEY2);
+#else
+    SAL_tlsKeypair(PK_TYPE,&SECRET,&PUBLICKEY); // PKTYPE
+#endif
 // read in signing key
     fp=fopen("inter.key","rb");
     if (fgets(line,100,fp)==NULL) { // ignore first line
@@ -696,46 +790,52 @@ int main() {
     fclose(fp);
  
     OCT_from_base64(&CERT, buff);
-    pktype ret=X509_extract_private_key(&CERT,&INTERKEY);
+    pktype ret=X509_extract_private_key(&CERT,&RAWKEY);
 
     bool valid=false;
     switch (ret.type) {
         case X509_ECC :
             if (ret.curve==USE_NIST256)
             {
-                if (SIGTYPE==ECCSHA256_SIG)
+                #if (SIGTYPE==ECCSHA256_SIG)
                     valid=true;
+                #endif
             }
             if (ret.curve==USE_NIST384)
             {
-                if (SIGTYPE==ECCSHA384_SIG)
+                #if (SIGTYPE==ECCSHA384_SIG)
                     valid=true;
+                #endif
             }
             break;
         case X509_ECD :
             if (ret.curve==USE_ED25519)
             {
-                if (SIGTYPE==ED25519_SIG)
+                #if (SIGTYPE==ED25519_SIG)
                     valid=true;
+                #endif
             }
             if (ret.curve==USE_ED448)
             {
-                if (SIGTYPE==ED448_SIG)
+                #if (SIGTYPE==ED448_SIG)
                     valid=true;
+                #endif
             }
             break;
         case X509_RSA :
-            if (SIGTYPE==RSASHA256_SIG || SIGTYPE==RSASHA384_SIG || SIGTYPE==RSASHA512_SIG)
-            {
+            #if (SIGTYPE==RSASHA256_SIG || SIGTYPE==RSASHA384_SIG || SIGTYPE==RSASHA512_SIG)
                 if ((SK_SIZE/5)*16==ret.curve) valid=true;
-            }
+            #endif
             break;
         case X509_PQ :
-            if (SIGTYPE==MLDSA65_SIG)
-            {
+            #if (SIGTYPE==MLDSA65_SIG)
                 if (SK_SIZE*8==ret.curve) valid=true;
-            }
+            #endif
             break;
+        case X509_HY:
+            #if (SIGTYPE==ECC256SHA384_MLDSA44_SIG)
+                if ((SK_SIZE_1+SK_SIZE_2)*8==ret.curve) valid=true;   // should be SK_SIZE_1+SK_SIZE_2 -> fix tls_x509.cpp
+            #endif
         default:
             break;
     }
@@ -744,6 +844,14 @@ int main() {
         printf("Secret key type or length do not match required signature\n");
         return 0;
     }
+
+#if SIGTYPE==ECC256SHA384_MLDSA44_SIG
+    OCT_kill(&INTERKEY); OCT_kill(&INTERKEY2);
+    OCT_append_bytes(&INTERKEY,RAWKEY.val,SK_SIZE_1);
+    OCT_append_bytes(&INTERKEY2,&RAWKEY.val[SK_SIZE_1],SK_SIZE_2);
+#else
+    OCT_copy(&INTERKEY,&RAWKEY);
+#endif
 
     srand(time(NULL));
 // build certificate
@@ -772,7 +880,7 @@ int main() {
 // add subject
     OCT_append_octad(&CERT,&ENTITY);
 // add public key
-    add_publickey(&CERT,&PUBLICKEY);
+    add_publickey(&CERT,&PUBLICKEY,&PUBLICKEY2);
 
 // build extensions
     add_extension_an(&EXTENSIONS,server_address);
@@ -789,15 +897,19 @@ int main() {
     //printf("SECRET= %s\n",buff);
     //printf("SK size= %d\n",SK_SIZE);
 
+#if SIGTYPE==ECC256SHA384_MLDSA44_SIG
+    SAL_tlsSignature(SIG_TYPE_1,&INTERKEY,&CERT,&SIGNATURE);
+    SAL_tlsSignature(SIG_TYPE_2,&INTERKEY2,&CERT,&SIGNATURE2);
+#else
     SAL_tlsSignature(SIG_TYPE,&INTERKEY,&CERT,&SIGNATURE);   // sign tbscert
-
+#endif
     //OCT_output_hex(&SIGNATURE,20000,buff);
     //printf("SIGNATURE= %s\n",buff);
 
 // add signature oid (again)
     add_signature(&CERT);
 // append signature
-    add_cert_signature(&CERT,&SIGNATURE);
+    add_cert_signature(&CERT,&SIGNATURE,&SIGNATURE2);
     //setolen(BIT,SIGNATURE.len+1,&CERTSIG); OCT_append_byte(&CERTSIG,0x00,1); OCT_append_octad(&CERTSIG,&SIGNATURE); 
 
     //OCT_append_octad(&CERT,&CERTSIG);
@@ -821,7 +933,7 @@ int main() {
     unsigned char private_key[5000];
     octad PRIVATE_KEY={0,5000,(char *)private_key};
 
-    create_private(&PRIVATE_KEY,&SECRET);
+    create_private(&PRIVATE_KEY,&SECRET,&SECRET2);
 
     OCT_output_base64(&PRIVATE_KEY,20000,buff);
     fp=fopen("server.key","wt");

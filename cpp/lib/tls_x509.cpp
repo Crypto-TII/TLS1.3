@@ -440,7 +440,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
             pk->val[len+i]=c->val[j++];
 
         ret.type=X509_HY;
-        ret.curve=8*tlen;
+        ret.curve=8*pk->len;
     }
 
     if (OCT_compare(&ECPK, &SOID))

@@ -35,7 +35,11 @@ char* SAL_name()
 bool SAL_initLib()
 { // Initialise library
     char raw[64];
+    //FILE *fp=fopen("/dev/urandom", "r");
+    //for (int i = 0; i < 64; i++) raw[i] = fgetc(fp);  // This would be better
+
     for (int i = 0; i < 64; i++) raw[i] = i;  // *** should be from output of true random number generator ****
+
     RAND_seed(&RNG, 64, raw);    
     return true;
 }
