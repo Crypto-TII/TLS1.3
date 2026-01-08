@@ -374,7 +374,7 @@ int checkServerCertChain(octad *CERTCHAIN,char *hostname,int cert_type,octad *PU
     ptr+=len;   // skip certificate extensions
 
     if (ptr<CERTCHAIN->len)
-        log(IO_PROTOCOL,(char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Warning - there are unprocessed Certificates in the Chain\n",NULL,0,NULL);
 
 #ifdef SHALLOW_STACK
     octad INTER_SIG={0,TLS_MAX_SIGNATURE_SIZE,(char *)malloc(TLS_MAX_SIGNATURE_SIZE)};

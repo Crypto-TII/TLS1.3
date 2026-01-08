@@ -304,7 +304,7 @@ pub fn check_certchain(chain: &[u8],hostname: Option<&[u8]>,cert_type: u8,pubkey
     ptr+=len;    // skip certificate extensions
 
     if ptr<chain.len() {
-        log(IO_PROTOCOL,"Warning - there are unprocessed Certificates in the Chain\n",-1,None);
+        log(IO_DEBUG,"Warning - there are unprocessed Certificates in the Chain\n",-1,None);
     }
 
 // parse next certificate

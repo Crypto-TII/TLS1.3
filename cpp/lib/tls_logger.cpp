@@ -299,47 +299,68 @@ static int make_dn(octad *DN,octad *DER) {
 // log certificate details
 void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,octad *SUBJECT)
 {
-#if VERBOSITY >= IO_DEBUG
+#if VERBOSITY >= IO_PROTOCOL
     log(IO_DEBUG,(char *)"Parsing Certificate\n",NULL,0,NULL);
     log(IO_DEBUG,(char *)"Signature on Certificate is ",NULL,0,SIG); 
     if (sg.type==X509_ECC)
     {
-        log(IO_DEBUG,(char *)"ECDSA signature ",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Certificate signature is ECDSA - ",NULL,0,NULL);
         if (sg.curve==USE_NIST256)
-            log(IO_DEBUG,(char *)"Curve is SECP256R1\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Curve is SECP256R1 ",NULL,0,NULL);
         if (sg.curve==USE_NIST384)
-            log(IO_DEBUG,(char *)"Curve is SECP384R1\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Curve is SECP384R1 ",NULL,0,NULL);
         if (sg.curve==USE_NIST521)
-            log(IO_DEBUG,(char *)"Curve is SECP521R1\n",NULL,0,NULL);
-        if (sg.hash == X509_H256) log(IO_DEBUG,(char *)"Hashed with SHA256\n",NULL,0,NULL);
-        if (sg.hash == X509_H384) log(IO_DEBUG,(char *)"Hashed with SHA384\n",NULL,0,NULL);
-        if (sg.hash == X509_H512) log(IO_DEBUG,(char *)"Hashed with SHA512\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Curve is SECP521R1 ",NULL,0,NULL);
+        if (sg.hash == X509_H256) log(IO_PROTOCOL,(char *)"Hashed with SHA256\n",NULL,0,NULL);
+        if (sg.hash == X509_H384) log(IO_PROTOCOL,(char *)"Hashed with SHA384\n",NULL,0,NULL);
+        if (sg.hash == X509_H512) log(IO_PROTOCOL,(char *)"Hashed with SHA512\n",NULL,0,NULL);
     }
     if (sg.type==X509_ECD)
     {
-       log(IO_DEBUG,(char *)"EDDSA signature ",NULL,0,NULL);
+       log(IO_PROTOCOL,(char *)"Certificate signature is EdDSA - ",NULL,0,NULL);
         if (sg.curve==USE_ED25519)
-            log(IO_DEBUG,(char *)"Curve is ED25519\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Curve is ED25519\n",NULL,0,NULL);
         if (sg.curve==USE_ED448)
-            log(IO_DEBUG,(char *)"Curve is ED448\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Curve is ED448\n",NULL,0,NULL);
     }
     if (sg.type==X509_RSA)
-        log(IO_DEBUG,(char *)"RSA signature of length ",(char *)"%d",sg.curve,NULL);
+        log(IO_PROTOCOL,(char *)"Certificate signature is RSA of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
+
+    if (sg.type==X509_PQ)
+        log(IO_PROTOCOL,(char *)"Certificate signature is Post Quantum of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
+
+    if (sg.type==X509_HY)
+        log(IO_PROTOCOL,(char *)"Certificate signature is Hybrid of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
+
 
     log(IO_DEBUG,(char *)"Public key from Certificate is ",NULL,0,PUBKEY); 
     if (pk.type==X509_ECC)
     {
-        log(IO_DEBUG,(char *)"ECC public key ",NULL,0,NULL);
+        log(IO_PROTOCOL,(char *)"Certificate public key is ECC - ",NULL,0,NULL);
         if (pk.curve==USE_NIST256)
-            log(IO_DEBUG,(char *)"Curve is SECP256R1\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Curve is SECP256R1\n",NULL,0,NULL);
         if (pk.curve==USE_NIST384)
-            log(IO_DEBUG,(char *)"Curve is SECP384R1\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Curve is SECP384R1\n",NULL,0,NULL);
         if (pk.curve==USE_NIST521)
-            log(IO_DEBUG,(char *)"Curve is SECP521R1\n",NULL,0,NULL);
+            log(IO_PROTOCOL,(char *)"Curve is SECP521R1\n",NULL,0,NULL);
+    }
+    if (pk.type==X509_ECD)
+    {
+        log(IO_PROTOCOL,(char *)"Certificate public key is ECC - ",NULL,0,NULL);
+        if (pk.curve==USE_ED25519)
+            log(IO_PROTOCOL,(char *)"Curve is ED25519\n",NULL,0,NULL);
+        if (pk.curve==USE_ED448)
+            log(IO_PROTOCOL,(char *)"Curve is ED448\n",NULL,0,NULL);
     }
     if (pk.type==X509_RSA)
-        log(IO_DEBUG,(char *)"Certificate public key is RSA of length ",(char *)"%d",pk.curve,NULL);
+        log(IO_PROTOCOL,(char *)"Certificate public key is RSA of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
     
+    if (pk.type==X509_PQ)
+        log(IO_PROTOCOL,(char *)"Certificate public key is Post Quantum of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
+
+    if (sg.type==X509_HY)
+        log(IO_PROTOCOL,(char *)"Certificate public key is Hybrid of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
+
     char dn[256];
     octad DN={0,sizeof(dn),dn};
     make_dn(&DN,ISSUER);

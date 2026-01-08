@@ -970,7 +970,7 @@ bool TLS13_connect(TLS_session *session,octad *EARLY,credential *credential)
         rtn=TLS13_resume(session,EARLY);
         if (rtn==TLS_EARLY_DATA_ACCEPTED) early_went=true;
     } else {
-        log(IO_PROTOCOL,(char *)"Resumption Ticket not found or invalid\n",NULL,0,NULL);
+        log(IO_DEBUG,(char *)"Resumption Ticket not found or invalid\n",NULL,0,NULL);
         rtn=TLS13_full(session,credential);
     }
     initTicketContext(&session->T); // clear out any ticket

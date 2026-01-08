@@ -35,7 +35,8 @@ pub fn log(logit: usize,preamble: &str,info: isize,bytes: Option<&[u8]>) {
             println!();
         } else {
             if info>=0 {
-                println!("{:#06x}",info);
+                //println!("{:#06x}",info);
+                println!("{}",info);
             } 
         }
     }
@@ -96,49 +97,71 @@ pub fn log_cert_details(d: &CERT)
     log(IO_DEBUG,"Parsing Certificate\n",-1,None);
     log(IO_DEBUG,"Signature on Certificate is ",0,Some(&d.sig[0..d.sgt.len])); 
     if d.sgt.kind==x509::ECC {
-        log(IO_DEBUG,"ECDSA signature ",-1,None);
+        log(IO_PROTOCOL,"Certificate signature is ECDSA - ",-1,None);
         if d.sgt.curve==x509::USE_NIST256 {
-            log(IO_DEBUG,"Curve is SECP256R1 ",-1,None);
+            log(IO_PROTOCOL,"Curve is SECP256R1 ",-1,None);
         }
         if d.sgt.curve==x509::USE_NIST384 {
-            log(IO_DEBUG,"Curve is SECP384R1 ",-1,None);
+            log(IO_PROTOCOL,"Curve is SECP384R1 ",-1,None);
         }
         if d.sgt.curve==x509::USE_NIST521 {
-            log(IO_DEBUG,"Curve is SECP521R1 ",-1,None);
+            log(IO_PROTOCOL,"Curve is SECP521R1 ",-1,None);
         }
-        if d.sgt.hash == x509::H256 {log(IO_DEBUG,"Hashed with SHA256\n",-1,None);}
-        if d.sgt.hash == x509::H384 {log(IO_DEBUG,"Hashed with SHA384\n",-1,None);}
-        if d.sgt.hash == x509::H512 {log(IO_DEBUG,"Hashed with SHA512\n",-1,None);}
+        if d.sgt.hash == x509::H256 {log(IO_PROTOCOL,"Hashed with SHA256\n",-1,None);}
+        if d.sgt.hash == x509::H384 {log(IO_PROTOCOL,"Hashed with SHA384\n",-1,None);}
+        if d.sgt.hash == x509::H512 {log(IO_PROTOCOL,"Hashed with SHA512\n",-1,None);}
     }
     if d.sgt.kind==x509::ECD {
-        log(IO_DEBUG,"EDDSA signature ",-1,None);
+        log(IO_PROTOCOL,"Certificate signature is EdDSA - ",-1,None);
         if d.sgt.curve==x509::USE_ED25519 {
-            log(IO_DEBUG,"Curve is ED25519 ",-1,None);
+            log(IO_PROTOCOL,"Curve is ED25519\n",-1,None);
         }
         if d.sgt.curve==x509::USE_ED448 {
-            log(IO_DEBUG,"Curve is ED448 ",-1,None);
+            log(IO_PROTOCOL,"Curve is ED448\n",-1,None);
         }
     }
     if d.sgt.kind==x509::RSA {
-        log(IO_DEBUG,"RSA signature of length ",d.sgt.curve as isize,None);
+        log(IO_PROTOCOL,"Certificate signature is RSA of length (bits) ",8*(d.sgt.len as isize),None);
+    }
+    if d.sgt.kind==x509::PQ {
+        log(IO_PROTOCOL,"Certificate signature is Post Quantum of length (bits) ",8*(d.sgt.len as isize),None);
+    }
+    if d.sgt.kind==x509::HY {
+        log(IO_PROTOCOL,"Certificate signature is Hybrid of length (bits) ",8*(d.sgt.len as isize),None);
     }
 
     log(IO_DEBUG,"Public key from Certificate is ",0,Some(&d.pk[0..d.pkt.len])); 
     if d.pkt.kind==x509::ECC {
-        log(IO_DEBUG,"ECC public key ",-1,None);
+        log(IO_PROTOCOL,"Certificate public key is ECC - ",-1,None);
         if d.pkt.curve==x509::USE_NIST256 {
-            log(IO_DEBUG,"Curve is SECP256R1\n",-1,None);
+            log(IO_PROTOCOL,"Curve is SECP256R1\n",-1,None);
         }
         if d.pkt.curve==x509::USE_NIST384 {
-            log(IO_DEBUG,"Curve is SECP384R1\n",-1,None);
+            log(IO_PROTOCOL,"Curve is SECP384R1\n",-1,None);
         }
         if d.pkt.curve==x509::USE_NIST521 {
-            log(IO_DEBUG,"Curve is SECP521R1\n",-1,None);
+            log(IO_PROTOCOL,"Curve is SECP521R1\n",-1,None);
+        }
+    }
+    if d.pkt.kind==x509::ECD {
+        log(IO_PROTOCOL,"Certificate public key is ECC - ",-1,None);
+        if d.pkt.curve==x509::USE_ED25519 {
+            log(IO_PROTOCOL,"Curve is ED25519\n",-1,None);
+        }
+        if d.pkt.curve==x509::USE_ED448 {
+            log(IO_PROTOCOL,"Curve is ED448\n",-1,None);
         }
     }
     if d.pkt.kind==x509::RSA {
-        log(IO_DEBUG,"Certificate public key is RSA of length ",d.pkt.curve as isize,None);
+        log(IO_PROTOCOL,"Certificate public key is RSA of length (bits) ",8*(d.pkt.len as isize),None);
     }
+    if d.pkt.kind==x509::PQ {
+        log(IO_PROTOCOL,"Certificate public key is Post Quantum of length (bits) ",8*(d.pkt.len as isize),None);
+    }
+        if d.pkt.kind==x509::HY {
+        log(IO_PROTOCOL,"Certificate public key is Hybrid of length (bits) ",8*(d.pkt.len as isize),None);
+    }
+
     let mut dn:[u8;256]=[0;256];
 
     let mut n=utils::make_dn(&mut dn,&d.issuer);

@@ -2071,7 +2071,7 @@ impl SESSION {
                 early_went=true;
             }
         } else {
-            log(IO_PROTOCOL,"Resumption Ticket not found or invalid\n",-1,None);
+            log(IO_DEBUG,"Resumption Ticket not found or invalid\n",-1,None);
             rtn=self.tls_full(credential);
         }
         self.t.clear(); // clear out any ticket

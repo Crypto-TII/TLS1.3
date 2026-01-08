@@ -494,7 +494,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
 
         ret.len=tlen+len;
         ret.kind=HY;
-        ret.curve=8*tlen;
+        ret.curve=8*(tlen+len);
     }    
     if ECPK == soid[0..slen] {
         len=getalen(OID,c,j);
