@@ -257,6 +257,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define ECDSA_KP 2
 #define EDDSA_KP 3
 #define MLDSA_KP 4
+#define ECC_MLDSA_KP 5
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */

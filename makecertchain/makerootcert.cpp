@@ -683,8 +683,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
 
 
 #if (PKTYPE==RSA_PK)
-        unsigned char param[300];
-        octad PARAM={0,300,(char *)param};
         int len=SB_SK_SIZE/5;
         OCT_append_octad(&ANOID,&PK_OID); OCT_append_octad(&ANOID,&NILL);
         OCT_append_octad(&NUMBERS,&ZERO);
