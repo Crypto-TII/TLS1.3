@@ -310,9 +310,7 @@ static void makeclause(int tag, int dlen, unsigned char *data, octad *b)
     int len=dlen;
     b->val[0]=tag;
     if (tag==BIT || (tag==INT && data[0]>127)) {pad=1; len++;}
- 
     k=setolen(tag,len,b);
-
     if (pad)
     {
         b->val[k]=0x00;
@@ -366,7 +364,6 @@ static void add_validity(octad *TOTAL, unsigned char *start_date,unsigned char *
     OCT_append_octad(&VALIDITY,&ENDTIME);
 
     OCT_append_octad(TOTAL,&VALIDITY);
-
 }
 
 static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
@@ -413,7 +410,6 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
     wrap(SEQ,&PKINFO);
 #endif
 
-// ECC = SEQ LEN SEQ LEN OID LEN () OID LEN () BIT LEN (00 04 ....)
 // ECDSA
 #if PKTYPE==NIST256_PK || PKTYPE==NIST384_PK
     OCT_append_octad(&PKINFO,&EC_OID); OCT_append_octad(&PK,&PK_OID);
@@ -437,7 +433,6 @@ static void add_signature(octad *TOTAL)
     unsigned char signature[30];
     octad SIGNATURE={0,30,(char *)signature};
 
-    //makeclause(OID,SIG_OID.len,(unsigned char *)SIG_OID.val,&SIGNATURE);
     OCT_append_octad(&SIGNATURE,&SIG_OID);
     OCT_append_octad(&SIGNATURE,&NILL);
     wrap(SEQ,&SIGNATURE);
@@ -448,7 +443,6 @@ static void add_signature(octad *TOTAL)
     //printf("SIG= %s\n",buff);
 }
 
-//300F 0603 551D13 0101FF 0405 3003 0101FF
 // add a basic constraint extension
 static void add_extension_bc(octad *EXTENSIONS)
 {
@@ -599,7 +593,6 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE,octad *SIGNATURE2)
     wrap(BIT,&CERTSIG);
 #else
     makeclause(BIT,SIGNATURE->len,(unsigned char *)SIGNATURE->val,&CERTSIG);
-    //setolen(BIT,SIGNATURE->len+1,&CERTSIG); OCT_append_byte(&CERTSIG,0x00,1); OCT_append_octad(&CERTSIG,SIGNATURE); 
 #endif
     OCT_append_octad(CERT,&CERTSIG);
 
@@ -620,7 +613,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         OCT_append_octad(&ANOID,&EC_OID); OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&PARAM);
-        //setolen(OCT,RAWPRIVATE->len,&PARAM); OCT_append_octad(&PARAM,RAWPRIVATE);
         OCT_append_octad(&NUMBERS,&ONE); OCT_append_octad(&NUMBERS,&PARAM);
         wrap(SEQ,&NUMBERS);
         wrap(OCT,&NUMBERS);
@@ -647,7 +639,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         wrap(SEQ,&ANOID);
         setolen(OCT,32,&PK); OCT_append_byte(&PK,0x00,32); 
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&NUMBERS);
-        //setolen(OCT,RAWPRIVATE->len,&NUMBERS); OCT_append_octad(&NUMBERS,RAWPRIVATE);
         OCT_append_octad(&PK,&NUMBERS);
         wrap(SEQ,&PK);
         wrap(OCT,&PK);
@@ -655,7 +646,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         OCT_append_octad(PRIVATE,&ANOID);
         OCT_append_octad(PRIVATE,&PK);
         wrap(SEQ,PRIVATE);
-
 #endif
 
 #if (PKTYPE==NIST256_MLDSA44_PK)
@@ -665,7 +655,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         octad ECC={0,100,(char *)ecc};
         OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
-
         OCT_append_octad(&PK,&ONE);
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&ECC);
         OCT_append_octad(&PK,&ECC);
@@ -681,7 +670,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         wrap(SEQ,PRIVATE);
 #endif
 
-
 #if (PKTYPE==RSA_PK)
         int len=SB_SK_SIZE/5;
         OCT_append_octad(&ANOID,&PK_OID); OCT_append_octad(&ANOID,&NILL);
@@ -692,12 +680,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         for (int j=0;j<5;j++)
         {
             makeclause(INT,len,(unsigned char *)&RAWPRIVATE->val[j*len],&PARAM);
-            //extra=checksign(RAWPRIVATE->val[j*len]);
-            //setolen(INT,extra+len,&PARAM); if (extra) OCT_append_byte(&PARAM,0x00,1);
-            //off=PARAM.len;
-            //for (i=0;i<len;i++)
-            //    PARAM.val[off+i]=RAWPRIVATE->val[j*len+i];
-            //PARAM.len=off+len;
             OCT_append_octad(&NUMBERS,&PARAM);
         }        
         wrap(SEQ,&ANOID);
@@ -753,7 +735,7 @@ int main() {
 // add validity period
     add_validity(&CERT,start_date,expiry_date);
 
-// build subject - its self signed do issuer is also subject
+// build subject - its self signed so issuer is also subject
     OCT_kill(&ENTITY);
     add_country(&ENTITY,issuer_country);
     add_organisation(&ENTITY,issuer_org);

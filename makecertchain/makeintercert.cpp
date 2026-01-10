@@ -326,9 +326,7 @@ static void makeclause(int tag, int dlen, unsigned char *data, octad *b)
     int len=dlen;
     b->val[0]=tag;
     if (tag==BIT || (tag==INT && data[0]>127)) {pad=1; len++;}
- 
     k=setolen(tag,len,b);
-
     if (pad)
     {
         b->val[k]=0x00;
@@ -433,7 +431,6 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
     wrap(SEQ,&PKINFO);
 #endif
 
-// ECC = SEQ LEN SEQ LEN OID LEN () OID LEN () BIT LEN (00 04 ....)
 // ECDSA
 #if PKTYPE==NIST256_PK || PKTYPE==NIST384_PK
     OCT_append_octad(&PKINFO,&EC_OID); OCT_append_octad(&PK,&PK_OID);
@@ -639,7 +636,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         OCT_append_octad(&ANOID,&EC_OID); OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&PARAM);
-        //setolen(OCT,RAWPRIVATE->len,&PARAM); OCT_append_octad(&PARAM,RAWPRIVATE);
         OCT_append_octad(&NUMBERS,&ONE); OCT_append_octad(&NUMBERS,&PARAM);
         wrap(SEQ,&NUMBERS);
         wrap(OCT,&NUMBERS);
@@ -683,7 +679,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         octad ECC={0,100,(char *)ecc};
         OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
-
         OCT_append_octad(&PK,&ONE);
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&ECC);
         OCT_append_octad(&PK,&ECC);
@@ -706,7 +701,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         OCT_append_octad(&NUMBERS,&ZERO);
         OCT_append_octad(&NUMBERS,&E65537); 
         OCT_append_octad(&NUMBERS,&ZERO);
-
         for (int j=0;j<5;j++)
         {
             makeclause(INT,len,(unsigned char *)&RAWPRIVATE->val[j*len],&PARAM);

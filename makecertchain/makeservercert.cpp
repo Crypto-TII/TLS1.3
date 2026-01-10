@@ -120,7 +120,6 @@ static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
 #define PK_TYPE_2 MLDSA_KP
 #endif
 
-
 #if SIGTYPE==ECCSHA256_SIG
 static unsigned char sig_oid[10] = {OID,0x08,0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02};
 #define SK_SIZE 32   // secret key size
@@ -328,9 +327,7 @@ static void makeclause(int tag, int dlen, unsigned char *data, octad *b)
     int len=dlen;
     b->val[0]=tag;
     if (tag==BIT || (tag==INT && data[0]>127)) {pad=1; len++;}
- 
     k=setolen(tag,len,b);
-
     if (pad)
     {
         b->val[k]=0x00;
@@ -435,7 +432,6 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
     wrap(SEQ,&PKINFO);
 #endif
 
-// ECC = SEQ LEN SEQ LEN OID LEN () OID LEN () BIT LEN (00 04 ....)
 // ECDSA
 #if PKTYPE==NIST256_PK || PKTYPE==NIST384_PK
     OCT_append_octad(&PKINFO,&EC_OID); OCT_append_octad(&PK,&PK_OID);
@@ -469,7 +465,6 @@ static void add_signature(octad *TOTAL)
     //printf("SIG= %s\n",buff);
 }
 
-//300F 0603 551D13 0101FF 0405 3003 0101FF
 // add a basic constraint extension
 static void add_extension_bc(octad *EXTENSIONS)
 {
@@ -632,17 +627,14 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE,octad *SIGNATURE2)
     unsigned char second[100];
     octad SECOND={0,100,(char *)second};
     int half=(SIGNATURE->len)/2;
-
     makeclause(INT,half,(unsigned char *)&SIGNATURE->val[0],&CERTSIG);
     makeclause(INT,half,(unsigned char *)&SIGNATURE->val[half],&SECOND);
-
     OCT_append_octad(&CERTSIG,&SECOND);
     wrap(SEQ,&CERTSIG);
     insertbyte(&CERTSIG,0x00);
     wrap(BIT,&CERTSIG);
 #else
     makeclause(BIT,SIGNATURE->len,(unsigned char *)SIGNATURE->val,&CERTSIG);
-    //setolen(BIT,SIGNATURE->len+1,&CERTSIG); OCT_append_byte(&CERTSIG,0x00,1); OCT_append_octad(&CERTSIG,SIGNATURE); 
 #endif
     OCT_append_octad(CERT,&CERTSIG);
 
@@ -663,7 +655,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         OCT_append_octad(&ANOID,&EC_OID); OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&PARAM);
-        //setolen(OCT,RAWPRIVATE->len,&PARAM); OCT_append_octad(&PARAM,RAWPRIVATE);
         OCT_append_octad(&NUMBERS,&ONE); OCT_append_octad(&NUMBERS,&PARAM);
         wrap(SEQ,&NUMBERS);
         wrap(OCT,&NUMBERS);
@@ -691,7 +682,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         octad ECC={0,100,(char *)ecc};
         OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
-
         OCT_append_octad(&PK,&ONE);
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&ECC);
         OCT_append_octad(&PK,&ECC);
@@ -714,7 +704,6 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         wrap(SEQ,&ANOID);
         setolen(OCT,32,&PK); OCT_append_byte(&PK,0x00,32); 
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&NUMBERS);
-        //setolen(OCT,RAWPRIVATE->len,&NUMBERS); OCT_append_octad(&NUMBERS,RAWPRIVATE);
         OCT_append_octad(&PK,&NUMBERS);
         wrap(SEQ,&PK);
         wrap(OCT,&PK);
