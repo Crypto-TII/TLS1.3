@@ -24,7 +24,7 @@ Ignore any debugging output
 
 The following files should be created
 
-*inter.crt*  *root.crt*  *server.crt* *inter.key*  *root.key*  *server.key*
+*inter.crt*  *root.crt*  *server.crt*  *inter.key*  *root.key*  *server.key*
 
 Certificates can be examined by pasting the base64 in the .crt files into https://lapo.it/asn1js/
 

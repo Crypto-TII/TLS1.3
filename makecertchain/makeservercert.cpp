@@ -9,29 +9,6 @@
 #include "tls_octads.h"
 #include "tls_sal.h"
 #include "tls_x509.h"
-#include "dilithium.h"
-
-using namespace core;
-
-// ASN.1 tags
-#define ANY 0x00
-#define SEQ 0x30
-#define OID 0x06
-#define INT 0x02
-#define NUL 0x05
-#define ZER 0x00
-#define UTF 0x0C
-#define UTC 0x17
-#define GTM 0x18
-#define LOG 0x01
-#define BIT 0x03
-#define OCT 0x04
-#define STR 0x13
-#define SET 0x31
-#define IA5 0x16
-#define EXT 0xA3
-#define DNS 0x82
-#define VRS 0xA0
 
 #define NIST256_PK 1
 #define NIST384_PK 2
@@ -55,9 +32,11 @@ using namespace core;
 #define DAYS 365
 #define ISSUER_NAME "TiigerTLS intermediate CA"
 #define ISSUER_ORG "Tii Trust Services"
+#define ISSUER_UNIT ""
 #define ISSUER_COUNTRY "AE"
 #define SUBJECT_NAME "TiigerTLS server"
 #define SUBJECT_ORG "Tii Trust Services"
+#define SUBJECT_UNIT ""
 #define SUBJECT_COUNTRY "AE"
 #define SERVER_ADDRESS "localhost"
 #define PKTYPE NIST256_PK // Server cert public key type
@@ -71,7 +50,27 @@ using namespace core;
 #endif
 // END USER EDITABLE AREA *********************
 
-// For OIDS use https://misc.daniel-marschall.de/asn.1/oid-converter/online.php
+// ASN.1 tags
+#define ANY 0x00
+#define SEQ 0x30
+#define OID 0x06
+#define INT 0x02
+#define NUL 0x05
+#define ZER 0x00
+#define UTF 0x0C
+#define UTC 0x17
+#define GTM 0x18
+#define LOG 0x01
+#define BIT 0x03
+#define OCT 0x04
+#define STR 0x13
+#define SET 0x31
+#define IA5 0x16
+#define EXT 0xA3
+#define DNS 0x82
+#define VRS 0xA0
+
+// For OIDS see https://misc.daniel-marschall.de/asn.1/oid-converter/online.php
 
 #if PKTYPE==NIST256_PK
 static unsigned char pk_oid[10]= {OID,0x08,0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
@@ -106,16 +105,16 @@ static unsigned char pk_oid[5] = {OID,0x03,0x2B, 0x65, 0x71};
 #endif
 #if PKTYPE==MLDSA65_PK
 static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12};
-#define SB_SK_SIZE DL_SK_SIZE_3
-#define PK_SIZE DL_PK_SIZE_3
+#define SB_SK_SIZE 4032
+#define PK_SIZE 1952
 #define PK_TYPE MLDSA_KP
 #endif
 #if PKTYPE==NIST256_MLDSA44_PK
 static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
 #define SB_SK_SIZE_1 32
-#define SB_SK_SIZE_2 DL_SK_SIZE_2
+#define SB_SK_SIZE_2 2560
 #define PK_SIZE_1 65
-#define PK_SIZE_2 DL_PK_SIZE_2
+#define PK_SIZE_2 1312
 #define PK_TYPE_1 ECDSA_KP 
 #define PK_TYPE_2 MLDSA_KP
 #endif
@@ -164,16 +163,16 @@ static unsigned char sig_oid[5] = {OID,0x03,0x2B, 0x65, 0x71};
 #endif
 #if SIGTYPE==MLDSA65_SIG
 static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12};
-#define SK_SIZE DL_SK_SIZE_3
-#define SIG_SIZE DL_SIG_SIZE_3
+#define SK_SIZE 4032
+#define SIG_SIZE 3309
 #define SIG_TYPE MLDSA65
 #endif
 #if SIGTYPE==ECC256SHA384_MLDSA44_SIG
 static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
 #define SK_SIZE_1 32
-#define SK_SIZE_2 DL_SK_SIZE_2
+#define SK_SIZE_2 2560
 #define SIG_SIZE_1 64
-#define SIG_SIZE_2 DL_SIG_SIZE_2
+#define SIG_SIZE_2 2420
 #define SIG_TYPE_1 ECDSA_SECP256R1_SHA384
 #define SIG_TYPE_2 MLDSA44
 #endif
@@ -217,8 +216,8 @@ static char un[5]= {OID,0x03,0x55,0x04,0x0B};
 static octad X509_un= {5,sizeof(un),un};
 
 // emailName
-static unsigned char en[11] = {OID,0x09,0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01};
-static octad X509_en = {11, sizeof(en), (char *)en};
+//static unsigned char en[11] = {OID,0x09,0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01};
+//static octad X509_en = {11, sizeof(en), (char *)en};
 
 // Extensions
 // Alt Name
@@ -235,9 +234,11 @@ static octad E65537 = {5,sizeof(e65537),(char *)e65537};
 
 static char *issuer_name=(char *)ISSUER_NAME;
 static char *issuer_org=(char *)ISSUER_ORG;
+static char *issuer_unit=(char *)ISSUER_UNIT;
 static char *issuer_country=(char *)ISSUER_COUNTRY;
 static char *subject_name=(char *)SUBJECT_NAME; 
 static char *subject_org=(char *)SUBJECT_ORG;
+static char *subject_unit=(char *)SUBJECT_UNIT;
 static char *subject_country=(char *)SUBJECT_COUNTRY;
 static char *server_address=(char *)SERVER_ADDRESS;
       
@@ -548,8 +549,9 @@ static void add_country(octad *ENTITY,char *country_name)
     octad COUNTRY={0,50,(char *)country};
     static unsigned char astring[80];
     static octad ASTRING={0,80,(char *)astring};
+    int len=strlen(country_name); if (len==0) return;
     OCT_append_octad(&COUNTRY,&X509_cn);
-    makeclause(UTF,strlen(country_name),(unsigned char *)country_name,&ASTRING);
+    makeclause(UTF,len,(unsigned char *)country_name,&ASTRING);
     OCT_append_octad(&COUNTRY,&ASTRING);
     wrap(SEQ,&COUNTRY);
     wrap(SET,&COUNTRY);
@@ -562,36 +564,57 @@ static void add_country(octad *ENTITY,char *country_name)
 static void add_common(octad *ENTITY,char *common_name)
 {
 //    char buff[10000];
-    unsigned char common[50];
-    octad COMMON={0,50,(char *)common};
+    unsigned char name[50];
+    octad NAME={0,50,(char *)name};
     static unsigned char astring[80];
     static octad ASTRING={0,80,(char *)astring};
-    OCT_append_octad(&COMMON,&X509_mn);
-    makeclause(UTF,strlen(common_name),(unsigned char *)common_name,&ASTRING);
-    OCT_append_octad(&COMMON,&ASTRING);
-    wrap(SEQ,&COMMON);
-    wrap(SET,&COMMON);
-    OCT_append_octad(ENTITY,&COMMON);
+    int len=strlen(common_name); if (len==0) return;
+    OCT_append_octad(&NAME,&X509_mn);
+    makeclause(UTF,len,(unsigned char *)common_name,&ASTRING);
+    OCT_append_octad(&NAME,&ASTRING);
+    wrap(SEQ,&NAME);
+    wrap(SET,&NAME);
+    OCT_append_octad(ENTITY,&NAME);
 
-//    OCT_output_hex(&COMMON,10000,buff);
+//    OCT_output_hex(&NAME,10000,buff);
 //    printf("common= %s\n",buff);
 }
 
 static void add_organisation(octad *ENTITY,char *org_name)
 {
 //    char buff[10000];
-    unsigned char common[50];
-    octad COMMON={0,50,(char *)common};
+    unsigned char name[50];
+    octad NAME={0,50,(char *)name};
     static unsigned char astring[80];
     static octad ASTRING={0,80,(char *)astring};
-    OCT_append_octad(&COMMON,&X509_on);
-    makeclause(UTF,strlen(org_name),(unsigned char *)org_name,&ASTRING);
-    OCT_append_octad(&COMMON,&ASTRING);
-    wrap(SEQ,&COMMON);
-    wrap(SET,&COMMON);
-    OCT_append_octad(ENTITY,&COMMON);
+    int len=strlen(org_name);  if (len==0) return;
+    OCT_append_octad(&NAME,&X509_on);
+    makeclause(UTF,len,(unsigned char *)org_name,&ASTRING);
+    OCT_append_octad(&NAME,&ASTRING);
+    wrap(SEQ,&NAME);
+    wrap(SET,&NAME);
+    OCT_append_octad(ENTITY,&NAME);
 
-//    OCT_output_hex(&COMMON,10000,buff);
+//    OCT_output_hex(&NAME,10000,buff);
+//    printf("organisation= %s\n",buff);
+}
+
+static void add_unit(octad *ENTITY,char *unit_name)
+{
+//    char buff[10000];
+    unsigned char name[50];
+    octad NAME={0,50,(char *)name};
+    static unsigned char astring[80];
+    static octad ASTRING={0,80,(char *)astring};
+    int len=strlen(unit_name);  if (len==0) return;
+    OCT_append_octad(&NAME,&X509_un);
+    makeclause(UTF,len,(unsigned char *)unit_name,&ASTRING);
+    OCT_append_octad(&NAME,&ASTRING);
+    wrap(SEQ,&NAME);
+    wrap(SET,&NAME);
+    OCT_append_octad(ENTITY,&NAME);
+
+//    OCT_output_hex(&NAME,10000,buff);
 //    printf("organisation= %s\n",buff);
 }
 
@@ -852,6 +875,7 @@ int main() {
 //build issuer
     add_country(&ENTITY,issuer_country);
     add_organisation(&ENTITY,issuer_org);
+    add_unit(&ENTITY,issuer_unit);
     add_common(&ENTITY,issuer_name);
     wrap(SEQ,&ENTITY);
 //add issuer
@@ -864,6 +888,7 @@ int main() {
     OCT_kill(&ENTITY);
     add_country(&ENTITY,subject_country);
     add_organisation(&ENTITY,subject_org);
+    add_unit(&ENTITY,subject_unit);
     add_common(&ENTITY,subject_name);
     wrap(SEQ,&ENTITY);
 // add subject
@@ -882,26 +907,18 @@ int main() {
 
     wrap(SEQ,&CERT);  // ready to be signed
 
-    //OCT_output_hex(&SECRET,20000,buff);
-    //printf("SECRET= %s\n",buff);
-    //printf("SK size= %d\n",SK_SIZE);
-
 #if SIGTYPE==ECC256SHA384_MLDSA44_SIG
     SAL_tlsSignature(SIG_TYPE_1,&INTERKEY,&CERT,&SIGNATURE);
     SAL_tlsSignature(SIG_TYPE_2,&INTERKEY2,&CERT,&SIGNATURE2);
 #else
     SAL_tlsSignature(SIG_TYPE,&INTERKEY,&CERT,&SIGNATURE);   // sign tbscert
 #endif
-    //OCT_output_hex(&SIGNATURE,20000,buff);
-    //printf("SIGNATURE= %s\n",buff);
 
 // add signature oid (again)
     add_signature(&CERT);
 // append signature
     add_cert_signature(&CERT,&SIGNATURE,&SIGNATURE2);
-    //setolen(BIT,SIGNATURE.len+1,&CERTSIG); OCT_append_byte(&CERTSIG,0x00,1); OCT_append_octad(&CERTSIG,&SIGNATURE); 
 
-    //OCT_append_octad(&CERT,&CERTSIG);
     wrap(SEQ,&CERT);
 
 // output server certificate and secret key to files
