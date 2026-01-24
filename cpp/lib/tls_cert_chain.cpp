@@ -152,7 +152,7 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
             pktype pt = X509_extract_public_key(&SC, PUBKEY);
             if (st.type==pt.type || st.curve==pt.curve) 
             { // found CA cert 
-                if (st.type==X509_PQ || st.type==X509_HY || st.curve==pt.curve)
+                if (st.type==X509_DLM || st.type==X509_HY1 || st.curve==pt.curve)
                 {
 #ifdef SHALLOW_STACK
                     free(b);
@@ -214,12 +214,12 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
         res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA384,CERT,SIG,PUBKEY);
     if (st.type== X509_RSA && st.hash==X509_H512)
         res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA512,CERT,SIG,PUBKEY);
-    if (st.type== X509_PQ)
+    if (st.type== X509_DLM)
         res=SAL_tlsSignatureVerify(MLDSA65,CERT,SIG,PUBKEY);
 
 // probably deepest into the stack at this stage.... (especially for MLDSA)
 
-    if (st.type==X509_HY)
+    if (st.type==X509_HY1)
     {
         octad FPUB={65,65,PUBKEY->val};
         octad SPUB={PUBKEY->len-65,PUBKEY->len-65,&PUBKEY->val[65]};

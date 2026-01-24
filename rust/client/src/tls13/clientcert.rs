@@ -45,10 +45,10 @@ fn get_sigalg(pk: &x509::PKTYPE) -> u16 {
     if pk.kind==x509::RSA {
        return RSA_PSS_RSAE_SHA256;
     }
-    if pk.kind==x509::PQ {
+    if pk.kind==x509::DLM {
         return MLDSA65;
     }
-    if pk.kind==x509::HY {
+    if pk.kind==x509::HY1 {
         return MLDSA44_P256;
     }
     if pk.kind==x509::ECD {
@@ -92,12 +92,12 @@ fn add_cert_sig_type(pk: &x509::PKTYPE,reqlen: usize,requirements: &mut [u16]) -
         return len;
     }
 
-    if pk.kind==x509::PQ {
+    if pk.kind==x509::DLM {
         requirements[len]=MLDSA65;
         len+=1;
         return len;
     }
-    if pk.kind==x509::HY {
+    if pk.kind==x509::HY1 {
         requirements[len]=MLDSA44_P256;
         len+=1;
         requirements[len]=MLDSA44;

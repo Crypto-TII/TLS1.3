@@ -360,23 +360,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         ret.type = X509_ECD;
         ret.curve = USE_ED448;
     }
-/*    if (OCT_compare(&MLDSA65, &SOID))
-    { // Its a MLDSA65 key
-        len = getalen(OCT, c->val, j);
-        if (len < 0) return ret;
-        j += skip(len);
-        len = getalen(OCT, c->val, j);
-        if (len < 0) return ret;
-        j += skip(len);
-        tlen=len; 
-        if (tlen>pk->max)
-            tlen=pk->max;
-        for (i=0;i<tlen;i++)
-            pk->val[i]=c->val[j++];
-        pk->len=tlen;
-        ret.type=X509_PQ;
-        ret.curve=8*tlen;
-    }*/
+
     if (OCT_compare(&MLDSA65, &SOID))
     { // Its an MLDSA65 key
         len = getalen(OCT, c->val, j);
@@ -400,7 +384,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         for (i=0;i<tlen;i++)
             pk->val[i]=c->val[j++];
         pk->len=tlen;
-        ret.type=X509_PQ;
+        ret.type=X509_DLM;
         ret.curve=8*tlen;
     }
     if (OCT_compare(&HYBRID, &SOID))
@@ -439,7 +423,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         for (i=0;i<tlen;i++)
             pk->val[len+i]=c->val[j++];
 
-        ret.type=X509_HY;
+        ret.type=X509_HY1;
         ret.curve=8*pk->len;
     }
 
@@ -654,19 +638,15 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         ret.type = X509_RSA;
         ret.hash = X509_H512;
     }
-/*    if (OCT_compare(&MLDSA65, &SOID))
-    {
-        ret.type = X509_PQ;
-        ret.hash = 0; // hash type is implicit
-    }*/
+
     if (OCT_compare(&MLDSA65, &SOID))
     {
-        ret.type = X509_PQ;
+        ret.type = X509_DLM;
         ret.hash = 0; // hash type is implicit
     }
     if (OCT_compare(&HYBRID, &SOID))
     {
-        ret.type = X509_HY;
+        ret.type = X509_HY1;
         ret.hash = 0; // hash type is implicit
     }
     if (ret.type == 0) return ret; // unsupported type
@@ -794,7 +774,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
 
         ret.curve = 8*rlen;
     }
-    if (ret.type == X509_PQ)
+    if (ret.type == X509_DLM)
     {
         if (len>sig->max)
         {
@@ -807,7 +787,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
             sig->val[i++] = sc->val[j];
         ret.curve = 8*len;
     }
-    if (ret.type == X509_HY)
+    if (ret.type == X509_HY1)
     {
         j+=4;
         len-=4;
@@ -996,9 +976,8 @@ pktype X509_get_public_key(octad *c,octad *key)
     if (OCT_compare(&EDPK25519, &KOID)) {ret.type = X509_ECD; ret.curve=USE_ED25519;}
     if (OCT_compare(&EDPK448, &KOID)) {ret.type = X509_ECD;  ret.curve=USE_ED448;}
     if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
-    //if (OCT_compare(&MLDSA65, &KOID)) ret.type = X509_PQ;
-    if (OCT_compare(&MLDSA65, &KOID)) ret.type = X509_PQ;
-    if (OCT_compare(&HYBRID, &KOID)) ret.type = X509_HY;
+    if (OCT_compare(&MLDSA65, &KOID)) ret.type = X509_DLM;
+    if (OCT_compare(&HYBRID, &KOID)) ret.type = X509_HY1;
 
     if (ret.type == 0) return ret;
 
@@ -1044,9 +1023,9 @@ pktype X509_get_public_key(octad *c,octad *key)
 // extract key
     if (key==NULL)
         return ret;
-    if (ret.type == X509_ECC || ret.type == X509_ECD || ret.type == X509_PQ || ret.type == X509_HY)
+    if (ret.type == X509_ECC || ret.type == X509_ECD || ret.type == X509_DLM || ret.type == X509_HY1)
     {
-        if (ret.type==X509_HY)
+        if (ret.type==X509_HY1)
         {
             j+=4;
             len-=4;
@@ -1062,7 +1041,7 @@ pktype X509_get_public_key(octad *c,octad *key)
             key->val[i++] = c->val[j];
 
     }
-    if (ret.type == X509_PQ  || ret.type == X509_HY) 
+    if (ret.type == X509_DLM  || ret.type == X509_HY1) 
         ret.curve=8*len;
 
     if (ret.type == X509_RSA)

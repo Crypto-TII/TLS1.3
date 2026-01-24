@@ -326,10 +326,10 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
     if (sg.type==X509_RSA)
         log(IO_PROTOCOL,(char *)"Certificate signature is RSA of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
 
-    if (sg.type==X509_PQ)
-        log(IO_PROTOCOL,(char *)"Certificate signature is Post Quantum of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
+    if (sg.type==X509_DLM)
+        log(IO_PROTOCOL,(char *)"Certificate signature is Post Quantum (ML-DSA) of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
 
-    if (sg.type==X509_HY)
+    if (sg.type==X509_HY1)
         log(IO_PROTOCOL,(char *)"Certificate signature is Hybrid of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
 
 
@@ -355,10 +355,10 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
     if (pk.type==X509_RSA)
         log(IO_PROTOCOL,(char *)"Certificate public key is RSA of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
     
-    if (pk.type==X509_PQ)
-        log(IO_PROTOCOL,(char *)"Certificate public key is Post Quantum of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
+    if (pk.type==X509_DLM)
+        log(IO_PROTOCOL,(char *)"Certificate public key is Post Quantum (ML-DSA) of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
 
-    if (sg.type==X509_HY)
+    if (sg.type==X509_HY1)
         log(IO_PROTOCOL,(char *)"Certificate public key is Hybrid of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
 
     char dn[256];

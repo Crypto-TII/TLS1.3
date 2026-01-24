@@ -19,8 +19,8 @@ pub struct FDTYPE {
 pub const ECC:usize = 1;
 pub const RSA:usize = 2;
 pub const ECD:usize = 3;  // for Ed25519
-pub const PQ:usize = 4;
-pub const HY:usize = 5;
+pub const DLM:usize = 4;
+pub const HY1:usize = 5;
 
 // Supported Hash functions
 
@@ -77,8 +77,6 @@ const RSASHA512:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d];
 //const MLDSA65:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05];
 
 const MLDSA65:[u8;9]=[0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12];  //official
-//const MLDSA65:[u8;11]=[0x2B, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x0C, 0x06, 0x05]; // OQS
-//const HYBRID:[u8;11]=[0x60,0x86,0x48,0x01,0x86,0xFA,0x6B,0x50,0x08,0x01,0x04]; // MLDSA44 + P256 - OQS
 const HYBRID:[u8;5]=[0x2B,0xCE,0x0F,0x07,0x05]; // MLDSA44 + P256 - OQS
 // Cert details
 
@@ -376,31 +374,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
         ret.kind = ECD;
         ret.curve = USE_ED448;
     }
-/*
-    if MLDSA65 == soid[0..slen] {
-        len=getalen(OCT,c,j);
-        if len==0 {
-            return ret;
-        }
-        j+=skip(len);
-        len=getalen(OCT,c,j);
-        if len==0 {
-            return ret;
-        }
-        j+=skip(len);
-        let mut tlen=len;
-        if tlen>pk.len() {
-            tlen=pk.len();
-        }
-        for i in 0..tlen {
-            pk[i]=c[j];
-            j+=1;
-        }
-        ret.len=tlen;
-        ret.kind=PQ;
-        ret.curve=8*tlen;
-    }    
-*/
+
     if MLDSA65 == soid[0..slen] {
         len=getalen(OCT,c,j);
         if len==0 {
@@ -434,7 +408,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
             j+=1;
         }
         ret.len=tlen;
-        ret.kind=PQ;
+        ret.kind=DLM;
         ret.curve=8*tlen;
     }    
 
@@ -482,7 +456,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
             j+=1;
         }
 
-        j=end; //skip ahead to PQ private key
+        j=end; //skip ahead to private key
         tlen=tot-j;
         if tlen+len>pklen {
             return ret;
@@ -493,7 +467,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
         }
 
         ret.len=tlen+len;
-        ret.kind=HY;
+        ret.kind=HY1;
         ret.curve=8*(tlen+len);
     }    
     if ECPK == soid[0..slen] {
@@ -745,16 +719,12 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
         ret.kind=RSA;
         ret.hash=H512;
     }
-//    if MLDSA65 == soid[0..slen] {
-//        ret.kind=PQ;
-//        ret.hash=0; // hash type is implicit
-//    }
     if MLDSA65 == soid[0..slen] {
-        ret.kind=PQ;
+        ret.kind=DLM;
         ret.hash=0; // hash type is implicit
     }
     if HYBRID == soid[0..slen] {
-        ret.kind=HY;
+        ret.kind=HY1;
         ret.hash=0; // hash type is implicit
     }
     if ret.kind==0 { 
@@ -886,7 +856,7 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
         }
         ret.curve=8*rlen;
     }
-    if ret.kind==PQ {
+    if ret.kind==DLM {
         if len>siglen {
             ret.kind=0;
             ret.curve=0;
@@ -902,7 +872,7 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
         }
         ret.curve=8*len;
     }
-    if ret.kind==HY {
+    if ret.kind==HY1 {
         j+=4;
         len-=4;  // jump over spurious length field
         let end=j+len;  // length of entire blob of data
@@ -1139,14 +1109,11 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     if RSAPK == koid[0..slen] {
         ret.kind=RSA;
     }
-//    if MLDSA65 == koid[0..slen] {
-//        ret.kind=PQ;
-//    }
     if MLDSA65 == koid[0..slen] {
-        ret.kind=PQ;
+        ret.kind=DLM;
     }
     if HYBRID == koid[0..slen] {
-        ret.kind=HY;
+        ret.kind=HY1;
     }
     if ret.kind==0 {
         return ret;
@@ -1194,8 +1161,8 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     j+=1;
     len-=1; // skip bit shift (hopefully 0!)
 
-    if ret.kind==ECC || ret.kind==ECD || ret.kind==PQ  || ret.kind==HY {
-        if ret.kind==HY {
+    if ret.kind==ECC || ret.kind==ECD || ret.kind==DLM  || ret.kind==HY1 {
+        if ret.kind==HY1 {
             j+=4; // jump over redundant length field
             len-=4;
         }
@@ -1212,7 +1179,7 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
             j+=1;
         }
     }
-    if ret.kind==PQ  || ret.kind==HY {
+    if ret.kind==DLM  || ret.kind==HY1 {
         ret.curve=8*len;
     }
     if ret.kind==RSA { // Key is (modulus,exponent) - assume exponent is 65537

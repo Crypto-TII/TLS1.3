@@ -123,10 +123,10 @@ pub fn log_cert_details(d: &CERT)
     if d.sgt.kind==x509::RSA {
         log(IO_PROTOCOL,"Certificate signature is RSA of length (bits) ",8*(d.sgt.len as isize),None);
     }
-    if d.sgt.kind==x509::PQ {
-        log(IO_PROTOCOL,"Certificate signature is Post Quantum of length (bits) ",8*(d.sgt.len as isize),None);
+    if d.sgt.kind==x509::DLM {
+        log(IO_PROTOCOL,"Certificate signature is Post Quantum (ML-DSA) of length (bits) ",8*(d.sgt.len as isize),None);
     }
-    if d.sgt.kind==x509::HY {
+    if d.sgt.kind==x509::HY1 {
         log(IO_PROTOCOL,"Certificate signature is Hybrid of length (bits) ",8*(d.sgt.len as isize),None);
     }
 
@@ -155,10 +155,10 @@ pub fn log_cert_details(d: &CERT)
     if d.pkt.kind==x509::RSA {
         log(IO_PROTOCOL,"Certificate public key is RSA of length (bits) ",8*(d.pkt.len as isize),None);
     }
-    if d.pkt.kind==x509::PQ {
-        log(IO_PROTOCOL,"Certificate public key is Post Quantum of length (bits) ",8*(d.pkt.len as isize),None);
+    if d.pkt.kind==x509::DLM {
+        log(IO_PROTOCOL,"Certificate public key is Post Quantum (ML-DSA) of length (bits) ",8*(d.pkt.len as isize),None);
     }
-        if d.pkt.kind==x509::HY {
+        if d.pkt.kind==x509::HY1 {
         log(IO_PROTOCOL,"Certificate public key is Hybrid of length (bits) ",8*(d.pkt.len as isize),None);
     }
 

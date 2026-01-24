@@ -16,8 +16,8 @@
 #define X509_ECC 1      /**< Elliptic Curve data type detected */
 #define X509_RSA 2      /**< RSA data type detected */
 #define X509_ECD 3      /**< Elliptic Curve (Ed25519) detected */
-#define X509_PQ 4       /**< Post Quantum method */
-#define X509_HY 5       /**< Hybrid Post_Quantum */
+#define X509_DLM 4       /**< Post Quantum method */
+#define X509_HY1 5       /**< Hybrid Post_Quantum */
 
 // Supported Hash functions
 

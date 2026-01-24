@@ -94,7 +94,7 @@ fn find_root_ca(issuer: &[u8],st: &PKTYPE,pk: &mut [u8],pklen: &mut usize) -> bo
         if &owner[0..wlen]==issuer {
             let pkt=x509::extract_public_key(cert, pk);
             if st.kind==pkt.kind {
-                if st.kind==x509::PQ || st.kind==x509::HY || st.curve==pkt.curve {  // In PQ world signature sizes and public key sizes are not the same
+                if st.kind==x509::DLM || st.kind==x509::HY1 || st.curve==pkt.curve {  // In PQ world signature sizes and public key sizes are not the same
                     *pklen=pkt.len;
                     return true;
                 }
@@ -127,10 +127,10 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     if st.kind==x509::RSA && st.hash==x509::H512 {
         return sal::tls_signature_verify(RSA_PKCS1_SHA512,cert,sig,pubkey);
     }
-    if st.kind==x509::PQ {
+    if st.kind==x509::DLM {
         return sal::tls_signature_verify(MLDSA65,cert,sig,pubkey);
     }
-    if st.kind==x509::HY {
+    if st.kind==x509::HY1 {
         let sig1=&sig[0..64];
         let sig2=&sig[64..]; 
         let pub1=&pubkey[0..65];

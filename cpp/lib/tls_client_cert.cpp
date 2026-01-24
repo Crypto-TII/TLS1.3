@@ -638,10 +638,10 @@ static int get_sigalg(pktype *pk) {
     if (pk->type==X509_RSA) {
        return RSA_PSS_RSAE_SHA256;
     }
-    if (pk->type==X509_PQ) {
+    if (pk->type==X509_DLM) {
         return MLDSA65;
     }
-    if (pk->type==X509_HY) {
+    if (pk->type==X509_HY1) {
         return MLDSA44_P256;
     }
     if (pk->type==X509_ECD) {
@@ -685,12 +685,12 @@ static int add_cert_sig_type(pktype *pk,int reqlen,unsign16 *requirements)
        return len;
     }
 
-    if (pk->type==X509_PQ) {
+    if (pk->type==X509_DLM) {
         requirements[len]=MLDSA65;
         len+=1;
         return len;
     }
-    if (pk->type==X509_HY) {
+    if (pk->type==X509_HY1) {
         requirements[len]=MLDSA44_P256;
         len+=1;
         requirements[len]=MLDSA44;

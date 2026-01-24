@@ -839,14 +839,14 @@ int main() {
                 if ((SK_SIZE/5)*16==ret.curve) valid=true;
             #endif
             break;
-        case X509_PQ :
+        case X509_DLM :
             #if (SIGTYPE==MLDSA65_SIG)
                 if (SK_SIZE*8==ret.curve) valid=true;
             #endif
             break;
-        case X509_HY:
+        case X509_HY1:
             #if (SIGTYPE==ECC256SHA384_MLDSA44_SIG)
-                if ((SK_SIZE_1+SK_SIZE_2)*8==ret.curve) valid=true;   // should be SK_SIZE_1+SK_SIZE_2 -> fix tls_x509.cpp
+                if ((SK_SIZE_1+SK_SIZE_2)*8==ret.curve) valid=true;   
             #endif
         default:
             break;
