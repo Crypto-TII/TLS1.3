@@ -350,9 +350,11 @@ static void insertbyte(octad *INNER,unsigned char byte) {
 
 // wrap octad inside a tagged field
 static void wrap(int tag,octad *INNER) {
+    int i,len,ilen;
     unsigned char outer[5];
     octad OUTER={0,5,(char *)outer};
-    int i,len,ilen=INNER->len;
+    if (tag==BIT || (tag==INT && INNER->val[0]>127)) insertbyte(INNER,0x00);
+    ilen=INNER->len;
     setolen(tag,INNER->len,&OUTER);
 
     len=OUTER.len;
@@ -404,7 +406,6 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
     makeclause(INT,PUBLIC_KEY->len,(unsigned char*)PUBLIC_KEY->val,&PK);
     OCT_append_octad(&PK,&E65537);
     wrap(SEQ,&PK);
-    insertbyte(&PK,0x00);
     wrap(BIT,&PK);
     OCT_append_octad(&PKINFO,&PK);
     wrap(SEQ,&PKINFO);
@@ -425,7 +426,7 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
     wrap(SEQ,&PKINFO);
 
     OCT_append_octad(&PK,PUBLIC_KEY); OCT_append_octad(&PK,PUBLIC_KEY2);
-    insertbyte(&PK,0x41); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x41=65 = length of EC public key    
+    insertbyte(&PK,0x41); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x41=65 = length of EC public key    
     wrap(BIT,&PK);
 
     OCT_append_octad(&PKINFO,&PK);
@@ -615,7 +616,7 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE,octad *SIGNATURE2)
     OCT_append_octad(&CERTSIG,&SECOND); 
     wrap(SEQ,&CERTSIG);
     wrap(ANY,&CERTSIG);
-    insertbyte(&CERTSIG,0x00); insertbyte(&CERTSIG,0x00); insertbyte(&CERTSIG,0x00); // 0x47 = length of wrapped EC signature
+    insertbyte(&CERTSIG,0x00); insertbyte(&CERTSIG,0x00); // 0x48 = length of wrapped EC signature
 
     OCT_append_octad(&CERTSIG,SIGNATURE2);
     wrap(BIT,&CERTSIG);
@@ -635,7 +636,6 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE,octad *SIGNATURE2)
 
     OCT_append_octad(&CERTSIG,&SECOND);
     wrap(SEQ,&CERTSIG);
-    insertbyte(&CERTSIG,0x00);
     wrap(BIT,&CERTSIG);
 #else
     makeclause(BIT,SIGNATURE->len,(unsigned char *)SIGNATURE->val,&CERTSIG); 
@@ -683,7 +683,7 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         octad PK={0,5000,(char *)pk};
         OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
-        setolen(OCT,32,&PK); OCT_append_byte(&PK,0x00,32); 
+        setolen(OCT,32,&PK); OCT_append_byte(&PK,0x00,32);  // 32 byte seed for private key (not used)
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&NUMBERS);
         //setolen(OCT,RAWPRIVATE->len,&NUMBERS); OCT_append_octad(&NUMBERS,RAWPRIVATE);
         OCT_append_octad(&PK,&NUMBERS);
@@ -769,13 +769,13 @@ int main() {
     fp=fopen("root.key","rb");
     if (fgets(line,100,fp)==NULL) { // ignore first line
         printf("File error\n");
-        exit(0);
+        return 0;
     }
 
     while(1) {
         if (fgets(line,100,fp)==NULL) {
             printf("File error\n");
-            exit(0);
+            return 0;
         }            
         if (line[0]=='-') break;
         for (i=0;i<strlen(line)-1;i++)  // remove cr
