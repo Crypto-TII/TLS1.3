@@ -630,7 +630,7 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
     octad NUMBERS={0,5000,(char *)numbers};
     unsigned char param[300];
     octad PARAM={0,300,(char *)param};    
-#if (PKTYPE==NIST256_PK || PKTYPE==NIST384_PK)
+#if PKTYPE==NIST256_PK || PKTYPE==NIST384_PK
         OCT_append_octad(&ANOID,&EC_OID); OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
         makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&PARAM);
@@ -642,7 +642,7 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         OCT_append_octad(PRIVATE,&NUMBERS);
         wrap(SEQ,PRIVATE);
 #endif
-#if (PKTYPE==ED25519_PK || PKTYPE==ED448_PK)
+#if PKTYPE==ED25519_PK || PKTYPE==ED448_PK
         OCT_append_octad(&ANOID,&PK_OID);
         wrap(SEQ,&ANOID);
         OCT_append_octad(&NUMBERS,RAWPRIVATE);
@@ -653,7 +653,7 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         OCT_append_octad(PRIVATE,&NUMBERS);
         wrap(SEQ,PRIVATE);
 #endif
-#if (PKTYPE==MLDSA65_PK)
+#if PKTYPE==MLDSA65_PK
         unsigned char pk[5000];
         octad PK={0,5000,(char *)pk};
         OCT_append_octad(&ANOID,&PK_OID);
@@ -669,7 +669,7 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         wrap(SEQ,PRIVATE);
 #endif
 
-#if (PKTYPE==NIST256_MLDSA44_PK)
+#if PKTYPE==NIST256_MLDSA44_PK
         unsigned char pk[5000];
         octad PK={0,5000,(char *)pk};
         unsigned char ecc[100];
@@ -691,7 +691,7 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         wrap(SEQ,PRIVATE);
 #endif
 
-#if (PKTYPE==RSA_PK)
+#if PKTYPE==RSA_PK
         int len=SB_SK_SIZE/5;
         OCT_append_octad(&ANOID,&PK_OID); OCT_append_octad(&ANOID,&NILL);
         OCT_append_octad(&NUMBERS,&ZERO);
@@ -732,7 +732,7 @@ int main() {
 
     SAL_initLib();    // SHOULD IMPLEMENT TRUE RNG - edit tls_sal_m.xpp
 // generate public/private key pair!
-#if (PKTYPE==NIST256_MLDSA44_PK)
+#if PKTYPE==NIST256_MLDSA44_PK
     SAL_tlsKeypair(PK_TYPE_1,&SECRET,&PUBLICKEY);
     SAL_tlsKeypair(PK_TYPE_2,&SECRET2,&PUBLICKEY2);
 #else

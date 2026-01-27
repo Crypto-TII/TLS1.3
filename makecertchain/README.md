@@ -51,6 +51,6 @@ Move to the directory *rust/server/src* and edit the *config.rs* file and ensure
 	pub const SERVER\_CERT:usize= FROM_FILE; 
 	pub const CRYPTO_SETTING: usize = POST_QUANTUM;
 
-Finally build the Rust server application. The server can use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
+Finally build the Rust server application from *rust/server/src*. The server can use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
 
 

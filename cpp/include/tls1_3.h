@@ -118,7 +118,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // Max Frag length must be less than TLS_MAX_IBUFF_SIZE
 #define TLS_MAX_FRAG 2                   /**< Max Fragment length desired - 1 for 512, 2 for 1024, 3 for 2048, 4 for 4096, 0 for 16384 */
 
-#if CRYPTO_SETTING==TINY_ECC
+#if CRYPTO_SETTING==TINY_ECC   
  #define TLS_MAX_IBUFF_SIZE (4096+256)   /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 4096         /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (4096+256)  /**< Max Ciphertext Fragment size */
@@ -127,9 +127,11 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
  #define TLS_MAX_CERT_B64 2800       /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 1024          /**< Max client hello size (less extensions) KEX public key is largest component */
 
+// all certs use ECC
  #define TLS_MAX_SIG_PUB_KEY_SIZE 133        /**< Max signature public key size in bytes        ECC */
  #define TLS_MAX_SIG_SECRET_KEY_SIZE 66      /**< Max signature private key size in bytes       ECC */
  #define TLS_MAX_SIGNATURE_SIZE 132          /**< Max signature size in bytes                   ECC */
+ 
  #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes        ECC */
  #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        ECC */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    ECC */
@@ -144,9 +146,11 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
  #define TLS_MAX_CERT_B64 2800        /**< In base64 - current max for root CAs is 2688 */
  #define TLS_MAX_HELLO 1024           /**< Max client hello size (less extensions) KEX public key is largest component */
 
+// all certs use RSA or ECC
  #define TLS_MAX_SIG_PUB_KEY_SIZE 512        /**< Max signature public key size in bytes        4096-bit RSA */
  #define TLS_MAX_SIG_SECRET_KEY_SIZE 1280    /**< Max signature private key size in bytes       4096-bit RSA */
  #define TLS_MAX_SIGNATURE_SIZE 512          /**< Max digital signature size in bytes           4096-bit RSA */
+ 
  #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes        384-bit ECC */
  #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        384-bit ECC */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    384-bit ECC */
@@ -163,9 +167,11 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
  #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
 
 // These all blow up post quantum
+// all certs use ML-DSA65 or RSA or ECC
  #define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max signature public key size in bytes     MLDSA65 */
  #define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max signature private key size in bytes    MLDSA65 (maybe includes the public key?) */
  #define TLS_MAX_SIGNATURE_SIZE 3309          /**< Max signature size in bytes                MLDSA65 */
+ 
  #define TLS_MAX_KEX_PUB_KEY_SIZE 1184        /**< Max key exchange public key size in bytes  MLKEM768   */
  #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088     /**< Max key exchange (KEM) ciphertext size     MLKEM768   */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes MLKEM768   */
@@ -182,9 +188,11 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
  #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
 
 // These all blow up post quantum
- #define TLS_MAX_SIG_PUB_KEY_SIZE 1312+65         /**< Max signature public key size in bytes     MLDSA44 + P256 */
- #define TLS_MAX_SIG_SECRET_KEY_SIZE 2528+200     /**< Max signature private key size in bytes    MLDSA44 + P256 (maybe includes the public key?) */
- #define TLS_MAX_SIGNATURE_SIZE 2420+100          /**< Max signature size in bytes                MLDSA44 + P256 (DER encoding for ECC sig) */
+// all certs use ML-DSA65 or smaller
+ #define TLS_MAX_SIG_PUB_KEY_SIZE (1952+100)        /**< Max signature public key size in bytes     MLDSA65>MLDSA44 + P256 */
+ #define TLS_MAX_SIG_SECRET_KEY_SIZE (4000+100)     /**< Max signature private key size in bytes    MLDSA65>MLDSA44 + P256 (maybe includes the public key?) */
+ #define TLS_MAX_SIGNATURE_SIZE (3309+100)          /**< Max signature size in bytes                MLDSA65>MLDSA44 + P256 (DER encoding for ECC sig) */
+ 
  #define TLS_MAX_KEX_PUB_KEY_SIZE 1184+32         /**< Max key exchange public key size in bytes  MLKEM768+X25519   */
  #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088+32      /**< Max key exchange (KEM) ciphertext size     MLKEM768+X25519   */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400+32      /**< Max key exchange private key size in bytes MLKEM768+X25519   */
@@ -257,7 +265,6 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define ECDSA_KP 2
 #define EDDSA_KP 3
 #define MLDSA_KP 4
-#define ECC_MLDSA_KP 5
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */
