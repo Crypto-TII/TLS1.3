@@ -71,6 +71,7 @@ target_link_libraries(client tiitls )
 
 if (${SAL} MATCHES MIRACL)
 	target_link_libraries(client ${PROJECT_SOURCE_DIR}/sal/miracl/core.a)
+#	target_link_libraries(client ${PROJECT_SOURCE_DIR}/sal/miracl/libsqisign.a -lgmp) 
 endif ()
 
 if (${SAL} MATCHES MIRACL_SODIUM)

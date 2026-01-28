@@ -21,6 +21,7 @@ typedef uint16_t unsign16;      /**< 16-bit unsigned integer */
 typedef uint32_t unsign32;      /**< 32-bit unsigned integer */
 typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 
+
 // Terminal Output
 #define IO_NONE 0           /**< Run silently */
 #define IO_APPLICATION 1    /**< just print application traffic */
@@ -97,6 +98,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // may need to comment out for testing
 #define CHECK_NAME_IN_CERT      /**< check name in cert matches hostname, and abort if it does not */
 
+//#define SQISIGN_TEST
 
 // *****************************************************************************
 
@@ -260,11 +262,20 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define MLDSA87 0x0906                  /**< MLDSA87 Signature algorithm */
 #define MLDSA44_P256 0xFF06             /**< MLDSA44+SECP256R1 Hybrid Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */  //0x0907
 
+#ifdef SQISIGN_TEST
+    #define SQISIGN3 0x090A                 /**< SQISIGN3 Signature algorithm */
+    #define SQISIGN3_ED448 0xFF0C           /**< SQISIGN3 + ED448 Hybrid */
+#endif
+
 // Key pair algorithms
 #define RSA_KP 1
 #define ECDSA_KP 2
 #define EDDSA_KP 3
 #define MLDSA_KP 4
+
+#ifdef SQISIGN_TEST
+    #define SQISIGN_KP 6
+#endif
 
 // pre-shared Key (PSK) modes 
 #define PSKOK 0x00                      /**< Preshared Key only mode */

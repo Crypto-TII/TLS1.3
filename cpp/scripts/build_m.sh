@@ -19,6 +19,8 @@ cd ../../../
 # Copy built library and includes to SAL
 cp .temp/core/cpp/core.a sal/miracl
 cp .temp/core/cpp/*.h sal/miracl/includes
+# cp ../../sqisign/lib/libsqisign_lvl3_apitiigertls.a sal/miracl/libsqisign.a
+# cp ../../sqisign/include/lvl3/apitiigertls.h sal/miracl/includes/sqisign.h
 
 # Remove temp folder
 rm -rf .temp
@@ -37,6 +39,7 @@ cp client ../build
 cp libtiitls.a ../build
 cd ../
 
+# cp sal/miracl/libsqisign.a build/.
 cp sal/miracl/core.a build/.
 cp include/tls_*.h build/.
 cp include/tls1_3.h build/.

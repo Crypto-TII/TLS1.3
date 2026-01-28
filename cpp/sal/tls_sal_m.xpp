@@ -21,6 +21,13 @@
 #if CRYPTO_SETTING>=POST_QUANTUM
 #include "dilithium.h"
 #include "kyber.h"
+
+#ifdef SQISIGN_TEST
+extern "C" {
+    #include "sqisign.h"
+}
+#endif
+
 #endif
 
 using namespace core;
@@ -124,9 +131,19 @@ int SAL_sigCerts(int *sigAlgsCert)
     sigAlgsCert[n]=ED448; n++;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
+
+#ifdef SQISIGN_TEST
+    sigAlgsCert[n]=SQISIGN3; n++;  
+#endif
+
     sigAlgsCert[n]=MLDSA65; n++;
 #endif
 #if CRYPTO_SETTING==HYBRID
+
+#ifdef SQISIGN_TEST
+    sigAlgsCert[n]=SQISIGN3_ED448; n++;
+#endif
+
     sigAlgsCert[n]=MLDSA44; n++;
     sigAlgsCert[n]=MLDSA44_P256; n++;
     sigAlgsCert[n]=ECDSA_SECP256R1_SHA384; n++;
@@ -481,6 +498,31 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
 }
 
 #if CRYPTO_SETTING>=POST_QUANTUM
+
+#ifdef SQISIGN_TEST
+
+static bool SQISIGN3_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+{
+    if (sqisign_lvl3_verify((const unsigned char *)CERT->val, CERT->len, (const unsigned char *)SIG->val, (const unsigned char *)PUBKEY->val)==0) return true;
+    return false;
+}
+
+static void SQISIGN3_SIGN(octad *KEY,octad *MESS,octad *SIG)
+{
+    int smlen;
+    sqisign_lvl3_sign((unsigned char *)SIG->val, (const unsigned char *)MESS->val, MESS->len, (const unsigned char *)KEY->val);
+    SIG->len=SQISIGN_LVL3_SIGNATUREBYTES ;
+}
+
+static void SQISIGN3_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    sqisign_lvl3_keypair((unsigned char *)PUBLIC_KEY->val, (unsigned char *)SECRET_KEY->val);
+    SECRET_KEY->len=SQISIGN_LVL3_SECRETKEYBYTES;
+    PUBLIC_KEY->len=SQISIGN_LVL3_PUBLICKEYBYTES;
+}
+
+#endif
+
 static bool MLDSA65_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 {
     octet MC_CERT=octad_to_octet(CERT);
@@ -1062,6 +1104,11 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
             break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
+#ifdef SQISIGN_TEST
+        case SQISIGN3:
+            result= SQISIGN3_VERIFY(BUFF,SIG,PUBKEY);
+            break;
+#endif
         case MLDSA65:
             result= MLDSA65_VERIFY(BUFF,SIG,PUBKEY);
             break;
@@ -1115,6 +1162,11 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
         break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
+#ifdef SQISIGN_TEST
+    case SQISIGN3:
+        SQISIGN3_SIGN(KEY,TRANS,SIG);
+        break;
+#endif
     case MLDSA65:
         MLDSA65_SIGN(KEY,TRANS,SIG);
         break;
@@ -1152,6 +1204,14 @@ void SAL_tlsKeypair(int keyAlg,octad *SECRET_KEY,octad *PUBLIC_KEY)
         break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
+
+#ifdef SQISIGN_TEST
+    case SQISIGN_KP :
+    	if (PUBLIC_KEY->len==SQISIGN_LVL3_PUBLICKEYBYTES)
+    	    SQISIGN3_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+    	break;
+#endif
+
     case MLDSA_KP :
         if (PUBLIC_KEY->len==DL_PK_SIZE_3)
             MLDSA65_KEYPAIR(SECRET_KEY,PUBLIC_KEY);

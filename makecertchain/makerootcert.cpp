@@ -17,6 +17,11 @@
 #define MLDSA65_PK 10
 #define NIST256_MLDSA44_PK 11  // Hybrid
 
+#ifdef SQISIGN_TEST
+#define SQISIGN3_PK 12
+#define ED448_SQISIGN3_PK 13
+#endif
+
 #define ECCSHA256_SIG 1
 #define ECCSHA384_SIG 2
 #define RSASHA256_SIG 4
@@ -26,6 +31,11 @@
 #define ED448_SIG 8
 #define MLDSA65_SIG 10
 #define ECC256SHA384_MLDSA44_SIG 11  // Hybrid
+
+#ifdef SQISIGN_TEST
+#define SQISIGN3_SIG 12
+#define ED448_SQISIGN3_SIG 13
+#endif
 
 // BEGIN USER EDITABLE AREA *******************
 #define DAYS 365
@@ -104,6 +114,7 @@ static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0
 #endif
 #if PKTYPE==NIST256_MLDSA44_PK
 static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
+#define HYBRID_PK
 #define SB_SK_SIZE_1 32
 #define SB_SK_SIZE_2 2560
 #define PK_SIZE_1 65
@@ -111,6 +122,29 @@ static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
 #define PK_TYPE_1 ECDSA_KP 
 #define PK_TYPE_2 MLDSA_KP
 #endif
+
+#ifdef SQISIGN_TEST
+
+#if PKTYPE==SQISIGN3_PK
+static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x17};
+#define SB_SK_SIZE 529
+#define PK_SIZE 97
+#define PK_TYPE SQISIGN_KP
+#endif
+
+#if PKTYPE==ED448_SQISIGN3_PK
+static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x06};
+#define HYBRID_PK
+#define SB_SK_SIZE_1 57
+#define SB_SK_SIZE_2 529
+#define PK_SIZE_1 57
+#define PK_SIZE_2 97
+#define PK_TYPE_1 EDDSA_KP 
+#define PK_TYPE_2 SQISIGN_KP
+#endif
+
+#endif
+
 
 #if SIGTYPE==ECCSHA256_SIG
 static unsigned char sig_oid[10] = {OID,0x08,0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02};
@@ -162,12 +196,35 @@ static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,
 #endif
 #if SIGTYPE==ECC256SHA384_MLDSA44_SIG
 static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
+#define HYBRID_SIG
 #define SK_SIZE_1 32
 #define SK_SIZE_2 2560
 #define SIG_SIZE_1 64
 #define SIG_SIZE_2 2420
 #define SIG_TYPE_1 ECDSA_SECP256R1_SHA384
 #define SIG_TYPE_2 MLDSA44
+#endif
+
+#ifdef SQISIGN_TEST
+
+#if SIGTYPE==SQISIGN3_SIG
+static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x17};
+#define SK_SIZE 529
+#define SIG_SIZE 224
+#define SIG_TYPE SQISIGN3
+#endif
+
+#if SIGTYPE==ED448_SQISIGN3_SIG
+static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x06};
+#define HYBRID_SIG
+#define SK_SIZE_1 57
+#define SK_SIZE_2 529
+#define SIG_SIZE_1 114
+#define SIG_SIZE_2 224
+#define SIG_TYPE_1 ED448
+#define SIG_TYPE_2 SQISIGN3
+#endif
+
 #endif
 
 static octad PK_OID = {sizeof(pk_oid), sizeof(pk_oid), (char *)pk_oid};
@@ -229,8 +286,8 @@ static char *issuer_name=(char *)ISSUER_NAME;
 static char *issuer_org=(char *)ISSUER_ORG;
 static char *issuer_unit=(char *)ISSUER_UNIT;
 static char *issuer_country=(char *)ISSUER_COUNTRY;
-      
-#if PKTYPE==NIST256_MLDSA44_PK
+
+#ifdef HYBRID_PK
 static char secret[SB_SK_SIZE_1];
 static char secret2[SB_SK_SIZE_2];
 static char publickey[PK_SIZE_1];
@@ -248,7 +305,7 @@ static octad SECRET2={0,0,NULL};
 static octad PUBLICKEY2={0,0,NULL};
 #endif
 
-#if SIGTYPE==ECC256SHA384_MLDSA44_SIG
+#ifdef HYBRID_SIG
 static char signature[SIG_SIZE_1];
 static char signature2[SIG_SIZE_2];
 static octad SIGNATURE={SIG_SIZE_1,sizeof(signature),(char *)signature};
@@ -389,6 +446,8 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
 #endif
 
 // MLDSA or EDDSA
+
+
 #if PKTYPE==MLDSA65_PK || PKTYPE==ED25519_PK || PKTYPE==ED448_PK
     OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
     wrap(SEQ,&PKINFO);
@@ -397,6 +456,18 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
     OCT_append_octad(&PKINFO,&PK);
     wrap(SEQ,&PKINFO);
 #endif
+
+#ifdef SQISIGN_TEST
+#if PKTYPE==SQISIGN3_PK
+    OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
+    wrap(SEQ,&PKINFO);
+
+    makeclause(BIT,PUBLIC_KEY->len,(unsigned char*)PUBLIC_KEY->val,&PK);
+    OCT_append_octad(&PKINFO,&PK);
+    wrap(SEQ,&PKINFO);
+#endif
+#endif
+
 
 #if PKTYPE==NIST256_MLDSA44_PK
     OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
@@ -408,6 +479,22 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
 
     OCT_append_octad(&PKINFO,&PK);
     wrap(SEQ,&PKINFO);
+#endif
+
+#ifdef SQISIGN_TEST
+
+#if PKTYPE==ED448_SQISIGN3_PK
+    OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
+    wrap(SEQ,&PKINFO);
+
+    OCT_append_octad(&PK,PUBLIC_KEY); OCT_append_octad(&PK,PUBLIC_KEY2);
+    insertbyte(&PK,0x39); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x41=65 = length of EC public key    
+    wrap(BIT,&PK);
+
+    OCT_append_octad(&PKINFO,&PK);
+    wrap(SEQ,&PKINFO);
+#endif
+
 #endif
 
 // ECDSA
@@ -601,6 +688,19 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE,octad *SIGNATURE2)
 
 #endif
 
+#ifdef SQISIGN_TEST
+#if SIGTYPE==ED448_SQISIGN3_SIG
+
+    OCT_append_octad(&CERTSIG,SIGNATURE);
+    OCT_append_octad(&CERTSIG,SIGNATURE2);
+    wrap(BIT,&CERTSIG);
+    OCT_append_octad(CERT,&CERTSIG);
+    return;
+
+#endif
+#endif
+
+
 #if SIGTYPE==ECCSHA256_SIG || SIGTYPE==ECCSHA384_SIG
     unsigned char second[100];
     octad SECOND={0,100,(char *)second};
@@ -669,7 +769,24 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         wrap(SEQ,PRIVATE);
 #endif
 
-#if PKTYPE==NIST256_MLDSA44_PK
+#ifdef SQISIGN_TEST
+#if PKTYPE==SQISIGN3_PK
+        unsigned char pk[5000];
+        octad PK={0,5000,(char *)pk};
+        OCT_append_octad(&ANOID,&PK_OID);
+        wrap(SEQ,&ANOID);
+        makeclause(OCT,RAWPRIVATE->len,(unsigned char *)RAWPRIVATE->val,&NUMBERS);
+        OCT_append_octad(&PK,&NUMBERS);
+        wrap(SEQ,&PK);
+        wrap(OCT,&PK);
+        OCT_append_octad(PRIVATE,&ZERO);
+        OCT_append_octad(PRIVATE,&ANOID);
+        OCT_append_octad(PRIVATE,&PK);
+        wrap(SEQ,PRIVATE);
+#endif
+#endif
+
+#ifdef HYBRID_PK
         unsigned char pk[5000];
         octad PK={0,5000,(char *)pk};
         unsigned char ecc[100];
@@ -732,7 +849,8 @@ int main() {
 
     SAL_initLib();    // SHOULD IMPLEMENT TRUE RNG - edit tls_sal_m.xpp
 // generate public/private key pair!
-#if PKTYPE==NIST256_MLDSA44_PK
+
+#ifdef HYBRID_PK
     SAL_tlsKeypair(PK_TYPE_1,&SECRET,&PUBLICKEY);
     SAL_tlsKeypair(PK_TYPE_2,&SECRET2,&PUBLICKEY2);
 #else
@@ -781,17 +899,25 @@ int main() {
 
     wrap(SEQ,&CERT);  // ready to be signed
 
-    OCT_output_hex(&SECRET,20000,buff);
+    //OCT_output_hex(&SECRET,20000,buff);
     //printf("SECRET= %s\n",buff);
     //printf("SK size= %d\n",SK_SIZE);
-#if SIGTYPE==ECC256SHA384_MLDSA44_SIG
+#ifdef HYBRID_SIG
     SAL_tlsSignature(SIG_TYPE_1,&SECRET,&CERT,&SIGNATURE);
     SAL_tlsSignature(SIG_TYPE_2,&SECRET2,&CERT,&SIGNATURE2);
 #else
     SAL_tlsSignature(SIG_TYPE,&SECRET,&CERT,&SIGNATURE);
 #endif
-    //OCT_output_hex(&SIGNATURE,20000,buff);
-    //printf("SIGNATURE= %s\n",buff);
+
+#ifdef HYBRID_SIG
+    if (!SAL_tlsSignatureVerify(SIG_TYPE_1,&CERT,&SIGNATURE,&PUBLICKEY) || !SAL_tlsSignatureVerify(SIG_TYPE_2,&CERT,&SIGNATURE2,&PUBLICKEY2))
+#else
+    if (!SAL_tlsSignatureVerify(SIG_TYPE,&CERT,&SIGNATURE,&PUBLICKEY))
+#endif
+    {
+        printf("Self signed signature failed\n");
+        return 0;
+    }
 
 // add signature oid (again)
     add_signature(&CERT);
@@ -801,6 +927,8 @@ int main() {
 
     //OCT_append_octad(&CERT,&CERTSIG);
     wrap(SEQ,&CERT);
+
+
 
 // output root certificate and secret key to files
     OCT_output_base64(&CERT,20000,buff);

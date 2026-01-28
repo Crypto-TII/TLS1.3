@@ -11,6 +11,8 @@
 #ifndef TLS_X509_H
 #define TLS_X509_H
 
+//#define SQISIGN_TEST_X509
+
 // Supported Encryption Methods
 
 #define X509_ECC 1      /**< Elliptic Curve data type detected */
@@ -18,6 +20,11 @@
 #define X509_ECD 3      /**< Elliptic Curve (Ed25519) detected */
 #define X509_DLM 4       /**< Post Quantum method */
 #define X509_HY1 5       /**< Hybrid Post_Quantum */
+
+#ifdef SQISIGN_TEST_X509
+#define X509_SQI 6       /**< Post Quantum method */
+#define X509_HY2 7       /**< Another Hybrid Post_Quantum */
+#endif
 
 // Supported Hash functions
 
