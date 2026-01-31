@@ -152,17 +152,22 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
             pktype pt = X509_extract_public_key(&SC, PUBKEY);
             if (st.type==pt.type || st.curve==pt.curve) 
             { // found CA cert 
-                if (st.type==X509_DLM || st.type==X509_HY1 || st.curve==pt.curve)
-                {
+                if (st.type==X509_DLM || st.type==X509_HY1 || st.curve==pt.curve) 
+                { // In PQ world signature sizes and public key sizes are not the same
 #ifdef SHALLOW_STACK
                     free(b);
 #endif
-//        char buff[256];
-//        OCT_output_base64(&OWNER,256,buff);
-//        printf("BASE64 DN = %s\n",buff);
-
                     return true;
                 }
+#if SQISIGN_TEST
+                if (st.type==X509_SQI || st.type==X509_HY2) 
+                { // In PQ world signature sizes and public key sizes are not the same
+#ifdef SHALLOW_STACK
+                    free(b);
+#endif
+                    return true;
+                }
+#endif
             }
         } 
     }
@@ -216,10 +221,13 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
         res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA512,CERT,SIG,PUBKEY);
     if (st.type== X509_DLM)
         res=SAL_tlsSignatureVerify(MLDSA65,CERT,SIG,PUBKEY);
-
+#ifdef SQISIGN_TEST
+    if (st.type== X509_SQI)
+        res=SAL_tlsSignatureVerify(SQISIGN3,CERT,SIG,PUBKEY);
+#endif
 // probably deepest into the stack at this stage.... (especially for MLDSA)
 
-    if (st.type==X509_HY1)
+    if (st.type==X509_HY1)  // P256 + MLDSA44
     {
         octad FPUB={65,65,PUBKEY->val};
         octad SPUB={PUBKEY->len-65,PUBKEY->len-65,&PUBKEY->val[65]};
@@ -227,6 +235,17 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
         octad SSIG={SIG->len-64,SIG->len-64,&SIG->val[64]};
         res = SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA384,CERT,&FSIG,&FPUB) && SAL_tlsSignatureVerify(MLDSA44,CERT,&SSIG,&SPUB);
     }
+
+#ifdef SQISIGN_TEST
+    if (st.type==X509_HY2)  // ED448 + SQISIGN3
+    {
+        octad FPUB={57,57,PUBKEY->val};
+        octad SPUB={PUBKEY->len-57,PUBKEY->len-57,&PUBKEY->val[57]};
+        octad FSIG={114,114,SIG->val};
+        octad SSIG={SIG->len-114,SIG->len-114,&SIG->val[114]};
+        res = SAL_tlsSignatureVerify(ED448,CERT,&FSIG,&FPUB) && SAL_tlsSignatureVerify(SQISIGN3,CERT,&SSIG,&SPUB);
+    }
+#endif
 
     if (res)
     {
