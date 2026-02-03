@@ -159,7 +159,7 @@ static bool findRootCA(octad* ISSUER,pktype st,octad *PUBKEY)
 #endif
                     return true;
                 }
-#if SQISIGN_TEST
+#ifdef SQISIGN_TEST
                 if (st.type==X509_SQI || st.type==X509_HY2) 
                 { // In PQ world signature sizes and public key sizes are not the same
 #ifdef SHALLOW_STACK

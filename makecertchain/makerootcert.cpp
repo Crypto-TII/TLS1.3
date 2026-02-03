@@ -43,8 +43,8 @@
 #define ISSUER_ORG "Tii Trust Services"
 #define ISSUER_UNIT ""
 #define ISSUER_COUNTRY "AE"
-#define PKTYPE MLDSA65_PK    // these must match..
-#define SIGTYPE MLDSA65_SIG  // for self-signed
+#define PKTYPE RSA_PK    // these must match..
+#define SIGTYPE RSASHA256_SIG  // for self-signed
 #if SIGTYPE==RSASHA256_SIG || SIGTYPE==RSASHA384_SIG || SIGTYPE==RSASHA512_SIG
 #define RSA_IS_KEYLEN (2048/8)  // RSA only - issuer key length - use either 2048 or 4096
 #endif
@@ -446,8 +446,6 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
 #endif
 
 // MLDSA or EDDSA
-
-
 #if PKTYPE==MLDSA65_PK || PKTYPE==ED25519_PK || PKTYPE==ED448_PK
     OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
     wrap(SEQ,&PKINFO);
@@ -927,8 +925,6 @@ int main() {
 
     //OCT_append_octad(&CERT,&CERTSIG);
     wrap(SEQ,&CERT);
-
-
 
 // output root certificate and secret key to files
     OCT_output_base64(&CERT,20000,buff);

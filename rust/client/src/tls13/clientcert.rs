@@ -168,8 +168,7 @@ impl CREDENTIAL {
         if CLIENT_CERT==FROM_ROM {       
             privkey=MY_PRIVATE; stored_chain=MY_CERTCHAIN;       
         } else {
-
-            let mut path = Path::new("../../../clientcert/client.key");
+            let mut path = Path::new(&CLIENT_KEY_PATH);
             let mut display = path.display();
 
             let mut file = match File::open(path) {
@@ -186,7 +185,7 @@ impl CREDENTIAL {
                 secret+=nextstr;
             }   
             privkey=secret.as_str();
-            path=Path::new("../../../clientcert/certchain.pem" );
+            path=Path::new(&CLIENT_CERT_PATH);
             display=path.display();
             file = match File::open(path) {
                 Err(why) => panic!("Must run from project src directory, couldn't find {}: {}", display, why),

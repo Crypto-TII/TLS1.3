@@ -160,6 +160,14 @@ static void nameSigAlg(int sigAlg)
     case MLDSA44_P256:
         myprintf((char *)"MLDSA44 + P256\n");   
         break;
+#ifdef SQISIGN_TEST
+    case SQISIGN3:
+        myprintf((char *)"SQISIGN3\n");
+        break;
+    case SQISIGN3_ED448:
+        myprintf((char *)"SQISIGN3 + ED448\n");
+        break;
+#endif
     default:
         myprintf((char *)"Non-standard\n");   
         break;
@@ -169,7 +177,7 @@ static void nameSigAlg(int sigAlg)
 
 void logSigAlg(int sigAlg)
 {
-    log(IO_PROTOCOL,(char *)"Signature Algorithm is ",NULL,0,NULL);
+    log(IO_PROTOCOL,(char *)"Transcript Signature Algorithm is ",NULL,0,NULL);
     nameSigAlg(sigAlg);
 }
 
@@ -332,6 +340,13 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
     if (sg.type==X509_HY1)
         log(IO_PROTOCOL,(char *)"Certificate signature is Hybrid of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
 
+#ifdef SQISIGN_TEST
+    if (sg.type==X509_SQI)
+        log(IO_PROTOCOL,(char *)"Certificate signature is Post Quantum (SQISIGN) of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
+
+    if (sg.type==X509_HY2)
+        log(IO_PROTOCOL,(char *)"Certificate signature is Hybrid (SQISIGN+EDDSA) of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
+#endif
 
     log(IO_DEBUG,(char *)"Public key from Certificate is ",NULL,0,PUBKEY); 
     if (pk.type==X509_ECC)
@@ -358,8 +373,17 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
     if (pk.type==X509_DLM)
         log(IO_PROTOCOL,(char *)"Certificate public key is Post Quantum (ML-DSA) of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
 
-    if (sg.type==X509_HY1)
-        log(IO_PROTOCOL,(char *)"Certificate public key is Hybrid of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
+    if (pk.type==X509_HY1)
+        log(IO_PROTOCOL,(char *)"Certificate public key is Hybrid (MLDSA+ECDSA) of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
+
+
+#ifdef SQISIGN_TEST
+    if (pk.type==X509_SQI)
+        log(IO_PROTOCOL,(char *)"Certificate public key is Post Quantum (SQISIGN) of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
+
+    if (pk.type==X509_HY2)
+        log(IO_PROTOCOL,(char *)"Certificate public key is Hybrid (SQISIGN+EDDSA) of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
+#endif
 
     char dn[256];
     octad DN={0,sizeof(dn),dn};

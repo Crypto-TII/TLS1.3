@@ -49,7 +49,6 @@ pub const ED25519: u16 = 0x0807;
 // Ed448 EdDSA Signature algorithm
 pub const ED448: u16 = 0x0808; 
 
-
 // Maximum sizes for some stack arrays
 /// Max ECC field size in bytes 
 pub const MAX_ECC_FIELD:usize = 66;       
@@ -317,8 +316,9 @@ pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true;    // allow self-signed certs
 pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting -  determines group used for initial key exchange
 pub const POST_HS_AUTH:bool= true;         // Willing to do post handshake authentication
-pub const CLIENT_CERT:usize= FROM_ROM;     // client-side authentication
-//pub const THIS_YEAR: usize = 2025;         // Set to this year - was crudely used to deprecate old certificates - no longer used 
+pub const CLIENT_CERT:usize= FROM_FILE;     // client-side authentication
+pub const CLIENT_KEY_PATH:&str="../../clientcert/client.key";   // Path to client key
+pub const CLIENT_CERT_PATH:&str="../../clientcert/certchain.pem";   // Path to client certificate chain
 pub const TLS_PROTOCOL: bool=true;         // ALPN extension
 pub const APPLICATION_PROTOCOL:&str="http/1.1";
 pub const TRY_EARLY_DATA:bool=true;        // Try sending early data on resumption

@@ -147,6 +147,7 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
         let pub2=&pubkey[65..];
         return sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,cert,sig1,pub1) && sal::tls_signature_verify(MLDSA44,cert,sig2,pub2);
     }
+
     return false;
 }
 

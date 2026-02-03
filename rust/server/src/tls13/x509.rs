@@ -77,7 +77,8 @@ const RSASHA512:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d];
 //const MLDSA65:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05];
 
 const MLDSA65:[u8;9]=[0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12]; // official
-const HYBRID:[u8;5]=[0x2B,0xCE,0x0F,0x07,0x05]; // MLDSA44 + P256 - OQS
+const HYBRID1:[u8;5]=[0x2B,0xCE,0x0F,0x07,0x05]; // MLDSA44 + P256 - OQS
+
 // Cert details
 
 pub const CN:[u8;3]=[0x55, 0x04, 0x06]; // countryName
@@ -410,8 +411,9 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
         ret.len=tlen;
         ret.kind=DLM;
         ret.curve=8*tlen;
-    }    
-    if HYBRID == soid[0..slen] {
+    }  
+
+    if HYBRID1 == soid[0..slen] {
         len=getalen(OCT,c,j);
         if len==0 {
             return ret;
@@ -468,7 +470,8 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
         ret.len=tlen+len;
         ret.kind=HY1;
         ret.curve=8*(tlen+len);
-    }    
+    }   
+
     if ECPK == soid[0..slen] {
         len=getalen(OID,c,j);   // extract the length of an OID
         if len==0 {
@@ -722,10 +725,11 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
         ret.kind=DLM;
         ret.hash=0; // hash type is implicit
     }
-    if HYBRID == soid[0..slen] {
+    if HYBRID1 == soid[0..slen] {
         ret.kind=HY1;
         ret.hash=0; // hash type is implicit
     }
+
     if ret.kind==0 { 
         return ret;  // unsupported type
     }
@@ -870,6 +874,7 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
         }
         ret.curve=8*len;
     }
+
     if ret.kind==HY1 {
         j+=4;
         len-=4;  // jump over spurious length field
@@ -953,6 +958,7 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
         }
         ret.curve=USE_NIST256;
     }
+
     return ret;
 }
 
@@ -1110,9 +1116,10 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     if MLDSA65 == koid[0..slen] {
         ret.kind=DLM;
     }
-    if HYBRID == koid[0..slen] {
+    if HYBRID1 == koid[0..slen] {
         ret.kind=HY1;
     }
+
     if ret.kind==0 {
         return ret;
     }
@@ -1159,8 +1166,16 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
     j+=1;
     len-=1; // skip bit shift (hopefully 0!)
 
-    if ret.kind==ECC || ret.kind==ECD || ret.kind==DLM  || ret.kind==HY1 {
-        if ret.kind==HY1 {
+    let cond1:bool;
+    let cond2:bool;
+    let cond3:bool;
+
+    cond1=ret.kind==ECC || ret.kind==ECD || ret.kind==DLM  || ret.kind==HY1;
+    cond2=ret.kind==HY1;
+    cond3=ret.kind==DLM  || ret.kind==HY1;    
+
+    if cond1 {
+        if cond2 {
             j+=4; // jump over redundant length field
             len-=4;
         }
@@ -1177,7 +1192,7 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
             j+=1;
         }
     }
-    if ret.kind==DLM  || ret.kind==HY1 {
+    if cond3 {
         ret.curve=8*len;
     }
     if ret.kind==RSA { // Key is (modulus,exponent) - assume exponent is 65537

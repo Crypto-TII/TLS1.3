@@ -62,8 +62,12 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 //#define THIS_YEAR 2025            /**< Set to this year - was crudely used to deprecate old certificates - no longer used */
 
 // Client side authentication
-#define CLIENT_CERT FROM_ROM        /**< Indicate capability of authenticating with a cert plus signing key (either built-in or from a file) */
+#define CLIENT_CERT FROM_FILE        /**< Indicate capability of authenticating with a cert plus signing key (either built-in or from a file) */
+#define CLIENT_KEY_PATH (char *)("../../clientcert/client.key")  /**< Path to client key **/
+#define CLIENT_CERT_PATH (char *)("../../clientcert/certchain.pem") /**< Path to client certificate **/
+
 #define CLIENT_CERT_KIND ECC_SS     /**< Choose a certificate - see tls_clientcert.cpp */
+
 #define POST_HS_AUTH              /**< Willing to do post handshake authentication */
 
 // Supported protocols    

@@ -743,7 +743,7 @@ static int readaline(char *line,FILE *fp)
     int i=0;
     if (!fgets(line,80,fp)) return 0;
     while (line[i]!=0) i++;
-    i--;
+    i-=2;
     line[i]=0;
     return i;
 }
@@ -790,7 +790,7 @@ bool setCredential(credential *C)
 #else   
 // unless signing with private key takes place in protected hardware, SAL should have it in software
 #if CLIENT_CERT==FROM_FILE 
-    FILE *fp=fopen("../../clientcert/client.key","r");
+    FILE *fp=fopen(CLIENT_KEY_PATH,"r");
     if (fp==NULL) {
 #ifdef SHALLOW_STACK
         free(b);
@@ -834,7 +834,7 @@ bool setCredential(credential *C)
 
 #if CLIENT_CERT==FROM_FILE
     fclose(fp); 
-    fp=fopen("../../clientcert/certchain.pem","r");
+    fp=fopen(CLIENT_CERT_PATH,"r");
     if (fp==NULL) {
 #ifdef SHALLOW_STACK
         free(b);

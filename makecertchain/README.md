@@ -4,19 +4,18 @@ This allows experimentation with currently non-standardised digital signature al
 
 **IMPORTANT** Make sure to implement a true random number generator in *tls_sal_m.xpp* where indicated.
 
-Do a MIRACL-only build of the C++ client after setting CRYPTO_SETTING in *tls1_3.h* to POST_QUANTUM
+Do a MIRACL-only build of the C++ client after setting CRYPTO_SETTING in *tls1_3.h* to HYBRID
 
-Copy the files *makerootcert.cpp*, *makeintercert.cpp*, *makeservercert.cpp* from here into the build directory and edit where indicated to specify your certificate details and preferred signature types
+Copy the files *makerootcert.cpp*, *makeintercert.cpp*, *makeleafcert.cpp* from here into the build directory and edit where indicated to specify your certificate details and preferred signature types
 
 	g++ -O2 makerootcert.cpp libtiitls.a core.a -o makerootcert
 	g++ -O2 makeintercert.cpp libtiitls.a core.a -o makeintercert
-	g++ -O2 makeservercert.cpp libtiitls.a core.a -o makeservercert
+	g++ -O2 makeleafcert.cpp libtiitls.a core.a -o makeleafcert
 
 Then 
-
 	./makerootcert
 	./makeintercert
-	./makeservercert
+	./makeleafcert
 
 It is important to execute these in order. Ensure that the Public key embedded in a certificate is compatible with the signature appended to the next certificate in the chain.
 
@@ -24,23 +23,23 @@ Ignore any debugging output
 
 The following files should be created
 
-*inter.crt*  *root.crt*  *server.crt*  *inter.key*  *root.key*  *server.key*
+*inter.crt*  *root.crt*  *leaf.crt*  *inter.key*  *root.key*  *leaf.key*
 
 Certificates can be examined by pasting the base64 in the .crt files into https://lapo.it/asn1js/
 
-Use OpenSSL v3.5 only to verify that the certificate chain is valid.
+Use OpenSSL v3.5 only to verify that the certificate chain is valid. Only possible for OpenSSL supported crypto algorithms.
 
-	openssl verify -CAfile root.crt -untrusted inter.crt server.crt
+	openssl verify -CAfile root.crt -untrusted inter.crt leaf.crt
 
 It should respond with
 
-	server.crt: OK
+	leaf.crt: OK
 
-Now combine the *server.crt* and *inter.crt* files to create *certchain.pem*. 
+Now combine the *leaf.crt* and *inter.crt* files to create *certchain.pem*. 
 
-	cat server.crt inter.crt > certchain.pem
+	cat leaf.crt inter.crt > certchain.pem
 
-Copy *certchain.pem*, *server.key* and *root.crt* to the *servercert* directory. 
+Copy *certchain.pem*, *leaf.key* and *root.crt* to the *servercert* directory. Pnce there rename *leaf.key* to *server.key*
 
 Important to note that the contents of *root.crt* must be added manually to the *tls_cacerts.cpp* and *cacert.rs* files. Use the provided *convert.cpp* tool to automatically generate C++ and Rust compatible code.
 
@@ -49,8 +48,8 @@ Rebuild the C++ client.
 Move to the directory *rust/server/src* and edit the *config.rs* file and ensure the following settings
 
 	pub const SERVER\_CERT:usize= FROM_FILE; 
-	pub const CRYPTO_SETTING: usize = POST_QUANTUM;
+	pub const CRYPTO_SETTING: usize = HYBRID;
 
-Finally build the Rust server application from *rust/server/src*. The server can use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
+Finally build the Rust server application from *rust/server*. The server can use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
 
 

@@ -806,11 +806,11 @@ impl CREDENTIAL {
             _ => return false,
             }
         } else {
-            let mut path = Path::new("../../../servercert/server.key");
+            let mut path = Path::new(&SERVER_KEY_PATH);
             let mut display = path.display();
 
             let mut file = match File::open(path) {
-                Err(why) => panic!("Must run from project src directory, couldn't find {}: {}", display, why),
+                Err(why) => panic!("Must run from project correct directory, couldn't find {}: {}", display, why),
                 Ok(file) => file,
             };
             let mut reader = BufReader::new(file);
@@ -823,7 +823,7 @@ impl CREDENTIAL {
                 secret+=nextstr;
             }   
             privkey=secret.as_str();
-            path=Path::new("../../../servercert/certchain.pem" );
+            path=Path::new(&SERVER_CERT_PATH);
             display=path.display();
             file = match File::open(path) {
                 Err(why) => panic!("Must run from project src directory, couldn't find {}: {}", display, why),
