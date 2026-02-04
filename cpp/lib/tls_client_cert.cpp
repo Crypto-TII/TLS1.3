@@ -337,7 +337,7 @@ static int readaline(char *line,const char *rom,int &ptr)
 #endif
 
 // process certchain and private key from OpenSSL format
-bool    redential(credential *C)
+bool setCredential(credential *C)
 {
     int i,ptr,pkptr,len;
     int kind;
