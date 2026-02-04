@@ -98,7 +98,7 @@ int SAL_sigs(int *sigAlgs)
 #endif
 #if CRYPTO_SETTING==HYBRID
     sigAlgs[n]=MLDSA44; n++;
-    sigAlgs[n]=MLDSA44_P256; n++;
+    sigAlgs[n]=MLDSA44_ED25519; n++;
     sigAlgs[n]=ECDSA_SECP256R1_SHA384; n++;
 #endif
     return n;
@@ -123,7 +123,7 @@ int SAL_sigCerts(int *sigAlgsCert)
 #endif
 #if CRYPTO_SETTING==HYBRID
     sigAlgsCert[n]=MLDSA44; n++;
-    sigAlgsCert[n]=MLDSA44_P256; n++;
+    sigAlgsCert[n]=MLDSA44_ED25519; n++;
     sigAlgsCert[n]=ECDSA_SECP256R1_SHA384; n++;
 #endif
     return n;

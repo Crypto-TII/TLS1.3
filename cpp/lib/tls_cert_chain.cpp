@@ -227,13 +227,13 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
 #endif
 // probably deepest into the stack at this stage.... (especially for MLDSA)
 
-    if (st.type==X509_HY1)  // P256 + MLDSA44
+    if (st.type==X509_HY1)  // ED25519 + MLDSA44
     {
-        octad FPUB={65,65,PUBKEY->val};
-        octad SPUB={PUBKEY->len-65,PUBKEY->len-65,&PUBKEY->val[65]};
+        octad FPUB={32,32,PUBKEY->val};
+        octad SPUB={PUBKEY->len-32,PUBKEY->len-32,&PUBKEY->val[32]};
         octad FSIG={64,64,SIG->val};
         octad SSIG={SIG->len-64,SIG->len-64,&SIG->val[64]};
-        res = SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA384,CERT,&FSIG,&FPUB) && SAL_tlsSignatureVerify(MLDSA44,CERT,&SSIG,&SPUB);
+        res = SAL_tlsSignatureVerify(ED25519,CERT,&FSIG,&FPUB) && SAL_tlsSignatureVerify(MLDSA44,CERT,&SSIG,&SPUB);
     }
 
 #ifdef SQISIGN_TEST

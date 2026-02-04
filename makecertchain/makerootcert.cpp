@@ -15,7 +15,7 @@
 #define ED25519_PK 7
 #define ED448_PK 8
 #define MLDSA65_PK 10
-#define NIST256_MLDSA44_PK 11  // Hybrid
+#define ED25519_MLDSA44_PK 11  // Hybrid
 
 #ifdef SQISIGN_TEST
 #define SQISIGN3_PK 12
@@ -30,7 +30,7 @@
 #define ED25519_SIG 7
 #define ED448_SIG 8
 #define MLDSA65_SIG 10
-#define ECC256SHA384_MLDSA44_SIG 11  // Hybrid
+#define ED25519_MLDSA44_SIG 11  // Hybrid
 
 #ifdef SQISIGN_TEST
 #define SQISIGN3_SIG 12
@@ -112,28 +112,28 @@ static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0
 #define PK_SIZE 1952
 #define PK_TYPE MLDSA_KP
 #endif
-#if PKTYPE==NIST256_MLDSA44_PK
-static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
+#if PKTYPE==ED25519_MLDSA44_PK
+static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x0C,0x06};
 #define HYBRID_PK
 #define SB_SK_SIZE_1 32
 #define SB_SK_SIZE_2 2560
-#define PK_SIZE_1 65
+#define PK_SIZE_1 32
 #define PK_SIZE_2 1312
-#define PK_TYPE_1 ECDSA_KP 
+#define PK_TYPE_1 EDDSA_KP 
 #define PK_TYPE_2 MLDSA_KP
 #endif
 
 #ifdef SQISIGN_TEST
 
 #if PKTYPE==SQISIGN3_PK
-static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x17};
+static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x20};
 #define SB_SK_SIZE 529
 #define PK_SIZE 97
 #define PK_TYPE SQISIGN_KP
 #endif
 
 #if PKTYPE==ED448_SQISIGN3_PK
-static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x06};
+static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x0C,0x01};
 #define HYBRID_PK
 #define SB_SK_SIZE_1 57
 #define SB_SK_SIZE_2 529
@@ -194,28 +194,28 @@ static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,
 #define SIG_SIZE 3309
 #define SIG_TYPE MLDSA65
 #endif
-#if SIGTYPE==ECC256SHA384_MLDSA44_SIG
-static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x05};
+#if SIGTYPE==ED25519_MLDSA44_SIG
+static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x0C,0x06};
 #define HYBRID_SIG
 #define SK_SIZE_1 32
 #define SK_SIZE_2 2560
 #define SIG_SIZE_1 64
 #define SIG_SIZE_2 2420
-#define SIG_TYPE_1 ECDSA_SECP256R1_SHA384
+#define SIG_TYPE_1 ED25519
 #define SIG_TYPE_2 MLDSA44
 #endif
 
 #ifdef SQISIGN_TEST
 
 #if SIGTYPE==SQISIGN3_SIG
-static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x17};
+static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x20};
 #define SK_SIZE 529
 #define SIG_SIZE 224
 #define SIG_TYPE SQISIGN3
 #endif
 
 #if SIGTYPE==ED448_SQISIGN3_SIG
-static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x07,0x06};
+static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x0C,0x01};
 #define HYBRID_SIG
 #define SK_SIZE_1 57
 #define SK_SIZE_2 529
@@ -467,12 +467,12 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
 #endif
 
 
-#if PKTYPE==NIST256_MLDSA44_PK
+#if PKTYPE==ED25519_MLDSA44_PK
     OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
     wrap(SEQ,&PKINFO);
 
     OCT_append_octad(&PK,PUBLIC_KEY); OCT_append_octad(&PK,PUBLIC_KEY2);
-    insertbyte(&PK,0x41); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00);  // 0x41=65 = length of EC public key    
+    insertbyte(&PK,0x20); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00);  // 0x20=32 = length of EC public key    
     wrap(BIT,&PK);
 
     OCT_append_octad(&PKINFO,&PK);
@@ -665,22 +665,10 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE,octad *SIGNATURE2)
     unsigned char certsig[20000];
     octad CERTSIG={0,20000,(char *)certsig};
 
-#if SIGTYPE==ECC256SHA384_MLDSA44_SIG
-    unsigned char second[100];
-    octad SECOND={0,100,(char *)second};
-    int half=SIG_SIZE_1/2;
-
-    makeclause(INT,half,(unsigned char *)&SIGNATURE->val[0],&CERTSIG);
-    makeclause(INT,half,(unsigned char *)&SIGNATURE->val[half],&SECOND);
-
-    OCT_append_octad(&CERTSIG,&SECOND); 
-    wrap(SEQ,&CERTSIG);
-    wrap(ANY,&CERTSIG);
-    insertbyte(&CERTSIG,0x00); insertbyte(&CERTSIG,0x00); // 0x48 = length of wrapped EC signature
-
+#if SIGTYPE==ED25519_MLDSA44_SIG
+    OCT_append_octad(&CERTSIG,SIGNATURE);
     OCT_append_octad(&CERTSIG,SIGNATURE2);
     wrap(BIT,&CERTSIG);
-
     OCT_append_octad(CERT,&CERTSIG);
     return;
 

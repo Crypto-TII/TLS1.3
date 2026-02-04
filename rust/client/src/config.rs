@@ -43,7 +43,7 @@ pub const MLDSA44: u16 = 0x0904;
 /// Non-standard - used in hybrid schemes 
 pub const ECDSA_SECP256R1_SHA384: u16 = 0x0413; 
 /// Dilithium2 Hybrid Signature algorithm
-pub const MLDSA44_P256: u16 = 0xFF06; //0x0907; // this type can be negotiated, but always implemented seperately by SAL
+pub const MLDSA44_ED25519: u16 = 0xFF86; //0x0907; // this type can be negotiated, but always implemented seperately by SAL
 // Ed25519 EdDSA Signature algorithm
 pub const ED25519: u16 = 0x0807;                   
 // Ed448 EdDSA Signature algorithm

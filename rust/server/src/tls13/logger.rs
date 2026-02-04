@@ -67,7 +67,7 @@ pub fn log_sig_alg(sigalg: u16) {
         RSA_PKCS1_SHA512 => log(IO_PROTOCOL,"RSA_PKCS1_SHA512\n",-1,None),
         MLDSA65 => log(IO_PROTOCOL,"MLDSA65\n",-1,None),
         MLDSA44 => log(IO_PROTOCOL,"MLDSA44\n",-1,None),
-        MLDSA44_P256 => log(IO_PROTOCOL,"MLDSA44 + P256\n",-1,None),
+        MLDSA44_ED25519 => log(IO_PROTOCOL,"MLDSA44 + ED25519\n",-1,None),
         ED25519 => log(IO_PROTOCOL,"Ed25519\n",-1,None),
         ED448 => log(IO_PROTOCOL,"Ed448\n",-1,None),
         _ => log(IO_PROTOCOL,"Non-standard\n",-1,None)
@@ -124,10 +124,10 @@ pub fn log_cert_details(d: &CERT)
         log(IO_PROTOCOL,"Certificate signature is RSA of length (bits) ",8*(d.sgt.len as isize),None);
     }
     if d.sgt.kind==x509::DLM {
-        log(IO_PROTOCOL,"Certificate signature is Post Quantum (ML-DSA) of length (bits) ",8*(d.sgt.len as isize),None);
+        log(IO_PROTOCOL,"Certificate signature is Post Quantum (MLDSA65) of length (bits) ",8*(d.sgt.len as isize),None);
     }
     if d.sgt.kind==x509::HY1 {
-        log(IO_PROTOCOL,"Certificate signature is Hybrid of length (bits) ",8*(d.sgt.len as isize),None);
+        log(IO_PROTOCOL,"Certificate signature is Hybrid (MLDSA44+ED25519) of length (bits) ",8*(d.sgt.len as isize),None);
     }
 
     log(IO_DEBUG,"Public key from Certificate is ",0,Some(&d.pk[0..d.pkt.len])); 
@@ -156,10 +156,10 @@ pub fn log_cert_details(d: &CERT)
         log(IO_PROTOCOL,"Certificate public key is RSA of length (bits) ",8*(d.pkt.len as isize),None);
     }
     if d.pkt.kind==x509::DLM {
-        log(IO_PROTOCOL,"Certificate public key is Post Quantum (ML-DSA) of length (bits) ",8*(d.pkt.len as isize),None);
+        log(IO_PROTOCOL,"Certificate public key is Post Quantum (MLDSA65) of length (bits) ",8*(d.pkt.len as isize),None);
     }
         if d.pkt.kind==x509::HY1 {
-        log(IO_PROTOCOL,"Certificate public key is Hybrid of length (bits) ",8*(d.pkt.len as isize),None);
+        log(IO_PROTOCOL,"Certificate public key is Hybrid (MLDSA44+ED25519) of length (bits) ",8*(d.pkt.len as isize),None);
     }
 
     let mut dn:[u8;256]=[0;256];

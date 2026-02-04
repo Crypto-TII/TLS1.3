@@ -264,11 +264,11 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define MLDSA44 0x0904                  /**< MLDSA44 Signature algorithm */
 #define MLDSA65 0x0905                  /**< MLDSA65 Signature algorithm */
 #define MLDSA87 0x0906                  /**< MLDSA87 Signature algorithm */
-#define MLDSA44_P256 0xFF06             /**< MLDSA44+SECP256R1 Hybrid Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */  //0x0907
+#define MLDSA44_ED25519 0xFF86          /**< MLDSA44+ED25519 Hybrid Signature algorithms - this type can be negotiated, but always implemented seperately by SAL */  
 
 #ifdef SQISIGN_TEST
     #define SQISIGN3 0x090A                 /**< SQISIGN3 Signature algorithm */
-    #define SQISIGN3_ED448 0xFF0C           /**< SQISIGN3 + ED448 Hybrid */
+    #define SQISIGN3_ED448 0xFF8C           /**< SQISIGN3 + ED448 Hybrid */
 #endif
 
 // Key pair algorithms

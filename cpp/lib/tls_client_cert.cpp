@@ -213,7 +213,7 @@ static int get_sigalg(pktype *pk) {
         return MLDSA65;
     }
     if (pk->type==X509_HY1) {
-        return MLDSA44_P256;
+        return MLDSA44_ED25519;
     }
     if (pk->type==X509_ECD) {
         if (pk->curve==USE_ED25519) {
@@ -262,11 +262,11 @@ static int add_cert_sig_type(pktype *pk,int reqlen,unsign16 *requirements)
         return len;
     }
     if (pk->type==X509_HY1) {
-        requirements[len]=MLDSA44_P256;
+        requirements[len]=MLDSA44_ED25519;
         len+=1;
         requirements[len]=MLDSA44;
         len+=1;
-        requirements[len]=ECDSA_SECP256R1_SHA384;
+        requirements[len]=ED25519;
         len+=1;
         return len;  // *** also need to check that secp256r1 is supported - kind indicates that both signature keys are in privkey
     }

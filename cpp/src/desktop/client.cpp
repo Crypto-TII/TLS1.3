@@ -193,8 +193,8 @@ static void nameSigAlg(int sigAlg)
     case MLDSA65:
         printf("MLDSA65\n");   
         break;
-    case MLDSA44_P256:
-        printf("MLDSA44 + P256\n");   
+    case MLDSA44_ED25519:
+        printf("MLDSA44 + ED25519\n");   
         break;
     default:
         printf("Non-standard\n");   

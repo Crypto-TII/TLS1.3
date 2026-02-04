@@ -386,11 +386,11 @@ void createClientCertVerifier(int sigAlg,octad *H,octad *KEY,octad *CCVSIG)
     OCT_append_byte(&CCV,0,1);   // add 0 character
     OCT_append_octad(&CCV,H);    // add Transcript Hash 
 
-    if (sigAlg==MLDSA44_P256)
+    if (sigAlg==MLDSA44_ED25519)
     {
         octad FKEY={32,32,KEY->val};
         octad SKEY={KEY->len-32,KEY->len-32,&KEY->val[32]};
-        SAL_tlsSignature(ECDSA_SECP256R1_SHA384,&FKEY,&CCV,CCVSIG);
+        SAL_tlsSignature(ED25519,&FKEY,&CCV,CCVSIG);
         ecdsa_sig_encode(CCVSIG);  // ASN.1 encode it - it grows
         octad SSIG={0,TLS_MAX_SIGNATURE_SIZE-32,&CCVSIG->val[CCVSIG->len]};
         SAL_tlsSignature(MLDSA44,&SKEY,&CCV,&SSIG); // append PQ sig
@@ -421,17 +421,17 @@ bool checkServerCertVerifier(int sigAlg,octad *SCVSIG,octad *H,octad *CERTPK)
     OCT_append_byte(&SCV,0,1);   // add 0 character
     OCT_append_octad(&SCV,H);    // add Transcript Hash 
 
-    if (sigAlg==MLDSA44_P256)
+    if (sigAlg==MLDSA44_ED25519)
     {
-        octad FPUB={65,65,CERTPK->val};
-        octad SPUB={CERTPK->len-65,CERTPK->len-65,&CERTPK->val[65]};
+        octad FPUB={32,32,CERTPK->val};
+        octad SPUB={CERTPK->len-32,CERTPK->len-32,&CERTPK->val[32]};
         int len=SCVSIG->len;   // full length
         int index=ecdsa_sig_decode(SCVSIG); // ASN.1 decode it - it shrinks - return undecoded length
         if (index==0) return false;
         int mlen=SCVSIG->len;               // modified length
         octad FSIG={mlen,mlen,SCVSIG->val};
         octad SSIG={len-index,len-index,&SCVSIG->val[index]};
-        return SAL_tlsSignatureVerify(ECDSA_SECP256R1_SHA384,&SCV,&FSIG,&FPUB) && SAL_tlsSignatureVerify(MLDSA44,&SCV,&SSIG,&SPUB);
+        return SAL_tlsSignatureVerify(ED25519,&SCV,&FSIG,&FPUB) && SAL_tlsSignatureVerify(MLDSA44,&SCV,&SSIG,&SPUB);
     }
 
 // Special case processing required here for ECDSA signatures -  SCVSIG is modified

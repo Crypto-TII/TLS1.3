@@ -134,8 +134,8 @@ static void nameSigAlg(int sigAlg)
     case MLDSA65:
         Serial.println("MLDSA65");   
         break;
-    case MLDSA44_P256:
-        Serial.println("MLDSA44 + P256");   
+    case MLDSA44_ED25519:
+        Serial.println("MLDSA44 + ED25519");   
         break;
     default:
         Serial.println("Non-standard");   
