@@ -77,7 +77,7 @@ const RSASHA512:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d];
 //const MLDSA65:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05];
 
 const MLDSA65:[u8;9]=[0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12];  //official
-const HYBRID1:[u8;5]=[0x2B,0xCE,0x0F,0x07,0x05]; // MLDSA44 + P256 - OQS
+const HYBRID1:[u8;5]=[0x2B,0xCE,0x0F,0x0C,0x06]; // MLDSA44 + ED25519
 
 // Cert details
 pub const CN:[u8;3]=[0x55, 0x04, 0x06]; // countryName
@@ -876,6 +876,20 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
     }
 
     if ret.kind==HY1 {
+        if len>siglen {
+            ret.kind=0;
+            return ret;
+        }
+        ret.len=len;
+        slen=0;
+        fin=j+len;
+        while j<fin {
+            sig[slen]=sc[j];
+            j+=1;
+            slen+=1;
+        }
+        ret.curve=USE_ED25519;
+/*
         j+=4;
         len-=4;  // jump over spurious length field
         let end=j+len;  // length of entire blob of data
@@ -957,6 +971,7 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
             slen+=1;
         }
         ret.curve=USE_NIST256;
+*/
     }
 
     return ret;

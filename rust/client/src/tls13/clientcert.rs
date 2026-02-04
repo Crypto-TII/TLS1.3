@@ -51,7 +51,7 @@ fn get_sigalg(pk: &x509::PKTYPE) -> u16 {
         return MLDSA65;
     }
     if pk.kind==x509::HY1 {
-        return MLDSA44_P256;
+        return MLDSA44_ED25519;
     }
     if pk.kind==x509::ECD {
         if pk.curve==x509::USE_ED25519 {
@@ -100,13 +100,13 @@ fn add_cert_sig_type(pk: &x509::PKTYPE,reqlen: usize,requirements: &mut [u16]) -
         return len;
     }
     if pk.kind==x509::HY1 {
-        requirements[len]=MLDSA44_P256;
+        requirements[len]=MLDSA44_ED25519;
         len+=1;
         requirements[len]=MLDSA44;
         len+=1;
-        requirements[len]=ECDSA_SECP256R1_SHA384;
+        requirements[len]=ED25519;
         len+=1;
-        return len;  // *** also need to check that secp256r1 is supported - kind indicates that both signature keys are in privkey
+        return len;  // *** also need to check that ed25519 is supported - kind indicates that both signature keys are in privkey
     }
     if pk.kind==x509::ECD {
         if pk.curve==x509::USE_ED25519 {

@@ -143,9 +143,9 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     if st.kind==x509::HY1 {
         let sig1=&sig[0..64];
         let sig2=&sig[64..]; 
-        let pub1=&pubkey[0..65];
-        let pub2=&pubkey[65..];
-        return sal::tls_signature_verify(ECDSA_SECP256R1_SHA384,cert,sig1,pub1) && sal::tls_signature_verify(MLDSA44,cert,sig2,pub2);
+        let pub1=&pubkey[0..32];
+        let pub2=&pubkey[32..];
+        return sal::tls_signature_verify(ED25519,cert,sig1,pub1) && sal::tls_signature_verify(MLDSA44,cert,sig2,pub2);
     }
 
     return false;
