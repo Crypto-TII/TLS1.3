@@ -952,9 +952,9 @@ int main() {
     //OCT_append_octad(&CERT,&CERTSIG);
     wrap(SEQ,&CERT);
 
-// output root certificate and secret key to files
+// output self-signed certificate and secret key to files
     OCT_output_base64(&CERT,20000,buff);
-    fp=fopen("root.crt","wt");
+    fp=fopen("self.crt","wt");
     int fin;
     fputs("-----BEGIN CERTIFICATE-----\n",fp);
     for (i=0;i<strlen(buff);i++)
@@ -974,7 +974,7 @@ int main() {
     create_private(&PRIVATE_KEY,&SECRET,&SECRET2);
 
     OCT_output_base64(&PRIVATE_KEY,20000,buff);
-    fp=fopen("root.key","wt");
+    fp=fopen("self.key","wt");
     fputs("-----BEGIN PRIVATE KEY-----\n",fp);
     for (i=0;i<strlen(buff);i++)
     {
