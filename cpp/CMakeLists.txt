@@ -8,6 +8,9 @@ project(tiitls1.3)
 if (${SAL} MATCHES MIRACL)
 	configure_file(./sal/tls_sal_m.xpp ./lib/tls_sal.cpp COPYONLY)
 endif ()
+if (${SAL} MATCHES MIRACL_SQISIGN)
+	configure_file(./sal/tls_sal_m.xpp ./lib/tls_sal.cpp COPYONLY)
+endif ()
 if (${SAL} MATCHES MIRACL_SODIUM)
 	configure_file(./sal/tls_sal_ms.xpp ./lib/tls_sal.cpp COPYONLY)
 endif ()
@@ -39,9 +42,17 @@ set(SRC
 # Add a library
 add_library(tiitls STATIC ${SRC})
 
+target_compile_options(tiitls PUBLIC -O2)
+
 target_include_directories(tiitls PUBLIC include)
 
 if (${SAL} MATCHES MIRACL)
+	target_include_directories(tiitls PUBLIC sal/miracl)
+        target_include_directories(tiitls PUBLIC sal/miracl/includes)
+endif ()
+
+if (${SAL} MATCHES MIRACL_SQISIGN)
+	target_compile_options(tiitls PUBLIC -DSQISIGN_TEST -DSQISIGN_TEST_X509)
 	target_include_directories(tiitls PUBLIC sal/miracl)
         target_include_directories(tiitls PUBLIC sal/miracl/includes)
 endif ()
@@ -71,7 +82,11 @@ target_link_libraries(client tiitls )
 
 if (${SAL} MATCHES MIRACL)
 	target_link_libraries(client ${PROJECT_SOURCE_DIR}/sal/miracl/core.a)
-#	target_link_libraries(client ${PROJECT_SOURCE_DIR}/sal/miracl/libsqisign.a -lgmp) 
+endif ()
+
+if (${SAL} MATCHES MIRACL_SQISIGN)
+	target_link_libraries(client ${PROJECT_SOURCE_DIR}/sal/miracl/core.a)
+	target_link_libraries(client ${PROJECT_SOURCE_DIR}/sal/miracl/libsqisign.a -lgmp) 
 endif ()
 
 if (${SAL} MATCHES MIRACL_SODIUM)

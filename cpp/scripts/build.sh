@@ -32,12 +32,17 @@ elif chkarg "-3"
 then
     echo "Building using TLSECC + Miracl"
     sh ./scripts/build_t.sh
+elif chkarg "-4"
+then
+    echo "Building using Miracl + SQISIGN"
+    sh ./scripts/build_q.sh
 else
     echo "No arguments specified\n"
     echo "Parameters:"
     echo " -1\tMiracl"
     echo " -2\tMiracl + LibSodium"   
     echo " -3\tMiracl + TLSECC"   
-    echo " -4\tCustom Library" 
+    echo " -4\tMiracl + SQISIGN"   
+    echo " -5\tCustom Library" 
     exit
 fi

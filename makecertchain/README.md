@@ -4,7 +4,7 @@ This allows experimentation with currently non-standardised digital signature al
 
 **IMPORTANT** Make sure to implement a true random number generator in *tls_sal_m.xpp* where indicated.
 
-Do a MIRACL-only build of the C++ client after setting CRYPTO_SETTING in *tls1_3.h* to HYBRID
+Do a MIRACL-only build of the C++ client after setting CRYPTO_SETTING in *tls1_3.h* to HYBRID (to allow support for the widest range of signature algorithms)
 
 Copy the files *makerootcert.cpp*, *makeintercert.cpp*, *makeleafcert.cpp* from here into the build directory and edit where indicated to specify your certificate details and preferred signature types
 
@@ -27,7 +27,7 @@ The following files should be created
 
 Certificates can be examined by pasting the base64 in the .crt files into https://lapo.it/asn1js/
 
-Use OpenSSL v3.5 only to verify that the certificate chain is valid. Only possible for OpenSSL supported crypto algorithms.
+Internal consistency tests are applied to ensure the integrity of the certificate chain. For independent verification it is possible to use OpenSSL v3.5 (for OpenSSL supported crypto algorithms).
 
 	openssl verify -CAfile root.crt -untrusted inter.crt leaf.crt
 
@@ -39,17 +39,23 @@ Now combine the *leaf.crt* and *inter.crt* files to create *certchain.pem*.
 
 	cat leaf.crt inter.crt > certchain.pem
 
-Copy *certchain.pem*, *leaf.key* and *root.crt* to the *servercert* directory. Pnce there rename *leaf.key* to *server.key*
+Copy *certchain.pem* and *leaf.key* to the *servercert* directory. Once there rename *leaf.key* to *server.key*
 
 Important to note that the contents of *root.crt* must be added manually to the *tls_cacerts.cpp* and *cacert.rs* files. Use the provided *convert.cpp* tool to automatically generate C++ and Rust compatible code.
 
 Rebuild the C++ client.
 
-Move to the directory *rust/server/src* and edit the *config.rs* file and ensure the following settings
+Move to the directory *rust/server/src* and edit the *config.rs* file and ensure the following setting. Its the default.
 
 	pub const SERVER\_CERT:usize= FROM_FILE; 
-	pub const CRYPTO_SETTING: usize = HYBRID;
 
-Finally build the Rust server application from *rust/server*. The server can use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
+If your chain uses post-quantum or hybrid primitives also set
 
+	pub const CRYPTO_SETTING: usize = HYBRID; 
 
+Finally run the Rust server application from *rust/server*. The server can use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
+
+To update the chain to use a new leaf certificate (perhaps when the old one expires) with the same root and intermediate certificates, just run the *makeleafcert* application again and replace 
+*certchain.pem* and *leaf.key*.
+
+Client-side certificates can be created in a similar way.

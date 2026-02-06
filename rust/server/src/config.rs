@@ -86,7 +86,7 @@ pub const FROM_ROM: usize = 1;
 pub const FROM_FILE:usize = 2;
 
 
-// These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
+// These sizes assume CRYPTO_SETTING is for HYBRID and are set for Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
 pub const MAX_CERT_SIZE:usize = 6144;               // Max cert size 
 pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size (less extensions) KEX public key is largest component
@@ -315,11 +315,11 @@ pub const RAW_PUBLIC_KEY:u8 = 2;
 // ******************************* User defined controls ******************************************
 pub const VERBOSITY:usize= IO_PROTOCOL;     // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true;     // allow self-signed certs
-pub const CRYPTO_SETTING: usize = TYPICAL;  // Decide on crypto setting - determines certificate chain
 pub const APPLICATION_PROTOCOL:&str="http/1.1";  // ALPN extension
-pub const SERVER_CERT:usize= FROM_FILE;     // server-side authentication
-pub const SERVER_KEY_PATH:&str="../../servercert/server.key";   // Path to server key
-pub const SERVER_CERT_PATH:&str="../../servercert/certchain.pem";   // Path to server certificate chain
+pub const SERVER_CERT:usize= FROM_FILE;     // server-side certificate chain - FROM_ROM (servercert.rs) or FROM_FILE
+pub const CRYPTO_SETTING: usize = TYPICAL;  // Determines certificate chain to take FROM_ROM
+pub const SERVER_KEY_PATH:&str="../../servercert/server.key";   // Path to server key FROM_FILE
+pub const SERVER_CERT_PATH:&str="../../servercert/certchain.pem";   // Path to server certificate chain FROM_FILE
 pub const CERTIFICATE_REQUEST: bool=false;  // Does server require client authentication?
 pub const TICKET_LIFETIME: u32 = 86400;     // 86400 seconds in a day
 pub const MAX_EARLY_DATA: usize = 1024;     // maximum amount of early data a client can send 
