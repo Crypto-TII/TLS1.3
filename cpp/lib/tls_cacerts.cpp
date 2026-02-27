@@ -35,7 +35,7 @@ const char *cacerts=(char *)
 "xKHy/+VSnPYc4BN3kPqhy9GefFiBlUqSM8S2wlRbNA1ENc7qBCcsgwpyXoCV9JaX\n"
 "UN7Gm7PuGQktbhU8zHpC5iphDU34POSdow==\n"
 "-----END CERTIFICATE-----\n"
-#if CRYPTO_SETTING == HYBRID   // ED25519 + MLDSA44 expires Jan 2027
+#if CRYPTO_SETTING == POST_QUANTUM   // ED25519 + MLDSA44 expires Jan 2027
 "-----BEGIN CERTIFICATE-----\n"
 "MIIQBTCCBj2gAwIBAgIQPyX/VxVN0GrrmFgJMXuUszAJBgUrzg8MBgUAMEYxCzAJ\n"
 "BgNVBAYMAkFFMRswGQYDVQQKDBJUaWkgVHJ1c3QgU2VydmljZXMxGjAYBgNVBAMM\n"
@@ -125,10 +125,7 @@ const char *cacerts=(char *)
 "AAAAAAAAAAAAAAAAAAAAAAAAAAAACRknOA==\n"
 "-----END CERTIFICATE-----\n"
 
-#endif
-
-
-#if CRYPTO_SETTING == POST_QUANTUM // MLDSA65 root certificate expires Jan 2027
+// MLDSA65 root certificate expires Jan 2027
 
 "-----BEGIN CERTIFICATE-----\n"
 "MIIVpjCCCKGgAwIBAgIQQHdFbleEZm+Tsb2p6uxG5jANBglghkgBZQMEAxIFADBG\n"
@@ -266,8 +263,8 @@ const char *cacerts=(char *)
 "-----END CERTIFICATE-----\n"
 
 #endif
-#if CRYPTO_SETTING == EDDSA
-"-----BEGIN CERTIFICATE-----\n"                                             // Expires Jan 2027
+
+"-----BEGIN CERTIFICATE-----\n"                                             // EdDSA cert Expires Jan 2027
 "MIIBrDCCASqgAwIBAgIQWfkqdQ01LBYJe597Hgs7RzAHBgMrZXEFADBGMQswCQYD\n"
 "VQQGDAJBRTEbMBkGA1UECgwSVGlpIFRydXN0IFNlcnZpY2VzMRowGAYDVQQDDBFU\n"
 "aWlnZXJUTFMgcm9vdCBDQTAeFw0yNjAxMDMwMDAwMDBaFw0yNzAxMDMwMDAwMDBa\n"
@@ -278,7 +275,7 @@ const char *cacerts=(char *)
 "scahiYhga5NzmDiEQLKFcXx2FrSspLi5BMIm7pdE/pk5WwKasiuA9OLaSLcsW3bp\n"
 "OsiMc+V9aEPWKHF6KqXF8CQj9YCTowvwX62qrbvwaMNN5ok3fa+alJ4TxAD9XDIA\n"
 "-----END CERTIFICATE-----\n"
-#endif
+
 
 // Root CAs converted from ca-certificates.crt - use convert.cpp tool to generate
 

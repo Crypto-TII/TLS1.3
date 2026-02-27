@@ -208,26 +208,9 @@ fn main() {
     // accept connections and process them, spawning a new thread for each one
     println!("Server listening on port 4433");
 
- 
-    if CRYPTO_SETTING==TYPICAL {
-        println!("Configured for typical RSA/ECC TLS client connections");
-    }
-    if CRYPTO_SETTING==TINY_ECC {
-        println!("Configured for Small ECC TLS client connections");
-    }
-    if CRYPTO_SETTING==EDDSA {
-        println!("Configured also for EDDSA connections");
-    }
-    if CRYPTO_SETTING==POST_QUANTUM {
-        println!("Configured for Post Quantum TLS client connections");
-    }
-    if CRYPTO_SETTING==HYBRID {
-        println!("Configured for Hybrid Post Quantum TLS client connections");
-    }
-
    let mut credential=CREDENTIAL::new(); // processed server credentials, same for all sessions
 
-// Could instead read in credentials from files certchain.pem and enduser.key
+// Could instead read in credentials from files certchain.pem and server.key
 
     let supported=credential.set();
     if !supported {

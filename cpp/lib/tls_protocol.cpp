@@ -747,7 +747,7 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
 #ifdef POST_HS_AUTH
     addPostHSAuth(&EXT);  // willing to do post handshake authentication if necessary
 #endif
-    age=0;
+
     if (!external_psk)
     { // Its NOT an external pre-shared key
         time_ticket_used=(unsign32)millis();
@@ -755,6 +755,8 @@ static int TLS13_resume(TLS_session *session,octad *EARLY)
         log(IO_DEBUG,(char *)"Ticket age= ",(char *)"%x",age,NULL);
         age+=age_obfuscator;
         log(IO_DEBUG,(char *)"obfuscated age = ",(char *)"%x",age,NULL);
+    } else {
+        age=age_obfuscator; // IBE hack. Use age to indicate which IBE to use.
     }
 
     int extra=addPreSharedKeyExt(&EXT,age,&session->T.TICK,SAL_hashLen(hashtype)); // must be last extension..

@@ -78,7 +78,6 @@ Move to the directory *rust/server/src* and edit the *config.rs* file and ensure
 
 	pub const CERTIFICATE_REQUEST: bool=true;
 	pub const SERVER\_CERT:usize= FROM_FILE; 
-	pub const CRYPTO_SETTING: usize = EDDSA;
 	
 Execute
 
@@ -87,7 +86,6 @@ Execute
 Now move to a new window and navigate to *rust/client/src* and edit the *config.rs* file and ensure the following settings
 
  	pub const CLIENT\_CERT:usize= FROM_FILE; 
-	pub const CRYPTO_SETTING: usize = EDDSA;
 
 Finally run the client and make a fully authenticated TLS1.3 connection
 

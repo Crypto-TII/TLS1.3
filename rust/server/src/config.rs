@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 //! Main TII TLS 1.3 Configuration File for constants and structures
-// see bottom of file for user definables
+// SCROLL DOWN TO BOTTOM OF FILE FOR USER DEFINABLES
 
 pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";  
 pub const DISCONNECTED: usize = 0;
@@ -67,8 +67,8 @@ pub const MAX_PLAIN_FRAG: usize = 16384;
 /// Max Ciphertext Fragment size 
 pub const MAX_CIPHER_FRAG: usize = 16384+256;       
 
-// Supported CRYPTO_SETTINGs
-/// ECC only support only
+// Certificate kinds (from ROM)
+/// ECC only support only (No RSA!)
 pub const TINY_ECC: usize = 0;  
 /// ECC + RSA support
 pub const TYPICAL: usize = 1;  
@@ -85,6 +85,10 @@ pub const FROM_ROM: usize = 1;
 ///Client certificate from file
 pub const FROM_FILE:usize = 2;
 
+// IBE options
+pub const IBE_BF:u32 = 1;
+pub const IBE_PQ:u32 = 2;
+pub const IBE_HY:u32 = 3;
 
 // These sizes assume CRYPTO_SETTING is for HYBRID and are set for Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
@@ -317,9 +321,9 @@ pub const VERBOSITY:usize= IO_PROTOCOL;     // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true;     // allow self-signed certs
 pub const APPLICATION_PROTOCOL:&str="http/1.1";  // ALPN extension
 pub const SERVER_CERT:usize= FROM_FILE;     // server-side certificate chain - FROM_ROM (servercert.rs) or FROM_FILE
-pub const CRYPTO_SETTING: usize = TYPICAL;  // Determines certificate chain to take FROM_ROM
 pub const SERVER_KEY_PATH:&str="../../servercert/server.key";   // Path to server key FROM_FILE
 pub const SERVER_CERT_PATH:&str="../../servercert/certchain.pem";   // Path to server certificate chain FROM_FILE
+pub const SERVER_CERT_KIND: usize = TYPICAL; // or choose a certificate from ROM - see servercert.rs */
 pub const CERTIFICATE_REQUEST: bool=false;  // Does server require client authentication?
 pub const TICKET_LIFETIME: u32 = 86400;     // 86400 seconds in a day
 pub const MAX_EARLY_DATA: usize = 1024;     // maximum amount of early data a client can send 

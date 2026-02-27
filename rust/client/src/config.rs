@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 //! Main TII TLS 1.3 Configuration File for constants and structures
-// see bottom of file for user definables
+// SCROLL DOWN TO BOTTOM OF FILE FOR USER DEFINABLES
 
 pub const HRR:&str="CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C";  
 pub const DISCONNECTED: usize = 0;   // Not sending data
@@ -70,16 +70,29 @@ pub const MAX_PLAIN_FRAG: usize = 16384;
 pub const MAX_CIPHER_FRAG: usize = 16384+256;        
 
 // Supported CRYPTO_SETTINGs
-/// ECC support only
+/// ECC support only (No RSA!)
 pub const TINY_ECC: usize = 0;   
 /// ECC + RSA support 
 pub const TYPICAL: usize = 1;        
 /// POST_QUANTUM support
 pub const POST_QUANTUM: usize = 3;      
-/// HYBRID support
-pub const HYBRID: usize = 4;
-/// EDDSA support
-pub const EDDSA: usize = 2;
+/// HYBRID support - now included with POST_QUANTUM
+//pub const HYBRID: usize = 4;
+/// EDDSA support - now included with TYPICAL
+//pub const EDDSA: usize = 2;
+
+// Client certificate kinds
+/// self signed RSA cert 
+pub const RSA_SS: usize = 1;  
+/// self signed ECC cert 
+pub const ECC_SS: usize = 2;  
+/// self signed MLDSA cert 
+pub const DLT_SS: usize = 3;  
+/// self signed Hybrid cert (MLDSA+ECC) 
+pub const HYB_SS: usize = 6;  
+/// self signed Ed25519 cert  
+pub const EDD_SS: usize = 7;  
+
 
 // supported CLIENT CERTIFICATE settings
 /// No client certificate
@@ -89,7 +102,7 @@ pub const FROM_ROM: usize = 1;
 ///Client certificate from file
 pub const FROM_FILE:usize = 2;
 
-// These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for Post Quantum-sized certs and keys
+// These sizes assume CRYPTO_SETTING is for POST_QUANTUM and are set for hybrid Post Quantum-sized certs and keys
 // Can be greatly reduced for non-PQ - would be much smaller for ECC/RSA
 pub const MAX_CERT_SIZE:usize = 6144;               // Max client private key/cert 
 pub const MAX_HELLO: usize = 2048;                  // Maximum Hello size (less extensions) KEX public key is largest component
@@ -308,17 +321,22 @@ pub const PSK_NOT:usize = 0;        // no PSK
 pub const PSK_KEY:usize = 1;        // Using PSK from database 
 pub const PSK_IBE:usize = 2;        // Using IBE based PSK
 
+pub const IBE_BF:u32 = 1;
+pub const IBE_PQ:u32 = 2;
+pub const IBE_HY:u32 = 3;
+
 pub const X509_CERT:u8 = 0;
 pub const RAW_PUBLIC_KEY:u8 = 2;
 
 // ******************************* User defined controls ******************************************
 pub const VERBOSITY:usize= IO_PROTOCOL;    // Set log reporting level
 pub const ALLOW_SELF_SIGNED:bool= true;    // allow self-signed certs
-pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting -  determines group used for initial key exchange
+pub const CRYPTO_SETTING: usize = TYPICAL; // Decide on crypto setting -  determines group used for initial key exchange (TYPICAL, TINY_ECC or POST_QUANTUM)
 pub const POST_HS_AUTH:bool= true;         // Willing to do post handshake authentication
-pub const CLIENT_CERT:usize= FROM_FILE;     // client-side certificate FROM_ROM (clientcert.rs) or FROM_FILE
+pub const CLIENT_CERT:usize= NO_CERT;     // client-side certificate FROM_ROM (clientcert.rs) or FROM_FILE, or NO_CERT if none available
 pub const CLIENT_KEY_PATH:&str="../../clientcert/client.key";   // Path to client key
 pub const CLIENT_CERT_PATH:&str="../../clientcert/certchain.pem";   // Path to client certificate chain
+pub const CLIENT_CERT_KIND: usize = ECC_SS; // or choose a certificate from ROM - see clientcert.rs */
 pub const TLS_PROTOCOL: bool=true;         // ALPN extension
 pub const APPLICATION_PROTOCOL:&str="http/1.1";
 pub const TRY_EARLY_DATA:bool=true;        // Try sending early data on resumption

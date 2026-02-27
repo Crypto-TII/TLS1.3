@@ -217,23 +217,17 @@ Try it out on your favourite websites. It will abort if TLS1.3 is not supported.
 In a small number of cases it will fail due to receiving a malformed certificate chain from the Server. It is not forgiving of badly 
 formed certificate chains, and makes no attempt to fix them.
 
-Also try
-
-	./client tls13.1d.pw
-	
-Try it a few times - it randomly asks for a HelloRetryRequest and a Key Update, testing this code (but it does not allow resumption). This 
-site also requires that short records are not padded (that is PAD\_SHORT\_RECORDS is not defined in *tls1_3.h*).
-
 A resumption ticket can be deleted by
 
 	./client -r
 
+Try conecting to a well-known web site
+
+	./client www.bbc.co.uk
+
+A subsequent connection to the same site should perform a faster resumption handshake.
 
 See doc/list.txt for some websites that work OK and test different functionality.
-
-## Client side Authentication
-
-An example self-signed client certificate and private key are stored in the *clientcert* directory
 
 A way to test less common options is to set up a local openssl server. First generate a self-signed server certificate using something 
 like
@@ -244,14 +238,20 @@ then for example
 
 	openssl s_server -tls1_3 -debug -key key.pem -cert cert.pem -accept 4433 -www
 
-acts as a normal Website, while
+acts as a normal Website. The client connects to this local server via
+
+	./client localhost
+
+## Client side Authentication
+
+A server might ask for client-side authentication
 
 	openssl s_server -tls1_3 -debug -verify 0 -key key.pem -cert cert.pem -accept 4433 -www
 
-looks for client side certificate authentication - and the server makes a Certificate Request to the client. We can't control the openssl
-debug output, but its better than nothing! The client connects to this local server via
+in which case the server will make a Certificate Request to the client. Try connecting again
 
 	./client localhost
+
 
 ## Testing Pre-shared keys
 
@@ -264,19 +264,20 @@ and connect via
 	./client -p 42 localhost
 
 An important setting in *tls1_3.h* is CRYPTO\_SETTING. For the above tests is is assumed that this is set to the default TYPICAL, which 
-allows interaction with standard websites. However it may also be set to TINY\_ECC, EDDSA, POST\_QUANTUM and HYBRID. This setting 
-(supported for interaction with our own rust server) impacts code size and memory resource allocation. It also controls the type of the 
-self-signed certificate provided by the client if it is asked to authenticate. Remember that any changes like this which impact the 
-SAL requires a fresh build.
+allows interaction with standard websites. However it may also be set to TINY\_ECC and POST\_QUANTUM. The TINY\_ECC setting assumes that all
+certificate signatures are small ECDSA elliptic curve signatures, useful for small devices. The POST\_QUANTUM setting allows post-quantum 
+and hybrid signatures and key exchange. These alternate settings 
+(supported mainly for interaction with our own rust server) impact code size and memory resource allocation.  
+Remember that any changes like this which impact the SAL requires a fresh build.
 
-Note that the HYBRID setting now works using X25519+MLKEM768 for key exchange with an OpenSSL server, and some online servers like 
-www.cloudfare.com 
+Note that the POST\_QUANTUM setting now works using X25519+MLKEM768 for key exchange with an OpenSSL server, and many online servers (like 
+www.cloudfare.com)
 
 The client preference for key exchange algorithms, and their preferred ordering, is set in the sal (*tls_sal.cpp*). The chosen 
-CRYPTO\_SETTING impacts on this ordering. With the default setting the X25519 elliptic curve is preferred.
+CRYPTO\_SETTING impacts on this ordering. With the default TYPICAL setting the X25519 elliptic curve method is preferred.
 
 To test our IBE version of TLS, simply run the TiigerTLS rust server (not openssl!), and then
 
 	./client -i localhost
 
-
+If set to POST\_QUANTUM a hybrid (elliptic curve/lattices) method is used.

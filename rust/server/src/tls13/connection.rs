@@ -635,7 +635,7 @@ impl SESSION {
         let htype=sal::hash_type(self.cipher_suite);
         let hlen=sal::hash_len(htype);
         keys::hkdf_expand_label(htype,&mut psk[0..hlen],&self.rms[0..hlen],rs.as_bytes(),Some(&nonce));
-  
+
         let ticket_age_add = sal::random_word();
 // gather state
         let mut state:[u8;MAX_TICKET_SIZE]=[0;MAX_TICKET_SIZE];
@@ -1584,26 +1584,26 @@ impl SESSION {
             return r;
         }
 
-// This is experimental
-        if self.ticket_obf_age==0 && ALLOW_IBE_PSKS { // assume its an IBE connection. Slightly dodgy way of identifying an IBE PSK
+// This is experimental!!!
+        if self.ticket_obf_age<4 && ALLOW_IBE_PSKS { // assume its an IBE connection. Slightly dodgy way of identifying an IBE PSK.
+            let hint=self.ticket_obf_age;
             log(IO_PROTOCOL,"Its an IBE connection\n",-1,None);
             let ticklen=self.tklen;
             let tick=&self.ticket[0..ticklen];
-
-// process it depending on the active crypto-setting
-            match CRYPTO_SETTING {
-                TYPICAL | TINY_ECC | EDDSA => {
+// process it depending on hint from client
+            match hint {
+                IBE_BF => {
                     const HAFLEN:usize=servercert::BFSK.len()/2;
                     let mut bfsk: [u8; HAFLEN]=[0;HAFLEN];
                     utils::decode_hex(&mut bfsk,&servercert::BFSK);
                     bfibe::cca_decrypt(&bfsk,tick,psk);
                     *psklen=bfibe::KYLEN;
                 },
-                POST_QUANTUM => {
+                IBE_PQ => {
                     pqibe::cca_decrypt(&servercert::ID,&servercert::PQSK,tick,psk);
                     *psklen=pqibe::KYLEN;
                 },
-                HYBRID => {
+                IBE_HY => {
                     pqibe::cca_decrypt(&servercert::ID,&servercert::PQSK,&tick[0..pqibe::CTLEN],&mut psk[0..32]);
                     const HAFLEN:usize=servercert::BFSK.len()/2;
                     let mut bfsk: [u8; HAFLEN]=[0;HAFLEN];

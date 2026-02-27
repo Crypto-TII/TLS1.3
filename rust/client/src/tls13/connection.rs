@@ -1447,13 +1447,15 @@ impl SESSION {
         if POST_HS_AUTH {
             extlen=extensions::add_post_handshake_auth(&mut ext, extlen); // willing to do post handshake authentication
         }
-        let mut age=0;
+        let mut age:usize;
         if !external_psk { // Its NOT an external pre-shared key
             let time_ticket_used=ticket::millis();
             age=time_ticket_used-time_ticket_received; // age of ticket in milliseconds - problem for some sites which work for age=0 ??
             log(IO_DEBUG,"Ticket age= ",age as isize,None);
             age+=age_obfuscator;
             log(IO_DEBUG,"obfuscated age = ",age as isize,None);
+        } else {
+            age=age_obfuscator; // IBE hack. Use age to indicate which IBE to use.
         }
         let mut extra=0;
         extlen=extensions::add_presharedkey(&mut ext,extlen,age,&self.t.tick[0..self.t.tklen],hlen,&mut extra);

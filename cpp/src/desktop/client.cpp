@@ -430,7 +430,7 @@ int main(int argc, char const *argv[])
         }
         if (psk_type==PSK_IBE)	// Use IBE shared key
         {
-#if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL || CRYPTO_SETTING == EDDSA
+#if CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == TYPICAL
             log(IO_PROTOCOL,(char *)"Using Pairing-Based IBE\n",NULL,0,NULL);
             SAL_randomOctad(32,&R32);
             octet MC_R32=octad_to_octet(&R32);
@@ -440,7 +440,9 @@ int main(int argc, char const *argv[])
             session->T.PSK.len=MC_PSK.len;
             session->T.TICK.len=MC_TICK.len;
             session->T.favourite_group=X25519;
+            session->T.age_obfuscator=IBE_BF;
 #endif
+/*
 #if CRYPTO_SETTING == POST_QUANTUM
             log(IO_PROTOCOL,(char *)"Using Post Quantum IBE\n",NULL,0,NULL);
             SAL_randomOctad(32,&R32);
@@ -451,8 +453,10 @@ int main(int argc, char const *argv[])
             session->T.PSK.len=MC_PSK.len;
             session->T.TICK.len=MC_TICK.len;
             session->T.favourite_group=MLKEM768;
+            session->T.age_obfuscator=IBE_PQ;
 #endif
-#if CRYPTO_SETTING == HYBRID
+*/
+#if CRYPTO_SETTING == POST_QUANTUM
             log(IO_PROTOCOL,(char *)"Using Hybrid Pairing based/Post Quantum IBE\n",NULL,0,NULL);
             char psk2[32];
             octad PSK2={0,sizeof(psk2),psk2};
@@ -477,6 +481,7 @@ int main(int argc, char const *argv[])
             OCT_append_octad(&session->T.PSK,&PSK2);
             OCT_append_octad(&session->T.TICK,&TICK2);
             session->T.favourite_group=HYBRID_KX;
+            session->T.age_obfuscator=IBE_HY;
 #endif
         }
         session->T.max_early_data=1024;

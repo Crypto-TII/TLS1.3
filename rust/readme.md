@@ -111,22 +111,15 @@ The OpenSSL client connects to the local server, and accepts and stores a resump
 and the resumption ticket is used to reconnect.
 
 
-Both client and server are configured via their *src/config.rs* files. In both can be found the default
+Both client and server are configured via their *src/config.rs* files. For the client an important setting is
 
 	pub const CRYPTO_SETTING: usize = TYPICAL;
 
-For the server this setting controls the certificate chain that the server sends to the client. Currently there
-is a choice of five: TYPICAL, TINY_ECC, EDDSA, POST_QUANTUM and HYBRID. TYPICAL uses a self-signed RSA certificate, TINY_ECC
-uses a full 3-link chain using only the secp256r1 elliptic curve, EDDSA uses the superior EdDSA signature algorithm, POST_QUANTUM 
-uses a 3-link chain using MLDSA65, and HYBRID
-uses a 3-link chain using secp256r1+MLDSA44. In the last four cases we have added the root certificates, which we generated
-ourselves, to the root certificate store used by the client.
-
-For the client CRYPTO\_SETTING is used to control the preferred key exchange algorithm, which is X25519 for TYPICAL, TINY\_ECC and EDDSA 
-and MLKEM768 for POST\_QUANTUM and X25519+MLKEM768 for HYBRID. The ordering of preferences can be changed by editing the SAL (that is 
+which controls the preferred key exchange algorithm, which is X25519 for TYPICAL and TINY\_ECC,
+and X25519+MLKEM768 for POST_QUANTUM. The ordering of preferences can be changed by editing the SAL (that is 
 the *sal.rs* file).
 
-Note that the HYBRID setting for the client now works with many online servers like www.cloudfare.com 
+Note that the POST_QUANTUM setting for the client now works with many online servers (like www.cloudfare.com) 
 
 In most cases it is best to use the same setting for both client and server. If it is desired that the client should interoperate
 with standard websites rather than just our own rust server, then its CRYPTO\_SETTING should be set to use TYPICAL. 

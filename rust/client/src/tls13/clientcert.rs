@@ -12,13 +12,12 @@ use std::path::Path;
 
 // ECC-SS self-signed keys 256 bit. Certificate expires Jan 2027
 
-pub const MY_PRIVATE: &str = 
-
+pub const ECC_PRIVATE: &str = 
 "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg3DkvaA4S0pWnwu6t\
 I6bczti3Qkh3T0qwzpdL2nmzdNmhRANCAAQ42drg0b22Z7G/J9cbGgVUpS+g01qh\
 zrfdbaWVI6wnJ8eHRkk4vWjj46IqBBTMMDTu3J0X30STHnCsSl4nhELV";
 
-pub const MY_CERTCHAIN: [&str;2] = [ 
+pub const ECC_CERTCHAIN: [&str;2] = [ 
 "MIICdDCCAhugAwIBAgIUW9i3XshoTf1kbkaYGXgdu62/je8wCgYIKoZIzj0EAwIw\
 gY8xCzAJBgNVBAYTAkFFMRIwEAYDVQQIDAlBYnUgRGhhYmkxEzARBgNVBAcMCllh\
 cyBpc2xhbmQxDDAKBgNVBAoMA1RJSTEMMAoGA1UECwwDQ1JDMRYwFAYDVQQDDA1N\
@@ -34,6 +33,90 @@ KyIwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNHADBEAiB2QNlCag9lWmSN\
 W1aw2gORSfiPjBTLTR7fOw75AvCDpAIgPUaTdkFFmmHAVnuUox1CfIfJ/acrosUE\
 5HfclrEdr8k=",""];
 
+// My personal private key RSA 2048 bits - expires Jan 2027
+pub const RSA_PRIVATE: &str =
+"MIIEuwIBADANBgkqhkiG9w0BAQEFAASCBKUwggShAgEAAoIBAQCt+UXsP4V2azwo\
+V6eqcn4yOBbiEL2BLRGrt29sWl72ws+vyxe5W9kArbRsyziiOhFrkGwmP/utOjAw\
+8nGLIPcQXuQOwdDgp0uzjT31OYeVdnbaad/hASrCoyEnF2QO6bkuq43szP2wn/Bv\
+IW09uZyfjJxoR6uE+5XYEfF1tJg7d5XPVOL7WxG94KqgJdO41FIyPGZVnhlg58+r\
+eZf2KuNLeIFODUpNT8ZJyQuBl37q2i+vZQU4KYo/zDH5WiSiI5LWNl1wZaZvYYQF\
+gCykZUJxKMly7bNtYEpIeQbbvIZMe9hb/0jrmfaNewQJqRjXGdBvvEiBH8oN0LBQ\
+1n7uRveBAgMBAAECgf8cU8DSzmBs1WxhRJYlEzZE3OzSeeyLHpnj8MiuhapuKqhS\
+5RouqSaKW57y3oItyK8yBhsteAlWXQugT+6FyylKzNo7TjROs6rhJmTd9Bo3Ck8R\
+O/z8Bq9lRbegNYUC/YOfHZkLazs8UEaz8Pl9KvKr41tArzFQp4b/1AECJsZZrrhK\
+F1CGGMOozepu91DZsscMh/S4DtIfCPSjfCgdwQWOMDZr2z/jDTJJ5PSzMYdiY+qW\
+EW0lV1lXCUI66eaK3RPWyPWAx1xA5T0paTmCXeQCU4CmY7Yyjd3l7PAYd/GLI/PG\
+fmokDoZSl54IumrdsvPnLDbtwxRRUCsIQdBQ3isCgYEA3lh8DuB8evhUjtmQGJse\
+sOVC1fN0XmW4lBX/dTLpnOjsK8PS3Gk+xfm3kD/49Chl3PR6MdsWzp7JtZIvxTKx\
+2hWp6bV1pzaRORYIJni+InF/UCRXXpOWUCMweE99a35MCHvppES6za/tvGok7f7u\
+mWBmC2Etg0TxtC+5E1V3mqcCgYEAyE51fMqylMKOZ4XCcvvoK3gzYHkj2JasSQ6K\
+fvPuxWS0fOlfm4XYFnnf2b6qXBheLAUmSI4w+H6/A0JSvkV2sBzzl1/MjQe9adr+\
+1PbTe3Ezhfy3VHEhIUr4GFnfO5HSpneia4x577No7Mr0Q+Wt3RFy+IGqKHcfTrxN\
+bhgaKZcCgYEAjRZ00jPciWNetK6VYye7V+CCgqTTaLr/Xuh+i23dE3Yxtqux967I\
+6HNG6b/OR5AC4yw3Bb/SPxY/RHoY2fcLKCmrAePlXk+f4yt5zH+9lrmSYdZNonPg\
+Y8WQkidOnJEtygxm+5epOa+zGWX5PRQRbz3eQsZNTQjInt/RftUy6e0CgYAl6uRG\
+qUBA9MtsQV/b0F/Uyr4/Bu+IMo2OjtgczCRo7XVVKABXOnD7YDrFx1gMcvhwsNDc\
+bz5J7ARQo59yMUgUcoaSIypfkBWFElWnDspd1cIBHSO/MmMpID3yriCZ8DLGHGN8\
+pGz4uSelm429xJ6y+HihHjqNym78wpyNuLZLJQKBgANiMLdEyT8KytDufyEMVoQL\
+UWEO8YNCX2KeufPy83In4EiRRvC6P180M8gczHtz9CtXhVmrTsoJQ/FEyM7GfxKd\
+3ZYpGylxPvzMTcdkEccy5BoRu0Wx3KYo4T0HizH9KhsJOmmMecI0JkH5I3rUPboO\
+BeP/5t6Bl0JrZKkz7X7m";
+
+// A chain of certificates - just one self-signed here
+pub const RSA_CERTCHAIN: [&str;2] = [ 
+"MIIEATCCAumgAwIBAgIUcrcZ9UeGlFO4YJo7hv6dApm0FP4wDQYJKoZIhvcNAQEL\
+BQAwgY8xCzAJBgNVBAYTAkFFMRIwEAYDVQQIDAlBYnUgRGhhYmkxEzARBgNVBAcM\
+CllhcyBJc2xhbmQxDDAKBgNVBAoMA1RJSTEMMAoGA1UECwwDQ1JDMRYwFAYDVQQD\
+DA1NaWNoYWVsIFNjb3R0MSMwIQYJKoZIhvcNAQkBFhRtaWNoYWVsLnNjb3R0QHRp\
+aS5hZTAeFw0yNjAyMDMxMzE3MTBaFw0yNzAyMDMxMzE3MTBaMIGPMQswCQYDVQQG\
+EwJBRTESMBAGA1UECAwJQWJ1IERoYWJpMRMwEQYDVQQHDApZYXMgSXNsYW5kMQww\
+CgYDVQQKDANUSUkxDDAKBgNVBAsMA0NSQzEWMBQGA1UEAwwNTWljaGFlbCBTY290\
+dDEjMCEGCSqGSIb3DQEJARYUbWljaGFlbC5zY290dEB0aWkuYWUwggEiMA0GCSqG\
+SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCt+UXsP4V2azwoV6eqcn4yOBbiEL2BLRGr\
+t29sWl72ws+vyxe5W9kArbRsyziiOhFrkGwmP/utOjAw8nGLIPcQXuQOwdDgp0uz\
+jT31OYeVdnbaad/hASrCoyEnF2QO6bkuq43szP2wn/BvIW09uZyfjJxoR6uE+5XY\
+EfF1tJg7d5XPVOL7WxG94KqgJdO41FIyPGZVnhlg58+reZf2KuNLeIFODUpNT8ZJ\
+yQuBl37q2i+vZQU4KYo/zDH5WiSiI5LWNl1wZaZvYYQFgCykZUJxKMly7bNtYEpI\
+eQbbvIZMe9hb/0jrmfaNewQJqRjXGdBvvEiBH8oN0LBQ1n7uRveBAgMBAAGjUzBR\
+MB0GA1UdDgQWBBRPM5JdGM3+cIiR4c+6SMemsnHsgDAfBgNVHSMEGDAWgBRPM5Jd\
+GM3+cIiR4c+6SMemsnHsgDAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUA\
+A4IBAQAjiKfMRK5psBp1Vj7jFiVnEJu4cwlcH2TBbM/H7deaB0deWi/d2+8JnXGB\
+M1LH9Zt7W7QtvqtfutreI+gmzwjKu1vw9xcEmVU8MHJov/bd6hZtc/ucoF2Zi0iD\
+Z2202vG8g3TMPgVDdiEwtZr30HkDhy9rH4cF47KNWE35PPXJPECdR+efnqF2Ivxr\
+Sig+DWff2E6JkU+YqHeyY6cony2vCBHxYjbWGFtUMDoVoYCUFM9cZmp3gMpDKKdy\
+jbqja0mdm6HjyVnwWMD+iVH1/t5W134YDeHPI477Xffme/UBzWHxTytGVVEd/5lk\
+UZT6dB4zf8+DlF3Lr9S3FmYtboVb",""];
+
+// My personal EDDSA private key - Certificate expires Jan 2027
+pub const EDD_PRIVATE: &str = 
+"MC4CAQAwBQYDK2VwBCIEIGR5W3P8ufR3YVJbot87TblmIbqAy7k0ZuV2Z35jEufc";
+
+// self-signed cert
+pub const EDD_CERTCHAIN: [&str;2] = [ 
+"MIICNTCCAeegAwIBAgIUPbKhfEf6uzy1beG5vVyaTIJlgycwBQYDK2VwMIGPMQsw\
+CQYDVQQGEwJBRTESMBAGA1UECAwJQWJ1IERoYWJpMRMwEQYDVQQHDApZYXMgSXNs\
+YW5kMQwwCgYDVQQKDANUSUkxDDAKBgNVBAsMA0NSQzEWMBQGA1UEAwwNTWljaGFl\
+bCBTY290dDEjMCEGCSqGSIb3DQEJARYUbWljaGFlbC5zY290dEB0aWkuYWUwHhcN\
+MjYwMjAzMTI1NzMwWhcNMjcwMjAzMTI1NzMwWjCBjzELMAkGA1UEBhMCQUUxEjAQ\
+BgNVBAgMCUFidSBEaGFiaTETMBEGA1UEBwwKWWFzIElzbGFuZDEMMAoGA1UECgwD\
+VElJMQwwCgYDVQQLDANDUkMxFjAUBgNVBAMMDU1pY2hhZWwgU2NvdHQxIzAhBgkq\
+hkiG9w0BCQEWFG1pY2hhZWwuc2NvdHRAdGlpLmFlMCowBQYDK2VwAyEAORsCxG5K\
+AUcm8mgP9AEQQ0VABw5pOY7ghDMHIUE2f6ijUzBRMB0GA1UdDgQWBBT0eegB1wf5\
+FXjbOpbUoIb125pC0DAfBgNVHSMEGDAWgBT0eegB1wf5FXjbOpbUoIb125pC0DAP\
+BgNVHRMBAf8EBTADAQH/MAUGAytlcANBALOu5PzwMDRG6QG7v6sRTZJzZssr571C\
+EyV6VH0SG6d4YNwqxVTp1OtRv+9t5ivbowUFtGSFSnU85j2/Z6lG5w4=",""];
+
+/* TBD
+pub const DLT_PRIVATE:&str =
+"";
+pub const DLT_CERTCHAIN: [&str;2] = [ 
+"",""];
+
+pub const HYB_PRIVATE:&str =
+"";
+pub const HYB_CERTCHAIN: [&str;2] = [ 
+"",""];
+*/ 
 
 fn get_sigalg(pk: &x509::PKTYPE) -> u16 {
     if pk.kind==x509::ECC {
@@ -165,10 +248,17 @@ impl CREDENTIAL {
         let mut certchain:[String;2]=[String::from(""),String::from("")];   
         
         if CLIENT_CERT==NO_CERT {
-            return false;
+            return true;
         }
-        if CLIENT_CERT==FROM_ROM {       
-            privkey=MY_PRIVATE; stored_chain=MY_CERTCHAIN;       
+        if CLIENT_CERT==FROM_ROM {    
+            match CLIENT_CERT_KIND {
+                ECC_SS => {privkey=ECC_PRIVATE; stored_chain=ECC_CERTCHAIN;},
+                RSA_SS => {privkey=RSA_PRIVATE; stored_chain=RSA_CERTCHAIN;},
+                EDD_SS => {privkey=EDD_PRIVATE; stored_chain=EDD_CERTCHAIN;},
+                //HYB_SS => {privkey=HYB_PRIVATE; stored_chain=HYB_CERTCHAIN;},
+                //DLT_SS => {privkey=DLT_PRIVATE; stored_chain=DLT_CERTCHAIN;},
+            _ => return false,
+            }         
         } else {
             let mut path = Path::new(&CLIENT_KEY_PATH);
             let mut display = path.display();
@@ -190,7 +280,7 @@ impl CREDENTIAL {
             path=Path::new(&CLIENT_CERT_PATH);
             display=path.display();
             file = match File::open(path) {
-                Err(why) => panic!("Must run from project src directory, couldn't find {}: {}", display, why),
+                Err(why) => panic!("Must run from correct directory, couldn't find {}: {}", display, why),
                 Ok(file) => file,
             };
             reader = BufReader::new(file);

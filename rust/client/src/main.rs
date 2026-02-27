@@ -374,14 +374,16 @@ fn main() {
                     session.t.favourite_group=X25519;
                 }
                 if psk_type == PSK_IBE {
-                    if CRYPTO_SETTING == TYPICAL || CRYPTO_SETTING == TINY_ECC || CRYPTO_SETTING == EDDSA {
+                    if CRYPTO_SETTING == TYPICAL || CRYPTO_SETTING == TINY_ECC {
                         log(IO_PROTOCOL,"Using Pairing-Based IBE\n",-1,None);
                         let mut r32:[u8;32]=[0;32];
                         sal::random_bytes(32,&mut r32);
                         bfibe::cca_encrypt(&myhost,&r32,&mut session.t.psk,&mut session.t.tick);
                         session.t.psklen=bfibe::KYLEN; session.t.tklen=bfibe::CTLEN;
                         session.t.favourite_group=X25519;
+                        session.t.age_obfuscator=IBE_BF as usize;
                     }
+                    /*
                     if CRYPTO_SETTING == POST_QUANTUM {
                         log(IO_PROTOCOL,"Using Post Quantum IBE\n",-1,None);
                         let mut r32:[u8;32]=[0;32];
@@ -389,8 +391,9 @@ fn main() {
                         pqibe::cca_encrypt(&myhost,&r32,&mut session.t.psk,&mut session.t.tick);
                         session.t.psklen=pqibe::KYLEN; session.t.tklen=pqibe::CTLEN;
                         session.t.favourite_group=MLKEM768;
-                    }
-                    if CRYPTO_SETTING == HYBRID {
+                        session.t.age_obfuscator=IBE_PQ as usize;
+                    }*/
+                    if CRYPTO_SETTING == POST_QUANTUM {
                         log(IO_PROTOCOL,"Using Hybrid Pairing based/Post Quantum IBE\n",-1,None);
                         let mut r32:[u8;32]=[0;32];
                         sal::random_bytes(32,&mut r32);
@@ -399,6 +402,7 @@ fn main() {
                         bfibe::cca_encrypt(&myhost,&r32,&mut session.t.psk[pqibe::KYLEN..],&mut session.t.tick[pqibe::CTLEN..]);
                         session.t.psklen=pqibe::KYLEN+bfibe::KYLEN; session.t.tklen=pqibe::CTLEN+bfibe::CTLEN;
                         session.t.favourite_group=HYBRID_KX;
+                        session.t.age_obfuscator=IBE_HY as usize;
                     }
                 }
                 session.t.cipher_suite=AES_128_GCM_SHA256;

@@ -33,8 +33,8 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define TINY_ECC 0          /**< ECC keys only */
 #define TYPICAL 1           /**< Mixture of RSA and ECC - for use with most standard web servers */
 #define POST_QUANTUM 3      /**< Post quantum (MLDSA and MLKEM?) */   
-#define HYBRID 4            /**< Hybrid, MLKEM/MLDSA + X25519 */
-#define EDDSA 2             /**< experimental EDDSA certificate chain used */
+//#define HYBRID 4            /**< Hybrid, MLKEM/MLDSA + X25519 */
+//#define EDDSA 2             /**< experimental EDDSA certificate chain used */
 
 // Client Certificate Chain + Key
 #define NO_CERT 1  /**< Don't have a Client Cert */
@@ -56,17 +56,15 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 // If server does not support it, an expensive Handshake Retry will be required
 // So best to place a popular group (such as X25519) at top of list in SAL
 
-#define CRYPTO_SETTING TYPICAL    /**< Cryptography Setting */
+#define CRYPTO_SETTING TYPICAL    /**< Cryptography Setting (TYPICAL, TINY_ECC or POST_QUANTUM) */
 
 #define VERBOSITY IO_PROTOCOL     /**< Set to level of output information desired - see above */
-//#define THIS_YEAR 2025            /**< Set to this year - was crudely used to deprecate old certificates - no longer used */
 
 // Client side authentication
-#define CLIENT_CERT FROM_FILE        /**< Indicate capability of authenticating with a cert plus signing key (either built-in or from a file) */
+#define CLIENT_CERT FROM_ROM        /**< Indicate capability of authenticating with a cert plus signing key, either built-in FROM_ROM (see tls_client_cert.cpp) or from a file FROM_FILE. If neither NO_CERT. */
 #define CLIENT_KEY_PATH (char *)("../../clientcert/client.key")  /**< Path to client key **/
 #define CLIENT_CERT_PATH (char *)("../../clientcert/certchain.pem") /**< Path to client certificate **/
-
-#define CLIENT_CERT_KIND ECC_SS     /**< Choose a certificate - see tls_clientcert.cpp */
+#define CLIENT_CERT_KIND ECC_SS     /**< Choose a certificate from ROM - see tls_client_cert.cpp */
 
 #define POST_HS_AUTH              /**< Willing to do post handshake authentication */
 
@@ -143,7 +141,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
  #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    ECC */
 #endif
 
-#if CRYPTO_SETTING==TYPICAL  || CRYPTO_SETTING==EDDSA
+#if CRYPTO_SETTING==TYPICAL
  #define TLS_MAX_IBUFF_SIZE (16384+256)  /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 16384        /**< Max Plaintext Fragment size */
  #define TLS_MAX_CIPHER_FRAG (16384+256) /**< Max Ciphertext Fragment size */
@@ -163,27 +161,6 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #endif
 
 #if CRYPTO_SETTING == POST_QUANTUM
-
- #define TLS_MAX_IBUFF_SIZE (16384+256)      /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
- #define TLS_MAX_PLAIN_FRAG 16384            /**< Max Plaintext Fragment size */
- #define TLS_MAX_CIPHER_FRAG (16384+256)     /**< Max Ciphertext Fragment size */
-
- #define TLS_MAX_CERT_SIZE 6144      /**< I checked - current max for root CAs is 2016 - but would be much bigger for MLDSA!*/
- #define TLS_MAX_CERT_B64 8192       /**< In base64 - current max for root CAs is 2688 */
- #define TLS_MAX_HELLO 2048          /**< Max client hello size (less extensions) KEX public key is largest component */
-
-// These all blow up post quantum
-// all certs use ML-DSA65 or RSA or ECC
- #define TLS_MAX_SIG_PUB_KEY_SIZE 1952        /**< Max signature public key size in bytes     MLDSA65 */
- #define TLS_MAX_SIG_SECRET_KEY_SIZE 4000     /**< Max signature private key size in bytes    MLDSA65 (maybe includes the public key?) */
- #define TLS_MAX_SIGNATURE_SIZE 3309          /**< Max signature size in bytes                MLDSA65 */
- 
- #define TLS_MAX_KEX_PUB_KEY_SIZE 1184        /**< Max key exchange public key size in bytes  MLKEM768   */
- #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088     /**< Max key exchange (KEM) ciphertext size     MLKEM768   */
- #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400     /**< Max key exchange private key size in bytes MLKEM768   */
-#endif
-
-#if CRYPTO_SETTING == HYBRID
 
  #define TLS_MAX_IBUFF_SIZE (16384+256)   /**< Maximum Input/Output buffer size. We will want to reduce this as much as possible! But must be large enough to take full certificate chain */
  #define TLS_MAX_PLAIN_FRAG 16384         /**< Max Plaintext Fragment size */
@@ -401,6 +378,10 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 #define PSK_NOT 0           /**< No PSK */
 #define PSK_KEY 1           /**< Using PSK from database */
 #define PSK_IBE 2           /**< Using IBE based PSK */
+
+#define IBE_BF 1            /**< Boneh and Franklin IBE */
+#define IBE_PQ 2            /**< Post quantum IBE */
+#define IBE_HY 3            /**< Hybrid IBE       */
 
 // Certificate types
 #define X509_CERT 0         /**< X509 Certificate-based authentication */

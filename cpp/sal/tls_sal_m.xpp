@@ -13,8 +13,6 @@
 #if CRYPTO_SETTING>=TYPICAL
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
-#endif
-#if CRYPTO_SETTING>=EDDSA
 #include "eddsa_Ed25519.h"
 #include "eddsa_Ed448.h"
 #endif
@@ -68,20 +66,13 @@ int SAL_groups(int *groups)
 {
     int n=0;
 
-#if CRYPTO_SETTING==TINY_ECC || CRYPTO_SETTING==EDDSA || CRYPTO_SETTING==TYPICAL
+#if CRYPTO_SETTING==TINY_ECC || CRYPTO_SETTING==TYPICAL
     n=3;
     groups[0]=X25519;
     groups[1]=SECP256R1;
     groups[2]=SECP384R1;
 #endif
 #if CRYPTO_SETTING==POST_QUANTUM
-    n=4;
-    groups[0]=MLKEM768;
-    groups[1]=X25519;
-    groups[2]=SECP256R1;
-    groups[3]=SECP384R1;
-#endif
-#if CRYPTO_SETTING==HYBRID
     n=5;
     groups[0]=HYBRID_KX;
     groups[1]=MLKEM768;
@@ -99,15 +90,11 @@ int SAL_sigs(int *sigAlgs)
     sigAlgs[1]=ECDSA_SECP384R1_SHA384;
 #if CRYPTO_SETTING>=TYPICAL
     sigAlgs[n]=RSA_PSS_RSAE_SHA256; n++;
-#endif
-#if CRYPTO_SETTING>=EDDSA
     sigAlgs[n]=ED25519; n++;
     sigAlgs[n]=ED448; n++;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
     sigAlgs[n]=MLDSA65; n++;
-#endif
-#if CRYPTO_SETTING==HYBRID
     sigAlgs[n]=MLDSA44; n++;
     sigAlgs[n]=MLDSA44_ED25519; n++;
     sigAlgs[n]=ECDSA_SECP256R1_SHA384; n++;
@@ -125,25 +112,17 @@ int SAL_sigCerts(int *sigAlgsCert)
     sigAlgsCert[n]=RSA_PKCS1_SHA256; n++;
     sigAlgsCert[n]=RSA_PKCS1_SHA384; n++;
     sigAlgsCert[n]=RSA_PKCS1_SHA512; n++;
-#endif
-#if CRYPTO_SETTING>=EDDSA
     sigAlgsCert[n]=ED25519; n++;
     sigAlgsCert[n]=ED448; n++;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
 
 #ifdef SQISIGN_TEST
-    sigAlgsCert[n]=SQISIGN3; n++;  
+    sigAlgsCert[n]=SQISIGN3; n++; 
+    sigAlgsCert[n]=SQISIGN3_ED448; n++;    
 #endif
 
     sigAlgsCert[n]=MLDSA65; n++;
-#endif
-#if CRYPTO_SETTING==HYBRID
-
-#ifdef SQISIGN_TEST
-    sigAlgsCert[n]=SQISIGN3_ED448; n++;
-#endif
-
     sigAlgsCert[n]=MLDSA44; n++;
     sigAlgsCert[n]=MLDSA44_ED25519; n++;
     sigAlgsCert[n]=ECDSA_SECP256R1_SHA384; n++;
@@ -838,7 +817,7 @@ static bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
     return true;
 }
 
-#if CRYPTO_SETTING>=EDDSA
+#if CRYPTO_SETTING>=TYPICAL
 static void Ed25519_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
 {
     octet MC_SECRET=octad_to_octet(SECRET_KEY);
@@ -1094,8 +1073,6 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
         case RSA_PSS_RSAE_SHA256:
             result= RSA_PSS_RSAE_VERIFY(32,BUFF,SIG,PUBKEY);
             break;
-#endif
-#if CRYPTO_SETTING>=EDDSA
         case ED25519:
             result= Ed25519_VERIFY(BUFF,SIG,PUBKEY);
             break;
@@ -1152,8 +1129,6 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
     case RSA_PSS_RSAE_SHA256:
         RSA_PSS_RSAE_SIGN(32,KEY,TRANS,SIG);
         break;
-#endif
-#if CRYPTO_SETTING>=EDDSA
     case ED25519:
         Ed25519_SIGN(KEY,TRANS,SIG);
         break;
@@ -1194,8 +1169,6 @@ void SAL_tlsKeypair(int keyAlg,octad *SECRET_KEY,octad *PUBLIC_KEY)
     case RSA_KP :
         RSA_KEYPAIR(SECRET_KEY,PUBLIC_KEY);  // size of 2048 or 4096 is indicated in PUBLIC_KEY->len
         break;
-#endif
-#if CRYPTO_SETTING>=EDDSA
     case EDDSA_KP:
         if (PUBLIC_KEY->len==32)
             Ed25519_KEYPAIR(SECRET_KEY,PUBLIC_KEY);

@@ -169,20 +169,13 @@ pub fn ciphers(ciphers: &mut [u16]) -> usize {
 pub fn groups(groups: &mut [u16]) -> usize {
     let mut n=0;
 
-    if config::CRYPTO_SETTING==config::TINY_ECC || config::CRYPTO_SETTING==config::EDDSA || config::CRYPTO_SETTING==config::TYPICAL {
+    if config::CRYPTO_SETTING==config::TINY_ECC || config::CRYPTO_SETTING==config::TYPICAL {
         n=3;
         groups[0]=config::X25519;
         groups[1]=config::SECP256R1;
         groups[2]=config::SECP384R1;        
     }
     if config::CRYPTO_SETTING==config::POST_QUANTUM {
-        n=4;
-        groups[0]=config::MLKEM768;
-        groups[1]=config::X25519;
-        groups[2]=config::SECP256R1;
-        groups[3]=config::SECP384R1;
-    }
-    if config::CRYPTO_SETTING==config::HYBRID {
         n=5;
         groups[0]=config::HYBRID_KX;
         groups[1]=config::MLKEM768;
@@ -202,15 +195,11 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
 
     if config::CRYPTO_SETTING>=config::TYPICAL {
         sig_algs[n]=config::RSA_PSS_RSAE_SHA256; n+=1;
-    }
-    if config::CRYPTO_SETTING>=config::EDDSA {
         sig_algs[n]=config::ED25519; n+=1;
         sig_algs[n]=config::ED448; n+=1;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         sig_algs[n]=config::MLDSA65; n+=1;
-    }
-    if config::CRYPTO_SETTING==config::HYBRID {
         sig_algs[n]=config::MLDSA44; n+=1;
         sig_algs[n]=config::MLDSA44_ED25519; n+=1; 
         sig_algs[n]=config::ECDSA_SECP256R1_SHA384; n+=1;         
@@ -228,15 +217,11 @@ pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
         sig_algs_cert[n]=config::RSA_PKCS1_SHA256; n+=1;
         sig_algs_cert[n]=config::RSA_PKCS1_SHA384; n+=1;
         sig_algs_cert[n]=config::RSA_PKCS1_SHA512; n+=1;
-    }
-    if config::CRYPTO_SETTING>=config::EDDSA {
         sig_algs_cert[n]=config::ED25519; n+=1;
         sig_algs_cert[n]=config::ED448; n+=1;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         sig_algs_cert[n]=config::MLDSA65; n+=1;   
-    }
-    if config::CRYPTO_SETTING==config::HYBRID {
         sig_algs_cert[n]=config::MLDSA44; n+=1; 
         sig_algs_cert[n]=config::MLDSA44_ED25519; n+=1; 
         sig_algs_cert[n]=config::ECDSA_SECP256R1_SHA384; n+=1;
@@ -818,11 +803,6 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
             config::RSA_PKCS1_SHA384 => {return rsa_pkcs15_verify(48,buff,sig,pubkey);},
             config::RSA_PKCS1_SHA512 => {return rsa_pkcs15_verify(64,buff,sig,pubkey);},
             config::RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_verify(32,buff,sig,pubkey);},
-            _ => {}
-        }
-    }
-    if config::CRYPTO_SETTING>=config::EDDSA {   
-        match sigalg {  
             config::ED25519 => { return ed25519_verify(buff,sig,pubkey);}, 
             config::ED448 => { return ed448_verify(buff,sig,pubkey);}, 
             _ => {}
@@ -837,21 +817,6 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
         }
     }
     return false;
-/*
-    match sigalg {
-        config::ECDSA_SECP256R1_SHA256 => {return secp256r1_ecdsa_verify(32,buff,sig,pubkey);}, 
-        config::ECDSA_SECP256R1_SHA384 => {return secp256r1_ecdsa_verify(48,buff,sig,pubkey);}, 
-        config::ECDSA_SECP384R1_SHA384 => {return secp384r1_ecdsa_verify(48,buff,sig,pubkey);},
-        config::ED25519 => { return ed25519_verify(buff,sig,pubkey);}, 
-        config::ED448 => { return ed448_verify(buff,sig,pubkey);}, 
-        config::RSA_PKCS1_SHA256 => {return rsa_pkcs15_verify(32,buff,sig,pubkey);},
-        config::RSA_PKCS1_SHA384 => {return rsa_pkcs15_verify(48,buff,sig,pubkey);},
-        config::RSA_PKCS1_SHA512 => {return rsa_pkcs15_verify(64,buff,sig,pubkey);},
-        config::RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_verify(32,buff,sig,pubkey);},
-        config::MLDSA65 => {return dilithium3_verify(buff,sig,pubkey);},
-        config::MLDSA44 => {return dilithium2_verify(buff,sig,pubkey);},
-        _ => {return false;}
-    }*/
 }
 
 /// Form Transcript Signature 
@@ -866,11 +831,6 @@ pub fn tls_signature(sigalg: u16,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usiz
     if config::CRYPTO_SETTING>=config::TYPICAL {  
         match sigalg {  
             config:: RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_sign(32,key,trans,sig);},
-            _ => {}
-        }
-    }
-    if config::CRYPTO_SETTING>=config::EDDSA {  
-        match sigalg {  
             config:: ED25519 => { return ed25519_sign(key,trans,sig);},
             config:: ED448 => { return ed448_sign(key,trans,sig);},
             _ => {}

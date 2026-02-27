@@ -50,8 +50,8 @@ The example TLS1.3 client code first connects to the wireless network, and after
 long as they support TLS1.3. The example program first makes a full TLS handshake, and exits after receiving some HTML from the server.
 Then after a few seconds, if it has received a resumption ticket, it attempts a resumption handshake.
 
-The client can also be run in conjunction with our Rust server. Make sure that the CRYPTO\_SETTING parameter is the same for both client 
-and server. In our experimental set-up, the rust server runs directly from Windows (not WSL), looking for connections on port 4433. Run 
+The client can also be run in conjunction with our Rust server. In our experimental set-up, the rust server runs directly from 
+Windows (not WSL), looking for connections on port 4433. Run 
 ipconfig to get the IP address of the server on the local network, which might look something like 192.168.1.186. Then run the client from 
 the Arduino IDE, and when prompted enter for example 192.168.1.186:4433. The client should now connect to the server. It may however be 
 necessary to undefine CHECK_NAME_IN_CERT in tls1_3.h
