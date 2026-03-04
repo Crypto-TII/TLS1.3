@@ -155,33 +155,35 @@ pub fn groups(groups: &mut [u16]) -> usize {
 
 /// Provide list of supported signature algorithms (for TLS)
 pub fn sigs(sig_algs: &mut [u16]) -> usize {
-    let n=9;
+    let n=10;
     sig_algs[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs[1]=config::ECDSA_SECP384R1_SHA384;
     sig_algs[2]=config::RSA_PSS_RSAE_SHA256; 
     sig_algs[3]=config::ED25519; 
     sig_algs[4]=config::ED448; 
-    sig_algs[5]=config::MLDSA65; 
-    sig_algs[6]=config::MLDSA44; 
-    sig_algs[7]=config::MLDSA44_ED25519;   
-    sig_algs[8]=config::ECDSA_SECP256R1_SHA384; 
+    sig_algs[5]=config::ED383;
+    sig_algs[6]=config::MLDSA65; 
+    sig_algs[7]=config::MLDSA44; 
+    sig_algs[8]=config::MLDSA44_ED25519;   
+    sig_algs[9]=config::ECDSA_SECP256R1_SHA384; 
     return n;
 }
 
 /// Provide list of supported signature algorithms (for Certificates)
 pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
-    let n=11;
+    let n=12;
     sig_algs_cert[0]=config::ECDSA_SECP256R1_SHA256;
     sig_algs_cert[1]=config::ECDSA_SECP384R1_SHA384;
     sig_algs_cert[2]=config::RSA_PKCS1_SHA256; 
     sig_algs_cert[3]=config::RSA_PKCS1_SHA384; 
     sig_algs_cert[4]=config::RSA_PKCS1_SHA512; 
     sig_algs_cert[5]=config::ED25519; 
-    sig_algs_cert[6]=config::ED448; 
-    sig_algs_cert[7]=config::MLDSA65;   
-    sig_algs_cert[8]=config::MLDSA44; 
-    sig_algs_cert[9]=config::MLDSA44_ED25519;  
-    sig_algs_cert[10]=config::ECDSA_SECP256R1_SHA384; 
+    sig_algs_cert[6]=config::ED448;
+    sig_algs_cert[7]=config::ED383;    
+    sig_algs_cert[8]=config::MLDSA65;   
+    sig_algs_cert[9]=config::MLDSA44; 
+    sig_algs_cert[10]=config::MLDSA44_ED25519;  
+    sig_algs_cert[11]=config::ECDSA_SECP256R1_SHA384; 
     return n;
 }
 
@@ -644,6 +646,11 @@ pub fn ed448_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return ed448::VERIFY(pubkey,cert,sig);
 }
 
+pub fn ed383_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+    use tlsecc::ed383;
+    return ed383::VERIFY(pubkey,cert,sig);
+}
+
 /// Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use tlsecc::nist256;
@@ -674,6 +681,12 @@ pub fn ed448_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use tlsecc::ed448;
     ed448::SIGN(key,None,mess,sig);
     return 114;
+}
+
+pub fn ed383_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+    use tlsecc::ed383;
+    ed383::SIGN(key,None,mess,sig);
+    return 96;
 }
 
 /// Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
@@ -747,6 +760,7 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
         config::RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_verify(32,buff,sig,pubkey);},
         config::ED25519 => { return ed25519_verify(buff,sig,pubkey);}, 
         config::ED448 => { return ed448_verify(buff,sig,pubkey);}, 
+        config::ED383 => { return ed383_verify(buff,sig,pubkey);}, 
         config::MLDSA65 => {return dilithium3_verify(buff,sig,pubkey);},
         config::MLDSA44 => {return dilithium2_verify(buff,sig,pubkey);},
         _ => {}
@@ -763,6 +777,7 @@ pub fn tls_signature(sigalg: u16,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usiz
         config:: RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_sign(32,key,trans,sig);},
         config:: ED25519 => { return ed25519_sign(key,trans,sig);},
         config:: ED448 => { return ed448_sign(key,trans,sig);},
+        config:: ED383 => { return ed383_sign(key,trans,sig);},
         config:: MLDSA65 => {return dilithium3_sign(key,trans,sig);},
         config:: MLDSA44 => {return dilithium2_sign(key,trans,sig);},
         _ => {}

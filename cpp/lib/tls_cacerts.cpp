@@ -248,7 +248,7 @@ const char *cacerts=(char *)
 
 #endif
 
-#if CRYPTO_SETTING == TINY_ECC
+//#if CRYPTO_SETTING == TINY_ECC
 
 "-----BEGIN CERTIFICATE-----\n"                                       // Expires June 2027
 "MIIBjTCCATOgAwIBAgIUHWh+9FwWRWeIN1mxJ+ggotMGgZUwCgYIKoZIzj0EAwIw\n"
@@ -262,7 +262,7 @@ const char *cacerts=(char *)
 "dL5Mgi9ugbCnTPt2+COSRKI=\n"
 "-----END CERTIFICATE-----\n"
 
-#endif
+//#endif
 
 "-----BEGIN CERTIFICATE-----\n"                                             // EdDSA cert Expires Jan 2027
 "MIIBrDCCASqgAwIBAgIQWfkqdQ01LBYJe597Hgs7RzAHBgMrZXEFADBGMQswCQYD\n"

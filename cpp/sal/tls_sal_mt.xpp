@@ -19,6 +19,13 @@ extern "C" {
 #if CRYPTO_SETTING>=POST_QUANTUM
 #include "dilithium.h"
 #include "kyber.h"
+
+#ifdef SQISIGN_TEST
+extern "C" {
+    #include "sqisign.h"
+}
+#endif
+
 #endif
 
 using namespace core;
@@ -83,6 +90,7 @@ int SAL_sigs(int *sigAlgs)
     sigAlgs[n]=RSA_PSS_RSAE_SHA256; n++;
     sigAlgs[n]=ED25519; n++;
     sigAlgs[n]=ED448; n++;
+    sigAlgs[n]=ED383; n++;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
     sigAlgs[n]=MLDSA65; n++;
@@ -104,8 +112,15 @@ int SAL_sigCerts(int *sigAlgsCert)
     sigAlgsCert[n]=RSA_PKCS1_SHA512; n++;
     sigAlgsCert[n]=ED25519; n++;
     sigAlgsCert[n]=ED448; n++;
+    sigAlgsCert[n]=ED383; n++;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
+
+#ifdef SQISIGN_TEST
+    sigAlgsCert[n]=SQISIGN3; n++; 
+    sigAlgsCert[n]=SQISIGN3_ED448; n++;    
+#endif
+
     sigAlgsCert[n]=MLDSA65; n++;
     sigAlgsCert[n]=MLDSA44; n++;
     sigAlgsCert[n]=MLDSA44_ED25519; n++;
@@ -460,6 +475,31 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
 }
 
 #if CRYPTO_SETTING>=POST_QUANTUM
+
+#ifdef SQISIGN_TEST
+
+static bool SQISIGN3_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+{
+    if (sqisign_lvl3_verify((const unsigned char *)CERT->val, CERT->len, (const unsigned char *)SIG->val, (const unsigned char *)PUBKEY->val)==0) return true;
+    return false;
+}
+
+static void SQISIGN3_SIGN(octad *KEY,octad *MESS,octad *SIG)
+{
+    int smlen;
+    sqisign_lvl3_sign((unsigned char *)SIG->val, (const unsigned char *)MESS->val, MESS->len, (const unsigned char *)KEY->val);
+    SIG->len=SQISIGN_LVL3_SIGNATUREBYTES ;
+}
+
+static void SQISIGN3_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    sqisign_lvl3_keypair((unsigned char *)PUBLIC_KEY->val, (unsigned char *)SECRET_KEY->val);
+    SECRET_KEY->len=SQISIGN_LVL3_SECRETKEYBYTES;
+    PUBLIC_KEY->len=SQISIGN_LVL3_PUBLICKEYBYTES;
+}
+
+#endif
+
 static bool MLDSA65_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 {
     octet MC_CERT=octad_to_octet(CERT);
@@ -476,6 +516,18 @@ static void MLDSA65_SIGN(octad *KEY,octad *MESS,octad *SIG)
 
     DLTHM_signature_3(false,NULL,&MC_KEY,NULL,&MC_MESS,&MC_SIG); 
     SIG->len=MC_SIG.len;
+}
+
+static void MLDSA65_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    byte tau[32];
+    for (int i=0;i<32;i++)
+        tau[i]=SAL_randomByte();
+    DLTHM_keypair_3(tau,&MC_SECRET,&MC_PUBLIC);
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
 }
 
 static bool MLDSA44_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
@@ -495,6 +547,19 @@ static void MLDSA44_SIGN(octad *KEY,octad *MESS,octad *SIG)
     DLTHM_signature_2(false,NULL,&MC_KEY,NULL,&MC_MESS,&MC_SIG); 
     SIG->len=MC_SIG.len;
 }
+
+static void MLDSA44_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    byte tau[32];
+    for (int i=0;i<32;i++)
+        tau[i]=SAL_randomByte();
+    DLTHM_keypair_2(tau,&MC_SECRET,&MC_PUBLIC);
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
+}
+
 #endif
 
 #if CRYPTO_SETTING>=TYPICAL
@@ -617,12 +682,8 @@ static bool SECP256R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
     int res;
     char h[32];
 
-    octet MC_CERT=octad_to_octet(CERT);
-    octet MC_SIG=octad_to_octet(SIG);
-    octet MC_PUBKEY=octad_to_octet(PUBKEY);
-
-    NIST256_PREHASH(sha,MC_CERT.len,MC_CERT.val,h);
-    res=NIST256_VERIFY(MC_PUBKEY.val,h,MC_SIG.val);
+    NIST256_PREHASH(sha,CERT->len,CERT->val,h);
+    res=NIST256_VERIFY(PUBKEY->val,h,SIG->val);
     if (res!=1) return false;
     return true;
 }
@@ -634,12 +695,8 @@ static bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
     int res;
     char h[48];
 
-    octet MC_CERT=octad_to_octet(CERT);
-    octet MC_SIG=octad_to_octet(SIG);
-    octet MC_PUBKEY=octad_to_octet(PUBKEY);
-
-    NIST384_PREHASH(sha,MC_CERT.len,MC_CERT.val,h);
-    res=NIST384_VERIFY(MC_PUBKEY.val,h,MC_SIG.val);
+    NIST384_PREHASH(sha,CERT->len,CERT->val,h);
+    res=NIST384_VERIFY(PUBKEY->val,h,SIG->val);
     if (res!=1) return false;
     return true;
 
@@ -647,14 +704,37 @@ static bool SECP384R1_ECDSA_VERIFY(int sha,octad *CERT,octad *SIG,octad *PUBKEY)
 
 #if CRYPTO_SETTING>=TYPICAL
 
+static void Ed25519_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    for (int i=0;i<32;i++)
+        SECRET_KEY->val[i]=SAL_randomByte();
+    ED25519_KEY_PAIR(SECRET_KEY->val,PUBLIC_KEY->val);
+    SECRET_KEY->len=32;
+    PUBLIC_KEY->len=32;
+}
+
+static void Ed448_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    for (int i=0;i<57;i++)
+        SECRET_KEY->val[i]=SAL_randomByte();
+    ED448_KEY_PAIR(SECRET_KEY->val,PUBLIC_KEY->val);
+    SECRET_KEY->len=57;
+    PUBLIC_KEY->len=57;
+}
+
+static void Ed383_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    for (int i=0;i<48;i++)
+        SECRET_KEY->val[i]=SAL_randomByte();
+    ED383_KEY_PAIR(SECRET_KEY->val,PUBLIC_KEY->val);
+    SECRET_KEY->len=48;
+    PUBLIC_KEY->len=48;
+}
+
 static bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 { 
     int res;
-    octet MC_CERT=octad_to_octet(CERT);
-    octet MC_SIG=octad_to_octet(SIG);
-    octet MC_PUBKEY=octad_to_octet(PUBKEY);
-
-    res=ED25519_VERIFY(MC_PUBKEY.val,MC_CERT.len,MC_CERT.val,MC_SIG.val);
+    res=ED25519_VERIFY(PUBKEY->val,CERT->len,CERT->val,SIG->val);
     if (res!=1) return false;
     return true;
 
@@ -663,71 +743,111 @@ static bool Ed25519_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 static bool Ed448_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 { 
     int res;
-    octet MC_CERT=octad_to_octet(CERT);
-    octet MC_SIG=octad_to_octet(SIG);
-    octet MC_PUBKEY=octad_to_octet(PUBKEY);
+    res=ED448_VERIFY(PUBKEY->val,CERT->len,CERT->val,SIG->val);
+    if (res!=1) return false;
+    return true;
+}
 
-    res=ED448_VERIFY(MC_PUBKEY.val,MC_CERT.len,MC_CERT.val,MC_SIG.val);
+static bool Ed383_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+{ 
+    int res;
+    res=ED383_VERIFY(PUBKEY->val,CERT->len,CERT->val,SIG->val);
     if (res!=1) return false;
     return true;
 }
 
 static void Ed25519_SIGN(octad *KEY,octad *MESS,octad *SIG)
 { 
-    octet MC_MESS=octad_to_octet(MESS);
-    octet MC_KEY=octad_to_octet(KEY);
-    octet MC_SIG=octad_to_octet(SIG);
-
-    ED25519_SIGN(MC_KEY.val,NULL,MC_MESS.len,MC_MESS.val,MC_SIG.val);
-    MC_SIG.len=64;
-    SIG->len=MC_SIG.len;
+    ED25519_SIGN(KEY->val,NULL,MESS->len,MESS->val,SIG->val);
+    SIG->len=64;
 }
 
 static void Ed448_SIGN(octad *KEY,octad *MESS,octad *SIG)
 { 
-    octet MC_MESS=octad_to_octet(MESS);
-    octet MC_KEY=octad_to_octet(KEY);
-    octet MC_SIG=octad_to_octet(SIG);
-    ED448_SIGN(MC_KEY.val,NULL,MC_MESS.len,MC_MESS.val,MC_SIG.val);
-    MC_SIG.len=114;
-    SIG->len=MC_SIG.len;
+    ED448_SIGN(KEY->val,NULL,MESS->len,MESS->val,SIG->val);
+    SIG->len=114;
+}
+
+static void Ed383_SIGN(octad *KEY,octad *MESS,octad *SIG)
+{ 
+    ED383_SIGN(KEY->val,NULL,MESS->len,MESS->val,SIG->val);
+    SIG->len=96;
 }
 
 #endif
 
+static void SECP256R1_ECDSA_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    for (int i=0;i<32;i++)
+        SECRET_KEY->val[i]=SAL_randomByte();
+    NIST256_KEY_PAIR(0,SECRET_KEY->val,PUBLIC_KEY->val);
+    SECRET_KEY->len=32;
+    PUBLIC_KEY->len=65;
+}
+
+static void SECP384R1_ECDSA_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    for (int i=0;i<48;i++)
+        SECRET_KEY->val[i]=SAL_randomByte();
+    NIST384_KEY_PAIR(0,SECRET_KEY->val,PUBLIC_KEY->val);
+    SECRET_KEY->len=48;
+    PUBLIC_KEY->len=97;
+}
+
+
 // Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 static void SECP256R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 {
-    octet MC_MESS=octad_to_octet(MESS);
-    octet MC_KEY=octad_to_octet(KEY);
-    octet MC_SIG=octad_to_octet(SIG);
     char ran[40],h[32];
 
     for (int i=0;i<40;i++) ran[i]=SAL_randomByte();
-    NIST256_PREHASH(sha,MC_MESS.len,MC_MESS.val,h);
-    NIST256_SIGN(MC_KEY.val,ran,h,MC_SIG.val);
-    MC_SIG.len=64;
+    NIST256_PREHASH(sha,MESS->len,MESS->val,h);
+    NIST256_SIGN(KEY->val,ran,h,SIG->val);
 
-    SIG->len=MC_SIG.len;
+    SIG->len=64;
 }
 
 // Use Curve SECP384R1 ECDSA to digitally sign a message using a private key 
 static void SECP384R1_ECDSA_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
 {
-    octet MC_MESS=octad_to_octet(MESS);
-    octet MC_KEY=octad_to_octet(KEY);
-    octet MC_SIG=octad_to_octet(SIG);
     char ran[56],h[48];
 
     for (int i=0;i<56;i++) ran[i]=SAL_randomByte();
-    NIST384_PREHASH(sha,MC_MESS.len,MC_MESS.val,h);
-    NIST384_SIGN(MC_KEY.val,ran,h,MC_SIG.val);
-    MC_SIG.len=96;
+    NIST384_PREHASH(sha,MESS->len,MESS->val,h);
+    NIST384_SIGN(KEY->val,ran,h,SIG->val);
 
-    SIG->len=MC_SIG.len;
+    SIG->len=96;
 }
 
 #if CRYPTO_SETTING>=TYPICAL
+
+static void RSA_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+{
+    octet MC_SECRET=octad_to_octet(SECRET_KEY);
+    octet MC_PUBLIC=octad_to_octet(PUBLIC_KEY);
+    RSA2048::rsa_public_key pub;
+    RSA2048::rsa_private_key priv;
+    int len=(PUBLIC_KEY->len)/2;
+    char p[512];
+    octet P={0,sizeof(p),p};
+
+    RSA2048::RSA_KEY_PAIR(&RNG, 65537, &priv, &pub, NULL, NULL);
+
+    MC_SECRET.len=0;
+    RSA2048::FF_toOctet(&P, priv.q, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);
+    RSA2048::FF_toOctet(&P, priv.p, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);
+    RSA2048::FF_toOctet(&P, priv.dq, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);  
+    RSA2048::FF_toOctet(&P, priv.dp, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);  
+    RSA2048::FF_toOctet(&P, priv.c, HFLEN_RSA2048);
+    OCT_joctet(&MC_SECRET,&P);
+    RSA2048::FF_toOctet(&MC_PUBLIC, pub.n, FFLEN_RSA2048);
+    SECRET_KEY->len=MC_SECRET.len;
+    PUBLIC_KEY->len=MC_PUBLIC.len;
+}
 
 // Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
 static void RSA_2048_PSS_RSAE_SIGN(int sha,octad *KEY,octad *MESS,octad *SIG)
@@ -850,8 +970,16 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
         case ED448:
             result= Ed448_VERIFY(BUFF,SIG,PUBKEY);
             break;
+        case ED383:
+            result= Ed383_VERIFY(BUFF,SIG,PUBKEY);
+            break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
+#ifdef SQISIGN_TEST
+        case SQISIGN3:
+            result= SQISIGN3_VERIFY(BUFF,SIG,PUBKEY);
+            break;
+#endif
         case MLDSA65:
             result= MLDSA65_VERIFY(BUFF,SIG,PUBKEY);
             break;
@@ -894,8 +1022,16 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
     case ED448:
         Ed448_SIGN(KEY,TRANS,SIG);
         break;
+    case ED383:
+        Ed383_SIGN(KEY,TRANS,SIG);
+        break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
+#ifdef SQISIGN_TEST
+    case SQISIGN3:
+        SQISIGN3_SIGN(KEY,TRANS,SIG);
+        break;
+#endif
     case MLDSA65:
         MLDSA65_SIGN(KEY,TRANS,SIG);
         break;
@@ -907,3 +1043,48 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
 //    Serial.print("        Signature= "); Serial.println(elapsed);
 }
 
+// Generate Key pair 
+void SAL_tlsKeypair(int keyAlg,octad *SECRET_KEY,octad *PUBLIC_KEY)
+{ // probably need to support more cases
+
+    switch (keyAlg)
+    {
+    case ECDSA_KP:
+        if (PUBLIC_KEY->len==65)
+            SECP256R1_ECDSA_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        if (PUBLIC_KEY->len==97)
+            SECP384R1_ECDSA_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        break;
+
+#if CRYPTO_SETTING>=TYPICAL
+    case RSA_KP :
+        RSA_KEYPAIR(SECRET_KEY,PUBLIC_KEY);  // size of 2048 or 4096 is indicated in PUBLIC_KEY->len
+        break;
+    case EDDSA_KP:
+        if (PUBLIC_KEY->len==32)
+            Ed25519_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        if (PUBLIC_KEY->len==57)
+            Ed448_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        if (PUBLIC_KEY->len==48)
+            Ed383_KEYPAIR(SECRET_KEY,PUBLIC_KEY);        
+        break;
+#endif
+#if CRYPTO_SETTING>=POST_QUANTUM
+
+#ifdef SQISIGN_TEST
+    case SQISIGN_KP :
+    	if (PUBLIC_KEY->len==SQISIGN_LVL3_PUBLICKEYBYTES)
+    	    SQISIGN3_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+    	break;
+#endif
+
+    case MLDSA_KP :
+        if (PUBLIC_KEY->len==DL_PK_SIZE_3)
+            MLDSA65_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        if (PUBLIC_KEY->len==DL_PK_SIZE_2)
+            MLDSA44_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
+        break;
+#endif
+    }
+
+}

@@ -197,6 +197,7 @@ pub fn sigs(sig_algs: &mut [u16]) -> usize {
         sig_algs[n]=config::RSA_PSS_RSAE_SHA256; n+=1;
         sig_algs[n]=config::ED25519; n+=1;
         sig_algs[n]=config::ED448; n+=1;
+        sig_algs[n]=config::ED383; n+=1;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         sig_algs[n]=config::MLDSA65; n+=1;
@@ -219,6 +220,7 @@ pub fn sig_certs(sig_algs_cert: &mut [u16]) -> usize {
         sig_algs_cert[n]=config::RSA_PKCS1_SHA512; n+=1;
         sig_algs_cert[n]=config::ED25519; n+=1;
         sig_algs_cert[n]=config::ED448; n+=1;
+        sig_algs_cert[n]=config::ED383; n+=1;
     }
     if config::CRYPTO_SETTING>=config::POST_QUANTUM {
         sig_algs_cert[n]=config::MLDSA65; n+=1;   
@@ -696,6 +698,11 @@ pub fn ed448_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     return ed448::VERIFY(pubkey,cert,sig);
 }
 
+pub fn ed383_verify(cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
+    use tlsecc::ed383;
+    return ed383::VERIFY(pubkey,cert,sig);
+}
+
 /// Use Curve SECP256R1 ECDSA to digitally sign a message using a private key 
 pub fn secp256r1_ecdsa_sign(hlen:usize,key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use tlsecc::nist256;
@@ -726,6 +733,12 @@ pub fn ed448_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
     use tlsecc::ed448;
     ed448::SIGN(key,None,mess,sig);
     return 114;
+}
+
+pub fn ed383_sign(key: &[u8],mess: &[u8],sig: &mut [u8]) -> usize {
+    use tlsecc::ed383;
+    ed383::SIGN(key,None,mess,sig);
+    return 96;
 }
 
 /// Use RSA-2048 PSS-RSAE to digitally sign a message using a private key
@@ -805,6 +818,7 @@ pub fn tls_signature_verify(sigalg: u16,buff: &[u8],sig: &[u8], pubkey: &[u8]) -
             config::RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_verify(32,buff,sig,pubkey);},
             config::ED25519 => { return ed25519_verify(buff,sig,pubkey);}, 
             config::ED448 => { return ed448_verify(buff,sig,pubkey);}, 
+            config::ED383 => { return ed383_verify(buff,sig,pubkey);},
             _ => {}
         }
     }
@@ -833,6 +847,7 @@ pub fn tls_signature(sigalg: u16,key: &[u8],trans: &[u8],sig: &mut [u8]) -> usiz
             config:: RSA_PSS_RSAE_SHA256 => {return rsa_pss_rsae_sign(32,key,trans,sig);},
             config:: ED25519 => { return ed25519_sign(key,trans,sig);},
             config:: ED448 => { return ed448_sign(key,trans,sig);},
+            config:: ED383 => { return ed383_sign(key,trans,sig);},
             _ => {}
         }
     }
