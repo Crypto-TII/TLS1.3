@@ -19,7 +19,7 @@
 
 #ifdef SQISIGN_TEST
 #define SQISIGN3_PK 12
-#define ED448_SQISIGN3_PK 13
+#define ED383_SQISIGN3_PK 13
 #endif
 
 #define ECCSHA256_SIG 1
@@ -34,11 +34,11 @@
 
 #ifdef SQISIGN_TEST
 #define SQISIGN3_SIG 12
-#define ED448_SQISIGN3_SIG 13
+#define ED383_SQISIGN3_SIG 13
 #endif
 
 // BEGIN USER EDITABLE AREA *******************
-#define DAYS 365
+#define DAYS 198
 #define ISSUER_NAME "TiigerTLS root CA"
 #define ISSUER_ORG "Tii Trust Services"
 #define ISSUER_UNIT ""
@@ -132,12 +132,12 @@ static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0
 #define PK_TYPE SQISIGN_KP
 #endif
 
-#if PKTYPE==ED448_SQISIGN3_PK
+#if PKTYPE==ED383_SQISIGN3_PK
 static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x0C,0x01};
 #define HYBRID_PK
-#define SB_SK_SIZE_1 57
+#define SB_SK_SIZE_1 48
 #define SB_SK_SIZE_2 529
-#define PK_SIZE_1 57
+#define PK_SIZE_1 48
 #define PK_SIZE_2 97
 #define PK_TYPE_1 EDDSA_KP 
 #define PK_TYPE_2 SQISIGN_KP
@@ -214,14 +214,14 @@ static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,
 #define SIG_TYPE SQISIGN3
 #endif
 
-#if SIGTYPE==ED448_SQISIGN3_SIG
+#if SIGTYPE==ED383_SQISIGN3_SIG
 static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x0C,0x01};
 #define HYBRID_SIG
-#define SK_SIZE_1 57
+#define SK_SIZE_1 48
 #define SK_SIZE_2 529
-#define SIG_SIZE_1 114
+#define SIG_SIZE_1 96
 #define SIG_SIZE_2 224
-#define SIG_TYPE_1 ED448
+#define SIG_TYPE_1 ED383
 #define SIG_TYPE_2 SQISIGN3
 #endif
 
@@ -481,12 +481,12 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
 
 #ifdef SQISIGN_TEST
 
-#if PKTYPE==ED448_SQISIGN3_PK
+#if PKTYPE==ED383_SQISIGN3_PK
     OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
     wrap(SEQ,&PKINFO);
 
     OCT_append_octad(&PK,PUBLIC_KEY); OCT_append_octad(&PK,PUBLIC_KEY2);
-    insertbyte(&PK,0x39); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x41=65 = length of EC public key    
+    insertbyte(&PK,0x30); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x30=48 = length of EC public key    
     wrap(BIT,&PK);
 
     OCT_append_octad(&PKINFO,&PK);
@@ -675,7 +675,7 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE,octad *SIGNATURE2)
 #endif
 
 #ifdef SQISIGN_TEST
-#if SIGTYPE==ED448_SQISIGN3_SIG
+#if SIGTYPE==ED383_SQISIGN3_SIG
 
     OCT_append_octad(&CERTSIG,SIGNATURE);
     OCT_append_octad(&CERTSIG,SIGNATURE2);

@@ -237,13 +237,13 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
     }
 
 #ifdef SQISIGN_TEST
-    if (st.type==X509_HY2)  // ED448 + SQISIGN3
+    if (st.type==X509_HY2)  // ED383 + SQISIGN3
     {
-        octad FPUB={57,57,PUBKEY->val};
-        octad SPUB={PUBKEY->len-57,PUBKEY->len-57,&PUBKEY->val[57]};
-        octad FSIG={114,114,SIG->val};
-        octad SSIG={SIG->len-114,SIG->len-114,&SIG->val[114]};
-        res = SAL_tlsSignatureVerify(ED448,CERT,&FSIG,&FPUB) && SAL_tlsSignatureVerify(SQISIGN3,CERT,&SSIG,&SPUB);
+        octad FPUB={48,48,PUBKEY->val};
+        octad SPUB={PUBKEY->len-48,PUBKEY->len-48,&PUBKEY->val[48]};
+        octad FSIG={96,96,SIG->val};
+        octad SSIG={SIG->len-96,SIG->len-96,&SIG->val[96]};
+        res = SAL_tlsSignatureVerify(ED383,CERT,&FSIG,&FPUB) && SAL_tlsSignatureVerify(SQISIGN3,CERT,&SSIG,&SPUB);
     }
 #endif
 

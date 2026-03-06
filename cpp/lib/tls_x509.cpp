@@ -98,7 +98,7 @@ static octad HYBRID1 = {5,sizeof(hybrid1), (char *)hybrid1};
 static unsigned char sqisign3[9] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x20};
 static octad SQISIGN3 = {9, sizeof(sqisign3), (char *)sqisign3};
 
-// SQISIGN3+ED448 - unofficial
+// SQISIGN3+ED383 - unofficial
 
 static unsigned char hybrid2[5]={0x2B,0xCE,0x0F,0x0C,0x01};
 static octad HYBRID2 = {5,sizeof(hybrid2), (char *)hybrid2};
@@ -502,7 +502,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
 
 #ifdef SQISIGN_TEST_X509
     if (OCT_compare(&HYBRID2, &SOID))
-    { // Its a ED448 key followed by a SQISIGN3 key
+    { // Its a ED383 key followed by a SQISIGN3 key
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
         j += skip(len);
@@ -1033,7 +1033,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         for (; j < fin; j++)
             sig->val[i++] = sc->val[j];
 
-        ret.curve = USE_ED448;    
+        ret.curve = USE_ED383;    
     }    
 
 #endif

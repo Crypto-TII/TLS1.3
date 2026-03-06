@@ -246,7 +246,7 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
 
 #ifdef SQISIGN_TEST
     #define SQISIGN3 0x090A                 /**< SQISIGN3 Signature algorithm */
-    #define SQISIGN3_ED448 0xFF8C           /**< SQISIGN3 + ED448 Hybrid */
+    #define SQISIGN3_ED383 0xFF8C           /**< SQISIGN3 + ED383 Hybrid */
 #endif
 
 // Key pair algorithms

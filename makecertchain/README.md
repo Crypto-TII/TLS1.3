@@ -4,7 +4,7 @@ This allows experimentation with currently non-standardised digital signature al
 
 **IMPORTANT** Make sure to implement a true random number generator in *tls_sal_m.xpp* where indicated.
 
-Do a MIRACL-only build of the C++ client after setting CRYPTO_SETTING in *tls1_3.h* to POST_QUANTUM (to allow support for the widest range of signature algorithms)
+Do a MIRACL+TLSECC build of the C++ client after setting CRYPTO_SETTING in *tls1_3.h* to POST_QUANTUM (to allow support for the widest range of signature algorithms)
 
 Copy the files *makerootcert.cpp*, *makeintercert.cpp*, *makeleafcert.cpp* from here into the build directory and edit where indicated to specify your certificate details and preferred signature types
 

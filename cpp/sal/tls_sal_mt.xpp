@@ -118,7 +118,7 @@ int SAL_sigCerts(int *sigAlgsCert)
 
 #ifdef SQISIGN_TEST
     sigAlgsCert[n]=SQISIGN3; n++; 
-    sigAlgsCert[n]=SQISIGN3_ED448; n++;    
+    sigAlgsCert[n]=SQISIGN3_ED383; n++;    
 #endif
 
     sigAlgsCert[n]=MLDSA65; n++;

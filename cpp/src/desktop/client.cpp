@@ -196,6 +196,11 @@ static void nameSigAlg(int sigAlg)
     case MLDSA44_ED25519:
         printf("MLDSA44 + ED25519\n");   
         break;
+#ifdef SQISIGN_TEST
+    case SQISIGN3_ED383:
+        printf("SQISIGN3 + ED383\n");   
+        break;
+#endif
     default:
         printf("Non-standard\n");   
         break;

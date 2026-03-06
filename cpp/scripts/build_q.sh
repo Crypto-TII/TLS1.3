@@ -13,7 +13,7 @@ mkdir -p sal/miracl/includes
 cd .temp
 git clone https://github.com/miracl/core.git
 cd core/cpp
-python3 ./config64.py --options=1 --options=2 --options=3 --option=7 --options=8 --options=31 --options=42 --options=44
+python3 ./config64.py --options=31 --options=42 --options=44
 cd ../../../
 
 # Copy built library and includes to SAL
@@ -24,6 +24,29 @@ cp ../../sqisign/include/lvl3/apitiigertls.h sal/miracl/includes/sqisign.h
 
 # Remove temp folder
 rm -rf .temp
+
+
+# Create temp folder to pull and build TLSECC library
+mkdir .temp
+cd .temp
+git clone https://github.com/mcarrickscott/TLSECC
+cd TLSECC
+cp c64/* .
+cp include64/* .
+cp include/* .
+gcc -O2 -c *.c
+ar rc tlsecc.a *.o
+
+cd ../../
+
+cp .temp/TLSECC/tlsecc.a sal/miracl
+cp .temp/TLSECC/tlsecc.h sal/miracl/includes
+
+
+# Remove temp folder
+rm -rf .temp
+
+
 
 # Create temporary build folder
 mkdir .build
@@ -41,10 +64,11 @@ cd ../
 
 cp sal/miracl/libsqisign.a build/.
 cp sal/miracl/core.a build/.
+cp sal/miracl/tlsecc.a build/.
 cp include/tls_*.h build/.
 cp include/tls1_3.h build/.
 cp lib/tls*.cpp build/.
-cp sal/tls_sal_m.xpp build/tls_sal.cpp
+cp sal/tls_sal_mt.xpp build/tls_sal.cpp
 cp sal/miracl/includes/*.h build/.
 cp src/desktop/client.cpp build/.
 

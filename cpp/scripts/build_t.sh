@@ -61,6 +61,7 @@ mkdir -p ../build
 cp client ../build
 cp libtiitls.a ../build
 cd ../
+
 cp sal/miracl/core.a build/.
 cp sal/miracl/tlsecc.a build/.
 cp include/tls_*.h build/.
