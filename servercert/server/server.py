@@ -30,38 +30,38 @@ subject="\"/CN=TiigerTLS example server /C=AE\""
 if method=="NIST256" :
     subprocess.call("openssl ecparam -name prime256v1 -out ecparam.pem",shell=True)
     subprocess.call("openssl req -new -newkey ec:ecparam.pem -keyout server.key -out server.csr -nodes -subj " + subject,shell=True)
-    subprocess.call("openssl x509 -req -set_serial 01 -days 6 -in server.csr "+hash+" -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
+    subprocess.call("openssl x509 -req -set_serial 01 -days 198 -in server.csr "+hash+" -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
 
 if method=="NIST384" :
     subprocess.call("openssl ecparam -name secp384r1 -out ecparam.pem",shell=True)
     subprocess.call("openssl req -new -newkey ec:ecparam.pem -keyout server.key -out server.csr -nodes -subj " + subject,shell=True)
-    subprocess.call("openssl x509 -req -set_serial 01 -days 6 -in server.csr "+hash+" -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
+    subprocess.call("openssl x509 -req -set_serial 01 -days 198 -in server.csr "+hash+" -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
 
 if method=="RSA1024" :
     subprocess.call("openssl req -new -newkey rsa:1024 -keyout server.key -out server.csr -nodes -subj " + subject,shell=True)
-    subprocess.call("openssl x509 -req -in server.csr "+hash+"  -CA intermediate/inter.crt -CAkey intermediate/inter.key -set_serial 01 -days 6 -out server.crt",shell=True)
+    subprocess.call("openssl x509 -req -in server.csr "+hash+"  -CA intermediate/inter.crt -CAkey intermediate/inter.key -set_serial 01 -days 198 -out server.crt",shell=True)
 
 if method=="RSA2048" :
     subprocess.call("openssl req -new -newkey rsa:2048 -keyout server.key -out server.csr -nodes -subj " + subject,shell=True)
-    subprocess.call("openssl x509 -req -in server.csr  "+hash+" -CA intermediate/inter.crt -CAkey intermediate/inter.key -set_serial 01 -days 6 -out server.crt",shell=True)
+    subprocess.call("openssl x509 -req -in server.csr  "+hash+" -CA intermediate/inter.crt -CAkey intermediate/inter.key -set_serial 01 -days 198 -out server.crt",shell=True)
 
 if method=="RSA4096" :
     subprocess.call("openssl req -new -newkey rsa:4096 -keyout server.key -out server.csr -nodes -subj " + subject,shell=True)
-    subprocess.call("openssl x509 -req -in server.csr "+hash+"  -CA intermediate/inter.crt -CAkey intermediate/inter.key -set_serial 01 -days 6 -out server.crt",shell=True)
+    subprocess.call("openssl x509 -req -in server.csr "+hash+"  -CA intermediate/inter.crt -CAkey intermediate/inter.key -set_serial 01 -days 198 -out server.crt",shell=True)
 
 if method=="ED25519" :
     subprocess.call("openssl genpkey -algorithm ED25519 -out eddsa.key",shell=True)
     subprocess.call("openssl req -new -key eddsa.key -keyout server.key -out server.csr -nodes -subj " + subject,shell=True)
-    subprocess.call("openssl x509 -req -set_serial 01 -days 6 -in server.csr -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
+    subprocess.call("openssl x509 -req -set_serial 01 -days 198 -in server.csr -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
 
 if method=="ED448" :
     subprocess.call("openssl genpkey -algorithm ED448 -out eddsa.key",shell=True)
     subprocess.call("openssl req -new -key eddsa.key -keyout server.key -out server.csr -nodes -subj " + subject,shell=True)
-    subprocess.call("openssl x509 -req -set_serial 01 -days 6 -in server.csr -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
+    subprocess.call("openssl x509 -req -set_serial 01 -days 198 -in server.csr -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
 
 if method=="MLDSA65" :
     subprocess.call("openssl req -new -newkey mldsa65 -keyout server.key -out server.csr -nodes -subj " + subject,shell=True)
-    subprocess.call("openssl x509 -req -set_serial 01 -days 6 -in server.csr -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
+    subprocess.call("openssl x509 -req -set_serial 01 -days 198 -in server.csr -CA intermediate/inter.crt -CAkey intermediate/inter.key -out server.crt",shell=True)
 
 subprocess.call("openssl x509 -in server.crt -text -noout",shell=True)
 

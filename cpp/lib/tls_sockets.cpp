@@ -56,7 +56,9 @@ void sendOctad(Socket *client,octad *B)
 
 #if VERBOSITY >= IO_WIRE
 
-    char w[4];
+    char w[16];
+    sprintf(w,"%5d",B->len);
+    myprintf(w);
     myprintf((char *)"-> ");
     for (int j = 0; j < B->len; j++)
     {
@@ -130,7 +132,9 @@ int getBytes(Socket *client,char *b,int expected)
 
 #if VERBOSITY >= IO_WIRE
 
-    char w[4];
+    char w[16];
+    sprintf(w,"%5d",expected);
+    myprintf(w);
     myprintf((char *)"<- ");
     for (int j = 0; j < expected; j++)
     {
