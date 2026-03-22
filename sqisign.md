@@ -4,7 +4,7 @@ The SQISIGN V2 library is presumed to be downloaded and pre-processed into *sqis
 
 **IMPORTANT** Make sure to implement a true random number generator in *tls_sal_mt.xpp* where indicated.
 
-Do a MIRACL+TLSECC build of the C++ client after setting CRYPTO_SETTING in *tls1_3.h* to POST_QUANTUM (to allow support for the widest range of signature algorithms)
+Do a MIRACL+TLSECC build of the C++ client after setting CRYPTO_SETTING in *tls1_3.h* to POST\_QUANTUM (to allow support for the widest range of signature algorithms)
 
 	bash scripts/build.sh -4
 
@@ -34,7 +34,7 @@ Rebuild the C++ client.
 
 	bash scripts/build.sh -4
 
-Move to the directory *rust/server/src* and edit the *config.rs* file and ensure the following settings.
+Move to the directory *rust/server/src* and edit the *config.rs* file and check the following default setting.
 
 	pub const SERVER\_CERT:usize= FROM_FILE; 
 
