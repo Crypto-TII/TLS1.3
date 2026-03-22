@@ -38,4 +38,4 @@ Move to the directory *rust/server/src* and edit the *config.rs* file and check 
 
 	pub const SERVER\_CERT:usize= FROM_FILE; 
 
-Finally run the Rust server application from *rust/server*. The server can use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
+Run the Rust server application from *rust/server* and the client from *cpp/build*. The server will use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
