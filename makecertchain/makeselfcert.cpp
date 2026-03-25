@@ -19,7 +19,7 @@
 
 #ifdef SQISIGN_TEST
 #define SQISIGN3_PK 12
-#define ED383_SQISIGN3_PK 13
+#define ED376_SQISIGN3_PK 13
 #endif
 
 #define ECCSHA256_SIG 1
@@ -34,7 +34,7 @@
 
 #ifdef SQISIGN_TEST
 #define SQISIGN3_SIG 12
-#define ED383_SQISIGN3_SIG 13
+#define ED376_SQISIGN3_SIG 13
 #endif
 
 // BEGIN USER EDITABLE AREA *******************
@@ -215,14 +215,14 @@ static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,
 #define SIG_TYPE SQISIGN3
 #endif
 
-#if SIGTYPE==ED383_SQISIGN3_SIG
+#if SIGTYPE==ED376_SQISIGN3_SIG
 static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x0C,0x01};
 #define HYBRID_SIG
 #define SK_SIZE_1 48
 #define SK_SIZE_2 529
 #define SIG_SIZE_1 96
 #define SIG_SIZE_2 224
-#define SIG_TYPE_1 ED383
+#define SIG_TYPE_1 ED376
 #define SIG_TYPE_2 SQISIGN3
 #endif
 
@@ -485,7 +485,7 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
 
 #ifdef SQISIGN_TEST
 
-#if PKTYPE==ED383_SQISIGN3_PK
+#if PKTYPE==ED376_SQISIGN3_PK
     OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
     wrap(SEQ,&PKINFO);
 
@@ -700,7 +700,7 @@ static void add_cert_signature(octad *CERT,octad *SIGNATURE,octad *SIGNATURE2)
 #endif
 
 #ifdef SQISIGN_TEST
-#if SIGTYPE==ED383_SQISIGN3_SIG
+#if SIGTYPE==ED376_SQISIGN3_SIG
 
     OCT_append_octad(&CERTSIG,SIGNATURE);
     OCT_append_octad(&CERTSIG,SIGNATURE2);

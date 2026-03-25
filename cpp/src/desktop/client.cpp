@@ -197,8 +197,8 @@ static void nameSigAlg(int sigAlg)
         printf("MLDSA44 + ED25519\n");   
         break;
 #ifdef SQISIGN_TEST
-    case SQISIGN3_ED383:
-        printf("SQISIGN3 + ED383\n");   
+    case SQISIGN3_ED376:
+        printf("SQISIGN3 + ED376\n");   
         break;
 #endif
     default:

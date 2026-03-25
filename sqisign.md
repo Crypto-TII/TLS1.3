@@ -1,4 +1,4 @@
-This describes an experimental configuration, featuring hybrid post quantum key exchange (MLKEM768+X25519), along with fused SQISIGN3+Ed383 digital signatures
+This describes an experimental configuration, featuring hybrid post quantum key exchange (MLKEM768+X25519), along with fused SQISIGN3+Ed376 digital signatures
 
 The SQISIGN V2 library is presumed to be downloaded and pre-processed into *sqisign.h* and *libsqisign.a*
 
@@ -8,7 +8,7 @@ Do a MIRACL+TLSECC build of the C++ client after setting CRYPTO_SETTING in *tls1
 
 	bash scripts/build.sh -4
 
-Copy the files *makerootcert.cpp*, *makeintercert.cpp*, *makeleafcert.cpp* into the build directory and edit to use *ED383_SQISIGN3* methods as signatures and 
+Copy the files *makerootcert.cpp*, *makeintercert.cpp*, *makeleafcert.cpp* into the build directory and edit to use *ED376_SQISIGN3* methods as signatures and 
 public keys, except for the leaf certificate public key which should be of type *ED25519_MLDS44*.
 
 	g++ -O2 -DSQISIGN_TEST makerootcert.cpp libtiitls.a core.a tlsecc.a libsqisign.a -lgmp -o makerootcert

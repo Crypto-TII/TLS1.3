@@ -46,8 +46,8 @@ pub const MLDSA44_ED25519: u16 = 0xFF86; //0x0907; // this type can be negotiate
 pub const ED25519: u16 = 0x0807;                   
 // Ed448 EdDSA Signature algorithm
 pub const ED448: u16 = 0x0808; 
-// Ed383 EdDSA Signature algorithm
-pub const ED383: u16 = 0x0809; 
+// Ed376 EdDSA Signature algorithm
+pub const ED376: u16 = 0x0809; 
 
 // Maximum sizes for stack arrays
 /// Max ECC field size in bytes

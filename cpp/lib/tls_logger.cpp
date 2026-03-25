@@ -164,8 +164,8 @@ static void nameSigAlg(int sigAlg)
     case SQISIGN3:
         myprintf((char *)"SQISIGN3\n");
         break;
-    case SQISIGN3_ED383:
-        myprintf((char *)"SQISIGN3 + ED383\n");
+    case SQISIGN3_ED376:
+        myprintf((char *)"SQISIGN3 + ED376\n");
         break;
 #endif
     default:
@@ -345,7 +345,7 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
         log(IO_PROTOCOL,(char *)"Certificate signature is Post Quantum (SQISIGN3) of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
 
     if (sg.type==X509_HY2)
-        log(IO_PROTOCOL,(char *)"Certificate signature is Hybrid (SQISIGN3+ED383) of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
+        log(IO_PROTOCOL,(char *)"Certificate signature is Hybrid (SQISIGN3+ED376) of length (bits) ",(char *)"%d",8*SIG->len/*sg.curve*/,NULL);
 #endif
 
     log(IO_DEBUG,(char *)"Public key from Certificate is ",NULL,0,PUBKEY); 
@@ -382,7 +382,7 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
         log(IO_PROTOCOL,(char *)"Certificate public key is Post Quantum (SQISIGN3) of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
 
     if (pk.type==X509_HY2)
-        log(IO_PROTOCOL,(char *)"Certificate public key is Hybrid (SQISIGN4+ED383) of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
+        log(IO_PROTOCOL,(char *)"Certificate public key is Hybrid (SQISIGN4+ED376) of length (bits) ",(char *)"%d",8*PUBKEY->len/*pk.curve*/,NULL);
 #endif
 
     char dn[256];

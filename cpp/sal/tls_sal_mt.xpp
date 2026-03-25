@@ -90,7 +90,7 @@ int SAL_sigs(int *sigAlgs)
     sigAlgs[n]=RSA_PSS_RSAE_SHA256; n++;
     sigAlgs[n]=ED25519; n++;
     sigAlgs[n]=ED448; n++;
-    sigAlgs[n]=ED383; n++;
+    sigAlgs[n]=ED376; n++;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
     sigAlgs[n]=MLDSA65; n++;
@@ -112,13 +112,13 @@ int SAL_sigCerts(int *sigAlgsCert)
     sigAlgsCert[n]=RSA_PKCS1_SHA512; n++;
     sigAlgsCert[n]=ED25519; n++;
     sigAlgsCert[n]=ED448; n++;
-    sigAlgsCert[n]=ED383; n++;
+    sigAlgsCert[n]=ED376; n++;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
 
 #ifdef SQISIGN_TEST
     sigAlgsCert[n]=SQISIGN3; n++; 
-    sigAlgsCert[n]=SQISIGN3_ED383; n++;    
+    sigAlgsCert[n]=SQISIGN3_ED376; n++;    
 #endif
 
     sigAlgsCert[n]=MLDSA65; n++;
@@ -722,11 +722,11 @@ static void Ed448_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
     PUBLIC_KEY->len=57;
 }
 
-static void Ed383_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
+static void Ed376_KEYPAIR(octad *SECRET_KEY,octad *PUBLIC_KEY)
 {
     for (int i=0;i<48;i++)
         SECRET_KEY->val[i]=SAL_randomByte();
-    ED383_KEY_PAIR(SECRET_KEY->val,PUBLIC_KEY->val);
+    ED376_KEY_PAIR(SECRET_KEY->val,PUBLIC_KEY->val);
     SECRET_KEY->len=48;
     PUBLIC_KEY->len=48;
 }
@@ -748,10 +748,10 @@ static bool Ed448_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
     return true;
 }
 
-static bool Ed383_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
+static bool Ed376_VERIFY(octad *CERT,octad *SIG,octad *PUBKEY)
 { 
     int res;
-    res=ED383_VERIFY(PUBKEY->val,CERT->len,CERT->val,SIG->val);
+    res=ED376_VERIFY(PUBKEY->val,CERT->len,CERT->val,SIG->val);
     if (res!=1) return false;
     return true;
 }
@@ -768,9 +768,9 @@ static void Ed448_SIGN(octad *KEY,octad *MESS,octad *SIG)
     SIG->len=114;
 }
 
-static void Ed383_SIGN(octad *KEY,octad *MESS,octad *SIG)
+static void Ed376_SIGN(octad *KEY,octad *MESS,octad *SIG)
 { 
-    ED383_SIGN(KEY->val,NULL,MESS->len,MESS->val,SIG->val);
+    ED376_SIGN(KEY->val,NULL,MESS->len,MESS->val,SIG->val);
     SIG->len=96;
 }
 
@@ -970,8 +970,8 @@ bool SAL_tlsSignatureVerify(int sigAlg,octad *BUFF,octad *SIG,octad *PUBKEY)
         case ED448:
             result= Ed448_VERIFY(BUFF,SIG,PUBKEY);
             break;
-        case ED383:
-            result= Ed383_VERIFY(BUFF,SIG,PUBKEY);
+        case ED376:
+            result= Ed376_VERIFY(BUFF,SIG,PUBKEY);
             break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
@@ -1022,8 +1022,8 @@ void SAL_tlsSignature(int sigAlg,octad *KEY,octad *TRANS,octad *SIG)
     case ED448:
         Ed448_SIGN(KEY,TRANS,SIG);
         break;
-    case ED383:
-        Ed383_SIGN(KEY,TRANS,SIG);
+    case ED376:
+        Ed376_SIGN(KEY,TRANS,SIG);
         break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
@@ -1066,7 +1066,7 @@ void SAL_tlsKeypair(int keyAlg,octad *SECRET_KEY,octad *PUBLIC_KEY)
         if (PUBLIC_KEY->len==57)
             Ed448_KEYPAIR(SECRET_KEY,PUBLIC_KEY);
         if (PUBLIC_KEY->len==48)
-            Ed383_KEYPAIR(SECRET_KEY,PUBLIC_KEY);        
+            Ed376_KEYPAIR(SECRET_KEY,PUBLIC_KEY);        
         break;
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM

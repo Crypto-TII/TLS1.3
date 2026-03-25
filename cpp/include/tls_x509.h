@@ -37,7 +37,7 @@
 #define USE_NIST256 0    /**< For the NIST 256-bit standard curve - WEIERSTRASS only */
 #define USE_ED25519 1     /**< Bernstein's Modulus 2^255-19 - EDWARDS */
 #define USE_ED448 4     /**< Goldilocks Modulus Ed448 - EDWARDS */
-#define USE_ED383 5     /**< Experimental Modulus Ed383 - EDWARDS */
+#define USE_ED376 5     /**< Experimental Modulus Ed376 - EDWARDS */
 //#define USE_BRAINPOOL 2  /**< For Brainpool 256-bit curve - WEIERSTRASS only */
 //#define USE_ANSSI 3      /**< For French 256-bit standard curve - WEIERSTRASS only */
 #define USE_NIST384 10   /**< For the NIST 384-bit standard curve - WEIERSTRASS only */
