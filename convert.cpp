@@ -36,7 +36,7 @@ int main(int argc,char **argv)
     while (getline(cacerts,line)) {
         cpp << "\"" << line << "\\n\"" << endl;
     }
-    cpp << ";" << endl;
+//    cpp << ";" << endl;
 
     cacerts.close();
     cacerts.open(filename.c_str());

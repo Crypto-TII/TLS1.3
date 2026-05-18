@@ -2,13 +2,13 @@
 
 This allows experimentation with currently non-standardised digital signature algorithms.
 
-**IMPORTANT** Make sure to implement a true random number generator in *tls_sal_m.xpp* where indicated.
+**IMPORTANT** Make sure to implement a true random number generator in *tls_sal_mt.xpp* where indicated.
 
 Set CRYPTO_SETTING in *tls1_3.h* to POST_QUANTUM (to allow support for the widest range of signature algorithms). 
 
 Then do a MIRACL+TLSECC build of the C++ client. Build the rust server using the default configuration.
 
-Copy the files *makerootcert.cpp*, *makeintercert.cpp*, *makeleafcert.cpp* from here into the build directory and edit where indicated to specify your certificate details and preferred signature types
+Copy the files *makerootcert.cpp*, *makeintercert.cpp*, *makeleafcert.cpp* from here into the *cpp/build* directory and edit where indicated to specify your certificate details and preferred signature types
 
 	g++ -O2 makerootcert.cpp libtiitls.a core.a tlsecc.a -o makerootcert
 	g++ -O2 makeintercert.cpp libtiitls.a core.a tlsecc.a -o makeintercert
@@ -49,7 +49,7 @@ Rebuild the C++ client.
 
 Finally run the Rust server application from *rust/server*. The server can use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
 
-To update the chain to use a new leaf certificate (perhaps when the old one expires) with the same root and intermediate certificates, just run the *makeleafcert* application again and replace 
+To update the chain to use a new leaf certificate (perhaps when the old one expires) with the same root and intermediate certificates, just edit and run the *makeleafcert* application again and replace 
 *certchain.pem* and *leaf.key*.
 
 Client-side certificates can be created in a similar way.
