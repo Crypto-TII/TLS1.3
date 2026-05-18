@@ -2,9 +2,9 @@
 
 /// Public Key type
 pub struct PKTYPE {
-    pub kind: usize,
-    pub hash: usize,
-    pub curve: usize,
+    pub kind: usize,   // type of key (ECC, RSA etc)
+    pub hash: usize,   // Hash function used
+    pub curve: usize,  // sub-type (cuve, rsa bit length..)
     pub len: usize,
 }
 
@@ -38,6 +38,8 @@ pub const USE_ED448:usize = 5;
 //const USE_ANSSI:usize = 3;        // For French 256-bit standard curve - WEIERSTRASS only 
 pub const USE_NIST384:usize = 10;   // For the NIST 384-bit standard curve - WEIERSTRASS only 
 pub const USE_NIST521:usize = 12;   // For the NIST 521-bit standard curve - WEIERSTRASS only 
+pub const USE_MLDSA44:usize = 13;  // For ML-DSA44 
+pub const USE_MLDSA65:usize = 14 ; // For ML-DSA65 
 
 const ANY: u8 = 0x00;
 const SEQ: u8 = 0x30;
@@ -77,6 +79,7 @@ const RSASHA512:[u8;9]=[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d];
 //const MLDSA65:[u8;11]=[0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0B, 0x07, 0x06, 0x05];
 
 const MLDSA65:[u8;9]=[0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12]; // official
+const MLDSA44:[u8;9]=[0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x11]; // official
 const HYBRID1:[u8;5]=[0x2B,0xCE,0x0F,0x0C,0x06]; // MLDSA44 + ED25519
 
 // Cert details
@@ -376,7 +379,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
         ret.curve = USE_ED448;
     }
 
-    if MLDSA65 == soid[0..slen] {
+    if MLDSA65 == soid[0..slen] || MLDSA44 == soid[0..slen] {
         len=getalen(OCT,c,j);
         if len==0 {
             return ret;
@@ -410,7 +413,13 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
         }
         ret.len=tlen;
         ret.kind=DLM;
-        ret.curve=8*tlen;
+        if MLDSA65 == soid[0..slen] {
+            ret.curve=USE_MLDSA65;
+        }
+        if MLDSA44 == soid[0..slen] {
+            ret.curve=USE_MLDSA44;
+        }
+        //ret.curve=8*tlen;
     }  
 
     if HYBRID1 == soid[0..slen] {
@@ -471,7 +480,7 @@ pub fn extract_private_key(c: &[u8],pk: &mut [u8]) -> PKTYPE {
 
         ret.len=tlen+len;
         ret.kind=HY1;
-        ret.curve=8*(tlen+len);
+        ret.curve=USE_ED25519; // 8*(tlen+len);
     }   
 
     if ECPK == soid[0..slen] {
@@ -726,10 +735,17 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
     if MLDSA65 == soid[0..slen] {
         ret.kind=DLM;
         ret.hash=0; // hash type is implicit
+        ret.curve=USE_MLDSA65;
+    }
+    if MLDSA44 == soid[0..slen] {
+        ret.kind=DLM;
+        ret.hash=0; // hash type is implicit
+        ret.curve=USE_MLDSA44;
     }
     if HYBRID1 == soid[0..slen] {
         ret.kind=HY1;
         ret.hash=0; // hash type is implicit
+        ret.curve=USE_ED25519;
     }
 
     if ret.kind==0 { 
@@ -874,7 +890,7 @@ pub fn extract_cert_sig(sc: &[u8],sig: &mut [u8]) -> PKTYPE {
             j+=1;
             slen+=1;
         }
-        ret.curve=8*len;
+        //ret.curve=8*len;
     }
 
     if ret.kind==HY1 {
@@ -1131,7 +1147,10 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
         ret.kind=RSA;
     }
     if MLDSA65 == koid[0..slen] {
-        ret.kind=DLM;
+        ret.kind=DLM; ret.curve=USE_MLDSA65;
+    }
+    if MLDSA44 == koid[0..slen] {
+        ret.kind=DLM; ret.curve=USE_MLDSA44;
     }
     if HYBRID1 == koid[0..slen] {
         ret.kind=HY1;
@@ -1185,11 +1204,11 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
 
     let cond1:bool;
     let cond2:bool;
-    let cond3:bool;
+    //let cond3:bool;
 
     cond1=ret.kind==ECC || ret.kind==ECD || ret.kind==DLM  || ret.kind==HY1;
     cond2=ret.kind==HY1;
-    cond3=ret.kind==DLM  || ret.kind==HY1;    
+    //cond3=ret.kind==DLM  || ret.kind==HY1;    
 
     if cond1 {
         if cond2 {
@@ -1209,9 +1228,9 @@ pub fn get_public_key(c: &[u8],key: &mut [u8]) -> PKTYPE {
             j+=1;
         }
     }
-    if cond3 {
-        ret.curve=8*len;
-    }
+    //if cond3 {
+    //    ret.curve=8*len;
+    //}
     if ret.kind==RSA { // Key is (modulus,exponent) - assume exponent is 65537
         len=getalen(SEQ,c,j);
         if len==0 {

@@ -9,6 +9,14 @@
 pub const CERT_STORE_SIZE:usize=146+5;
 
 pub const CACERTS: [&str;CERT_STORE_SIZE]= [
+
+// Enter own root certificates between here
+
+
+
+// and here (and increment CERT_STORE_SIZE)
+
+
 "MIIDRTCCAi2gAwIBAgIUWLu0EMuh/gWm+UUWicWxHujrgLMwDQYJKoZIhvcNAQEL\
 BQAwMjEjMCEGA1UEAwwaVGlpZ2VyVExTIGV4YW1wbGUgcm9vdCBDQSAxCzAJBgNV\
 BAYTAkFFMB4XDTI1MDcxMDA4MDgwMFoXDTM1MDcwODA4MDgwMFowMjEjMCEGA1UE\

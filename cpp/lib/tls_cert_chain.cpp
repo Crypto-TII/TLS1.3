@@ -219,8 +219,10 @@ static bool checkCertSig(pktype st,octad *CERT,octad *SIG, octad *PUBKEY)
         res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA384,CERT,SIG,PUBKEY);
     if (st.type== X509_RSA && st.hash==X509_H512)
         res=SAL_tlsSignatureVerify(RSA_PKCS1_SHA512,CERT,SIG,PUBKEY);
-    if (st.type== X509_DLM)
+    if (st.type== X509_DLM && st.curve==USE_MLDSA65)
         res=SAL_tlsSignatureVerify(MLDSA65,CERT,SIG,PUBKEY);
+    if (st.type== X509_DLM && st.curve==USE_MLDSA44)
+        res=SAL_tlsSignatureVerify(MLDSA44,CERT,SIG,PUBKEY);
 #ifdef SQISIGN_TEST
     if (st.type== X509_SQI)
         res=SAL_tlsSignatureVerify(SQISIGN3,CERT,SIG,PUBKEY);

@@ -42,6 +42,8 @@
 //#define USE_ANSSI 3      /**< For French 256-bit standard curve - WEIERSTRASS only */
 #define USE_NIST384 10   /**< For the NIST 384-bit standard curve - WEIERSTRASS only */
 #define USE_NIST521 12   /**< For the NIST 521-bit standard curve - WEIERSTRASS only */
+#define USE_MLDSA44 13   /**< For ML-DSA44 */
+#define USE_MLDSA65 14   /**< For ML-DSA65 */
 
 extern octad X509_CN;  /**< Country Name */
 extern octad X509_ON;  /**< organisation Name */
@@ -62,7 +64,7 @@ typedef struct
 {
     int type;  /**< signature type (ECC or RSA) */
     int hash;  /**< hash type */
-    int curve; /**< elliptic curve used or RSA key length in bits  */
+    int curve; /**< sub-type, e.g. elliptic curve used or RSA key length in bits  */
 } pktype;
 
 

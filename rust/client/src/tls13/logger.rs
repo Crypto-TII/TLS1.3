@@ -183,7 +183,7 @@ pub fn log_cert_details(d: &CERT)
         log(IO_PROTOCOL,"Certificate signature is RSA of length (bits) ",8*(d.sgt.len as isize),None);
     }
     if d.sgt.kind==x509::DLM {
-        log(IO_PROTOCOL,"Certificate signature is Post Quantum (MLDSA65) of length (bits) ",8*(d.sgt.len as isize),None);
+        log(IO_PROTOCOL,"Certificate signature is Post Quantum (MLDSA) of length (bits) ",8*(d.sgt.len as isize),None);
     }
     if d.sgt.kind==x509::HY1 {
         log(IO_PROTOCOL,"Certificate signature is Hybrid (MLDSA44+ED25519) of length (bits) ",8*(d.sgt.len as isize),None);
@@ -215,7 +215,7 @@ pub fn log_cert_details(d: &CERT)
         log(IO_PROTOCOL,"Certificate public key is RSA of length (bits) ",8*(d.pkt.len as isize),None);
     }
     if d.pkt.kind==x509::DLM {
-        log(IO_PROTOCOL,"Certificate public key is Post Quantum (MLDSA65) of length (bits) ",8*(d.pkt.len as isize),None);
+        log(IO_PROTOCOL,"Certificate public key is Post Quantum (MLDSA) of length (bits) ",8*(d.pkt.len as isize),None);
     }
     if d.pkt.kind==x509::HY1 {
         log(IO_PROTOCOL,"Certificate public key is Hybrid (MLDSA44+ED25519) of length (bits) ",8*(d.pkt.len as isize),None);

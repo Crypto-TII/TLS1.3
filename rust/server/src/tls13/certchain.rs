@@ -127,9 +127,13 @@ fn check_cert_sig(st: &PKTYPE,cert: &[u8],sig: &[u8],pubkey: &[u8]) -> bool {
     if st.kind==x509::RSA && st.hash==x509::H512 {
         return sal::tls_signature_verify(RSA_PKCS1_SHA512,cert,sig,pubkey);
     }
-    if st.kind==x509::DLM {
+    if st.kind==x509::DLM && st.curve==x509::USE_MLDSA65 {
         return sal::tls_signature_verify(MLDSA65,cert,sig,pubkey);
     }
+    if st.kind==x509::DLM && st.curve==x509::USE_MLDSA44 {
+        return sal::tls_signature_verify(MLDSA44,cert,sig,pubkey);
+    }
+
 
     if st.kind==x509::HY1 {
         let sig1=&sig[0..64];

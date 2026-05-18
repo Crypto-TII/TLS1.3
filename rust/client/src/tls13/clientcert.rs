@@ -131,7 +131,12 @@ fn get_sigalg(pk: &x509::PKTYPE) -> u16 {
        return RSA_PSS_RSAE_SHA256;
     }
     if pk.kind==x509::DLM {
-        return MLDSA65;
+        if pk.curve==x509::USE_MLDSA65 {
+            return MLDSA65;
+        }
+        if pk.curve==x509::USE_MLDSA44 {
+            return MLDSA44;
+        }
     }
     if pk.kind==x509::HY1 {
         return MLDSA44_ED25519;
@@ -178,7 +183,12 @@ fn add_cert_sig_type(pk: &x509::PKTYPE,reqlen: usize,requirements: &mut [u16]) -
     }
 
     if pk.kind==x509::DLM {
-        requirements[len]=MLDSA65;
+        if pk.curve==x509::USE_MLDSA65 {
+            requirements[len]=MLDSA65;
+        }
+        if pk.curve==x509::USE_MLDSA44 {
+            requirements[len]=MLDSA44;
+        }
         len+=1;
         return len;
     }

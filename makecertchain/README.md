@@ -4,13 +4,15 @@ This allows experimentation with currently non-standardised digital signature al
 
 **IMPORTANT** Make sure to implement a true random number generator in *tls_sal_m.xpp* where indicated.
 
-Do a MIRACL+TLSECC build of the C++ client after setting CRYPTO_SETTING in *tls1_3.h* to POST_QUANTUM (to allow support for the widest range of signature algorithms)
+Set CRYPTO_SETTING in *tls1_3.h* to POST_QUANTUM (to allow support for the widest range of signature algorithms). 
+
+Then do a MIRACL+TLSECC build of the C++ client. Build the rust server using the default configuration.
 
 Copy the files *makerootcert.cpp*, *makeintercert.cpp*, *makeleafcert.cpp* from here into the build directory and edit where indicated to specify your certificate details and preferred signature types
 
-	g++ -O2 makerootcert.cpp libtiitls.a core.a -o makerootcert
-	g++ -O2 makeintercert.cpp libtiitls.a core.a -o makeintercert
-	g++ -O2 makeleafcert.cpp libtiitls.a core.a -o makeleafcert
+	g++ -O2 makerootcert.cpp libtiitls.a core.a tlsecc.a -o makerootcert
+	g++ -O2 makeintercert.cpp libtiitls.a core.a tlsecc.a -o makeintercert
+	g++ -O2 makeleafcert.cpp libtiitls.a core.a tlsecc.a -o makeleafcert
 
 Then 
 	./makerootcert
@@ -44,10 +46,6 @@ Copy *certchain.pem* and *leaf.key* to the *servercert* directory. Once there re
 Important to note that the contents of *root.crt* must be added manually to the *tls_cacerts.cpp* and *cacert.rs* files. Use the provided *convert.cpp* tool to automatically generate C++ and Rust compatible code.
 
 Rebuild the C++ client.
-
-Move to the directory *rust/server/src* and edit the *config.rs* file and ensure the following setting. Its the default.
-
-	pub const SERVER\_CERT:usize= FROM_FILE; 
 
 Finally run the Rust server application from *rust/server*. The server can use the new certificate chain, and the client will validate it against its built-in copy of the root certificate.
 

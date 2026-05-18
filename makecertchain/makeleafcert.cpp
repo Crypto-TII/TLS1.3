@@ -15,6 +15,7 @@
 #define RSA_PK 3
 #define ED25519_PK 7
 #define ED448_PK 8
+#define MLDSA444_PK 9
 #define MLDSA65_PK 10
 #define ED25519_MLDSA44_PK 11  // Hybrid
 
@@ -30,6 +31,7 @@
 #define RSASHA512_SIG 6
 #define ED25519_SIG 7
 #define ED448_SIG 8
+#define MLDSA44_SIG 9
 #define MLDSA65_SIG 10
 #define ED25519_MLDSA44_SIG 11
 
@@ -119,6 +121,14 @@ static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0
 #define PK_SIZE 1952
 #define PK_TYPE MLDSA_KP
 #endif
+
+#if PKTYPE==MLDSA44_PK
+static unsigned char pk_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x11};
+#define SB_SK_SIZE 2560
+#define PK_SIZE 1312
+#define PK_TYPE MLDSA_KP
+#endif
+
 #if PKTYPE==ED25519_MLDSA44_PK
 static unsigned char pk_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x0C,0x06};
 #define HYBRID_PK
@@ -208,6 +218,15 @@ static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,
 #define SIG_SIZE 3309
 #define SIG_TYPE MLDSA65
 #endif
+
+#if SIGTYPE==MLDSA44_SIG
+static unsigned char sig_oid[11] = {OID,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x11};
+#define IS_PK_SIZE 1312
+#define SK_SIZE 2560
+#define SIG_SIZE 2420
+#define SIG_TYPE MLDSA44
+#endif
+
 #if SIGTYPE==ED25519_MLDSA44_SIG
 static unsigned char sig_oid[7] = {OID,0x05,0x2B,0xCE,0x0F,0x0C,0x06};
 #define HYBRID_SIG
@@ -493,7 +512,7 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
 #endif
 
 // MLDSA or EDDSA
-#if PKTYPE==MLDSA65_PK || PKTYPE==ED25519_PK || PKTYPE==ED448_PK
+#if PKTYPE==MLDSA65_PK || PKTYPE==MLDSA44_PK || PKTYPE==ED25519_PK || PKTYPE==ED448_PK
     OCT_append_octad(&PKINFO,&PK_OID);  // PK_OID = 06 09 ....
     wrap(SEQ,&PKINFO);
 
@@ -518,7 +537,7 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
     wrap(SEQ,&PKINFO);
 
     OCT_append_octad(&PK,PUBLIC_KEY); OCT_append_octad(&PK,PUBLIC_KEY2);
-    insertbyte(&PK,0x20); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x20=32 = length of EC public key    
+    insertbyte(&PK,PK_SIZE_1); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x20=32 = length of EC public key    
     wrap(BIT,&PK);
 
     OCT_append_octad(&PKINFO,&PK);
@@ -532,7 +551,7 @@ static void add_publickey(octad *TOTAL,octad *PUBLIC_KEY,octad *PUBLIC_KEY2)
     wrap(SEQ,&PKINFO);
 
     OCT_append_octad(&PK,PUBLIC_KEY); OCT_append_octad(&PK,PUBLIC_KEY2);
-    insertbyte(&PK,0x30); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x30=48 = length of EC public key    
+    insertbyte(&PK,PK_SIZE_1); insertbyte(&PK,0x00); insertbyte(&PK,0x00); insertbyte(&PK,0x00); // 0x30=48 = length of EC public key    
     wrap(BIT,&PK);
 
     OCT_append_octad(&PKINFO,&PK);
@@ -807,7 +826,7 @@ void create_private(octad *PRIVATE,octad *RAWPRIVATE,octad *RAWPRIVATE2) {
         wrap(SEQ,PRIVATE);
 #endif
 
-#if PKTYPE==MLDSA65_PK
+#if PKTYPE==MLDSA65_PK || PKTYPE==MLDSA44_PK
         unsigned char pk[5000];
         octad PK={0,5000,(char *)pk};
         OCT_append_octad(&ANOID,&PK_OID);
@@ -1006,14 +1025,26 @@ int main() {
             #endif
             break;
         case X509_DLM :
-            #if SIGTYPE==MLDSA65_SIG
-                if (SK_SIZE*8==ret.curve) valid=true;
-            #endif
+            if (ret.curve==USE_MLDSA44)
+            {
+                #if SIGTYPE==MLDSA44_SIG
+                    valid=true;
+                #endif
+            }
+            if (ret.curve==USE_MLDSA65)
+            {
+                #if SIGTYPE==MLDSA65_SIG
+                    valid=true;
+                #endif
+            }
             break;
         case X509_HY1:
-            #if SIGTYPE==ED25519_MLDSA44_SIG
-                if ((SK_SIZE_1+SK_SIZE_2)*8==ret.curve) valid=true;   
-            #endif
+            if (ret.curve==USE_ED25519)
+            {
+                #if SIGTYPE==ED25519_MLDSA44_SIG
+                    valid=true;
+                #endif
+            }
             break;
 #ifdef SQISIGN_TEST
         case X509_SQI :
@@ -1022,9 +1053,12 @@ int main() {
             #endif
             break;
         case X509_HY2:
-            #if SIGTYPE==ED376_SQISIGN3_SIG
-                if ((SK_SIZE_1+SK_SIZE_2)*8==ret.curve) valid=true; 
-            #endif
+            if (ret.curve==USE_ED376)
+            {
+                #if SIGTYPE==ED376_SQISIGN3_SIG
+                    valid=true; 
+                #endif
+            }
             break;
 #endif
         default:

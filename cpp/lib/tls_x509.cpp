@@ -88,6 +88,11 @@ static octad RSASHA512 = {9, sizeof(rsasha512), (char *)rsasha512};
 static unsigned char mldsa65[9] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x12};
 static octad MLDSA65 = {9, sizeof(mldsa65), (char *)mldsa65};
 
+// MLDSA44 - official
+static unsigned char mldsa44[9] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x11};
+static octad MLDSA44 = {9, sizeof(mldsa44), (char *)mldsa44};
+
+
 // MLDSA44+ED25519 - unofficial
 static unsigned char hybrid1[5]={0x2B,0xCE,0x0F,0x0C,0x06};
 static octad HYBRID1 = {5,sizeof(hybrid1), (char *)hybrid1};
@@ -364,8 +369,8 @@ pktype X509_extract_private_key(octad *c,octad *pk)
         ret.curve = USE_ED448;
     }
 
-    if (OCT_compare(&MLDSA65, &SOID))
-    { // Its an MLDSA65 key
+    if (OCT_compare(&MLDSA65, &SOID) || OCT_compare(&MLDSA44, &SOID))
+    { // Its an MLDSA key
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
         j += skip(len);
@@ -388,7 +393,9 @@ pktype X509_extract_private_key(octad *c,octad *pk)
             pk->val[i]=c->val[j++];
         pk->len=tlen;
         ret.type=X509_DLM;
-        ret.curve=8*tlen;
+        if (OCT_compare(&MLDSA65, &SOID)) ret.curve=USE_MLDSA65;
+        if (OCT_compare(&MLDSA44, &SOID)) ret.curve=USE_MLDSA44;
+        //ret.curve=8*tlen;
     }
 
 #ifdef SQISIGN_TEST_X509
@@ -459,7 +466,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
             pk->val[len+i]=c->val[j++];
 
         ret.type=X509_HY1;
-        ret.curve=8*pk->len;
+        ret.curve=USE_ED25519; // 8*pk->len;
 /*
         len = getalen(OCT, c->val, j);
         if (len < 0) return ret;
@@ -538,7 +545,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
             pk->val[len+i]=c->val[j++];
 
         ret.type=X509_HY2;
-        ret.curve=8*pk->len;
+        ret.curve=USE_ED376; //8*pk->len;
     }
 #endif
 
@@ -758,6 +765,13 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
     {
         ret.type = X509_DLM;
         ret.hash = 0; // hash type is implicit
+        ret.curve= USE_MLDSA65;
+    }
+    if (OCT_compare(&MLDSA44, &SOID))
+    {
+        ret.type = X509_DLM;
+        ret.hash = 0; // hash type is implicit
+        ret.curve= USE_MLDSA44;
     }
 
 #ifdef SQISIGN_TEST_X509
@@ -770,6 +784,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
     {
         ret.type = X509_HY2;
         ret.hash = 0; // hash type is implicit
+        ret.curve=USE_ED376;
     }  
 #endif
 
@@ -777,6 +792,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
     {
         ret.type = X509_HY1;
         ret.hash = 0; // hash type is implicit
+        ret.curve = USE_ED25519;
     }
     if (ret.type == 0) return ret; // unsupported type
 
@@ -914,7 +930,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         fin = j + len;
         for (i=0; j < fin; j++)
             sig->val[i++] = sc->val[j];
-        ret.curve = 8*len;
+        //ret.curve = 8*len;
     }
 
 #ifdef SQISIGN_TEST_X509
@@ -1158,11 +1174,16 @@ pktype X509_get_public_key(octad *c,octad *key)
     if (OCT_compare(&EDPK25519, &KOID)) {ret.type = X509_ECD; ret.curve=USE_ED25519;}
     if (OCT_compare(&EDPK448, &KOID)) {ret.type = X509_ECD;  ret.curve=USE_ED448;}
     if (OCT_compare(&RSAPK, &KOID)) ret.type = X509_RSA;
-    if (OCT_compare(&MLDSA65, &KOID)) ret.type = X509_DLM;
-    if (OCT_compare(&HYBRID1, &KOID)) ret.type = X509_HY1;
+
+    if (OCT_compare(&MLDSA65, &KOID)) {ret.type = X509_DLM; ret.curve=USE_MLDSA65;}
+    if (OCT_compare(&MLDSA44, &KOID)) {ret.type = X509_DLM; ret.curve=USE_MLDSA44;}
+
+    //if (OCT_compare(&MLDSA65, &KOID) || OCT_compare(&MLDSA44, &KOID)) ret.type = X509_DLM;
+
+    if (OCT_compare(&HYBRID1, &KOID)) {ret.type = X509_HY1; ret.curve=USE_ED25519;}
 #ifdef SQISIGN_TEST_X509
     if (OCT_compare(&SQISIGN3, &KOID)) ret.type = X509_SQI; 
-    if (OCT_compare(&HYBRID2, &KOID)) ret.type = X509_HY2;    
+    if (OCT_compare(&HYBRID2, &KOID)) {ret.type = X509_HY2; ret.curve=USE_ED376;}    
 #endif
 
     if (ret.type == 0) return ret;
@@ -1236,12 +1257,9 @@ pktype X509_get_public_key(octad *c,octad *key)
 
     }
 #ifdef SQISIGN_TEST_X509
-    if (ret.type == X509_DLM  || ret.type == X509_SQI  || ret.type == X509_HY1 || ret.type == X509_HY2) 
-#else
-    if (ret.type == X509_DLM  || ret.type == X509_HY1) 
-#endif
+    if (ret.type == X509_SQI}
         ret.curve=8*len;
-
+#endif
     if (ret.type == X509_RSA)
     {
         // Key is (modulus,exponent) - assume exponent is 65537

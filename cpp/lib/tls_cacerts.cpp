@@ -15,6 +15,13 @@
 // after that all globally accepted CAs
 
 const char *cacerts=(char *)
+
+// Enter own root certificates between here
+
+
+
+// and here
+
 "-----BEGIN CERTIFICATE-----\n"
 "MIIDRTCCAi2gAwIBAgIUWLu0EMuh/gWm+UUWicWxHujrgLMwDQYJKoZIhvcNAQEL\n"
 "BQAwMjEjMCEGA1UEAwwaVGlpZ2VyVExTIGV4YW1wbGUgcm9vdCBDQSAxCzAJBgNV\n"
