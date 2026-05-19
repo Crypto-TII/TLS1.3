@@ -46,8 +46,10 @@
 #define ISSUER_UNIT ""
 #define ISSUER_COUNTRY "AE"
 #define SELF_ADDRESS "localhost"     // comment out for test client, leave in for test server
+
 #define PKTYPE RSA_PK    // these must match..
 #define SIGTYPE RSASHA256_SIG  // for self-signed
+
 #if SIGTYPE==RSASHA256_SIG || SIGTYPE==RSASHA384_SIG || SIGTYPE==RSASHA512_SIG
 #define RSA_IS_KEYLEN (2048/8)  // RSA only - issuer key length - use either 2048 or 4096
 #endif

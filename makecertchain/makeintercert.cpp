@@ -49,6 +49,7 @@
 #define SUBJECT_ORG "Tii Trust Services"
 #define SUBJECT_UNIT ""
 #define SUBJECT_COUNTRY "AE"
+
 #define PKTYPE RSA_PK // Intermediate cert public key type
 #define SIGTYPE RSASHA256_SIG // Root CA signature
 
@@ -1024,9 +1025,12 @@ int main() {
             break;
 #ifdef SQISIGN_TEST
         case X509_SQI :
-            #if SIGTYPE==SQISIGN3_SIG
-                if (SK_SIZE*8==ret.curve) valid=true;
-            #endif
+            if (ret.curve==USE_SQISIGN3)
+            {
+                #if SIGTYPE==SQISIGN3_SIG
+                    valid=true;
+                #endif
+            }
             break;
         case X509_HY2:
             if (ret.curve==USE_ED376)

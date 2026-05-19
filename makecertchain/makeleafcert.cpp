@@ -15,7 +15,7 @@
 #define RSA_PK 3
 #define ED25519_PK 7
 #define ED448_PK 8
-#define MLDSA444_PK 9
+#define MLDSA44_PK 9
 #define MLDSA65_PK 10
 #define ED25519_MLDSA44_PK 11  // Hybrid
 
@@ -51,6 +51,7 @@
 #define SUBJECT_UNIT ""
 #define SUBJECT_COUNTRY "AE"
 #define LEAF_ADDRESS "localhost"   // comment out for test client, leave in for test server
+
 #define PKTYPE NIST256_PK // Server cert public key type
 #define SIGTYPE RSASHA256_SIG // Intermediate CA signature
 
@@ -1048,9 +1049,12 @@ int main() {
             break;
 #ifdef SQISIGN_TEST
         case X509_SQI :
-            #if SIGTYPE==SQISIGN3_SIG
-                if (SK_SIZE*8==ret.curve) valid=true;
-            #endif
+            if (ret.curve==USE_SQISIGN3)
+            {
+                #if SIGTYPE==SQISIGN3_SIG
+                    valid=true;
+                #endif
+            }
             break;
         case X509_HY2:
             if (ret.curve==USE_ED376)

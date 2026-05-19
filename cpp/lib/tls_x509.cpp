@@ -97,7 +97,6 @@ static octad MLDSA44 = {9, sizeof(mldsa44), (char *)mldsa44};
 static unsigned char hybrid1[5]={0x2B,0xCE,0x0F,0x0C,0x06};
 static octad HYBRID1 = {5,sizeof(hybrid1), (char *)hybrid1};
 
-
 #ifdef SQISIGN_TEST_X509
 // SQISIGN - unofficial
 static unsigned char sqisign3[9] = {0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x03,0x20};
@@ -109,8 +108,6 @@ static unsigned char hybrid2[5]={0x2B,0xCE,0x0F,0x0C,0x01};
 static octad HYBRID2 = {5,sizeof(hybrid2), (char *)hybrid2};
 
 #endif
-
-
 
 // Cert details
 // countryName
@@ -423,7 +420,7 @@ pktype X509_extract_private_key(octad *c,octad *pk)
             pk->val[i]=c->val[j++];
         pk->len=tlen;
         ret.type=X509_SQI;
-        ret.curve=8*tlen;
+        ret.curve=USE_SQISIGN3; //*tlen;
     }    
 #endif
 
@@ -779,6 +776,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
     {
         ret.type = X509_SQI;
         ret.hash = 0; // hash type is implicit
+        ret.curve = USE_SQISIGN3;
     } 
     if (OCT_compare(&HYBRID2, &SOID))
     {
@@ -945,7 +943,7 @@ pktype X509_extract_cert_sig(octad *sc, octad *sig)
         fin = j + len;
         for (i=0; j < fin; j++)
             sig->val[i++] = sc->val[j];
-        ret.curve = 8*len;
+        ret.curve = USE_SQISIGN3; //8*len;
     }
 #endif
 
@@ -1182,7 +1180,7 @@ pktype X509_get_public_key(octad *c,octad *key)
 
     if (OCT_compare(&HYBRID1, &KOID)) {ret.type = X509_HY1; ret.curve=USE_ED25519;}
 #ifdef SQISIGN_TEST_X509
-    if (OCT_compare(&SQISIGN3, &KOID)) ret.type = X509_SQI; 
+    if (OCT_compare(&SQISIGN3, &KOID)) {ret.type = X509_SQI; ret.curve=USE_SQISIGN3;}
     if (OCT_compare(&HYBRID2, &KOID)) {ret.type = X509_HY2; ret.curve=USE_ED376;}    
 #endif
 
@@ -1256,10 +1254,10 @@ pktype X509_get_public_key(octad *c,octad *key)
             key->val[i++] = c->val[j];
 
     }
-#ifdef SQISIGN_TEST_X509
-    if (ret.type == X509_SQI}
-        ret.curve=8*len;
-#endif
+//#ifdef SQISIGN_TEST_X509
+//    if (ret.type == X509_SQI}
+//        ret.curve=8*len;
+//#endif
     if (ret.type == X509_RSA)
     {
         // Key is (modulus,exponent) - assume exponent is 65537

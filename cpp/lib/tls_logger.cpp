@@ -342,7 +342,7 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
 
 #ifdef SQISIGN_TEST
     if (sg.type==X509_SQI)
-        log(IO_PROTOCOL,(char *)"Certificate signature is Post Quantum (SQISIGN3) of length (bits) ",(char *)"%d",8*SIG->len,NULL);
+        log(IO_PROTOCOL,(char *)"Certificate signature is Post Quantum (SQISIGN) of length (bits) ",(char *)"%d",8*SIG->len,NULL);
 
     if (sg.type==X509_HY2)
         log(IO_PROTOCOL,(char *)"Certificate signature is Hybrid (SQISIGN3+ED376) of length (bits) ",(char *)"%d",8*SIG->len,NULL);
@@ -379,7 +379,7 @@ void logCertDetails(octad *PUBKEY,pktype pk,octad *SIG,pktype sg,octad *ISSUER,o
 
 #ifdef SQISIGN_TEST
     if (pk.type==X509_SQI)
-        log(IO_PROTOCOL,(char *)"Certificate public key is Post Quantum (SQISIGN3) of length (bits) ",(char *)"%d",8*PUBKEY->len,NULL);
+        log(IO_PROTOCOL,(char *)"Certificate public key is Post Quantum (SQISIGN) of length (bits) ",(char *)"%d",8*PUBKEY->len,NULL);
 
     if (pk.type==X509_HY2)
         log(IO_PROTOCOL,(char *)"Certificate public key is Hybrid (SQISIGN3+ED376) of length (bits) ",(char *)"%d",8*PUBKEY->len,NULL);

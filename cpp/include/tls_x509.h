@@ -44,6 +44,9 @@
 #define USE_NIST521 12   /**< For the NIST 521-bit standard curve - WEIERSTRASS only */
 #define USE_MLDSA44 13   /**< For ML-DSA44 */
 #define USE_MLDSA65 14   /**< For ML-DSA65 */
+#ifdef SQISIGN_TEST_X509
+#define USE_SQISIGN3 21  /**< For SQIsign level 3 */
+#endif
 
 extern octad X509_CN;  /**< Country Name */
 extern octad X509_ON;  /**< organisation Name */

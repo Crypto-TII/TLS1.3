@@ -19,6 +19,9 @@ cd ../../../
 # Copy built library and includes to SAL
 cp .temp/core/cpp/core.a sal/miracl
 cp .temp/core/cpp/*.h sal/miracl/includes
+
+# Get sqisign.h and libsqisign.a from where-ever....
+
 cp ../../sqisign/lib/libsqisign_lvl3_apitiigertls.a sal/miracl/libsqisign.a
 cp ../../sqisign/include/lvl3/apitiigertls.h sal/miracl/includes/sqisign.h
 
