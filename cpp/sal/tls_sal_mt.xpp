@@ -15,10 +15,10 @@ extern "C" {
 #if CRYPTO_SETTING>=TYPICAL
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
+#include "kyber.h"
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
 #include "dilithium.h"
-#include "kyber.h"
 
 #ifdef SQISIGN_TEST
 extern "C" {
@@ -64,11 +64,18 @@ int SAL_ciphers(int *ciphers)
 int SAL_groups(int *groups)
 {
     int n=0;
-#if CRYPTO_SETTING==TINY_ECC || CRYPTO_SETTING==TYPICAL
+#if CRYPTO_SETTING==TINY_ECC
     n=3;
     groups[0]=X25519;
     groups[1]=SECP256R1;
     groups[2]=SECP384R1;
+#endif
+#if CRYPTO_SETTING==TYPICAL
+    n=4;
+    groups[0]=HYBRID_KX;
+    groups[1]=X25519;
+    groups[2]=SECP256R1;
+    groups[3]=SECP384R1;
 #endif
 #if CRYPTO_SETTING==POST_QUANTUM
     n=5;
@@ -381,14 +388,7 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
 	MC_SK.len=48; MC_PK.len=97;
         NIST384_KEY_PAIR(false, MC_SK.val, MC_PK.val);
     }
-#if CRYPTO_SETTING>=POST_QUANTUM
-    if (group==MLKEM768)
-    {
-        byte r64[64];
-        for (int i=0;i<64;i++)
-            r64[i]=SAL_randomByte();
-        KYBER768_keypair(r64,&MC_SK,&MC_PK);
-    }
+#if CRYPTO_SETTING>=TYPICAL
     if (group==HYBRID_KX)
     {
         byte r64[64];
@@ -409,6 +409,15 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         OCT_joctet(&MC_SK,&MYSK);
         OCT_joctet(&MC_PK,&MYPK);
 
+    }
+#endif
+#if CRYPTO_SETTING>=POST_QUANTUM
+    if (group==MLKEM768)
+    {
+        byte r64[64];
+        for (int i=0;i<64;i++)
+            r64[i]=SAL_randomByte();
+        KYBER768_keypair(r64,&MC_SK,&MC_PK);
     }
 #endif
     SK->len=MC_SK.len;
@@ -439,10 +448,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         MC_SS.len=48;
         if (res==0) error=true;
     }
-#if CRYPTO_SETTING>=POST_QUANTUM
-    if (group==MLKEM768) {
-        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
-    }
+#if CRYPTO_SETTING>=TYPICAL
     if (group==HYBRID_KX) {
         char mysk[32],mypk[32],myss[32];
         octet MYSK={0,sizeof(mysk),mysk};
@@ -459,6 +465,11 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         OCT_joctet(&MC_SS,&MYSS);
         OCT_joctet(&MC_SK,&MYSK);
         OCT_joctet(&MC_PK,&MYPK);
+    }
+#endif
+#if CRYPTO_SETTING>=POST_QUANTUM
+    if (group==MLKEM768) {
+        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
     }
 #endif
     SK->len=MC_SK.len;

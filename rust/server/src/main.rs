@@ -43,6 +43,7 @@ fn name_ciphers(cipher_suite: u16) {
 /// Name the key exchange group
 fn name_group(group: u16) {
     match group {
+        HYBRID_KX => println!("MLKEM768X25519"),
         X25519 => println!("X25519"),
         SECP256R1 => println!("SECP256R1"),   
         SECP384R1 => println!("SECP384R1"),   

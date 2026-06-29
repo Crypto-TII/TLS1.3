@@ -23,12 +23,12 @@ extern "C" {
 #if CRYPTO_SETTING>=TYPICAL
 #include "rsa_RSA2048.h"
 #include "rsa_RSA4096.h"
+#include "kyber.h"
 #include "eddsa_Ed25519.h"
 #include "eddsa_Ed448.h"
 #endif
 #if CRYPTO_SETTING>=POST_QUANTUM
 #include "dilithium.h"
-#include "kyber.h"
 #endif
 
 using namespace core;
@@ -69,11 +69,18 @@ int SAL_ciphers(int *ciphers)
 int SAL_groups(int *groups)
 {
     int n=0;
-#if CRYPTO_SETTING==TINY_ECC || CRYPTO_SETTING==TYPICAL
+#if CRYPTO_SETTING==TINY_ECC
     n=3;
     groups[0]=X25519;
     groups[1]=SECP256R1; // maybe put it first, as we have h/w support for it. But many servers do not support it, and that leads to expensive handshake retries
     groups[2]=SECP384R1;
+#endif
+#if CRYPTO_SETTING==TYPICAL
+    n=4;
+    groups[0]=HYBRID_KX;
+    groups[1]=X25519;
+    groups[2]=SECP256R1;
+    groups[3]=SECP384R1;
 #endif
 #if CRYPTO_SETTING==POST_QUANTUM
     n=5;
@@ -426,19 +433,18 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
     if (group==X25519)
     { // Use Thomas Pornin's x25519 function
 
-		uint8_t g[32];
-		memset(g, 0, sizeof g);
-		g[0] = 0x09;  // x25519 generator point
+	uint8_t g[32];
+	memset(g, 0, sizeof g);
+	g[0] = 0x09;  // x25519 generator point
         SAL_randomOctad(32,SK);
         SK->val[31]&=248;  
         SK->val[0]&=127;
         SK->val[0]|=64;
         MC_SK.len=32;
-		OCT_reverse(&MC_SK);  // to little-endian
-		x25519((uint8_t *)MC_PK.val,g,(uint8_t *)MC_SK.val);
-		OCT_reverse(&MC_SK);  // convert back
-		MC_PK.len=32;
-
+	OCT_reverse(&MC_SK);  // to little-endian
+	x25519((uint8_t *)MC_PK.val,g,(uint8_t *)MC_SK.val);
+	OCT_reverse(&MC_SK);  // convert back
+	MC_PK.len=32;
     }
     if (group==SECP256R1)
     { // Use ECCX08 chip
@@ -454,14 +460,7 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         SAL_randomOctad(48,SK);
         NIST384::ECP_KEY_PAIR_GENERATE(NULL, &MC_SK, &MC_PK);
     }
-#if CRYPTO_SETTING>=POST_QUANTUM
-    if (group==MLKEM768)
-    {
-        byte r64[64];
-        for (int i=0;i<64;i++)
-            r64[i]=SAL_randomByte();
-        KYBER768_keypair(r64,&MC_SK,&MC_PK);
-    }
+#if CRYPTO_SETTING>=TYPICAL
     if (group==HYBRID_KX) {
         byte r64[64];
         for (int i=0;i<64;i++)
@@ -472,22 +471,31 @@ void SAL_generateKeyPair(int group,octad *SK,octad *PK)
         octet MYSK={0,sizeof(mysk),mysk};
         octet MYPK={0,sizeof(mypk),mypk};
 
-		uint8_t g[32];
-		memset(g, 0, sizeof g);
-		g[0] = 0x09;  // x25519 generator point
+	uint8_t g[32];
+	memset(g, 0, sizeof g);
+	g[0] = 0x09;  // x25519 generator point
         for (int i=0;i<32;i++)
             MYSK.val[i]=SAL_randomByte();
         MYSK.len=32;
         MYSK.val[31]&=248;  
         MYSK.val[0]&=127;
         MYSK.val[0]|=64;
-		OCT_reverse(&MYSK);  // to little-endian
-		x25519((uint8_t *)MYPK.val,g,(uint8_t *)MYSK.val);
-		OCT_reverse(&MYSK);  // convert back
-		MYPK.len=MYSK.len=32;
+	OCT_reverse(&MYSK);  // to little-endian
+	x25519((uint8_t *)MYPK.val,g,(uint8_t *)MYSK.val);
+	OCT_reverse(&MYSK);  // convert back
+	MYPK.len=MYSK.len=32;
         OCT_joctet(&MC_SK,&MYSK);
         OCT_joctet(&MC_PK,&MYPK);
 
+    }
+#endif
+#if CRYPTO_SETTING>=POST_QUANTUM
+    if (group==MLKEM768)
+    {
+        byte r64[64];
+        for (int i=0;i<64;i++)
+            r64[i]=SAL_randomByte();
+        KYBER768_keypair(r64,&MC_SK,&MC_PK);
     }
 #endif
     SK->len=MC_SK.len;
@@ -519,10 +527,7 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
     if (group==SECP384R1) {
         res=NIST384::ECP_SVDP_DH(&MC_SK, &MC_PK, &MC_SS,0);
     }
-#if CRYPTO_SETTING>=POST_QUANTUM
-    if (group==MLKEM768) {
-        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
-    }
+#if CRYPTO_SETTING>=TYPICAL
     if (group==HYBRID_KX) {
         char mysk[32],mypk[32],myss[32];
         octet MYSK={0,sizeof(mysk),mysk};
@@ -540,6 +545,11 @@ bool SAL_generateSharedSecret(int group,octad *SK,octad *PK,octad *SS)
         OCT_joctet(&MC_SS,&MYSS);
         OCT_joctet(&MC_SK,&MYSK);
         OCT_joctet(&MC_PK,&MYPK);
+    }
+#endif
+#if CRYPTO_SETTING>=POST_QUANTUM
+    if (group==MLKEM768) {
+        KYBER768_decrypt(&MC_SK,&MC_PK,&MC_SS);
     }
 #endif
     SK->len=MC_SK.len;

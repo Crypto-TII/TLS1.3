@@ -155,9 +155,9 @@ typedef uint64_t unsign64;      /**< 64-bit unsigned integer */
  #define TLS_MAX_SIG_SECRET_KEY_SIZE 1280    /**< Max signature private key size in bytes       4096-bit RSA */
  #define TLS_MAX_SIGNATURE_SIZE 512          /**< Max digital signature size in bytes           4096-bit RSA */
  
- #define TLS_MAX_KEX_PUB_KEY_SIZE 97         /**< Max key exchange public key size in bytes        384-bit ECC */
- #define TLS_MAX_KEX_CIPHERTEXT_SIZE 97      /**< Max key exchange (KEM) ciphertext size        384-bit ECC */
- #define TLS_MAX_KEX_SECRET_KEY_SIZE 48      /**< Max key exchange private key size in bytes    384-bit ECC */
+ #define TLS_MAX_KEX_PUB_KEY_SIZE 1184+32         /**< Max key exchange public key size in bytes     MLKEM768+X25519 */
+ #define TLS_MAX_KEX_CIPHERTEXT_SIZE 1088+32      /**< Max key exchange (KEM) ciphertext size        MLKEM768+X25519 */
+ #define TLS_MAX_KEX_SECRET_KEY_SIZE 2400+32      /**< Max key exchange private key size in bytes    MLKEM768+X25519 */
 #endif
 
 #if CRYPTO_SETTING == POST_QUANTUM
