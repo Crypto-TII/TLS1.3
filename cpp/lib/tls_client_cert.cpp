@@ -2,6 +2,13 @@
 // Client Certificate data stored here
 // My private key and my certificate
 //
+
+
+// NOTE: Some private keys associated with self-signed certificates are exposed here as examples only.
+// DO NOT use in actual deployments!!!
+// In small embedded devices with no file storage system this may be necessary
+// Generate and use your own certificate chain and private keys
+
 #include <stdlib.h>
 #include "tls_certs.h"
 #include "tls_x509.h"

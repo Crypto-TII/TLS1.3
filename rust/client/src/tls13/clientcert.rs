@@ -1,6 +1,11 @@
 
 //! Client Certificate and private key stored here
 
+// NOTE: Some private keys associated with self-signed certificates are exposed here as examples only.
+// DO NOT use in actual deployments!!!
+// In small embedded devices with no file storage system this may be necessary
+// Generate and use your own certificate chain and private keys
+
 use crate::config::*;
 use crate::tls13::utils;
 use crate::tls13::x509;

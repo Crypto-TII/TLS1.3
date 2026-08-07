@@ -48,7 +48,6 @@ fn name_group(group: u16) {
         SECP256R1 => println!("SECP256R1"),   
         SECP384R1 => println!("SECP384R1"),   
         MLKEM768 => println!("MLKEM768"),
-        SIDH => println!("SIDH"),
         _ => println!("Non-standard")
     }
 }

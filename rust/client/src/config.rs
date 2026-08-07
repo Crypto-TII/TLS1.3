@@ -167,7 +167,6 @@ pub const X25519: u16 = 0x001d;
 pub const SECP256R1: u16 = 0x0017;
 pub const SECP384R1: u16 = 0x0018;
 pub const MLKEM768: u16 = 0x0201;
-pub const SIDH: u16 = 0x4243;
 pub const HYBRID_KX: u16 = 0x11ec;
 //pub const SECP521R1: u16 = 0x0019;
 //pub const X448: u16 = 0x001e;
